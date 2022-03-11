@@ -48,9 +48,9 @@ class TestContrastiveLossWithTemperature(unittest.TestCase):
         torch.manual_seed(1234)
         clip_loss = ContrastiveLossWithTemperature()
         clip_loss = clip_loss.to(get_current_device())
-        img_embeddings = torch.randn(3, 5)
+        image_embeddings = torch.randn(3, 5)
         text_embeddings = torch.randn(3, 5)
-        loss = clip_loss(img_embeddings=img_embeddings, text_embeddings=text_embeddings)
+        loss = clip_loss(image_embeddings=image_embeddings, text_embeddings=text_embeddings)
         self.assertEqual(loss.size(), torch.Size([]))
         self.assertAlmostEqual(loss.item(), 9.8753, 3)
 

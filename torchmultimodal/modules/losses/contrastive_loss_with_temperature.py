@@ -5,13 +5,115 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
-from typing import Tuple
+from typing import Optional, Tuple
 
 import torch
 import torch.nn.functional as F
 from torch import nn
 from torch.distributed import all_gather as all_gather_no_backprop
 from torch.distributed.nn.functional import all_gather as all_gather_with_backprop
+
+
+def _gather_embeddings_and_labels(
+    image_embeddings: torch.Tensor,
+    text_embeddings: torch.Tensor,
+    backprop_in_gather: bool = True,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    if not torch.distributed.is_available() or not torch.distributed.is_initialized():
+        labels = torch.arange(image_embeddings.size(0), device=image_embeddings.device)
+        return image_embeddings, text_embeddings, labels
+
+    # image_embeddings has shape [local_batch_size, embedding_dim]
+    local_batch_size = image_embeddings.size(0)
+
+    world_size = torch.distributed.get_world_size()
+
+    # This uses the all_gather from torch.distributed.nn.functional,
+    # which backpropagates gradients to all workers
+    if backprop_in_gather:
+        img_embeddings_all_gpus = all_gather_with_backprop(image_embeddings)
+        text_embeddings_all_gpus = all_gather_with_backprop(text_embeddings)
+
+    # Otherwise just backprop to the current worker
+    # This means that the image gradients on a given worker will only
+    # consider the text samples from the same worker
+    else:
+        text_embeddings_all_gpus = [
+            torch.zeros_like(text_embeddings) for _ in range(world_size)
+        ]
+        img_embeddings_all_gpus = [
+            torch.zeros_like(image_embeddings) for _ in range(world_size)
+        ]
+        all_gather_no_backprop(img_embeddings_all_gpus, image_embeddings)
+        all_gather_no_backprop(text_embeddings_all_gpus, text_embeddings)
+
+    labels = local_batch_size * torch.distributed.get_rank() + torch.arange(
+        local_batch_size, device=image_embeddings.device
+    )
+
+    return (
+        torch.cat(img_embeddings_all_gpus),
+        torch.cat(text_embeddings_all_gpus),
+        labels,
+    )
+
+
+def contrastive_loss_with_temperature(
+    image_embeddings: torch.Tensor,
+    text_embeddings: torch.Tensor,
+    logit_scale: nn.Parameter,
+    mask: Optional[torch.Tensor] = None,
+    backprop_in_gather: bool = True,
+):
+    """Functional component for the ContrastiveLossWithTemperature. Please
+    check the class for more details
+
+    Args:
+        image_embeddings (Tensor): Tensor containing image features.
+            (In the CLIP model, these are the outputs of the image encoder.)
+        text_embeddings (Tensor): Tensor containing text features.
+            (In the CLIP model, these are the outputs of the text encoder.)
+        logit_scale (nn.Parameter): Parameter with value of log of the learned temperature
+        mask (Optional[torch.Tensor], optional): If certain elements of the inputs shouldn't
+            be considered in the loss calculation use this option to pass a boolean
+            mask. Size is (BatchSize,). Defaults to None.
+        backprop_in_gather (bool): Whether to backpropagate the gradients from
+            all_gather to all workers (versus just the local worker).
+
+    Returns:
+        torch.Tensor: calculated contrastive loss
+    """
+
+    # this temperature implementation follows CLIP Figure 3
+    temperature = torch.exp(logit_scale)
+
+    (
+        img_embeddings_all_gpus,
+        text_embeddings_all_gpus,
+        labels,
+    ) = _gather_embeddings_and_labels(
+        image_embeddings, text_embeddings, backprop_in_gather
+    )
+
+    # logits_per_image has shape [local_batch_size, global_batch_size]
+    logits_per_image = (
+        torch.matmul(image_embeddings, text_embeddings_all_gpus.transpose(0, 1))
+        * temperature
+    )
+    logits_per_text = (
+        torch.matmul(text_embeddings, img_embeddings_all_gpus.transpose(0, 1))
+        * temperature
+    )
+
+    if mask is not None:
+        logits_per_image = logits_per_image[mask]
+        logits_per_text = logits_per_text[mask]
+        labels = labels[mask]
+
+    loss_i = F.cross_entropy(logits_per_image, labels)
+    loss_t = F.cross_entropy(logits_per_text, labels)
+    loss = (loss_i + loss_t) / 2
+    return loss
 
 
 class ContrastiveLossWithTemperature(nn.Module):
@@ -32,9 +134,11 @@ class ContrastiveLossWithTemperature(nn.Module):
 
 
     Args:
-        logit_scale (float): Log of the learnable temperature parameter value
+        logit_scale (Union[float, nn.Module]): Log of the learnable temperature parameter value
+            A nn.Parameter instantiation can also be passed directly in case parent class
+            is handling the initialization.
 
-    Inputs: img_embeddings (Tensor): Tensor containing image features.
+    Inputs: image_embeddings (Tensor): Tensor containing image features.
                 (In the CLIP model, these are the outputs of the image encoder.)
             text_embeddings (Tensor): Tensor containing text features.
                 (In the CLIP model, these are the outputs of the text encoder.)
@@ -46,86 +150,25 @@ class ContrastiveLossWithTemperature(nn.Module):
         super().__init__()
         if logit_scale is None:
             logit_scale = math.log(1 / 0.07)
-        self.logit_scale = nn.Parameter(logit_scale * torch.ones([]))
 
-    def _gather_embeddings_and_labels(
-        self,
-        img_embeddings: torch.Tensor,
-        text_embeddings: torch.Tensor,
-        backprop_in_gather: bool = True,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-
-        if not torch.distributed.is_initialized():
-            labels = torch.arange(img_embeddings.size(0))
-            return img_embeddings, text_embeddings, labels
-
-        # img_embeddings has shape [local_batch_size, embedding_dim]
-        local_batch_size = img_embeddings.size(0)
-
-        world_size = torch.distributed.get_world_size()
-
-        # Backpropagate gradients to all workers using the all_gather from
-        # torch.distributed.nn.functional. This is based on FLAVA's global
-        # contrastive loss: https://arxiv.org/pdf/2112.04482.pdf
-        if backprop_in_gather:
-            img_embeddings_all_gpus = all_gather_with_backprop(img_embeddings)
-            text_embeddings_all_gpus = all_gather_with_backprop(text_embeddings)
-
-        # Otherwise just backprop to the current worker
-        # This means that the image gradients on a given worker will only
-        # consider the text samples from the same worker
+        # If already initialized, set to what was passed
+        if isinstance(logit_scale, nn.Parameter):
+            self.logit_scale = logit_scale
         else:
-            text_embeddings_all_gpus = [
-                torch.zeros_like(text_embeddings) for _ in range(world_size)
-            ]
-            img_embeddings_all_gpus = [
-                torch.zeros_like(img_embeddings) for _ in range(world_size)
-            ]
-            all_gather_no_backprop(img_embeddings_all_gpus, img_embeddings)
-            all_gather_no_backprop(text_embeddings_all_gpus, text_embeddings)
-
-        labels = local_batch_size * torch.distributed.get_rank() + torch.arange(
-            local_batch_size, device=self.logit_scale.device
-        )
-
-        return (
-            torch.cat(img_embeddings_all_gpus),
-            torch.cat(text_embeddings_all_gpus),
-            labels,
-        )
+            self.logit_scale = nn.Parameter(logit_scale * torch.ones([]))
 
     def forward(
         self,
-        img_embeddings: torch.Tensor,
+        image_embeddings: torch.Tensor,
         text_embeddings: torch.Tensor,
         backprop_in_gather: bool = True,
     ):
 
         # Note: we clamp to 4.6052 = ln(100), as in the original paper.
         self.logit_scale.data.clamp_(0, 4.6052)
-        # this temperature implementation follows CLIP Figure 3
-        temperature = torch.exp(self.logit_scale)
-
-        (
-            img_embeddings_all_gpus,
-            text_embeddings_all_gpus,
-            labels,
-        ) = self._gather_embeddings_and_labels(
-            img_embeddings, text_embeddings, backprop_in_gather
+        return contrastive_loss_with_temperature(
+            image_embeddings=image_embeddings,
+            text_embeddings=text_embeddings,
+            logit_scale=self.logit_scale,
+            backprop_in_gather=backprop_in_gather,
         )
-
-        # logits_per_image has shape [local_batch_size, global_batch_size]
-        logits_per_image = (
-            torch.matmul(img_embeddings, text_embeddings_all_gpus.transpose(0, 1))
-            * temperature
-        )
-        logits_per_text = (
-            torch.matmul(text_embeddings, img_embeddings_all_gpus.transpose(0, 1))
-            * temperature
-        )
-
-        loss_i = F.cross_entropy(logits_per_image, labels)
-        loss_t = F.cross_entropy(logits_per_text, labels)
-        loss = (loss_i + loss_t) / 2
-
-        return loss
