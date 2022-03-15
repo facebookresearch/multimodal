@@ -7,11 +7,11 @@
 from typing import Callable, List, Optional
 
 import torch
-from pytorch.text.fb.models.lstm_encoder import LSTMEncoder
 from torch import nn
 from torchmultimodal.architectures.late_fusion import LateFusionArchitecture
 from torchmultimodal.modules.classifiers.mlp_classifier import MLPClassifier
 from torchmultimodal.modules.encoders.cnn_encoder import CNNEncoder
+from torchmultimodal.modules.encoders.lstm_encoder import LSTMEncoder
 from torchmultimodal.modules.fusions.concat_fusion import ConcatFusionModule
 
 
