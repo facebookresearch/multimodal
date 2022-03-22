@@ -30,9 +30,20 @@ disclosure of security bugs. In those cases, please go through the process
 outlined on that page and do not file a public issue.
 
 ## Coding Style
-* 2 spaces for indentation rather than tabs
-* 80 character line length
-* ...
+* TorchMultimodal uses pre-commit hooks to ensure style consistency and prevent common mistakes. Enable it by:
+
+```sh
+pip install pre-commit && pre-commit install
+```
+
+After this pre-commit hooks will be run before every commit.
+
+* Ideally, ufmt should be run via pre-commit hooks.
+But if for some reason you want to run ufmt separately follow this:
+
+```
+pip install ufmt==1.3.0
+ufmt format (examples|test|torchmultimodal)
 
 ## License
 By contributing to TorchMultimodal, you agree that your contributions will be licensed

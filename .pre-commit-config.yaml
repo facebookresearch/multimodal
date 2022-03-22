@@ -1,0 +1,32 @@
+default_language_version:
+    python: python3
+
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.1.0
+    hooks:
+    -   id: trailing-whitespace
+    -   id: check-ast
+    -   id: check-merge-conflict
+    -   id: no-commit-to-branch
+        args: ['--branch=main']
+    -   id: check-added-large-files
+        args: ['--maxkb=500']
+    -   id: end-of-file-fixer
+
+-   repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.1.7
+    hooks:
+    -   id: insert-license
+        files: \.py$
+        args:
+        - --license-filepath
+        - docs/license_header.txt
+
+-   repo: https://github.com/omnilib/ufmt
+    rev: v1.3.0
+    hooks:
+    - id: ufmt
+      additional_dependencies:
+        - black == 21.9b0
+        - usort == 0.6.4
