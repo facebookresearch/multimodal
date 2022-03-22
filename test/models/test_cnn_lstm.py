@@ -10,7 +10,7 @@ from functools import partial
 import torch
 from torch import nn
 from torchmultimodal.models.cnn_lstm import CNNLSTM
-from torchmultimodal.modules.classifiers.mlp_classifier import MLPClassifier
+from torchmultimodal.modules.layers.mlp import MLP
 
 
 class TestCNNLSTMModule(unittest.TestCase):
@@ -21,7 +21,7 @@ class TestCNNLSTMModule(unittest.TestCase):
 
     def test_forward(self):
         classifier = partial(
-            MLPClassifier,
+            MLP,
             in_dim=self.classifier_in_dim,
             out_dim=self.num_classes,
             activation=nn.ReLU,

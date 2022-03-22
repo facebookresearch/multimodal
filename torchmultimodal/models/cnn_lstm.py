@@ -9,10 +9,10 @@ from typing import Callable, List, Optional
 import torch
 from torch import nn
 from torchmultimodal.architectures.late_fusion import LateFusionArchitecture
-from torchmultimodal.modules.classifiers.mlp_classifier import MLPClassifier
 from torchmultimodal.modules.encoders.cnn_encoder import CNNEncoder
 from torchmultimodal.modules.encoders.lstm_encoder import LSTMEncoder
 from torchmultimodal.modules.fusions.concat_fusion import ConcatFusionModule
+from torchmultimodal.modules.layers.mlp import MLP
 
 
 class CNNLSTM(LateFusionArchitecture):
@@ -99,7 +99,7 @@ class CNNLSTM(LateFusionArchitecture):
 
         fusion_module = ConcatFusionModule()
         if classifier is None:
-            classifier = MLPClassifier(
+            classifier = MLP(
                 classifier_in_dim,
                 num_classes,
                 activation=nn.ReLU,

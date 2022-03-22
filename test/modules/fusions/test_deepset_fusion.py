@@ -8,12 +8,12 @@ import unittest
 
 import torch
 from torch import nn
-from torchmultimodal.modules.classifiers.mlp_classifier import MLPClassifier
 from torchmultimodal.modules.fusions.deepset_fusion import (
     DeepsetFusionModule,
     DeepsetFusionWithTransformer,
     deepset_transformer,
 )
+from torchmultimodal.modules.layers.mlp import MLP
 
 
 class TestDeepSetFusionModule(unittest.TestCase):
@@ -35,7 +35,7 @@ class TestDeepSetFusionModule(unittest.TestCase):
             num_layers=1,
             norm=nn.LayerNorm(3),
         )
-        self.mlp = MLPClassifier(in_dim=3, out_dim=4)
+        self.mlp = MLP(in_dim=3, out_dim=4)
 
     def _do_assertions(self, fusion):
         fused = fusion(self.input)

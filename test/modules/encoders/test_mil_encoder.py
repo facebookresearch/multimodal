@@ -8,8 +8,8 @@ import unittest
 
 import torch
 from torch import nn
-from torchmultimodal.modules.classifiers.mlp_classifier import MLPClassifier
 from torchmultimodal.modules.encoders.mil_encoder import MILEncoder
+from torchmultimodal.modules.layers.mlp import MLP
 
 
 class TestEncoder(nn.Module):
@@ -35,7 +35,7 @@ class TestMILEncoder(unittest.TestCase):
         self.mlp_out_dim = 5
         self.shared_enc_dim = 8
         self.shared_encoder = nn.Linear(self.partition_size, self.shared_enc_dim)
-        self.mlp = MLPClassifier(in_dim=self.shared_enc_dim, out_dim=self.mlp_out_dim)
+        self.mlp = MLP(in_dim=self.shared_enc_dim, out_dim=self.mlp_out_dim)
         self.shared_test_encoder = TestEncoder()
         self.transformer = nn.TransformerEncoder(
             encoder_layer=nn.TransformerEncoderLayer(
@@ -66,7 +66,7 @@ class TestMILEncoder(unittest.TestCase):
             partition_sizes,
             self.shared_test_encoder,
             8,
-            MLPClassifier(in_dim=self.shared_enc_dim, out_dim=self.mlp_out_dim),
+            MLP(in_dim=self.shared_enc_dim, out_dim=self.mlp_out_dim),
             self.transformer,
         )
         input = torch.rand(self.batch_size, 3, 8)
