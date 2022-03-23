@@ -8,7 +8,7 @@ from torchmultimodal.architectures.clip import CLIPArchitecture
 from torchmultimodal.modules.encoders.clip_resnet_encoder import ResNetForCLIP
 from torchmultimodal.modules.encoders.clip_text_encoder import CLIPTextEncoder
 from torchvision.models.resnet import ResNet, Bottleneck
-from torchvision.prototype.models.vision_transformer import VisionTransformer
+from torchvision.models.vision_transformer import VisionTransformer
 
 
 def clip_vit_b16():

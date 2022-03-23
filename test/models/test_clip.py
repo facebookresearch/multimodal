@@ -11,7 +11,7 @@ from torchmultimodal.architectures.clip import CLIPArchitecture
 from torchmultimodal.modules.encoders.clip_resnet_encoder import ResNetForCLIP
 from torchmultimodal.modules.encoders.clip_text_encoder import CLIPTextEncoder
 from torchmultimodal.utils.common import get_current_device
-from torchvision.prototype.models.vision_transformer import VisionTransformer
+from torchvision.models.vision_transformer import VisionTransformer
 
 
 class TestCLIPModule(unittest.TestCase):

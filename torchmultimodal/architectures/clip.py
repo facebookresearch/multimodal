@@ -14,12 +14,12 @@ class CLIPArchitecture(nn.Module):
 
     CLIP (https://arxiv.org/pdf/2103.00020.pdf) jointly trains an image encoder
     (either ResNet or ViT) and a text encoder (Transformer) to predict correct
-    (image, text) pairings via a contrastive loss function. This module contains
-    the encoders, while the loss is implemented in the class CLIPPretrainingLoss.
+    (image, text) pairings via a contrastive loss function. This module contains the
+    encoders, while the loss is implemented in ContrastiveLossWithTemperature.
 
 
     Args:   vision_encoder (nn.Module): Instantiated vision encoder.
-                See CLIPVisionEncoder class.
+                See e.g. ResNetForCLIP class.
             text_encoder (nn.Module): Instantiated text encoder.
                 See CLIPTextEncoder class.
 
