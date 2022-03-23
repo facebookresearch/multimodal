@@ -29,9 +29,9 @@ TorchMultimodal requires Python >= 3.7. The library can be installed with or wit
     cd torchmultimodal
     pip install -r requirements.txt
 
-    # For development, replace install with develop
     python setup.py install
     ```
+    For developers please follow the [development installation](https://github.com/facebookresearch/multimodal/blob/main/CONTRIBUTING.md#development-installation).
 
 ## Documentation
 The library builds on the following concepts:

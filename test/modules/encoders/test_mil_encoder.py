@@ -12,7 +12,7 @@ from torchmultimodal.modules.encoders.mil_encoder import MILEncoder
 from torchmultimodal.modules.layers.mlp import MLP
 
 
-class TestEncoder(nn.Module):
+class DummyEncoder(nn.Module):
     def __init__(self):
         super().__init__()
         self.transformer = nn.TransformerEncoder(
@@ -36,7 +36,7 @@ class TestMILEncoder(unittest.TestCase):
         self.shared_enc_dim = 8
         self.shared_encoder = nn.Linear(self.partition_size, self.shared_enc_dim)
         self.mlp = MLP(in_dim=self.shared_enc_dim, out_dim=self.mlp_out_dim)
-        self.shared_test_encoder = TestEncoder()
+        self.shared_test_encoder = DummyEncoder()
         self.transformer = nn.TransformerEncoder(
             encoder_layer=nn.TransformerEncoderLayer(
                 self.shared_enc_dim, 2, batch_first=True
