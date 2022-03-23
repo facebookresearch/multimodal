@@ -15,7 +15,8 @@ class LateFusionArchitecture(nn.Module):
 
     A late fusion model contains separate encoders for each modality,
     followed by a fusion layer and then a head module. For an example of a
-    late fusion model, see the TorchMM implementation of CNNLSTM.
+    late fusion model, see the TorchMultimodal implementation of the cnn-lstm
+    multimodal classifier (cnn_lstm.py)
 
     Args:
         encoders (ModuleDict): Dictionary mapping modalities to their respective
