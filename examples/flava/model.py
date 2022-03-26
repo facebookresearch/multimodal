@@ -19,7 +19,7 @@ class FLAVALightningModule(LightningModule):
         max_steps: int = 450000,
     ):
         super().__init__()
-        self.model = flava_model_for_pretraining()
+        self.model = flava_model_for_pretraining(pretrained_model_key="flava_full")
         self.learning_rate = learning_rate
         self.adam_eps = adam_eps
         self.adam_weight_decay = adam_weight_decay
@@ -28,6 +28,20 @@ class FLAVALightningModule(LightningModule):
 
     # TODO: Setup validation loop
     def training_step(self, batch, batch_idx):
+        output = self._step(batch, batch_idx)
+        loss = sum(value for value in output.values())
+        for key in output:
+            self.log(f"train/losses/{key}", output[key], prog_bar=True, logger=True)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        output = self._step(batch, batch_idx)
+        loss = sum(value for value in output.values())
+        for key in output:
+            self.log(f"validation/losses/{key}", output[key], prog_bar=True, logger=True)
+        return loss
+    
+    def _step(self, batch, batch_idx):
         if "image" in batch and ("text" in batch or "text_masked" in batch):
             required_embedding = "mm"
         elif "image" in batch:
@@ -47,10 +61,8 @@ class FLAVALightningModule(LightningModule):
             itm_labels=batch.get("itm_labels", None),
             required_embedding=required_embedding,
         )
-        loss = sum(value for value in output.values())
-        for key in output:
-            self.log(f"losses/{key}", output[key], prog_bar=True, logger=True)
-        return loss
+
+        return output
 
     def configure_optimizers(self):
         optimizer = AdamW(
