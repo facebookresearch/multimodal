@@ -8,7 +8,7 @@ import random
 import warnings
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import requests
@@ -97,7 +97,7 @@ class MaskedImageModelingTransform:
             return self.transform(images)
 
 
-def _default_image_transforms():
+def default_image_transforms():
     return MaskedImageModelingTransform(), MaskedImageModelingTransform()
 
 
@@ -131,7 +131,7 @@ class ImageDataModule(LightningDataModule):
         self.use_subset_sampler = use_subset_sampler
 
         if transforms is None:
-            transforms = _default_image_transforms()
+            transforms = default_image_transforms()
 
         self.train_transform, self.test_transform = transforms
 
@@ -311,7 +311,7 @@ class MLMDataModule(LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             sampler=None,
-            collator=self._build_collator(),
+            collate_fn=self._build_collator(),
             # uneven batches can cause distributed issues,
             # drop last batch to prevent those.
             # ideally, we don't need to drop these for unimodal cases
@@ -360,6 +360,27 @@ class VLTransform:
         return output
 
 
+def default_text_transform(
+    text_tokenizer: Optional[Callable] = None,
+    max_text_length: int = 77,
+    **kwargs: Any,
+):
+    if text_tokenizer is None:
+        text_tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+
+    text_transform = partial(
+        _encode_text,
+        tokenizer=text_tokenizer,
+        padding="max_length",
+        max_length=max_text_length,
+        truncation=True,
+        return_tensors="pt",
+        return_special_tokens_mask=True,
+    )
+
+    return text_transform
+
+
 def fetch_images(sample, timeout):
     if "image" in sample:
         return sample
@@ -402,7 +423,7 @@ class VLDataModule(LightningDataModule):
         self.val_dataset_infos = val_dataset_infos
 
         if image_transforms is None:
-            image_transforms = _default_image_transforms()
+            image_transforms = default_image_transforms()
 
         self.train_image_transform, self.test_image_transform = image_transforms
         self.text_tokenizer = text_tokenizer
@@ -417,16 +438,7 @@ class VLDataModule(LightningDataModule):
     def setup(self, stage=None):
         if self.text_tokenizer is None:
             self.text_tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-
-        text_transform = partial(
-            _encode_text,
-            tokenizer=self.text_tokenizer,
-            padding="max_length",
-            max_length=self.max_text_length,
-            truncation=True,
-            return_tensors="pt",
-            return_special_tokens_mask=True,
-        )
+        text_transform = default_text_transform(self.text_tokenizer, self.max_text_length)
         train_vl_transform = VLTransform(self.train_image_transform, text_transform)
         val_vl_transform = VLTransform(self.test_image_transform, text_transform)
         timeout = None
@@ -486,7 +498,7 @@ class VLDataModule(LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             sampler=None,
-            collator=self._build_collator(),
+            collate_fn=self._build_collator(),
             # uneven batches can cause distributed issues,
             # drop last batch to prevent those.
             drop_last=True,

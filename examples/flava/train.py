@@ -11,12 +11,13 @@ from data import (
     VLDataModule,
     MultiDataModule,
 )
+from examples.flava.callbacks.multimodal_eval import MultimodalEvalCallback
 from model import FLAVALightningModule
 from pytorch_lightning import Trainer  # , seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor
 
 
-AVAIL_GPUS = 2
+AVAIL_GPUS = 1
 SEED = 1234
 
 IMAGENET_TRAIN_ROOT = ""
@@ -30,7 +31,7 @@ ALLOW_UNEVEN_BATCHES = False
 def main():
     # TODO: Check this later, since this is causing all workers to load same data.
     # seed_everything(SEED, workers=True)
-    dm = ImageDataModule(
+    imagenet_datamodule = ImageDataModule(
         train_root=IMAGENET_TRAIN_ROOT,
         val_root=IMAGENET_VAL_ROOT,
         batch_size=BATCH_SIZE,
@@ -67,7 +68,7 @@ def main():
             )
         ]
     )
-    datamodule = MultiDataModule([dm, mlm_datamodule, vl_datamodule])
+    datamodule = MultiDataModule([imagenet_datamodule, mlm_datamodule, vl_datamodule])
 
     datamodule.setup("fit")
     model = FLAVALightningModule()
@@ -76,7 +77,10 @@ def main():
         max_steps=MAX_STEPS,
         gpus=AVAIL_GPUS,
         progress_bar_refresh_rate=50,
-        callbacks=[LearningRateMonitor(logging_interval="step")],
+        callbacks=[
+            LearningRateMonitor(logging_interval="step"),
+            MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule)
+        ],
     )
     trainer.fit(model, datamodule=datamodule)
 
