@@ -83,8 +83,8 @@ def main():
             MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule),
         ],
     )
-    # trainer.fit(model, datamodule=datamodule)
-    trainer.validate(model, datamodule=mlm_datamodule)
+    trainer.fit(model, datamodule=datamodule)
+    trainer.validate(model, datamodule=datamodule)
 
 
 if __name__ == "__main__":
