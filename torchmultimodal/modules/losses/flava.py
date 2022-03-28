@@ -4,12 +4,25 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+# # Copyright (c) Meta Platforms, Inc. and affiliates.
+# # All rights reserved.
+# #
+# # This source code is licensed under the BSD-style license found in the
+# # LICENSE file in the root directory of this source tree.
+
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree.
+
 import math
 import warnings
 from typing import Any, Callable, Optional, Union
 
 import torch
 from torch import nn, Tensor
+from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
     contrastive_loss_with_temperature,
 )
@@ -76,13 +89,18 @@ class MaskedPredictionHead(nn.Module):
         vocab_size: int = 30522,
         transform_act_fn: Callable[..., Tensor] = nn.functional.gelu,
         layer_norm_eps: float = 1e-5,
+        use_fp32_layer_norm: bool = True,
         **kwargs: Any,
     ):
         super().__init__()
 
         self.dense = nn.Linear(hidden_size, hidden_size)
         self.transform_act_fn = transform_act_fn
-        self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
+
+        if use_fp32_layer_norm:
+            self.layer_norm = Fp32LayerNorm(hidden_size, eps=layer_norm_eps)
+        else:
+            self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
 
         # The output weights are the same as the input embeddings, but there is
         # an output-only bias for each token.
@@ -235,7 +253,26 @@ class FLAVAPretrainingLoss(nn.Module):
             layer_norm_eps=layer_norm_eps,
             ignore_index=ignore_index,
         )
-        self.itm = ITMLoss(
+        # Create separate weights for MMM loss
+        self.mmm_loss = nn.ModuleDict(
+            {
+                "mlm": MaskedPredictionLoss(
+                    hidden_size=hidden_size,
+                    vocab_size=text_vocab_size,
+                    transform_act_fn=transform_act_fn,
+                    layer_norm_eps=layer_norm_eps,
+                    ignore_index=ignore_index,
+                ),
+                "mim": MaskedPredictionLoss(
+                    hidden_size=hidden_size,
+                    vocab_size=image_vocab_size,
+                    transform_act_fn=transform_act_fn,
+                    layer_norm_eps=layer_norm_eps,
+                    ignore_index=ignore_index,
+                ),
+            }
+        )
+        self.itm_loss = ITMLoss(
             hidden_size=hidden_size,
             ignore_index=ignore_index,
         )
@@ -305,7 +342,7 @@ class FLAVAPretrainingLoss(nn.Module):
         ):
             pos_pairs = itm_labels.ne(0)
             pos_mask = torch.where(pos_pairs.any(), pos_pairs, pos_pairs.new([True]))
-            itm_loss = self.itm(multimodal_sequence, itm_labels)
+            itm_loss = self.itm_loss(multimodal_sequence, itm_labels)
             outputs["itm_loss"] = self.itm_loss_weight * itm_loss
             multimodal_sequence = multimodal_sequence[pos_mask]
             if multimodal_masked_sequence is not None:
@@ -318,7 +355,7 @@ class FLAVAPretrainingLoss(nn.Module):
         if multimodal_masked_sequence is not None and self.mmm_text_loss_weight > 0:
             assert mlm_labels is not None, "mlm_labels must be passed for mmm_text_loss"
             sequence_for_text = multimodal_masked_sequence[:, -mlm_labels.size(1) :, :]
-            outputs["mmm/text_loss"] = self.mlm_loss(
+            outputs["mmm/text_loss"] = self.mmm_loss.mlm(
                 sequence_for_text,
                 mlm_labels,
             )
@@ -333,7 +370,7 @@ class FLAVAPretrainingLoss(nn.Module):
             sequence_for_image = multimodal_masked_sequence[
                 :, 2 : 2 + mim_labels.size(1), :
             ]
-            outputs["mmm/image_loss"] = self.mim_loss(
+            outputs["mmm/image_loss"] = self.mmm_loss.mim(
                 sequence_for_image,
                 mim_labels,
             )
