@@ -38,9 +38,11 @@ class FLAVALightningModule(LightningModule):
         output = self._step(batch, batch_idx)
         loss = sum(value for value in output.values())
         for key in output:
-            self.log(f"validation/losses/{key}", output[key], prog_bar=True, logger=True)
+            self.log(
+                f"validation/losses/{key}", output[key], prog_bar=True, logger=True
+            )
         return loss
-    
+
     def _step(self, batch, batch_idx):
         if "image" in batch and ("text" in batch or "text_masked" in batch):
             required_embedding = "mm"

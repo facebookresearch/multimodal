@@ -11,13 +11,14 @@ from data import (
     VLDataModule,
     MultiDataModule,
 )
-from examples.flava.callbacks.multimodal_eval import MultimodalEvalCallback
 from model import FLAVALightningModule
 from pytorch_lightning import Trainer  # , seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor
 
+from examples.flava.callbacks.multimodal_eval import MultimodalEvalCallback
 
-AVAIL_GPUS = 1
+
+AVAIL_GPUS = 2
 SEED = 1234
 
 IMAGENET_TRAIN_ROOT = ""
@@ -79,10 +80,11 @@ def main():
         progress_bar_refresh_rate=50,
         callbacks=[
             LearningRateMonitor(logging_interval="step"),
-            MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule)
+            MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule),
         ],
     )
-    trainer.fit(model, datamodule=datamodule)
+    # trainer.fit(model, datamodule=datamodule)
+    trainer.validate(model, datamodule=mlm_datamodule)
 
 
 if __name__ == "__main__":

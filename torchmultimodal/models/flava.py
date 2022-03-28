@@ -4,6 +4,18 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+# # Copyright (c) Meta Platforms, Inc. and affiliates.
+# # All rights reserved.
+# #
+# # This source code is licensed under the BSD-style license found in the
+# # LICENSE file in the root directory of this source tree.
+
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree.
+
 import collections
 import math
 import warnings
@@ -14,16 +26,10 @@ from typing import Any, Callable, List, Literal, Optional, Tuple, Union
 import torch
 from packaging import version
 from torch import nn, Tensor, device
-
-from torchmultimodal.modules.losses.flava import Pooler, FLAVAPretrainingLoss
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
+from torchmultimodal.modules.losses.flava import Pooler, FLAVAPretrainingLoss
 from torchmultimodal.utils.common import PretrainedMixin
 
-
-try:
-    from torch.hub import load_state_dict_from_url
-except ImportError:
-    from torch.utils.model_zoo import load_url as load_state_dict_from_url
 
 EMBEDDING_OPTIONS = Literal["image", "text", "mm"]
 TransformerOutput = namedtuple(
@@ -47,11 +53,11 @@ FLAVAOutput.__annotations__ = {
 
 
 FLAVA_FOR_PRETRAINED_MAPPING = {
-    "flava_full": "/home/amanpreet_huggingface_co/projects/fair/multimodal/flava_full_dino_torchmm.pt",
+    "flava_full": "https://huggingface.co/aps/flava_full_pretrained_encoders_torchmm/resolve/main/pytorch_model.bin",
 }
 
-# NOTE: 
-# 1) There is a possibility of using dataclass for similar 
+# NOTE:
+# 1) There is a possibility of using dataclass for similar
 #    style kwargs for encoders. Didn't explore due to readability.
 def flava_model(
     # Image encoder specific parameters
@@ -67,7 +73,6 @@ def flava_model(
     image_size: int = 224,
     patch_size: int = 16,
     num_channels: int = 3,
-
     # Text encoder specific parameters
     text_hidden_size: int = 768,
     text_num_attention_heads: int = 12,
@@ -81,7 +86,6 @@ def flava_model(
     pad_token_id: int = 0,
     type_vocab_size: int = 2,
     max_position_embeddings: int = 512,
-
     # Multimodal encoder specific parameters
     multimodal_hidden_size: int = 768,
     multimodal_num_attention_heads: int = 12,
@@ -359,8 +363,6 @@ class FLAVAForPretraining(nn.Module, PretrainedMixin):
             mim_labels=image_labels,
             mlm_labels=mlm_labels,
         )
-
-
 
 
 class TransformerSelfAttention(nn.Module):
@@ -1409,7 +1411,9 @@ class DalleVAEEncoder(nn.Module, PretrainedMixin):
             self.load_model()
 
     def load_model(self):
-        encoder = super().load_model("https://cdn.openai.com/dall-e/encoder.pkl", load_state_dict=False)
+        encoder = super().load_model(
+            "https://cdn.openai.com/dall-e/encoder.pkl", load_state_dict=False
+        )
         self.encoder.load_state_dict(encoder.state_dict())
         return self.state_dict()
 

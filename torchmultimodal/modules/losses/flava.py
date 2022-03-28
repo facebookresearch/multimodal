@@ -4,16 +4,28 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+# # Copyright (c) Meta Platforms, Inc. and affiliates.
+# # All rights reserved.
+# #
+# # This source code is licensed under the BSD-style license found in the
+# # LICENSE file in the root directory of this source tree.
+
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree.
+
 import math
 import warnings
 from typing import Any, Callable, Optional, Union
 
 import torch
 from torch import nn, Tensor
+from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
     contrastive_loss_with_temperature,
 )
-from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 
 
 # TODO(asg): Replace later with MLP classifier if checkpoint permits
@@ -242,22 +254,24 @@ class FLAVAPretrainingLoss(nn.Module):
             ignore_index=ignore_index,
         )
         # Create separate weights for MMM loss
-        self.mmm_loss = nn.ModuleDict({
-            "mlm": MaskedPredictionLoss(
-                hidden_size=hidden_size,
-                vocab_size=text_vocab_size,
-                transform_act_fn=transform_act_fn,
-                layer_norm_eps=layer_norm_eps,
-                ignore_index=ignore_index,
-            ),
-            "mim": MaskedPredictionLoss(
-                hidden_size=hidden_size,
-                vocab_size=image_vocab_size,
-                transform_act_fn=transform_act_fn,
-                layer_norm_eps=layer_norm_eps,
-                ignore_index=ignore_index,
-            ),
-        })
+        self.mmm_loss = nn.ModuleDict(
+            {
+                "mlm": MaskedPredictionLoss(
+                    hidden_size=hidden_size,
+                    vocab_size=text_vocab_size,
+                    transform_act_fn=transform_act_fn,
+                    layer_norm_eps=layer_norm_eps,
+                    ignore_index=ignore_index,
+                ),
+                "mim": MaskedPredictionLoss(
+                    hidden_size=hidden_size,
+                    vocab_size=image_vocab_size,
+                    transform_act_fn=transform_act_fn,
+                    layer_norm_eps=layer_norm_eps,
+                    ignore_index=ignore_index,
+                ),
+            }
+        )
         self.itm_loss = ITMLoss(
             hidden_size=hidden_size,
             ignore_index=ignore_index,

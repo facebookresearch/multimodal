@@ -438,7 +438,9 @@ class VLDataModule(LightningDataModule):
     def setup(self, stage=None):
         if self.text_tokenizer is None:
             self.text_tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
-        text_transform = default_text_transform(self.text_tokenizer, self.max_text_length)
+        text_transform = default_text_transform(
+            self.text_tokenizer, self.max_text_length
+        )
         train_vl_transform = VLTransform(self.train_image_transform, text_transform)
         val_vl_transform = VLTransform(self.test_image_transform, text_transform)
         timeout = None

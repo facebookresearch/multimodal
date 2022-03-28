@@ -1,7 +1,19 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree.
+
+# # Copyright (c) Meta Platforms, Inc. and affiliates.
+# # All rights reserved.
+# #
+# # This source code is licensed under the BSD-style license found in the
+# # LICENSE file in the root directory of this source tree.
+
 import argparse
 from dataclasses import replace
-import torch
 
+import torch
 from torchmultimodal.models.flava import flava_model_for_pretraining, DalleVAEEncoder
 
 KEY_REPLACEMENTS = {
@@ -26,29 +38,35 @@ KEY_REPLACEMENTS = {
     "output.dense": "output",
 }
 
+
 def convert_weights(args):
     ckpt = torch.load(args.ckpt_file, map_location="cpu")
     flava = flava_model_for_pretraining()
     model = ckpt["model"]
-    import pdb; pdb.set_trace()
+    import pdb
+
+    pdb.set_trace()
     for key in list(model.keys()):
         original = key
         for option, replacement in KEY_REPLACEMENTS.items():
             key = key.replace(option, replacement)
         model[key] = model.pop(original)
-    
+
     if args.add_codebook:
         # Since codebook is anyways not trained in FLAVA pretraining
         # we can use the pretrained one that we get from FLAVA initialized
         # model
-        model.update({
-            f"image_codebook.{key}": value 
-            for key, value in flava.image_codebook.state_dict().items()
-        })
+        model.update(
+            {
+                f"image_codebook.{key}": value
+                for key, value in flava.image_codebook.state_dict().items()
+            }
+        )
     flava.load_state_dict(model)
-    
+
     # Let's save the model now.
     torch.save(flava.state_dict(), args.save_file)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert weights")
