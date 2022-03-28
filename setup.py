@@ -48,7 +48,7 @@ if __name__ == "__main__":
         name=DISTNAME,
         include_package_data=True,
         packages=find_packages(exclude=EXCLUDES),
-        python_requires=">=3.7",
+        python_requires=">=3.8",
         version=_get_version(),
         description=DESCRIPTION,
         long_description=LONG_DESCRIPTION,
@@ -57,7 +57,6 @@ if __name__ == "__main__":
         author=AUTHOR,
         author_email=AUTHOR_EMAIL,
         classifiers=[
-            "Programming Language :: Python :: 3.7",
             "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
             "License :: OSI Approved :: BSD License",

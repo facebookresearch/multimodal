@@ -8,7 +8,7 @@ TorchMultimodal is a PyTorch library for training state-of-the-art multimodal mu
 As a first open source example, researchers will be able to train and extend FLAVA using TorchMultimodal.
 
 ## Installation
-TorchMultimodal requires Python >= 3.7. The library can be installed with or without CUDA support.
+TorchMultimodal requires Python >= 3.8. The library can be installed with or without CUDA support.
 
 ### Building from Source
 1. Create conda environment
