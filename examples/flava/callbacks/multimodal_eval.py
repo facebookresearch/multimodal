@@ -7,7 +7,7 @@
 import logging
 
 import torch
-from data import default_text_transform, default_image_transforms
+from data import default_text_transform
 from imagenet_zeroshot_data import imagenet_classnames, openai_imagenet_template
 from pytorch_lightning import Callback, LightningDataModule
 from pytorch_lightning.utilities import rank_zero_only

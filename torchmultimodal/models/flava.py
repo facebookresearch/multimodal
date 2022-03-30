@@ -26,6 +26,8 @@ from typing import Any, Callable, List, Literal, Optional, Tuple, Union
 import torch
 from packaging import version
 from torch import nn, Tensor, device
+
+from torchmultimodal.modules.layers.mlp import MLP
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.modules.losses.flava import Pooler, FLAVAPretrainingLoss
 from torchmultimodal.utils.common import PretrainedMixin
@@ -155,7 +157,7 @@ def flava_model_for_pretraining(
     **flava_model_kwargs: Any,
     # TODO: Add parameters for loss here
 ):
-    model = flava_model()
+    model = flava_model(**flava_model_kwargs)
 
     codebook = DalleVAEEncoder(image_size=codebook_image_size)
     losses = FLAVAPretrainingLoss()
@@ -165,8 +167,37 @@ def flava_model_for_pretraining(
         image_codebook=codebook,
         loss=losses,
     )
-    flava.load_model(FLAVA_FOR_PRETRAINED_MAPPING[pretrained_model_key])
+
+    if pretrained_model_key is not None:
+        flava.load_model(FLAVA_FOR_PRETRAINED_MAPPING[pretrained_model_key])
+
     return flava
+
+
+def flava_model_for_classification(
+    num_classes: int,
+    classifier_in_dim: int = 768,
+    classifier_hidden_sizes: Union[int, List[int]] = 768,
+    classifier_dropout: float = 0.5,
+    classifier_activation: Callable[..., nn.Module] = nn.ReLU,
+    classifier_normalization: Optional[Callable[..., nn.Module]] = None,
+    loss_fn: Optional[Callable[..., Tensor]] = None,
+    **flava_model_kwargs: Any,
+):
+    model = flava_model(**flava_model_kwargs)
+    classifier = MLP(
+        in_dim=classifier_in_dim,
+        out_dim=num_classes,
+        hidden_dims=classifier_hidden_sizes,
+        dropout=classifier_dropout,
+        activation=classifier_activation,
+        normalization=classifier_normalization,
+    )
+
+    if loss_fn is None:
+        loss_fn = nn.CrossEntropyLoss()
+
+    return FLAVAForClassification(model=model, classifier=classifier, loss=loss_fn)
 
 
 class FLAVAModel(nn.Module, PretrainedMixin):
@@ -363,6 +394,44 @@ class FLAVAForPretraining(nn.Module, PretrainedMixin):
             mim_labels=image_labels,
             mlm_labels=mlm_labels,
         )
+
+
+class FLAVAForClassification(nn.Module, PretrainedMixin):
+    def __init__(
+        self,
+        model: FLAVAModel,
+        classifier: nn.Module,
+        loss: Union[nn.Module, Callable[[Tensor, Tensor], Tensor]],
+        **kwargs: Any,
+    ):
+        super().__init__()
+        self.model = model
+        self.classifier = classifier
+        self.loss = loss
+
+    def forward(
+        self,
+        image: Optional[Tensor] = None,
+        text: Optional[Tensor] = None,
+        required_embedding: Optional[EMBEDDING_OPTIONS] = None,
+        labels: Optional[Tensor] = None,
+    ):
+        flava_output: FLAVAOutput = self.model(
+            image=image,
+            text=text,
+            required_embedding=required_embedding,
+        )
+
+        hidden_state: Optional[Tensor] = None
+        if required_embedding == "image":
+            hidden_state = flava_output.image.last_hidden_state
+        elif required_embedding == "text":
+            hidden_state = flava_output.text.last_hidden_state
+        else:
+            hidden_state = flava_output.multimodal.last_hidden_state
+
+        scores = self.classifier(hidden_state)
+        return self.loss(scores, labels)
 
 
 class TransformerSelfAttention(nn.Module):
