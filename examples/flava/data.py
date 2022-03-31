@@ -23,8 +23,8 @@ from transformers import BertTokenizer, DataCollatorForLanguageModeling
 from transforms import (
     RandomResizedCropAndInterpolationWithTwoPic,
     MaskingGenerator,
-    map_pixels,
     convert_to_rgb,
+    map_pixels,
 )
 
 
