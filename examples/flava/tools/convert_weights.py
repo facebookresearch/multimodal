@@ -11,11 +11,9 @@
 # # LICENSE file in the root directory of this source tree.
 
 import argparse
-from dataclasses import replace
 
 import torch
-from torchmultimodal.models.flava import flava_model_for_pretraining, DalleVAEEncoder
-
+from torchmultimodal.models.flava import flava_model_for_pretraining
 KEY_REPLACEMENTS = {
     "image_encoder.module": "image_encoder",
     "text_encoder.module": "text_encoder",
