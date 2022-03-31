@@ -14,6 +14,7 @@ import argparse
 
 import torch
 from torchmultimodal.models.flava import flava_model_for_pretraining
+
 KEY_REPLACEMENTS = {
     "image_encoder.module": "image_encoder",
     "text_encoder.module": "text_encoder",
