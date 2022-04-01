@@ -4,17 +4,10 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-# # Copyright (c) Meta Platforms, Inc. and affiliates.
-# # All rights reserved.
-# #
-# # This source code is licensed under the BSD-style license found in the
-# # LICENSE file in the root directory of this source tree.
-
 import argparse
-from dataclasses import replace
 
 import torch
-from torchmultimodal.models.flava import flava_model_for_pretraining, DalleVAEEncoder
+from torchmultimodal.models.flava import flava_model_for_pretraining
 
 KEY_REPLACEMENTS = {
     "image_encoder.module": "image_encoder",
