@@ -4,18 +4,6 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-# # Copyright (c) Meta Platforms, Inc. and affiliates.
-# # All rights reserved.
-# #
-# # This source code is licensed under the BSD-style license found in the
-# # LICENSE file in the root directory of this source tree.
-
-# Copyright (c) Meta Platforms, Inc. and affiliates.
-# All rights reserved.
-#
-# This source code is licensed under the BSD-style license found in the
-# LICENSE file in the root directory of this source tree.
-
 import collections
 import math
 import warnings
@@ -26,6 +14,7 @@ from typing import Any, Callable, List, Literal, Optional, Tuple, Union
 import torch
 from packaging import version
 from torch import nn, Tensor, device
+
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.modules.losses.flava import Pooler, FLAVAPretrainingLoss
 from torchmultimodal.utils.common import PretrainedMixin
