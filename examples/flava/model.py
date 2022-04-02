@@ -3,6 +3,7 @@
 #
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
+from dataclasses import asdict
 
 import torch
 from pytorch_lightning import LightningModule
@@ -54,19 +55,27 @@ class FLAVALightningModule(LightningModule):
 
     def training_step(self, batch, batch_idx):
         output = self._step(batch, batch_idx)
-        loss = sum(value for value in output.values())
-        for key in output:
-            self.log(f"train/losses/{key}", output[key], prog_bar=True, logger=True)
-        return loss
+        losses = asdict(output.losses)
+        total_loss = 0
+        for key in losses:
+            if losses[key] is not None:
+                total_loss += losses[key]
+                self.log(f"train/losses/{key}", losses[key], prog_bar=True, logger=True)
+
+        return total_loss
 
     def validation_step(self, batch, batch_idx):
         output = self._step(batch, batch_idx)
-        loss = sum(value for value in output.values())
-        for key in output:
-            self.log(
-                f"validation/losses/{key}", output[key], prog_bar=True, logger=True
-            )
-        return loss
+        losses = asdict(output.losses)
+        total_loss = 0
+        for key in losses:
+            if losses[key] is not None:
+                total_loss += losses[key]
+                self.log(
+                    f"validation/losses/{key}", losses[key], prog_bar=True, logger=True
+                )
+
+        return total_loss
 
     def _step(self, batch, batch_idx):
         if "image" in batch and ("text" in batch or "text_masked" in batch):
@@ -124,19 +133,19 @@ class FLAVAClassificationLightningModule(FLAVALightningModule):
 
     def training_step(self, batch, batch_idx):
         output = self._step(batch, batch_idx)
-        loss = sum(value for value in output.values())
-        for key in output:
-            self.log(f"train/losses/{key}", output[key], prog_bar=True, logger=True)
-        return loss
+        self.log(
+            f"train/losses/classification", output.loss, prog_bar=True, logger=True
+        )
+
+        return output.loss
 
     def validation_step(self, batch, batch_idx):
         output = self._step(batch, batch_idx)
-        loss = sum(value for value in output.values())
-        for key in output:
-            self.log(
-                f"validation/losses/{key}", output[key], prog_bar=True, logger=True
-            )
-        return loss
+        self.log(
+            f"validation/losses/classification", output.loss, prog_bar=True, logger=True
+        )
+
+        return output.loss
 
     def _step(self, batch, batch_idx):
         if "image" in batch and ("text" in batch or "text_masked" in batch):
@@ -156,4 +165,4 @@ class FLAVAClassificationLightningModule(FLAVALightningModule):
         )
 
         # TODO: Add accuracy metric to this later.
-        return {"classification": output}
+        return output

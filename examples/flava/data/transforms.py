@@ -43,14 +43,16 @@ def encode_text(text, tokenizer, *args, **kwargs):
     return tokenizer(text, *args, **kwargs)
 
 
-def default_torchvision_transforms():
+def default_torchvision_transforms(
+    size=IMAGE_DEFAULT_SIZE, mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD
+):
     transform = transforms.Compose(
         [
-            transforms.Resize(IMAGE_DEFAULT_SIZE),
+            transforms.Resize(size),
             transforms.ToTensor(),
             transforms.Normalize(
-                mean=IMAGENET_DEFAULT_MEAN,
-                std=IMAGENET_DEFAULT_STD,
+                mean=mean,
+                std=std,
             ),
         ]
     )
@@ -58,7 +60,7 @@ def default_torchvision_transforms():
 
 
 def default_image_pretraining_transforms():
-    return MaskedImageModelingTransform(), MaskedImageModelingTransform()
+    return MaskedImageModelingTransform(), MaskedImageModelingTransform(is_train=False)
 
 
 def default_text_transform(
@@ -139,6 +141,45 @@ class TwoWayRandomResizedCrop(transforms.RandomResizedCrop):
                     img, i, j, h, w, self.second_size, self.second_interpolation
                 ),
             )
+
+
+class TwoWayResize(transforms.Resize):
+    def __init__(
+        self,
+        size,
+        second_size=None,
+        second_interpolation=transforms.InterpolationMode.LANCZOS,
+        **kwargs,
+    ):
+        super().__init__(size, **kwargs)
+        # Backward compatibility with integer value
+        if isinstance(second_interpolation, int):
+            warnings.warn(
+                "Argument second_interpolation should be of type InterpolationMode instead of int. "
+                "Please, use InterpolationMode enum."
+            )
+            second_interpolation = transforms._interpolation_modes_from_int(
+                second_interpolation
+            )
+
+        if not isinstance(second_size, (list, tuple)):
+            second_size = (second_size, second_size)
+
+        self.second_size = second_size
+        self.second_interpolation = second_interpolation
+
+    def forward(self, img):
+        img = F.resize(
+            img, self.size, self.interpolation, self.max_size, self.antialias
+        )
+        second_img = F.resize(
+            img,
+            self.second_size,
+            self.second_interpolation,
+            self.max_size,
+            self.antialias,
+        )
+        return img, second_img
 
 
 class MaskingGenerator:
@@ -224,6 +265,7 @@ class MaskingGenerator:
 class MaskedImageModelingTransform:
     def __init__(
         self,
+        is_train=True,
         encoder_input_size: int = 224,
         codebook_input_size: int = 112,
         scale: Tuple[float, float] = (0.9, 1.0),
@@ -236,18 +278,27 @@ class MaskedImageModelingTransform:
         mask_max_patches: Optional[int] = None,
         mask_min_patches: int = 16,
     ):
+        if is_train:
+            resize_func = TwoWayRandomResizedCrop(
+                size=encoder_input_size,
+                second_size=codebook_input_size,
+                scale=scale,
+                interpolation=encoder_interpolation,
+                second_interpolation=codebook_interpolation,
+            )
+        else:
+            resize_func = TwoWayRandomResizedCrop(
+                size=encoder_input_size,
+                second_size=codebook_input_size,
+                interpolation=encoder_interpolation,
+                second_interpolation=codebook_interpolation,
+            )
         self.common_transform = transforms.Compose(
             [
                 transforms.Lambda(
                     lambda img: img.convert("RGB") if img.mode != "RGB" else img
                 ),
-                TwoWayRandomResizedCrop(
-                    size=encoder_input_size,
-                    second_size=codebook_input_size,
-                    scale=scale,
-                    interpolation=encoder_interpolation,
-                    second_interpolation=codebook_interpolation,
-                ),
+                resize_func,
             ]
         )
 
