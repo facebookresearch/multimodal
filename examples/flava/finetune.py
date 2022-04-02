@@ -8,8 +8,6 @@ import torchvision
 from data import (
     TorchVisionDataModule,
     TorchVisionDatasetInfo,
-    HFDatasetInfo,
-    TextDataModule,
 )
 from model import FLAVAClassificationLightningModule
 from pytorch_lightning import Trainer, seed_everything
