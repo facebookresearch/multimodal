@@ -32,6 +32,7 @@ ALLOW_UNEVEN_BATCHES = False
 def main():
     if SEED != -1:
         seed_everything(SEED, workers=True)
+
     imagenet_datamodule = ImageDataModule(
         train_root=IMAGENET_TRAIN_ROOT,
         val_root=IMAGENET_VAL_ROOT,
