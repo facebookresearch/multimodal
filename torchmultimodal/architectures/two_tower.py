@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from collections import OrderedDict
-from typing import List, Optional, Dict, NamedTuple
+from typing import Dict, List, NamedTuple, Optional
 
 from torch import nn, Tensor
 from torchmultimodal.architectures.late_fusion import LateFusionArchitecture

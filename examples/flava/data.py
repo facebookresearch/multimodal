@@ -14,17 +14,17 @@ import numpy as np
 import requests
 import torch
 import torchvision
-from datasets import load_dataset, concatenate_datasets
+from datasets import concatenate_datasets, load_dataset
 from datasets.utils.file_utils import get_datasets_user_agent
 from PIL import Image, UnidentifiedImageError
 from pytorch_lightning import LightningDataModule
 from torchvision.datasets import ImageFolder
 from transformers import BertTokenizer, DataCollatorForLanguageModeling
 from transforms import (
-    RandomResizedCropAndInterpolationWithTwoPic,
-    MaskingGenerator,
     convert_to_rgb,
     map_pixels,
+    MaskingGenerator,
+    RandomResizedCropAndInterpolationWithTwoPic,
 )
 
 

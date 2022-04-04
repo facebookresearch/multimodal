@@ -13,9 +13,9 @@ from typing import Any, Callable, List, Literal, Optional, Tuple, Union
 
 import torch
 from packaging import version
-from torch import nn, Tensor, device
+from torch import device, nn, Tensor
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
-from torchmultimodal.modules.losses.flava import Pooler, FLAVAPretrainingLoss
+from torchmultimodal.modules.losses.flava import FLAVAPretrainingLoss, Pooler
 from torchmultimodal.utils.common import PretrainedMixin
 
 

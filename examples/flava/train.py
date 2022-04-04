@@ -5,11 +5,11 @@
 # LICENSE file in the root directory of this source tree.
 
 from data import (
+    HFDatasetsInfo,
     ImageDataModule,
     MLMDataModule,
-    HFDatasetsInfo,
-    VLDataModule,
     MultiDataModule,
+    VLDataModule,
 )
 from examples.flava.callbacks.multimodal_eval import MultimodalEvalCallback
 from model import FLAVALightningModule
