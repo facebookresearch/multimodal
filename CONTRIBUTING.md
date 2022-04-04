@@ -70,13 +70,22 @@ pip install pre-commit && pre-commit install
 
 After this pre-commit hooks will be run before every commit.
 
-Ideally, ufmt should be run via pre-commit hooks.
-But if for some reason you want to run ufmt separately follow this:
+Ideally, flake and ufmt should be run via pre-commit hooks.
+But if for some reason you want to run them separately follow this:
 
 ```
-pip install ufmt==1.3.0
+pip install flake8==4.0.1 ufmt==1.3.0
+flake8 (examples|test|torchmultimodal)
 ufmt format (examples|test|torchmultimodal)
 ```
+
+Alternatively, you can run on only those files you have modified, e.g.
+
+```
+flake8 `git diff main --name-only`
+ufmt format `git diff main --name-only`
+```
+
 
 ### Unit Tests
 Please add unit tests for adding a new feature or a bug-fix. To run a specific test:
