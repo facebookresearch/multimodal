@@ -35,6 +35,7 @@ TorchMultimodal requires Python >= 3.8. The library can be installed with or wit
     For developers please follow the [development installation](https://github.com/facebookresearch/multimodal/blob/main/CONTRIBUTING.md#development-installation).
 
 ## Documentation
+
 The library builds on the following concepts:
 - **Architectures**: These are general and composable classes that capture the core logic associated with a family of models. In most cases these take modules as inputs instead of flat arguments (see Models below). Examples include the `LateFusionArchitecture`, `FLAVA` and `CLIPArchitecture`. Users should either reuse an existing architecture or a contribute a new one. We avoid inheritance as much as possible.
 
