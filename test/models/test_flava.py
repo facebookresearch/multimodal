@@ -11,7 +11,6 @@ import torch
 from torchmultimodal.models.flava import (
     flava_model_for_pretraining,
     flava_model_for_classification,
-    EMBEDDING_OPTIONS,
 )
 
 
