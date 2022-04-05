@@ -7,7 +7,7 @@
 import logging
 
 import torch
-from data import default_text_transform
+from data import default_text_transform, VL_MAX_LENGTH_DEFAULT
 from imagenet_zeroshot_data import imagenet_classnames, openai_imagenet_template
 from pytorch_lightning import Callback, LightningDataModule
 from pytorch_lightning.utilities import rank_zero_only
@@ -80,7 +80,9 @@ class MultimodalEvalCallback(Callback):
     def __init__(self, imagenet_datamodule: LightningDataModule, *args, **kwargs):
         super().__init__()
         self.imagenet_val_dataloader = imagenet_datamodule.val_dataloader()
-        self.text_transform = default_text_transform()
+        self.text_transform = default_text_transform(
+            max_text_length=VL_MAX_LENGTH_DEFAULT
+        )
 
     @torch.no_grad()
     def on_validation_start(self, trainer, pl_module, **kwargs) -> None:
