@@ -88,7 +88,6 @@ class FLAVALightningModule(LightningModule):
             itm_labels=batch.get("itm_labels", None),
             required_embedding=required_embedding,
         )
-
         return output
 
     def configure_optimizers(self):
