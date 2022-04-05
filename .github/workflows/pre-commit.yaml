@@ -1,1 +1,23 @@
 name: pre-commit
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  style:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+      - name: Check out repos
+        uses: actions/checkout@v2
+      - name: Install lint utilities
+        run: |
+          pip install pre-commit
+          pre-commit install-hooks
+      - name: Run precommit hooks for linting
+        run: pre-commit run --all-files
