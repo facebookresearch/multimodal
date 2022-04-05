@@ -19,7 +19,7 @@ from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
 
 # TODO(asg): Replace later with MLP classifier if checkpoint permits
 class Pooler(nn.Module):
-    def __init__(self, hidden_size: int = 756, **kwargs: Any):
+    def __init__(self, hidden_size: int = 768, **kwargs: Any):
         super().__init__()
 
         self.dense = nn.Linear(hidden_size, hidden_size)
@@ -34,9 +34,8 @@ class Pooler(nn.Module):
         return pooled_output
 
 
-# TODO(asg): Simplify with existing checkpoints later
 class TwoWayHead(nn.Module):
-    def __init__(self, hidden_size: int = 756, **kwargs: Any):
+    def __init__(self, hidden_size: int = 768, **kwargs: Any):
         super().__init__()
 
         self.seq_relationship = nn.Linear(hidden_size, 2)
@@ -74,9 +73,9 @@ class ITMLoss(nn.Module):
 class MaskedPredictionHead(nn.Module):
     def __init__(
         self,
-        hidden_size: int = 756,
+        hidden_size: int = 768,
         vocab_size: int = 30522,
-        transform_act_fn: Callable[..., Tensor] = nn.functional.gelu,
+        transform_act_fn: Callable[[Tensor], Tensor] = nn.functional.gelu,
         layer_norm_eps: float = 1e-5,
         use_fp32_layer_norm: bool = True,
         **kwargs: Any,
@@ -112,9 +111,9 @@ class MaskedPredictionHead(nn.Module):
 class MaskedPredictionLoss(nn.Module):
     def __init__(
         self,
-        hidden_size: int = 756,
+        hidden_size: int = 768,
         vocab_size: int = 30522,
-        transform_act_fn: Callable[..., Tensor] = nn.functional.gelu,
+        transform_act_fn: Callable[[Tensor], Tensor] = nn.functional.gelu,
         layer_norm_eps: float = 1e-5,
         ignore_index: int = -1,
         **kwargs: Any,
@@ -209,7 +208,7 @@ class FLAVAPretrainingLoss(nn.Module):
         hidden_size: int = 768,
         text_vocab_size: int = 30522,
         image_vocab_size: int = 8192,
-        transform_act_fn: Callable[..., Tensor] = nn.functional.gelu,
+        transform_act_fn: Callable[[Tensor], Tensor] = nn.functional.gelu,
         layer_norm_eps: float = 1e-5,
         ignore_index: int = -1,
         mlm_weight: float = 1.0,
@@ -288,6 +287,7 @@ class FLAVAPretrainingLoss(nn.Module):
     ):
         # TODO(asg): Add proper checks and only calculate losses which can
         # be calculated
+        # TODO: Create a dataclass for loss outputs
         outputs = {}
         pos_mask = None
 
