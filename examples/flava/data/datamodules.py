@@ -5,7 +5,6 @@
 # LICENSE file in the root directory of this source tree.
 
 import os
-import random
 from functools import partial
 from typing import Any, Callable, List, Optional, Tuple
 
