@@ -135,7 +135,7 @@ class FLAVAClassificationLightningModule(FLAVALightningModule):
     def training_step(self, batch, batch_idx):
         output = self._step(batch, batch_idx)
         self.log(
-            f"train/losses/classification", output.loss, prog_bar=True, logger=True
+            "train/losses/classification", output.loss, prog_bar=True, logger=True
         )
 
         return output.loss
@@ -143,7 +143,7 @@ class FLAVAClassificationLightningModule(FLAVALightningModule):
     def validation_step(self, batch, batch_idx):
         output = self._step(batch, batch_idx)
         self.log(
-            f"validation/losses/classification", output.loss, prog_bar=True, logger=True
+            "validation/losses/classification", output.loss, prog_bar=True, logger=True
         )
 
         return output.loss
