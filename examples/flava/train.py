@@ -7,18 +7,18 @@
 from data import (
     ImageDataModule,
     MLMDataModule,
-    HFDatasetsInfo,
+    HFDatasetInfo,
     VLDataModule,
     MultiDataModule,
 )
 from examples.flava.callbacks.multimodal_eval import MultimodalEvalCallback
 from model import FLAVALightningModule
-from pytorch_lightning import Trainer  # , seed_everything
+from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor
 
 
 AVAIL_GPUS = 2
-SEED = 1234
+SEED = -1
 
 IMAGENET_TRAIN_ROOT = ""
 IMAGENET_VAL_ROOT = ""
@@ -29,8 +29,9 @@ ALLOW_UNEVEN_BATCHES = False
 
 
 def main():
-    # TODO: Check this later, since this is causing all workers to load same data.
-    # seed_everything(SEED, workers=True)
+    if SEED != -1:
+        seed_everything(SEED, workers=True)
+
     imagenet_datamodule = ImageDataModule(
         train_root=IMAGENET_TRAIN_ROOT,
         val_root=IMAGENET_VAL_ROOT,
@@ -39,7 +40,7 @@ def main():
         allow_unenven_batchs=ALLOW_UNEVEN_BATCHES,
     )
     mlm_datamodule = MLMDataModule(
-        [HFDatasetsInfo("wikitext", "wikitext-103-raw-v1")],
+        [HFDatasetInfo("wikitext", "wikitext-103-raw-v1")],
         batch_size=BATCH_SIZE,
         num_workers=NUM_WORKERS,
         allow_unenven_batchs=ALLOW_UNEVEN_BATCHES,
@@ -48,14 +49,14 @@ def main():
         [
             VLDataModule(
                 train_dataset_infos=[
-                    HFDatasetsInfo(
+                    HFDatasetInfo(
                         key="red_caps",
                         subset="mycology",
                         rename_columns=[("caption", "text")],
                     )
                 ],
                 val_dataset_infos=[
-                    HFDatasetsInfo(
+                    HFDatasetInfo(
                         key="red_caps",
                         subset="mycology",
                         rename_columns=[("caption", "text")],
@@ -81,6 +82,7 @@ def main():
             LearningRateMonitor(logging_interval="step"),
             MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule),
         ],
+        strategy="ddp",
     )
     trainer.fit(model, datamodule=datamodule)
     trainer.validate(model, datamodule=datamodule)
