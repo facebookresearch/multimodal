@@ -8,6 +8,7 @@ import collections
 import math
 import warnings
 from collections import namedtuple, OrderedDict
+from dataclasses import dataclass
 from functools import partial
 from typing import Any, Callable, List, Literal, Optional, Tuple, Union
 
@@ -16,7 +17,11 @@ from packaging import version
 from torch import nn, Tensor, device
 from torchmultimodal.modules.layers.mlp import MLP
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
-from torchmultimodal.modules.losses.flava import Pooler, FLAVAPretrainingLoss
+from torchmultimodal.modules.losses.flava import (
+    FLAVAPretrainingLossOutput,
+    Pooler,
+    FLAVAPretrainingLoss,
+)
 from torchmultimodal.utils.common import PretrainedMixin
 
 
@@ -187,6 +192,12 @@ def flava_model_for_classification(
     return FLAVAForClassification(model=model, classifier=classifier, loss=loss_fn)
 
 
+@dataclass
+class FLAVAForClassificationOutput:
+    logits: Tensor
+    loss: Tensor
+
+
 class FLAVAModel(nn.Module, PretrainedMixin):
     def __init__(
         self,
@@ -304,6 +315,10 @@ class FLAVAModel(nn.Module, PretrainedMixin):
         image_embedding: Tensor,
         text_embedding: Tensor,
     ):
+        if image_embedding is None or text_embedding is None:
+            # Since nothing is passed, it might be case without
+            # masked data let's say.
+            return TransformerOutput()
         image_embedding = self.image_to_mm_projection(image_embedding)
         text_embedding = self.text_to_mm_projection(text_embedding)
         fused_state = torch.cat([image_embedding, text_embedding], dim=1)
@@ -314,10 +329,7 @@ class FLAVAModel(nn.Module, PretrainedMixin):
 class FLAVAForPretraining(nn.Module, PretrainedMixin):
     # TODOs:
     # 1. Expose logit scale
-    # 2. Test out encode methods
-    # 3. Add pretrained model loading capabilities.
-    # 4. For FLAVA model, allow interpolating the embeddings to
-
+    # 2. For FLAVA model, allow interpolating the embeddings to
     # for patch embeddings
     def __init__(self, model: FLAVAModel, image_codebook: nn.Module, loss: nn.Module):
         super().__init__()
@@ -355,7 +367,7 @@ class FLAVAForPretraining(nn.Module, PretrainedMixin):
         required_embedding: Optional[EMBEDDING_OPTIONS] = None,
         itm_labels: Optional[Tensor] = None,
         mlm_labels: Optional[Tensor] = None,
-    ):
+    ) -> FLAVAPretrainingLossOutput:
         image_labels = None
         if image_for_codebook is not None:
             image_labels = self.image_codebook(image_for_codebook).flatten(1)
@@ -419,7 +431,11 @@ class FLAVAForClassification(nn.Module, PretrainedMixin):
             hidden_state = flava_output.multimodal.last_hidden_state
 
         scores = self.classifier(hidden_state[:, cls_index])
-        return self.loss(scores, labels)
+        loss = self.loss(scores, labels)
+        return FLAVAForClassificationOutput(
+            logits=scores,
+            loss=loss,
+        )
 
 
 class TransformerSelfAttention(nn.Module):
