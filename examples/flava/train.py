@@ -5,11 +5,9 @@
 # LICENSE file in the root directory of this source tree.
 
 from data import (
-    HFDatasetsInfo,
+    HFDatasetInfo,
     ImageDataModule,
     MLMDataModule,
-    HFDatasetInfo,
-    VLDataModule,
     MultiDataModule,
     VLDataModule,
 )
