@@ -7,19 +7,69 @@
 
 import math
 import warnings
+from dataclasses import dataclass, field
 from typing import Any, Callable, Optional, Union
 
 import torch
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
+    ContrastiveLossOutput,
     contrastive_loss_with_temperature,
 )
 
 
+@dataclass
+class ITMLossOutput:
+    logits: Tensor
+    loss: Tensor
+
+
+@dataclass
+class MaskedPredictionLossOutput:
+    logits: Tensor
+    loss: Tensor
+
+
+@dataclass
+class FLAVAGlobalContrastiveLossOutput(ContrastiveLossOutput):
+    text_embedding: Tensor
+    image_embedding: Tensor
+    logit_scale: Tensor
+
+
+@dataclass
+class FLAVAPretrainingLossesCollection:
+    mmm_text_loss: Optional[Tensor] = None
+    mmm_image_loss: Optional[Tensor] = None
+    mim_loss: Optional[Tensor] = None
+    mlm_loss: Optional[Tensor] = None
+    itm_loss: Optional[Tensor] = None
+    global_contrastive_loss: Optional[Tensor] = None
+
+
+@dataclass
+class FLAVAPretrainingLossOutput:
+    losses: FLAVAPretrainingLossesCollection = field(
+        default_factory=FLAVAPretrainingLossesCollection
+    )
+    mlm_output: Optional[MaskedPredictionLossOutput] = None
+    mim_output: Optional[MaskedPredictionLossOutput] = None
+    mmm_text_output: Optional[MaskedPredictionLossOutput] = None
+    mmm_image_output: Optional[MaskedPredictionLossOutput] = None
+    itm_output: Optional[ITMLossOutput] = None
+    global_contrastive_output: Optional[FLAVAGlobalContrastiveLossOutput] = None
+    image_sequence: Optional[Tensor] = None
+    text_sequence: Optional[Tensor] = None
+    image_masked_sequence: Optional[Tensor] = None
+    text_masked_sequence: Optional[Tensor] = None
+    multimodal_sequence: Optional[Tensor] = None
+    multimodal_masked_sequence: Optional[Tensor] = None
+
+
 # TODO(asg): Replace later with MLP classifier if checkpoint permits
 class Pooler(nn.Module):
-    def __init__(self, hidden_size: int = 756, **kwargs: Any):
+    def __init__(self, hidden_size: int = 768, **kwargs: Any):
         super().__init__()
 
         self.dense = nn.Linear(hidden_size, hidden_size)
@@ -34,9 +84,8 @@ class Pooler(nn.Module):
         return pooled_output
 
 
-# TODO(asg): Simplify with existing checkpoints later
 class TwoWayHead(nn.Module):
-    def __init__(self, hidden_size: int = 756, **kwargs: Any):
+    def __init__(self, hidden_size: int = 768, **kwargs: Any):
         super().__init__()
 
         self.seq_relationship = nn.Linear(hidden_size, 2)
@@ -65,18 +114,19 @@ class ITMLoss(nn.Module):
         pooled_output = self.pooler(hidden_states)
         scores = self.cls(pooled_output)
 
-        return self.ce_loss(
+        loss = self.ce_loss(
             scores.view(-1, 2),
             labels.view(-1),
         )
+        return ITMLossOutput(logits=scores, loss=loss)
 
 
 class MaskedPredictionHead(nn.Module):
     def __init__(
         self,
-        hidden_size: int = 756,
+        hidden_size: int = 768,
         vocab_size: int = 30522,
-        transform_act_fn: Callable[..., Tensor] = nn.functional.gelu,
+        transform_act_fn: Callable[[Tensor], Tensor] = nn.functional.gelu,
         layer_norm_eps: float = 1e-5,
         use_fp32_layer_norm: bool = True,
         **kwargs: Any,
@@ -112,9 +162,9 @@ class MaskedPredictionHead(nn.Module):
 class MaskedPredictionLoss(nn.Module):
     def __init__(
         self,
-        hidden_size: int = 756,
+        hidden_size: int = 768,
         vocab_size: int = 30522,
-        transform_act_fn: Callable[..., Tensor] = nn.functional.gelu,
+        transform_act_fn: Callable[[Tensor], Tensor] = nn.functional.gelu,
         layer_norm_eps: float = 1e-5,
         ignore_index: int = -1,
         **kwargs: Any,
@@ -147,7 +197,10 @@ class MaskedPredictionLoss(nn.Module):
         if torch.isnan(masked_loss):
             warnings.warn("NaN detected in masked_loss. Replacing it with 0.")
             masked_loss = torch.nan_to_num(masked_loss, nan=0.0)
-        return masked_loss
+        return MaskedPredictionLossOutput(
+            logits=prediction,
+            loss=masked_loss,
+        )
 
 
 class FLAVAGlobalContrastiveLoss(nn.Module):
@@ -192,13 +245,24 @@ class FLAVAGlobalContrastiveLoss(nn.Module):
 
         self.logit_scale.data.clamp_(0, 4.6052)
 
-        return contrastive_loss_with_temperature(
+        output = contrastive_loss_with_temperature(
             image_embeddings=image_embedding,
             text_embeddings=text_embedding,
             logit_scale=self.logit_scale,
             mask=mask,
             # Always true for FLAVA global contrastive loss
             backprop_in_gather=True,
+        )
+
+        return FLAVAGlobalContrastiveLossOutput(
+            loss=output.loss,
+            image_logits=output.image_logits,
+            text_logits=output.text_logits,
+            image_loss=output.image_loss,
+            text_loss=output.text_loss,
+            text_embedding=text_embedding,
+            image_embedding=image_embedding,
+            logit_scale=self.logit_scale.data,
         )
 
 
@@ -209,7 +273,7 @@ class FLAVAPretrainingLoss(nn.Module):
         hidden_size: int = 768,
         text_vocab_size: int = 30522,
         image_vocab_size: int = 8192,
-        transform_act_fn: Callable[..., Tensor] = nn.functional.gelu,
+        transform_act_fn: Callable[[Tensor], Tensor] = nn.functional.gelu,
         layer_norm_eps: float = 1e-5,
         ignore_index: int = -1,
         mlm_weight: float = 1.0,
@@ -274,6 +338,8 @@ class FLAVAPretrainingLoss(nn.Module):
         self.itm_loss_weight = itm_loss_weight
 
     # TODO: Some refactoring is needed in this function to make it look better
+    # TODO: Possibly refactor this into functional and class component
+    # for better usability
     def forward(
         self,
         image_sequence: Optional[Tensor] = None,
@@ -285,10 +351,11 @@ class FLAVAPretrainingLoss(nn.Module):
         itm_labels: Optional[Tensor] = None,
         mim_labels: Optional[Tensor] = None,
         mlm_labels: Optional[Tensor] = None,
-    ):
+    ) -> FLAVAPretrainingLossOutput:
         # TODO(asg): Add proper checks and only calculate losses which can
         # be calculated
-        outputs = {}
+        # TODO: Create a dataclass for loss outputs
+        outputs = FLAVAPretrainingLossOutput()
         pos_mask = None
 
         # Check multimodal_masked_sequence to make sure this is unimodal case
@@ -296,33 +363,29 @@ class FLAVAPretrainingLoss(nn.Module):
         # text, but that is a research question :)
         if (
             mim_labels is not None
+            and image_masked_sequence is not None
             and self.mim_weight > 0
             and multimodal_masked_sequence is None
         ):
-            assert image_masked_sequence is not None, (
-                "image_masked_sequence must be passed with "
-                + "mim_labels when it is not a multimodal case"
-            )
             # Remove CLS token from image_masked_sequence
-            outputs["mim_loss"] = self.mim_loss(
+            outputs.mim_output = self.mim_loss(
                 image_masked_sequence[:, -mim_labels.size(1) :, :], mim_labels
             )
-            outputs["mim_loss"] *= self.mim_weight
+            outputs.mim_output.loss *= self.mim_weight
+            outputs.losses.mim_loss = outputs.mim_output.loss
 
         # Check multimodal_masked_sequence to make sure this is unimodal case
         if (
             mlm_labels is not None
+            and text_masked_sequence is not None
             and self.mlm_weight > 0
             and multimodal_masked_sequence is None
         ):
-            assert text_masked_sequence is not None, (
-                "text_masked_sequence must be passed with "
-                + "mlm_labels when it is not a multimodal case"
-            )
-            outputs["mlm_loss"] = self.mlm_loss(
+            outputs.mlm_output = self.mlm_loss(
                 text_masked_sequence[:, -mlm_labels.size(1) :, :], mlm_labels
             )
-            outputs["mlm_loss"] *= self.mlm_weight
+            outputs.mlm_output.loss *= self.mlm_weight
+            outputs.losses.mlm_loss = outputs.mlm_output.loss
 
         if (
             multimodal_sequence is not None
@@ -332,7 +395,10 @@ class FLAVAPretrainingLoss(nn.Module):
             pos_pairs = itm_labels.ne(0)
             pos_mask = torch.where(pos_pairs.any(), pos_pairs, pos_pairs.new([True]))
             itm_loss = self.itm_loss(multimodal_sequence, itm_labels)
-            outputs["itm_loss"] = self.itm_loss_weight * itm_loss
+            outputs.itm_output = itm_loss
+            outputs.itm_output.loss *= self.itm_loss_weight
+            outputs.losses.itm_loss = outputs.itm_output.loss
+
             multimodal_sequence = multimodal_sequence[pos_mask]
             if multimodal_masked_sequence is not None:
                 multimodal_masked_sequence = multimodal_masked_sequence[pos_mask]
@@ -344,11 +410,12 @@ class FLAVAPretrainingLoss(nn.Module):
         if multimodal_masked_sequence is not None and self.mmm_text_loss_weight > 0:
             assert mlm_labels is not None, "mlm_labels must be passed for mmm_text_loss"
             sequence_for_text = multimodal_masked_sequence[:, -mlm_labels.size(1) :, :]
-            outputs["mmm/text_loss"] = self.mmm_loss.mlm(
+            outputs.mmm_text_output = self.mmm_loss.mlm(
                 sequence_for_text,
                 mlm_labels,
             )
-            outputs["mmm/text_loss"] *= self.mmm_text_loss_weight
+            outputs.mmm_text_output.loss *= self.mmm_text_loss_weight
+            outputs.losses.mmm_text_loss = outputs.mmm_text_output.loss
 
         if multimodal_masked_sequence is not None and self.mmm_image_loss_weight > 0:
             assert (
@@ -359,22 +426,26 @@ class FLAVAPretrainingLoss(nn.Module):
             sequence_for_image = multimodal_masked_sequence[
                 :, 2 : 2 + mim_labels.size(1), :
             ]
-            outputs["mmm/image_loss"] = self.mmm_loss.mim(
+            outputs.mmm_image_output = self.mmm_loss.mim(
                 sequence_for_image,
                 mim_labels,
             )
-            outputs["mmm/image_loss"] *= self.mmm_image_loss_weight
+            outputs.mmm_image_output.loss *= self.mmm_image_loss_weight
+            outputs.losses.mmm_image_loss = outputs.mmm_image_output.loss
 
         if (
             image_sequence is not None
             and text_sequence is not None
             and self.contrastive_loss_weight > 0
         ):
-            outputs["global_contrastive_loss"] = self.contrastive_loss(
+            outputs.global_contrastive_output = self.contrastive_loss(
                 image_sequence,
                 text_sequence,
                 pos_mask,
             )
-            outputs["global_contrastive_loss"] *= self.contrastive_loss_weight
+            outputs.global_contrastive_output.loss *= self.contrastive_loss_weight
+            outputs.losses.global_contrastive_loss = (
+                outputs.global_contrastive_output.loss
+            )
 
         return outputs

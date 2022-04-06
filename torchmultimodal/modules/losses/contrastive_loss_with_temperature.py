@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
+from dataclasses import dataclass
 from typing import Optional, Tuple
 
 import torch
@@ -12,6 +13,15 @@ import torch.nn.functional as F
 from torch import nn
 from torch.distributed import all_gather as all_gather_no_backprop
 from torch.distributed.nn.functional import all_gather as all_gather_with_backprop
+
+
+@dataclass
+class ContrastiveLossOutput:
+    loss: torch.Tensor
+    image_logits: torch.Tensor
+    text_logits: torch.Tensor
+    image_loss: torch.Tensor
+    text_loss: torch.Tensor
 
 
 def _gather_embeddings_and_labels(
@@ -64,7 +74,7 @@ def contrastive_loss_with_temperature(
     logit_scale: nn.Parameter,
     mask: Optional[torch.Tensor] = None,
     backprop_in_gather: bool = True,
-):
+) -> ContrastiveLossOutput:
     """Functional component for the ContrastiveLossWithTemperature. Please
     check the class for more details
 
@@ -81,7 +91,8 @@ def contrastive_loss_with_temperature(
             all_gather to all workers (versus just the local worker).
 
     Returns:
-        torch.Tensor: calculated contrastive loss
+        ContrastiveLossOutput: instance of ContrastiveLossOutput with all of the
+            relevant fields.
     """
 
     # this temperature implementation follows CLIP Figure 3
@@ -113,7 +124,14 @@ def contrastive_loss_with_temperature(
     loss_i = F.cross_entropy(logits_per_image, labels)
     loss_t = F.cross_entropy(logits_per_text, labels)
     loss = (loss_i + loss_t) / 2
-    return loss
+
+    return ContrastiveLossOutput(
+        loss=loss,
+        image_logits=logits_per_image,
+        text_logits=logits_per_text,
+        image_loss=loss_i,
+        text_loss=loss_t,
+    )
 
 
 class ContrastiveLossWithTemperature(nn.Module):
@@ -171,4 +189,4 @@ class ContrastiveLossWithTemperature(nn.Module):
             text_embeddings=text_embeddings,
             logit_scale=self.logit_scale,
             backprop_in_gather=backprop_in_gather,
-        )
+        ).loss
