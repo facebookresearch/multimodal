@@ -1,0 +1,23 @@
+name: lint
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  style:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+      - name: Check out repos
+        uses: actions/checkout@v2
+      - name: Install lint utilities
+        run: |
+          pip install pre-commit
+          pre-commit install-hooks
+      - name: Lint modified files
+        run: pre-commit run --from-ref origin/HEAD --to-ref HEAD
