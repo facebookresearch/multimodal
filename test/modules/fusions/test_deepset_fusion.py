@@ -9,9 +9,9 @@ import unittest
 import torch
 from torch import nn
 from torchmultimodal.modules.fusions.deepset_fusion import (
+    deepset_transformer,
     DeepsetFusionModule,
     DeepsetFusionWithTransformer,
-    deepset_transformer,
 )
 from torchmultimodal.modules.layers.mlp import MLP
 

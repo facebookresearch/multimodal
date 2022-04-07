@@ -8,7 +8,7 @@ import unittest
 from typing import List
 
 import torch
-from torch import Tensor, nn
+from torch import nn, Tensor
 from torchmultimodal.architectures.late_fusion import LateFusionArchitecture
 from torchmultimodal.architectures.two_tower import TwoTower
 from torchmultimodal.modules.fusions.concat_fusion import ConcatFusionModule

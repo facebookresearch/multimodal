@@ -74,7 +74,7 @@ Ideally, flake and ufmt should be run via pre-commit hooks.
 But if for some reason you want to run them separately follow this:
 
 ```
-pip install flake8==4.0.1 ufmt==1.3.0
+pip install flake8==4.0.1 ufmt==1.3.0 black==21.4b2 usort==0.6.4
 flake8 (examples|test|torchmultimodal)
 ufmt format (examples|test|torchmultimodal)
 ```
