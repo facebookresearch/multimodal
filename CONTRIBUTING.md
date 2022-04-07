@@ -31,19 +31,8 @@ outlined on that page and do not file a public issue.
 
 ### Install Dependencies
 
+Same as in [README](README.md) with the exception of:
 ```
-conda install pytorch torchvision torchtext cudatoolkit=11.3 -c pytorch-nightly
-
-# For CPU-only install
-conda install pytorch torchvision torchtext cpuonly -c pytorch-nightly
-```
-
-### Install TorchMultimodal
-
-```
-git clone --recursive https://github.com/facebookresearch/multimodal.git torchmultimodal
-cd torchmultimodal
-pip install -r requirements.txt
 python setup.py develop
 ```
 

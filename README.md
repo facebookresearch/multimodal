@@ -15,16 +15,17 @@ TorchMultimodal requires Python >= 3.8. The library can be installed with or wit
 
 1. Create conda environment
     ```
-    conda create -n torch-multimodal
+    conda create -n torch-multimodal python=<python_version>
     conda activate torch-multimodal
     ```
 2. Install pytorch, torchvision, and torchtext. See [PyTorch documentation](https://pytorch.org/get-started/locally/).
-   ```
-   conda install pytorch torchvision torchtext cudatoolkit=11.3 -c pytorch-nightly
+   For now we only support Linux platform.
+    ```
+    conda install pytorch torchvision torchtext cudatoolkit=11.3 -c pytorch-nightly -c nvidia
 
-   # For CPU-only install
-   conda install pytorch torchvision torchtext cpuonly -c pytorch-nightly
-   ```
+    # For CPU-only install
+    conda install pytorch torchvision torchtext cpuonly -c pytorch-nightly
+    ```
 3. Download and install TorchMultimodal and remaining requirements.
     ```
     git clone --recursive https://github.com/facebookresearch/multimodal.git torchmultimodal
