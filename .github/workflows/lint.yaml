@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  style:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - name: Setup Python
