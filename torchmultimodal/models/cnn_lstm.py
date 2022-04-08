@@ -12,7 +12,6 @@ from torchmultimodal.modules.encoders.cnn_encoder import CNNEncoder
 from torchmultimodal.modules.encoders.lstm_encoder import LSTMEncoder
 from torchmultimodal.modules.fusions.concat_fusion import ConcatFusionModule
 from torchmultimodal.modules.layers.mlp import MLP
-import random
 
 
 def cnn_lstm_classifier(
