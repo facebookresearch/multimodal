@@ -145,7 +145,7 @@ class ResNetForCLIP(nn.Module):
 
     def __init__(
         self,
-        layers: Tuple[int] = (3, 4, 6, 3),
+        layers: Tuple[int, int, int, int] = (3, 4, 6, 3),
         output_dim: int = 512,
         heads: int = 1024,
         input_resolution: int = 224,

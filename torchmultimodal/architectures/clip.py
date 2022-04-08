@@ -4,6 +4,8 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+from typing import Dict
+
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -40,7 +42,7 @@ class CLIPArchitecture(nn.Module):
         self,
         image: torch.Tensor,
         text: torch.Tensor,
-    ) -> torch.Tensor:
+    ) -> Dict[str, torch.Tensor]:
 
         img_embeddings = self.vision_encoder(image)
         text_embeddings = self.text_encoder(text)

@@ -66,6 +66,7 @@ class DeepsetFusionModule(nn.Module):
                 {channel: nn.Identity() for channel in channel_to_encoder_dim}
             )
         if self.apply_attention:
+            self.attention: nn.Module
             if attention_dim is None:
                 # default value as per older implementation
                 attention_dim = projection_dim // 2

@@ -4,21 +4,22 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Iterable, Optional, Tuple, Union
+from typing import Callable, Iterable, List, Optional, Tuple, Union
 
 import torch
-import torchtext.transforms as text_transforms
 from PIL.Image import Image
 from torchmultimodal.transforms.text_transforms import PadTransform, StrToIntTransform
+from torchtext import transforms as text_transforms
 from torchtext.transforms import CLIPTokenizer
 from torchvision import transforms
+
 
 CLIP_DEFAULT_MEAN = (0.48145466, 0.4578275, 0.40821073)
 CLIP_DEFAULT_STD = (0.26862954, 0.26130258, 0.27577711)
 CLIP_DEFAULT_VOCAB_BPE_PATH = "http://download.pytorch.org/models/text/clip_merges.bpe"
 
 
-def convert_to_rgb(img: Image):
+def convert_to_rgb(img: Image) -> Image:
     return img.convert("RGB")
 
 
@@ -55,10 +56,10 @@ class CLIPTransform:
 
     def __init__(
         self,
-        image_size: Union[int, Tuple[int]] = (224, 224),
+        image_size: Union[int, Tuple[int, int]] = (224, 224),
         image_interpolation=transforms.InterpolationMode.BICUBIC,
-        image_mean: Tuple[float] = CLIP_DEFAULT_MEAN,
-        image_std: Tuple[float] = CLIP_DEFAULT_STD,
+        image_mean: Tuple[float, float, float] = CLIP_DEFAULT_MEAN,
+        image_std: Tuple[float, float, float] = CLIP_DEFAULT_STD,
         text_max_length: int = 77,
         is_train: bool = True,
         text_start_token: str = "<|startoftext|>",
@@ -67,30 +68,26 @@ class CLIPTransform:
         text_encoder_json_path: Optional[str] = None,
         num_merges: Optional[int] = 48894,
     ):
-        joint_transforms = [
+        joint_transforms: List[Callable] = [
             convert_to_rgb,
             transforms.ToTensor(),
             transforms.Normalize(image_mean, image_std),
         ]
         if isinstance(image_size, int):
             image_size = (image_size, image_size)
+        base_transform: List[Callable]
         if is_train:
-            self.image_transform = transforms.Compose(
-                [
-                    transforms.RandomResizedCrop(
-                        image_size, interpolation=image_interpolation
-                    )
-                ]
-                + joint_transforms,
-            )
+            base_transform = [
+                transforms.RandomResizedCrop(
+                    image_size, interpolation=image_interpolation
+                )
+            ]
         else:
-            self.image_transform = transforms.Compose(
-                [
-                    transforms.Resize(image_size, interpolation=image_interpolation),
-                    transforms.CenterCrop(image_size),
-                ]
-                + joint_transforms
-            )
+            base_transform = [
+                transforms.Resize(image_size, interpolation=image_interpolation),
+                transforms.CenterCrop(image_size),
+            ]
+        self.image_transform = transforms.Compose(base_transform + joint_transforms)
         tokenizer = CLIPTokenizer(
             text_bpe_merges_path, text_encoder_json_path, num_merges=num_merges
         )

@@ -75,6 +75,24 @@ flake8 `git diff main --name-only`
 ufmt format `git diff main --name-only`
 ```
 
+### Type checking
+
+TorchMultimodal uses mypy for type checking. You can install mypy with the command
+
+```
+python3 -m pip install mypy
+```
+
+To perform type checking:
+
+```
+# on the whole repo
+mypy
+
+## only on modified files
+mypy `git diff main --name-only`
+```
+
 
 ### Unit Tests
 Please add unit tests for adding a new feature or a bug-fix. To run a specific test:

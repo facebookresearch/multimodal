@@ -32,7 +32,7 @@ class CNNEncoder(nn.Module):
         self, input_dims: List[int], output_dims: List[int], kernel_sizes: List[int]
     ):
         super().__init__()
-        conv_layers = []
+        conv_layers: List[nn.Module] = []
         assert len(input_dims) == len(output_dims) and len(output_dims) == len(
             kernel_sizes
         ), "input_dims, output_dims, and kernel_sizes should all have the same length"

@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Union
 
 import torch
 from torch import nn, Tensor
@@ -59,13 +59,15 @@ class MILEncoder(nn.Module):
         channel_to_encoder_dim = {}
         for i in range(len(partition_sizes)):
             channel_to_encoder_dim[self.get_channel_name(i)] = shared_encoder_dim
+        deepset_fusion_cls = (
+            DeepsetFusionWithTransformer
+            if isinstance(pooling_function, nn.TransformerEncoder)
+            else DeepsetFusionModule
+        )
 
-        if isinstance(pooling_function, nn.TransformerEncoder):
-            deepset_fusion_cls = DeepsetFusionWithTransformer
-        else:
-            deepset_fusion_cls = DeepsetFusionModule
-
-        self.deepset_fusion = deepset_fusion_cls(
+        self.deepset_fusion: Union[
+            DeepsetFusionWithTransformer, DeepsetFusionModule
+        ] = deepset_fusion_cls(
             channel_to_encoder_dim=channel_to_encoder_dim,
             mlp=mlp,
             pooling_function=pooling_function,
