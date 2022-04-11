@@ -74,6 +74,7 @@ class TestFLAVA(unittest.TestCase):
             )
         )
 
+    @unittest.skip("Pending fix network connection, see (T116682215)")
     @torch.no_grad()
     def test_forward_pretraining(self):
         flava = flava_model_for_pretraining()

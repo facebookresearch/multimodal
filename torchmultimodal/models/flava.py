@@ -1484,6 +1484,7 @@ class DalleVAEEncoder(nn.Module, PretrainedMixin):
             self.load_model()
 
     def load_model(self):
+        # TODO (T116682215): Network error due to FLAVA model relying on access to openAI
         encoder = super().load_model(
             "https://cdn.openai.com/dall-e/encoder.pkl", load_state_dict=False
         )
