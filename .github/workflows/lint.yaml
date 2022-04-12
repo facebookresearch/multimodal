@@ -1,0 +1,28 @@
+name: lint
+on:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.8"
+
+      - name: Check out repos
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Install lint utilities
+        run: |
+          pip install pre-commit
+          pre-commit install-hooks
+      - id: file_changes
+        uses: trilom/file-changes-action@v1.2.4
+        with:
+          prNumber: ${{ github.event.number }}
+          output: ' '
+      - name: Lint modified files
+        run: pre-commit run --files ${{ steps.file_changes.outputs.files }}

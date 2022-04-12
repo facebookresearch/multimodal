@@ -8,6 +8,7 @@ import os
 import random
 import tempfile
 from contextlib import contextmanager
+from pathlib import Path
 
 import torch
 import torch.distributed as dist
@@ -59,3 +60,11 @@ def set_rng_seed(seed):
     """Sets the seed for pytorch and numpy random number generators"""
     torch.manual_seed(seed)
     random.seed(seed)
+
+
+_ASSET_DIR = (Path(__file__).parent.parent / "test/assets").resolve()
+
+
+def get_asset_path(file_name: str) -> str:
+    """Get the path to the file under assets directory."""
+    return str(_ASSET_DIR.joinpath(file_name))
