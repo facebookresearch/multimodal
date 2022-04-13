@@ -34,6 +34,13 @@ def fetch_long_description():
     return readme
 
 
+def read_requirements(file):
+    with open(file) as f:
+        reqs = f.read()
+
+    return reqs.strip().split("\n")
+
+
 DISTNAME = "torchmultimodal"
 DESCRIPTION = "Multimodal modeling in PyTorch"
 LONG_DESCRIPTION = fetch_long_description()
@@ -43,12 +50,15 @@ AUTHOR_EMAIL = "kartikayk@fb.com"
 # Need to exclude folders in test as well so as they don't create an extra package
 EXCLUDES = ("examples", "test")
 
+
 if __name__ == "__main__":
+
     setup(
         name=DISTNAME,
         include_package_data=True,
         packages=find_packages(exclude=EXCLUDES),
         python_requires=">=3.8",
+        install_requires=read_requirements("requirements.txt"),
         version=_get_version(),
         description=DESCRIPTION,
         long_description=LONG_DESCRIPTION,
@@ -62,4 +72,5 @@ if __name__ == "__main__":
             "License :: OSI Approved :: BSD License",
             "Topic :: Scientific/Engineering :: Artificial Intelligence",
         ],
+        extras_require={"dev": read_requirements("dev-requirements.txt")},
     )

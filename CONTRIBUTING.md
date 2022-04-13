@@ -33,7 +33,7 @@ outlined on that page and do not file a public issue.
 
 Same as in [README](README.md) with the exception of:
 ```
-python setup.py develop
+pip install -e ".[dev]"
 ```
 
 ## Development Process
@@ -54,7 +54,7 @@ We actively welcome your pull requests.
 TorchMultimodal uses pre-commit hooks to ensure style consistency and prevent common mistakes. Enable it by:
 
 ```
-pip install pre-commit && pre-commit install
+pre-commit install
 ```
 
 After this pre-commit hooks will be run before every commit.
@@ -63,7 +63,6 @@ Ideally, flake and ufmt should be run via pre-commit hooks.
 But if for some reason you want to run them separately follow this:
 
 ```
-pip install flake8==4.0.1 ufmt==1.3.0 black==21.4b2 usort==0.6.4
 flake8 (examples|test|torchmultimodal)
 ufmt format (examples|test|torchmultimodal)
 ```
@@ -71,19 +70,14 @@ ufmt format (examples|test|torchmultimodal)
 Alternatively, you can run on only those files you have modified, e.g.
 
 ```
+pip install flake8==4.0.1 ufmt==1.3.0 black==21.4b2 usort==0.6.4
 flake8 `git diff main --name-only`
 ufmt format `git diff main --name-only`
 ```
 
 ### Type checking
 
-TorchMultimodal uses mypy for type checking. You can install mypy with the command
-
-```
-python3 -m pip install mypy
-```
-
-To perform type checking:
+TorchMultimodal uses mypy for type checking. To perform type checking:
 
 ```
 # on the whole repo
