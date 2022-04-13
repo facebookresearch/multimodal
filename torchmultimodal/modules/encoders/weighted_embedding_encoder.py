@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Tuple, Union, Callable
+from typing import Callable, Tuple, Union
 
 import torch
 from torch import nn, Tensor
@@ -16,7 +16,7 @@ class WeightedEmbeddingEncoder(nn.Module):
 
     Args:
         embedding (nn.Embedding): embedding module
-        pooling_function (Callable[[Tensor], Union[Tensor, Tuple]]): pooling function to combine the weighted embeddings,\
+        pooling_function (Callable[[Tensor, int], Union[Tensor, Tuple]]): pooling function to combine the weighted embeddings,\
         example: torch.sum function should return a tensor or namedtuple containing the tensor in the values field like torch.max
         pooling_dim (int) : dimension along which the pooling function is applied
         use_hash (bool): if hashing based on embedding vocab size if applied to input
@@ -31,7 +31,7 @@ class WeightedEmbeddingEncoder(nn.Module):
     def __init__(
         self,
         embedding: nn.Embedding,
-        pooling_function: Callable[[Tensor], Union[Tensor, Tuple]],
+        pooling_function: Callable[[Tensor, int], Union[Tensor, Tuple]],
         pooling_dim: int = 1,
         use_hash: bool = False,
     ) -> None:
@@ -67,12 +67,12 @@ class WeightedEmbeddingEncoder(nn.Module):
 
         weighted_embeddings = self.embedding(index) * weights.unsqueeze(-1)
 
-        pooled_embeddings = self.pooling_function(
-            weighted_embeddings, dim=self.pooling_dim
-        )
-        if not isinstance(pooled_embeddings, Tensor):
+        pooled_embeddings = self.pooling_function(weighted_embeddings, self.pooling_dim)
+        if isinstance(pooled_embeddings, Tensor):
+            output: Tensor = pooled_embeddings
+        else:
             assert hasattr(
                 pooled_embeddings, "values"
             ), "pooled embeddings should be Tensor or tuple with values field as Tensor"
-            pooled_embeddings = pooled_embeddings.values
-        return pooled_embeddings
+            output = pooled_embeddings.values  # type: ignore
+        return output
