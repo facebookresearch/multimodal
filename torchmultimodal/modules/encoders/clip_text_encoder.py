@@ -87,7 +87,7 @@ class CLIPTextEncoder(nn.Module):
 
     def build_attention_mask(self):
         mask = torch.full((self.context_length, self.context_length), True).triu(1)
-        return mask.to(dtype=bool)
+        return mask.to(device=None, dtype=torch.bool)
 
     def forward(self, text: torch.Tensor) -> torch.Tensor:
         embeddings = self.encoder(text, attn_mask=self.build_attention_mask())

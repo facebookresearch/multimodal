@@ -30,7 +30,7 @@ class StrToIntTransform:
         self, l: Union[List[str], List[List[str]]]
     ) -> Union[List[int], List[List[int]]]:
         if isinstance(l[0], str):
-            return [int(x) for x in l]
+            return [int(x) for x in l]  # type: ignore
         if isinstance(l[0], List) and isinstance(l[0][0], str):
             return [[int(x) for x in ll] for ll in l]
         else:

@@ -6,7 +6,7 @@
 
 import math
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -134,6 +134,9 @@ def contrastive_loss_with_temperature(
     )
 
 
+DEFAULT_LOGIT_SCALE = nn.Parameter(math.log(1 / 0.07) * torch.ones([]))
+
+
 class ContrastiveLossWithTemperature(nn.Module):
     """Contrastive loss with a temperature parameter, as used in CLIP and FLAVA.
     CLIP: https://arxiv.org/pdf/2103.00020.pdf
@@ -164,10 +167,8 @@ class ContrastiveLossWithTemperature(nn.Module):
                 all_gather to all workers (versus just the local worker).
     """
 
-    def __init__(self, logit_scale: float = None):
+    def __init__(self, logit_scale: Union[float, nn.Parameter] = DEFAULT_LOGIT_SCALE):
         super().__init__()
-        if logit_scale is None:
-            logit_scale = math.log(1 / 0.07)
 
         # If already initialized, set to what was passed
         if isinstance(logit_scale, nn.Parameter):

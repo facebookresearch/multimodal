@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import List, Optional
+from typing import List
 
 from torch import nn
 from torchmultimodal.architectures.late_fusion import LateFusionArchitecture
@@ -12,6 +12,11 @@ from torchmultimodal.modules.encoders.cnn_encoder import CNNEncoder
 from torchmultimodal.modules.encoders.lstm_encoder import LSTMEncoder
 from torchmultimodal.modules.fusions.concat_fusion import ConcatFusionModule
 from torchmultimodal.modules.layers.mlp import MLP
+
+
+DEFAULT_CNN_INPUT_DIMS = [3, 64, 128, 128, 64, 64]
+DEFAULT_CNN_OUTPUT_DIMS = DEFAULT_CNN_INPUT_DIMS[1:] + [10]
+DEFAULT_CNN_KERNEL_SIZES = [7, 5, 5, 5, 5, 1]
 
 
 def cnn_lstm_classifier(
@@ -23,12 +28,12 @@ def cnn_lstm_classifier(
     lstm_bidirectional: bool = True,
     lstm_batch_first: bool = True,
     # parameters for encoding the image
-    cnn_input_dims: Optional[List[int]] = None,
-    cnn_output_dims: Optional[List[int]] = None,
-    cnn_kernel_sizes: Optional[List[int]] = None,
+    cnn_input_dims: List[int] = DEFAULT_CNN_INPUT_DIMS,
+    cnn_output_dims: List[int] = DEFAULT_CNN_OUTPUT_DIMS,
+    cnn_kernel_sizes: List[int] = DEFAULT_CNN_KERNEL_SIZES,
     # parameters for the classifier
-    classifier_in_dim: Optional[int] = 450,
-    num_classes: Optional[int] = 2,
+    classifier_in_dim: int = 450,
+    num_classes: int = 2,
 ) -> LateFusionArchitecture:
     """
     A simple example to show the composability in TorchMultimodal, and how to
@@ -64,19 +69,6 @@ def cnn_lstm_classifier(
             Should equal output_dim for CNN + output_dim for LSTM (flattened).
         num_classes (int): Number of classes predicted by classifier.
     """
-
-    # Do some basic sanity checking on the input parameters
-    check_all = [cnn_input_dims, cnn_output_dims, cnn_kernel_sizes]
-    none_count = check_all.count(None)
-    if none_count > 0:
-        assert none_count == 3, (
-            "Please either pass all CNN parameters or "
-            + "none of them. If you don't pass any, expected image input "
-            + "is of size 224 x 224."
-        )
-        cnn_input_dims = (3, 64, 128, 128, 64, 64)
-        cnn_output_dims = cnn_input_dims[1:] + (10,)
-        cnn_kernel_sizes = [7, 5, 5, 5, 5, 1]
 
     image_encoder = CNNEncoder(
         input_dims=cnn_input_dims,
