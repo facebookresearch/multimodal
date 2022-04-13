@@ -12,16 +12,16 @@ import torch
 import torch.multiprocessing as mp
 import torch.nn as nn
 import torch.optim as optim
+from test.test_utils import (
+    gpu_test,
+    init_distributed_on_file,
+    with_temp_files,
+)
 from torch import distributed as dist
 from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
     ContrastiveLossWithTemperature,
 )
 from torchmultimodal.utils.common import get_current_device
-from torchmultimodal.utils.test_utils import (
-    gpu_test,
-    init_distributed_on_file,
-    with_temp_files,
-)
 
 
 class TestContrastiveLossWithTemperature(unittest.TestCase):

@@ -8,8 +8,8 @@ import unittest
 from functools import partial
 
 import torch
+from test.test_utils import set_rng_seed
 from torchmultimodal.modules.layers.mlp import MLP
-from torchmultimodal.utils.test_utils import set_rng_seed
 
 
 class TestMLP(unittest.TestCase):
