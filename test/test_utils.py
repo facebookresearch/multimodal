@@ -62,7 +62,7 @@ def set_rng_seed(seed):
     random.seed(seed)
 
 
-_ASSET_DIR = (Path(__file__).parent.parent / "test/assets").resolve()
+_ASSET_DIR = (Path(__file__).parent / "assets").resolve()
 
 
 def get_asset_path(file_name: str) -> str:

@@ -61,7 +61,7 @@ class CLIPTextEncoder(nn.Module):
         if use_clip_init:
             self.initialize_parameters()
 
-    def initialize_parameters(self):
+    def initialize_parameters(self) -> None:
         # Initialize token and positional embeddings
         nn.init.normal_(
             self.encoder.token_embedding.weight, std=self.TOKEN_EMBEDDING_INIT_STD
@@ -85,7 +85,7 @@ class CLIPTextEncoder(nn.Module):
         # Initialize projection
         nn.init.normal_(self.projection.weight, std=self.width ** -0.5)
 
-    def build_attention_mask(self):
+    def build_attention_mask(self) -> torch.Tensor:
         mask = torch.full((self.context_length, self.context_length), True).triu(1)
         return mask.to(device=None, dtype=torch.bool)
 
