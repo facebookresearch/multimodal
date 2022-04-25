@@ -20,8 +20,7 @@ from pytorch_lightning.callbacks import LearningRateMonitor
 AVAIL_GPUS = 2
 SEED = -1
 
-IMAGENET_TRAIN_ROOT = ""
-IMAGENET_VAL_ROOT = ""
+IMAGENET_TAR_PATH = ""
 NUM_WORKERS = 4
 MAX_STEPS = 450000
 BATCH_SIZE = 8
@@ -33,41 +32,40 @@ def main():
         seed_everything(SEED, workers=True)
 
     imagenet_datamodule = ImageDataModule(
-        train_root=IMAGENET_TRAIN_ROOT,
-        val_root=IMAGENET_VAL_ROOT,
+        [
+            HFDatasetInfo(
+                "aps/imagenet2012", extra_kwargs={"data_dir": IMAGENET_TAR_PATH}
+            )
+        ],
         batch_size=BATCH_SIZE,
         num_workers=NUM_WORKERS,
         allow_unenven_batchs=ALLOW_UNEVEN_BATCHES,
     )
     mlm_datamodule = MLMDataModule(
-        [HFDatasetInfo("wikitext", "wikitext-103-raw-v1")],
+        [HFDatasetInfo("wikitext", subset="wikitext-103-raw-v1")],
         batch_size=BATCH_SIZE,
         num_workers=NUM_WORKERS,
         allow_unenven_batchs=ALLOW_UNEVEN_BATCHES,
     )
-    vl_datamodule = MultiDataModule(
-        [
-            VLDataModule(
-                train_dataset_infos=[
-                    HFDatasetInfo(
-                        key="red_caps",
-                        subset="mycology",
-                        rename_columns=[("caption", "text")],
-                    )
-                ],
-                val_dataset_infos=[
-                    HFDatasetInfo(
-                        key="red_caps",
-                        subset="mycology",
-                        rename_columns=[("caption", "text")],
-                        split_key_mapping={"validation": "train"},
-                    )
-                ],
-                batch_size=BATCH_SIZE,
-                num_workers=NUM_WORKERS,
-                allow_unenven_batchs=ALLOW_UNEVEN_BATCHES,
+    vl_datamodule = VLDataModule(
+        train_dataset_infos=[
+            HFDatasetInfo(
+                key="red_caps",
+                subset="jellyfish",
+                rename_columns=[("caption", "text")],
             )
-        ]
+        ],
+        val_dataset_infos=[
+            HFDatasetInfo(
+                key="red_caps",
+                subset="jellyfish",
+                rename_columns=[("caption", "text")],
+                split_key_mapping={"validation": "train"},
+            )
+        ],
+        batch_size=BATCH_SIZE,
+        num_workers=NUM_WORKERS,
+        allow_unenven_batchs=ALLOW_UNEVEN_BATCHES,
     )
     datamodule = MultiDataModule([imagenet_datamodule, mlm_datamodule, vl_datamodule])
 

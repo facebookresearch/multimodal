@@ -3,6 +3,9 @@
 #
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
+#
+# Code for some of the transformers components in this file are initialized
+# from their counterparts in Hugging Face Transformers library.
 
 import collections
 import math
@@ -22,7 +25,7 @@ from torchmultimodal.modules.losses.flava import (
     Pooler,
     FLAVAPretrainingLoss,
 )
-from torchmultimodal.utils.common import PretrainedMixin
+from torchmultimodal.utils.common import PretrainedMixin, ModelOutput
 
 
 EMBEDDING_OPTIONS = Literal["image", "text", "mm"]
@@ -49,6 +52,129 @@ FLAVAOutput.__annotations__ = {
 FLAVA_FOR_PRETRAINED_MAPPING = {
     "flava_full": "https://huggingface.co/aps/flava_full_pretrained_encoders_torchmm/resolve/main/pytorch_model.bin",
 }
+
+
+def flava_image_encoder(
+    hidden_size: int = 768,
+    num_attention_heads: int = 12,
+    num_hidden_layers: int = 12,
+    use_image_masking: bool = False,
+    hidden_dropout_prob: float = 0.0,
+    intermediate_size: int = 3072,
+    intermediate_activation: Callable[..., Tensor] = nn.functional.gelu,
+    attention_probs_dropout_prob: float = 0.0,
+    layer_norm_eps: float = 1e-12,
+    image_size: int = 224,
+    patch_size: int = 16,
+    num_channels: int = 3,
+):
+
+    embeddings = ImageEmbeddings(
+        image_size=image_size,
+        patch_size=patch_size,
+        num_channels=num_channels,
+        hidden_size=hidden_size,
+        hidden_dropout_prob=hidden_dropout_prob,
+        use_image_masking=use_image_masking,
+    )
+    encoder = TransformerEncoder(
+        hidden_size=hidden_size,
+        num_attention_heads=num_attention_heads,
+        num_hidden_layers=num_hidden_layers,
+        hidden_dropout_prob=hidden_dropout_prob,
+        intermediate_size=intermediate_size,
+        intermediate_activation=intermediate_activation,
+        attention_probs_dropout_prob=attention_probs_dropout_prob,
+        layer_norm_eps=layer_norm_eps,
+    )
+
+    layernorm = Fp32LayerNorm(hidden_size, eps=layer_norm_eps)
+    pooler = Pooler(hidden_size=hidden_size)
+
+    return ImageTransformer(
+        embeddings=embeddings,
+        encoder=encoder,
+        layernorm=layernorm,
+        pooler=pooler,
+    )
+
+
+def flava_text_encoder(
+    hidden_size: int = 768,
+    num_attention_heads: int = 12,
+    num_hidden_layers: int = 12,
+    hidden_dropout_prob: float = 0.0,
+    intermediate_size: int = 3072,
+    intermediate_activation: Callable[..., Tensor] = nn.functional.gelu,
+    attention_probs_dropout_prob: float = 0.0,
+    layer_norm_eps: float = 1e-12,
+    vocab_size: int = 30522,
+    pad_token_id: int = 0,
+    type_vocab_size: int = 2,
+    max_position_embeddings: int = 512,
+):
+    embeddings = TextEmbeddings(
+        hidden_size=hidden_size,
+        vocab_size=vocab_size,
+        pad_token_id=pad_token_id,
+        type_vocab_size=type_vocab_size,
+        max_position_embeddings=max_position_embeddings,
+        layer_norm_eps=layer_norm_eps,
+        hidden_dropout_prob=hidden_dropout_prob,
+    )
+
+    encoder = TransformerEncoder(
+        hidden_size=hidden_size,
+        num_attention_heads=num_attention_heads,
+        num_hidden_layers=num_hidden_layers,
+        hidden_dropout_prob=hidden_dropout_prob,
+        intermediate_size=intermediate_size,
+        intermediate_activation=intermediate_activation,
+        attention_probs_dropout_prob=attention_probs_dropout_prob,
+        layer_norm_eps=layer_norm_eps,
+        pad_token_id=pad_token_id,
+    )
+
+    layernorm = Fp32LayerNorm(hidden_size, eps=layer_norm_eps)
+    pooler = Pooler(hidden_size=hidden_size)
+
+    return TextTransformer(
+        embeddings=embeddings,
+        encoder=encoder,
+        layernorm=layernorm,
+        pooler=pooler,
+    )
+
+
+def flava_multimodal_encoder(
+    hidden_size: int = 768,
+    num_attention_heads: int = 12,
+    num_hidden_layers: int = 12,
+    hidden_dropout_prob: float = 0.0,
+    intermediate_size: int = 3072,
+    intermediate_activation: Callable[..., Tensor] = nn.functional.gelu,
+    attention_probs_dropout_prob: float = 0.0,
+    layer_norm_eps: float = 1e-12,
+):
+    encoder = TransformerEncoder(
+        hidden_size=hidden_size,
+        num_attention_heads=num_attention_heads,
+        num_hidden_layers=num_hidden_layers,
+        hidden_dropout_prob=hidden_dropout_prob,
+        intermediate_size=intermediate_size,
+        intermediate_activation=intermediate_activation,
+        attention_probs_dropout_prob=attention_probs_dropout_prob,
+        layer_norm_eps=layer_norm_eps,
+    )
+    layernorm = Fp32LayerNorm(hidden_size, eps=layer_norm_eps)
+    pooler = Pooler(hidden_size=hidden_size)
+
+    return TransformerWithoutEmbeddings(
+        encoder=encoder,
+        layernorm=layernorm,
+        pooler=pooler,
+    )
+
 
 # NOTE:
 # 1) There is a possibility of using dataclass for similar
@@ -154,7 +280,7 @@ def flava_model_for_pretraining(
     codebook = DalleVAEEncoder(image_size=codebook_image_size)
     losses = FLAVAPretrainingLoss()
 
-    flava = FLAVAForPretraining(
+    flava = FLAVAForPreTraining(
         model=model,
         image_codebook=codebook,
         loss=losses,
@@ -192,8 +318,31 @@ def flava_model_for_classification(
     return FLAVAForClassification(model=model, classifier=classifier, loss=loss_fn)
 
 
+def to_2tuple(x):
+    if isinstance(x, collections.abc.Iterable):
+        return x
+    return (x, x)
+
+
+def _init_weights(module, initializer_range):
+    """Initialize the weights"""
+    if isinstance(module, (nn.Linear, nn.Conv2d)):
+        # Slightly different from the TF version which uses truncated_normal for initialization
+        # cf https://github.com/pytorch/pytorch/pull/5617
+        module.weight.data.normal_(mean=0.0, std=initializer_range)
+        if module.bias is not None:
+            module.bias.data.zero_()
+    elif isinstance(module, nn.Embedding):
+        module.weight.data.normal_(mean=0.0, std=initializer_range)
+        if module.padding_idx is not None:
+            module.weight.data[module.padding_idx].zero_()
+    elif isinstance(module, nn.LayerNorm):
+        module.bias.data.zero_()
+        module.weight.data.fill_(1.0)
+
+
 @dataclass
-class FLAVAForClassificationOutput:
+class FLAVAForClassificationOutput(ModelOutput):
     logits: Tensor
     loss: Tensor
 
@@ -222,6 +371,7 @@ class FLAVAModel(nn.Module, PretrainedMixin):
         image_patches_mask: Optional[Tensor] = None,
         text_masked: Optional[Tensor] = None,
         required_embedding: Optional[EMBEDDING_OPTIONS] = None,
+        skip_unmasked_mm_encoder: bool = True,
     ) -> FLAVAOutput:
         if required_embedding is None:
             if image is not None and text is None:
@@ -260,12 +410,25 @@ class FLAVAModel(nn.Module, PretrainedMixin):
         multimodal_masked_outputs = TransformerOutput()
 
         if required_embedding == "mm":
-            multimodal_outputs = self.encode_mm(
-                image_outputs.last_hidden_state, text_outputs.last_hidden_state
-            )
+            # Take last hidden state and not the last_hidden_state because
+            # for flava we want the hidden state without final layernorm.
+            if not skip_unmasked_mm_encoder:
+                # Unmasked multimodal embedding is not currently used by any of the FLAVA losses.
+                multimodal_outputs = self.encode_mm(
+                    image_outputs.hidden_states[-1]
+                    if image_outputs.hidden_states
+                    else None,
+                    text_outputs.hidden_states[-1]
+                    if text_outputs.hidden_states
+                    else None,
+                )
             multimodal_masked_outputs = self.encode_mm(
-                image_masked_outputs.last_hidden_state,
-                text_masked_outputs.last_hidden_state,
+                image_masked_outputs.hidden_states[-1]
+                if image_masked_outputs.hidden_states
+                else None,
+                text_masked_outputs.hidden_states[-1]
+                if text_masked_outputs.hidden_states
+                else None,
             )
 
         return FLAVAOutput(
@@ -319,14 +482,14 @@ class FLAVAModel(nn.Module, PretrainedMixin):
             # Since nothing is passed, it might be case without
             # masked data let's say.
             return TransformerOutput()
+
         image_embedding = self.image_to_mm_projection(image_embedding)
         text_embedding = self.text_to_mm_projection(text_embedding)
         fused_state = torch.cat([image_embedding, text_embedding], dim=1)
-
         return self.mm_encoder(fused_state)
 
 
-class FLAVAForPretraining(nn.Module, PretrainedMixin):
+class FLAVAForPreTraining(nn.Module, PretrainedMixin):
     # TODOs:
     # 1. Expose logit scale
     # 2. For FLAVA model, allow interpolating the embeddings to
@@ -365,6 +528,7 @@ class FLAVAForPretraining(nn.Module, PretrainedMixin):
         image_patches_mask: Optional[Tensor] = None,
         text_masked: Optional[Tensor] = None,
         required_embedding: Optional[EMBEDDING_OPTIONS] = None,
+        skip_unmasked_mm_encoder: bool = True,
         itm_labels: Optional[Tensor] = None,
         mlm_labels: Optional[Tensor] = None,
     ) -> FLAVAPretrainingLossOutput:
@@ -380,6 +544,7 @@ class FLAVAForPretraining(nn.Module, PretrainedMixin):
             image_patches_mask=image_patches_mask,
             text_masked=text_masked,
             required_embedding=required_embedding,
+            skip_unmasked_mm_encoder=skip_unmasked_mm_encoder,
         )
 
         return self.loss(
@@ -387,7 +552,9 @@ class FLAVAForPretraining(nn.Module, PretrainedMixin):
             text_sequence=flava_output.text.last_hidden_state,
             image_masked_sequence=flava_output.image_masked.last_hidden_state,
             text_masked_sequence=flava_output.text_masked.last_hidden_state,
-            multimodal_sequence=flava_output.multimodal.last_hidden_state,
+            multimodal_sequence=flava_output.multimodal.last_hidden_state
+            if not skip_unmasked_mm_encoder
+            else None,
             multimodal_masked_sequence=flava_output.multimodal_masked.last_hidden_state,
             itm_labels=itm_labels,
             mim_labels=image_labels,
@@ -669,12 +836,6 @@ class TransformerEncoder(nn.Module):
         )
 
 
-def to_2tuple(x):
-    if isinstance(x, collections.abc.Iterable):
-        return x
-    return (x, x)
-
-
 # Based on timm implementation, which can be found here:
 # https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/vision_transformer.py
 class PatchEmbeddings(nn.Module):
@@ -698,7 +859,7 @@ class PatchEmbeddings(nn.Module):
         )
 
     def forward(self, pixel_values, interpolate_pos_encoding=False):
-        batch_size, num_channels, height, width = pixel_values.shape
+        _, _, height, width = pixel_values.shape
         if not interpolate_pos_encoding:
             if height != self.image_size[0] or width != self.image_size[1]:
                 raise ValueError(
@@ -816,23 +977,6 @@ class ImageEmbeddings(nn.Module):
         return embeddings
 
 
-def _init_weights(module, initializer_range):
-    """Initialize the weights"""
-    if isinstance(module, (nn.Linear, nn.Conv2d)):
-        # Slightly different from the TF version which uses truncated_normal for initialization
-        # cf https://github.com/pytorch/pytorch/pull/5617
-        module.weight.data.normal_(mean=0.0, std=initializer_range)
-        if module.bias is not None:
-            module.bias.data.zero_()
-    elif isinstance(module, nn.Embedding):
-        module.weight.data.normal_(mean=0.0, std=initializer_range)
-        if module.padding_idx is not None:
-            module.weight.data[module.padding_idx].zero_()
-    elif isinstance(module, nn.LayerNorm):
-        module.bias.data.zero_()
-        module.weight.data.fill_(1.0)
-
-
 class ImageTransformer(nn.Module):
     # TODO(asg): Add support for pretrained checkpoint loading
     def __init__(
@@ -924,107 +1068,8 @@ class ImageTransformerWithVAE(nn.Module):
         )
 
 
-class TransformerWithoutEmbeddings(nn.Module):
-    # TODO(asg): Add support for pretrained checkpoint loading
-    def __init__(
-        self,
-        encoder: nn.Module,
-        layernorm: nn.Module,
-        pooler: nn.Module,
-        weight_init_fn: Optional[Callable] = None,
-        initializer_range: float = 0.02,
-        use_cls_token: bool = True,
-        **kwargs: Any,
-    ):
-        super().__init__()
-        self.encoder = encoder
-        self.layernorm = layernorm
-        self.pooler = pooler
-        if use_cls_token:
-            self.cls_token = nn.Parameter(torch.zeros(1, 1, encoder.hidden_size))
-        else:
-            self.cls_token = None
-
-        if weight_init_fn is None:
-            weight_init_fn = partial(_init_weights, initializer_range=initializer_range)
-
-        self.apply(weight_init_fn)
-
-    def forward(
-        self,
-        hidden_states: Optional[Tensor] = None,
-        attention_mask: Optional[Tensor] = None,
-    ):
-        if hidden_states is None:
-            raise ValueError("You have to specify hidden_states")
-
-        if self.cls_token is not None:
-            batch_size = hidden_states.shape[0]
-            cls_tokens = self.cls_token.expand(batch_size, -1, -1)
-            hidden_states = torch.cat((cls_tokens, hidden_states), dim=1)
-
-        encoder_outputs = self.encoder(hidden_states, attention_mask=attention_mask)
-        sequence_output = encoder_outputs[0]
-        sequence_output = self.layernorm(sequence_output)
-        pooled_output = (
-            self.pooler(sequence_output) if self.pooler is not None else None
-        )
-
-        return TransformerOutput(
-            last_hidden_state=sequence_output,
-            pooler_output=pooled_output,
-            hidden_states=encoder_outputs.hidden_states,
-            attentions=encoder_outputs.attentions,
-        )
-
-
-def flava_image_encoder(
-    hidden_size: int = 768,
-    num_attention_heads: int = 12,
-    num_hidden_layers: int = 12,
-    use_image_masking: bool = False,
-    hidden_dropout_prob: float = 0.0,
-    intermediate_size: int = 3072,
-    intermediate_activation: Callable[..., Tensor] = nn.functional.gelu,
-    attention_probs_dropout_prob: float = 0.0,
-    layer_norm_eps: float = 1e-12,
-    image_size: int = 224,
-    patch_size: int = 16,
-    num_channels: int = 3,
-):
-
-    embeddings = ImageEmbeddings(
-        image_size=image_size,
-        patch_size=patch_size,
-        num_channels=num_channels,
-        hidden_size=hidden_size,
-        hidden_dropout_prob=hidden_dropout_prob,
-        use_image_masking=use_image_masking,
-    )
-    encoder = TransformerEncoder(
-        hidden_size=hidden_size,
-        num_attention_heads=num_attention_heads,
-        num_hidden_layers=num_hidden_layers,
-        hidden_dropout_prob=hidden_dropout_prob,
-        intermediate_size=intermediate_size,
-        intermediate_activation=intermediate_activation,
-        attention_probs_dropout_prob=attention_probs_dropout_prob,
-        layer_norm_eps=layer_norm_eps,
-    )
-
-    layernorm = Fp32LayerNorm(hidden_size, eps=layer_norm_eps)
-    pooler = Pooler(hidden_size=hidden_size)
-
-    return ImageTransformer(
-        embeddings=embeddings,
-        encoder=encoder,
-        layernorm=layernorm,
-        pooler=pooler,
-    )
-
-
-class BertEmbeddings(nn.Module):
-    """Construct the embeddings from word, position and token_type embeddings."""
+class TextEmbeddings(nn.Module):
+    """Construct the embeddings from word, position and token_type embeddings following BERT."""
 
     def __init__(
         self,
@@ -1220,124 +1265,58 @@ class TextTransformer(nn.Module):
         )
 
 
-def flava_text_encoder(
-    hidden_size: int = 768,
-    num_attention_heads: int = 12,
-    num_hidden_layers: int = 12,
-    hidden_dropout_prob: float = 0.0,
-    intermediate_size: int = 3072,
-    intermediate_activation: Callable[..., Tensor] = nn.functional.gelu,
-    attention_probs_dropout_prob: float = 0.0,
-    layer_norm_eps: float = 1e-12,
-    vocab_size: int = 30522,
-    pad_token_id: int = 0,
-    type_vocab_size: int = 2,
-    max_position_embeddings: int = 512,
-):
-    embeddings = BertEmbeddings(
-        hidden_size=hidden_size,
-        vocab_size=vocab_size,
-        pad_token_id=pad_token_id,
-        type_vocab_size=type_vocab_size,
-        max_position_embeddings=max_position_embeddings,
-        layer_norm_eps=layer_norm_eps,
-        hidden_dropout_prob=hidden_dropout_prob,
-    )
+class TransformerWithoutEmbeddings(nn.Module):
+    # TODO(asg): Add support for pretrained checkpoint loading
+    def __init__(
+        self,
+        encoder: nn.Module,
+        layernorm: nn.Module,
+        pooler: nn.Module,
+        weight_init_fn: Optional[Callable] = None,
+        initializer_range: float = 0.02,
+        use_cls_token: bool = True,
+        **kwargs: Any,
+    ):
+        super().__init__()
+        self.encoder = encoder
+        self.layernorm = layernorm
+        self.pooler = pooler
+        if use_cls_token:
+            self.cls_token = nn.Parameter(torch.zeros(1, 1, encoder.hidden_size))
+        else:
+            self.cls_token = None
 
-    encoder = TransformerEncoder(
-        hidden_size=hidden_size,
-        num_attention_heads=num_attention_heads,
-        num_hidden_layers=num_hidden_layers,
-        hidden_dropout_prob=hidden_dropout_prob,
-        intermediate_size=intermediate_size,
-        intermediate_activation=intermediate_activation,
-        attention_probs_dropout_prob=attention_probs_dropout_prob,
-        layer_norm_eps=layer_norm_eps,
-        pad_token_id=pad_token_id,
-    )
+        if weight_init_fn is None:
+            weight_init_fn = partial(_init_weights, initializer_range=initializer_range)
 
-    layernorm = Fp32LayerNorm(hidden_size, eps=layer_norm_eps)
-    pooler = Pooler(hidden_size=hidden_size)
-
-    return TextTransformer(
-        embeddings=embeddings,
-        encoder=encoder,
-        layernorm=layernorm,
-        pooler=pooler,
-    )
-
-
-class TransformerEncoderWithLayerWiseFusion(TransformerEncoder):
-    def __init__(self, hidden_size: int = 768, **kwargs: Any):
-        super().__init__(hidden_size, **kwargs)
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size))
+        self.apply(weight_init_fn)
 
     def forward(
         self,
-        hidden_states: Tensor,
+        hidden_states: Optional[Tensor] = None,
         attention_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
     ):
-        unimodal_fused_states = hidden_states
-        x = torch.zeros_like(unimodal_fused_states[0])
-        batch_size = x.shape[0]
-        cls_tokens = self.cls_token.expand(batch_size, -1, -1)
-        x = torch.cat((cls_tokens, x), dim=1)
-        assert len(self.layer) >= len(unimodal_fused_states)
+        if hidden_states is None:
+            raise ValueError("You have to specify hidden_states")
 
-        all_hidden_states = ()
-        all_self_attentions = ()
+        if self.cls_token is not None:
+            batch_size = hidden_states.shape[0]
+            cls_tokens = self.cls_token.expand(batch_size, -1, -1)
+            hidden_states = torch.cat((cls_tokens, hidden_states), dim=1)
 
-        for i, layer_module in enumerate(self.layer):
-            all_hidden_states = all_hidden_states + (x,)
-
-            if i < len(unimodal_fused_states):
-                x = torch.cat([x[:, :1], x[:, 1:] + unimodal_fused_states[i]], dim=1)
-
-            layer_head_mask = head_mask[i] if head_mask is not None else None
-            layer_outputs = layer_module(x, attention_mask, layer_head_mask)
-
-            x = layer_outputs[0]
-
-            all_self_attentions = all_self_attentions + (layer_outputs[1],)
-
-            all_hidden_states = all_hidden_states + (x,)
-
-        return TransformerOutput(
-            last_hidden_state=x,
-            hidden_states=all_hidden_states,
-            attentions=all_self_attentions,
+        encoder_outputs = self.encoder(hidden_states, attention_mask=attention_mask)
+        sequence_output = encoder_outputs[0]
+        sequence_output = self.layernorm(sequence_output)
+        pooled_output = (
+            self.pooler(sequence_output) if self.pooler is not None else None
         )
 
-
-def flava_multimodal_encoder(
-    hidden_size: int = 768,
-    num_attention_heads: int = 12,
-    num_hidden_layers: int = 12,
-    hidden_dropout_prob: float = 0.0,
-    intermediate_size: int = 3072,
-    intermediate_activation: Callable[..., Tensor] = nn.functional.gelu,
-    attention_probs_dropout_prob: float = 0.0,
-    layer_norm_eps: float = 1e-12,
-):
-    encoder = TransformerEncoder(
-        hidden_size=hidden_size,
-        num_attention_heads=num_attention_heads,
-        num_hidden_layers=num_hidden_layers,
-        hidden_dropout_prob=hidden_dropout_prob,
-        intermediate_size=intermediate_size,
-        intermediate_activation=intermediate_activation,
-        attention_probs_dropout_prob=attention_probs_dropout_prob,
-        layer_norm_eps=layer_norm_eps,
-    )
-    layernorm = Fp32LayerNorm(hidden_size, eps=layer_norm_eps)
-    pooler = Pooler(hidden_size=hidden_size)
-
-    return TransformerWithoutEmbeddings(
-        encoder=encoder,
-        layernorm=layernorm,
-        pooler=pooler,
-    )
+        return TransformerOutput(
+            last_hidden_state=sequence_output,
+            pooler_output=pooled_output,
+            hidden_states=encoder_outputs.hidden_states,
+            attentions=encoder_outputs.attentions,
+        )
 
 
 class DalleConv2d(nn.Module):

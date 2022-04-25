@@ -6,12 +6,10 @@
 
 import os
 from functools import partial
-from typing import Any, Callable, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-import numpy as np
 import torch
 from pytorch_lightning import LightningDataModule
-from torchvision.datasets import ImageFolder
 from transformers import (
     BertTokenizer,
     DefaultDataCollator,
@@ -19,6 +17,7 @@ from transformers import (
     DataCollatorForWholeWordMask,
     TRANSFORMERS_CACHE,
 )
+from transformers.data.data_collator import torch_default_data_collator
 
 from .definitions import HFDatasetInfo, TorchVisionDatasetInfo
 from .transforms import (
@@ -28,30 +27,44 @@ from .transforms import (
     encode_text_batch,
     pad_batch,
     VLTransform,
+    TEXT_DEFAULT_TOKENIZER,
+    TEXT_WHOLE_WORD_MASK_TOKENIZER,
     VL_MAX_LENGTH_DEFAULT,
 )
 from .utils import build_datasets_from_info, fetch_images
 
 
+def transform_image(transform, sample):
+    sample.update(transform(sample["image"]))
+    return sample
+
+
+class DataCollatorForWholeWordMaskRetainingBatch(DataCollatorForWholeWordMask):
+    def torch_call(
+        self, examples: List[Union[List[int], Any, Dict[str, Any]]]
+    ) -> Dict[str, Any]:
+        masked_batch = super().torch_call(examples)
+        examples = torch_default_data_collator(examples)
+        examples["input_ids"] = masked_batch["input_ids"]
+        examples["labels"] = masked_batch["labels"]
+        return examples
+
+
 class ImageDataModule(LightningDataModule):
     def __init__(
         self,
-        train_root: str,
-        val_root: str,
+        dataset_infos: List[HFDatasetInfo],
         transforms: Optional[Tuple[Callable, Callable]] = None,
-        use_subset_sampler: bool = False,
         batch_size: int = 32,
         num_workers: int = 4,
         allow_uneven_batches: bool = False,
         **kwargs: Any,
     ):
         super().__init__()
-        self.train_root = train_root
-        self.val_root = val_root
+        self.dataset_infos = dataset_infos
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.allow_uneven_batches = allow_uneven_batches
-        self.use_subset_sampler = use_subset_sampler
 
         if transforms is None:
             transforms = default_image_pretraining_transforms()
@@ -59,38 +72,22 @@ class ImageDataModule(LightningDataModule):
         self.train_transform, self.test_transform = transforms
 
     def setup(self, stage=None):
-        # TODO: Add instructions to generate val set folder from pytorch examples repo.
-        self.train_dataset = ImageFolder(
-            self.train_root, transform=self.train_transform
+        train_transform = partial(transform_image, self.train_transform)
+        val_transform = partial(transform_image, self.test_transform)
+
+        self.train_dataset = build_datasets_from_info(self.dataset_infos, split="train")
+        self.train_dataset.set_transform(train_transform)
+        self.val_dataset = build_datasets_from_info(
+            self.dataset_infos, split="validation"
         )
-        self.val_dataset = ImageFolder(self.val_root, transform=self.test_transform)
-
-    def _build_train_sampler(self, dataset):
-        idxs = np.zeros(len(dataset.targets))
-        target_array = np.array(dataset.targets)
-        k = 50
-        for c in range(1000):
-            m = target_array == c
-            n = len(idxs[m])
-            arr = np.zeros(n)
-            arr[:k] = 1
-            np.random.shuffle(arr)
-            idxs[m] = arr
-
-        idxs = idxs.astype("int")
-        sampler = torch.utils.data.SubsetRandomSampler(np.where(idxs)[0])
-        return sampler
+        self.val_dataset.set_transform(val_transform)
 
     def train_dataloader(self):
-        if self.use_subset_sampler:
-            sampler = self._build_train_sampler(self.train_dataset)
-        else:
-            sampler = None
         return torch.utils.data.DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            sampler=sampler,
+            sampler=None,
             shuffle=True,
             # uneven batches can cause distributed issues,
             # drop last batch to prevent those.
@@ -117,9 +114,7 @@ class ImageDataModule(LightningDataModule):
         return self.val_dataloader()
 
     def on_before_batch_transfer(self, batch, *args):
-        batch, target = batch
-        batch["target"] = target
-        if batch["target"].size(0) < self.batch_size and not self.allow_uneven_batches:
+        if batch["label"].size(0) < self.batch_size and not self.allow_uneven_batches:
             batch = pad_batch(batch, self.batch_size)
         return batch
 
@@ -145,7 +140,7 @@ class TextDataModule(LightningDataModule):
 
     def setup(self, stage=None):
         if self.tokenizer is None:
-            self.tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+            self.tokenizer = BertTokenizer.from_pretrained(TEXT_DEFAULT_TOKENIZER)
 
         transform = partial(
             encode_text_batch,
@@ -191,7 +186,7 @@ class TextDataModule(LightningDataModule):
         return batch
 
     def on_after_batch_transfer(self, batch, *args):
-        batch["text_masked"] = batch.pop("input_ids")
+        batch["text"] = batch.pop("input_ids")
         return batch
 
 
@@ -207,12 +202,12 @@ class MLMDataModule(TextDataModule):
         self.mlm_probability = mlm_probability
         self.ignore_index = ignore_index
 
-    def _build_dataloader(self, dataset, drop_last=True):
+    def _build_dataloader(self, dataset, drop_last=True, shuffle=True):
         # uneven batches can cause distributed issues,
         # drop last batch to prevent those.
         # ideally, we don't need to drop these for unimodal cases
         # but just to be safe
-        return self._build_dataloader(dataset, drop_last=drop_last)
+        return super()._build_dataloader(dataset, drop_last=drop_last, shuffle=shuffle)
 
     def _build_collator(self):
         return DataCollatorForLanguageModeling(
@@ -239,6 +234,11 @@ class VLDataModule(LightningDataModule):
         ignore_index: int = -1,
         itm_probability: float = 0.1,
         allow_uneven_batches: bool = False,
+        fetch_num_threads: int = 4,
+        fetch_retries: int = 0,
+        fetch_sleep_timer: int = 0,
+        fetch_timeout: Optional[float] = None,
+        fetch_batch_size: int = 50,
         **kwargs,
     ):
         super().__init__()
@@ -257,29 +257,43 @@ class VLDataModule(LightningDataModule):
         self.ignore_index = ignore_index
         self.itm_probability = itm_probability
         self.allow_uneven_batches = allow_uneven_batches
+        self.fetch_num_threads = fetch_num_threads
+        self.fetch_retries = fetch_retries
+        self.fetch_sleep_timer = fetch_sleep_timer
+        self.fetch_timeout = fetch_timeout
+        self.fetch_batch_size = fetch_batch_size
 
     def setup(self, stage=None):
         if self.text_transform is None:
-            text_tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+            # TODO Update to use whole word mask vocab
+            text_tokenizer = BertTokenizer.from_pretrained(
+                TEXT_WHOLE_WORD_MASK_TOKENIZER
+            )
             self.text_transform = default_text_transform(
                 text_tokenizer, max_text_length=VL_MAX_LENGTH_DEFAULT
             )
-
+        self.text_tokenizer = self.text_transform.keywords["tokenizer"]
         train_vl_transform = VLTransform(
             self.train_image_transform, self.text_transform
         )
         val_vl_transform = VLTransform(self.test_image_transform, self.text_transform)
-        timeout = None
-        # TODO: Remove shardings in final version
 
         train_dataset = build_datasets_from_info(
             self.train_dataset_infos, split="train"
         )
         train_dataset = train_dataset.map(
-            fetch_images, fn_kwargs={"timeout": timeout}, num_proc=80
+            fetch_images,
+            batched=True,
+            batch_size=self.fetch_batch_size,
+            fn_kwargs={
+                "num_threads": self.fetch_num_threads,
+                "timeout": self.fetch_timeout,
+                "retries": self.fetch_retries,
+                "sleep_timer": self.fetch_sleep_timer,
+            },
         )
         train_dataset = train_dataset.filter(
-            lambda example: example["image_url"] != "empty"
+            lambda example: example["image"] is not None
         )
         self.train_dataset = train_dataset
         self.train_dataset.set_transform(
@@ -293,17 +307,26 @@ class VLDataModule(LightningDataModule):
         val_dataset = build_datasets_from_info(
             self.val_dataset_infos, split="validation"
         )
+
         val_dataset = val_dataset.map(
-            fetch_images, fn_kwargs={"timeout": timeout}, num_proc=80
+            fetch_images,
+            batched=True,
+            batch_size=self.fetch_batch_size,
+            fn_kwargs={
+                "num_threads": self.fetch_num_threads,
+                "timeout": self.fetch_timeout,
+                "retries": self.fetch_retries,
+                "sleep_timer": self.fetch_sleep_timer,
+            },
         )
-        val_dataset = val_dataset.filter(
-            lambda example: example["image_url"] != "empty"
-        )
+        val_dataset = val_dataset.filter(lambda example: example["image"] is not None)
         self.val_dataset = val_dataset
         self.val_dataset.set_transform(
             partial(
                 val_vl_transform,
-                dataset=self.val_dataset.filter(lambda example: True),
+                dataset=self.val_dataset.filter(
+                    lambda example: True
+                ),  # Pass a copy to transform
                 itm_probability=self.itm_probability,
             )
         )
@@ -335,20 +358,24 @@ class VLDataModule(LightningDataModule):
         )
 
     def _build_collator(self):
-        return DataCollatorForWholeWordMask(
+        return DataCollatorForWholeWordMaskRetainingBatch(
             self.text_tokenizer, mlm_probability=self.mlm_probability
         )
 
     def on_before_batch_transfer(self, batch, *args):
         batch.pop("token_type_ids", None)
         mask = batch.pop("attention_mask", None)
-        if mask.size(0) < self.batch_size and not self.allow_uneven_batches:
+        if (
+            mask is not None
+            and mask.size(0) < self.batch_size
+            and not self.allow_uneven_batches
+        ):
             batch = pad_batch(batch, self.batch_size)
         return batch
 
     def on_after_batch_transfer(self, batch, *args):
         text_masked = batch.pop("input_ids")
-        mlm_labels = batch.pop("labels")
+        mlm_labels = batch.pop("labels", None)
         mlm_labels[mlm_labels == -100] = self.ignore_index
         text = text_masked.detach().clone()
         text[mlm_labels != -1] = mlm_labels[mlm_labels != -1]

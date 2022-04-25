@@ -103,6 +103,7 @@ class MultiDataLoader:
             self.iterators[self.current_index] = iterator
             self.current_iterator = iterator
             next_batch = next(self.current_iterator)
+
         return {"batch": next_batch, "datamodule_index": self.current_index}
 
     def change_dataloader(self):
@@ -160,16 +161,14 @@ class MultiDataModule(LightningDataModule):
             datamodule.prepare_data()
 
     def train_dataloader(self) -> MultiDataLoader:
-        self.train_dataloader = self._build_multi_dataloader("train")
-        return self.train_dataloader
+        # TODO: Fix assign inconsistency
+        return self._build_multi_dataloader("train")
 
     def val_dataloader(self) -> MultiDataLoader:
-        self.val_dataloader = self._build_multi_dataloader("val")
-        return self.val_dataloader
+        return self._build_multi_dataloader("val")
 
     def test_dataloader(self) -> MultiDataLoader:
-        self.test_dataloader = self._build_multi_dataloader("test")
-        return self.test_dataloader
+        return self._build_multi_dataloader("test")
 
     def _build_multi_dataloader(self, split="train"):
         dataloaders = []

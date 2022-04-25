@@ -4,8 +4,6 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from dataclasses import asdict
-
 import torch
 from pytorch_lightning import LightningModule
 from torchmultimodal.models.flava import (
@@ -56,7 +54,7 @@ class FLAVALightningModule(LightningModule):
 
     def training_step(self, batch, batch_idx):
         output = self._step(batch, batch_idx)
-        losses = asdict(output.losses)
+        losses = output.losses
         total_loss = 0
         for key in losses:
             if losses[key] is not None:
@@ -67,7 +65,7 @@ class FLAVALightningModule(LightningModule):
 
     def validation_step(self, batch, batch_idx):
         output = self._step(batch, batch_idx)
-        losses = asdict(output.losses)
+        losses = output.losses
         total_loss = 0
         for key in losses:
             if losses[key] is not None:

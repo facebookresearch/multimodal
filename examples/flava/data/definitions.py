@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from dataclasses import dataclass, field
-from typing import Dict, Optional, List, Tuple
+from typing import Any, Dict, Optional, List, Tuple
 
 import torch
 
@@ -17,13 +17,14 @@ def _default_split_key_mapping():
 @dataclass
 class HFDatasetInfo:
     key: str
-    subset: str
+    subset: Optional[str] = None
     remove_columns: Optional[List[str]] = None
     rename_columns: Optional[List[Tuple[str, str]]] = None
     # TODO: Look if we can add text column option and encode transform settings here.
     split_key_mapping: Optional[Dict[str, str]] = field(
         default_factory=_default_split_key_mapping
     )
+    extra_kwargs: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
