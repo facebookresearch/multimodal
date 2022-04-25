@@ -19,6 +19,9 @@ from PIL import Image, UnidentifiedImageError
 DATASETS_USER_AGENT = get_datasets_user_agent()
 
 
+DATASETS_USER_AGENT = get_datasets_user_agent()
+
+
 def build_datasets_from_info(dataset_infos: List[HFDatasetInfo], split: str = "train"):
     dataset_list = []
     for dataset_info in dataset_infos:

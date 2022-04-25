@@ -16,7 +16,20 @@ from model import FLAVAPreTrainingLightningModule
 from omegaconf import OmegaConf
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor
+<<<<<<< HEAD
 from utils import build_config, build_datamodule_kwargs
+=======
+
+
+AVAIL_GPUS = 2
+SEED = -1
+
+IMAGENET_TAR_PATH = ""
+NUM_WORKERS = 4
+MAX_STEPS = 450000
+BATCH_SIZE = 8
+ALLOW_UNEVEN_BATCHES = False
+>>>>>>> 6fb41e7 ([fix,refactor] ImageNet HF support and fixes)
 
 
 def main():
@@ -26,7 +39,44 @@ def main():
 
     datamodules = []
     imagenet_datamodule = ImageDataModule(
+<<<<<<< HEAD
         **build_datamodule_kwargs(config.datasets.image, config.training)
+=======
+        [
+            HFDatasetInfo(
+                "aps/imagenet2012", extra_kwargs={"data_dir": IMAGENET_TAR_PATH}
+            )
+        ],
+        batch_size=BATCH_SIZE,
+        num_workers=NUM_WORKERS,
+        allow_unenven_batchs=ALLOW_UNEVEN_BATCHES,
+    )
+    mlm_datamodule = MLMDataModule(
+        [HFDatasetInfo("wikitext", subset="wikitext-103-raw-v1")],
+        batch_size=BATCH_SIZE,
+        num_workers=NUM_WORKERS,
+        allow_unenven_batchs=ALLOW_UNEVEN_BATCHES,
+    )
+    vl_datamodule = VLDataModule(
+        train_dataset_infos=[
+            HFDatasetInfo(
+                key="red_caps",
+                subset="jellyfish",
+                rename_columns=[("caption", "text")],
+            )
+        ],
+        val_dataset_infos=[
+            HFDatasetInfo(
+                key="red_caps",
+                subset="jellyfish",
+                rename_columns=[("caption", "text")],
+                split_key_mapping={"validation": "train"},
+            )
+        ],
+        batch_size=BATCH_SIZE,
+        num_workers=NUM_WORKERS,
+        allow_unenven_batchs=ALLOW_UNEVEN_BATCHES,
+>>>>>>> 6fb41e7 ([fix,refactor] ImageNet HF support and fixes)
     )
     if "image" in config.datasets.selected:
         datamodules.append(imagenet_datamodule)
