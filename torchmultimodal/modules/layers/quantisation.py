@@ -40,8 +40,7 @@ class Quantisation(nn.Module):
         ), f"Expected {x_shape[-1]} to be embedding size of {self.embedding_dim}"
 
         # Calculate distances from each encoder output vector to each embedding vector, ||x - emb||^2
-        w_t = self.embedding.weight.t()
-        distances = torch.cdist(x_flat, w_t, p=2.0) ** 2
+        distances = torch.cdist(x_flat, self.embedding.weight, p=2.0) ** 2
 
         # Encoding - select closest embedding vectors
         encoding_indices = torch.argmin(distances, dim=1)

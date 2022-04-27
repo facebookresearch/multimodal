@@ -7,9 +7,9 @@
 import unittest
 
 import torch
+from test.test_utils import set_rng_seed
 from torch import nn
 from torchmultimodal.modules.layers.quantisation import Quantisation
-from torchmultimodal.test.test_utils import set_rng_seed
 from torchmultimodal.utils.preprocess import (
     flatten_to_channel_vectors,
     reshape_from_channel_vectors,

@@ -7,8 +7,8 @@
 import unittest
 
 import torch
+from test.test_utils import set_rng_seed
 from torchmultimodal.modules.losses.vqvae import CommitmentLoss
-from torchmultimodal.test.test_utils import set_rng_seed
 
 
 class TestCommitment(unittest.TestCase):
@@ -26,7 +26,7 @@ class TestCommitment(unittest.TestCase):
         commitment = CommitmentLoss()
         loss = commitment(self.quantized, self.encoded)
 
-        actual = loss.loss.item()
+        actual = loss.item()
         expected = 1.2070025206
 
         torch.testing.assert_close(
