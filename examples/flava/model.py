@@ -5,10 +5,15 @@
 # LICENSE file in the root directory of this source tree.
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 from typing import Any, Tuple
 
 =======
 >>>>>>> 6fb41e7 ([fix,refactor] ImageNet HF support and fixes)
+=======
+from typing import Any, Tuple
+
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
 import torch
 from pytorch_lightning import LightningModule
 from torchmultimodal.models.flava import (

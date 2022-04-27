@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
 # Note that in original FLAVA paper, only Logistic Regression numbers were provided for image datasets.
 _target_: definitions.FLAVAArguments
 training:

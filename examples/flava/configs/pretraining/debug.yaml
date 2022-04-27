@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
 _target_: definitions.FLAVAArguments
 training:
   _target_: definitions.TrainingArguments

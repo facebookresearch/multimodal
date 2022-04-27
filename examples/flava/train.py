@@ -17,6 +17,7 @@ from omegaconf import OmegaConf
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor
 <<<<<<< HEAD
+<<<<<<< HEAD
 from utils import build_config, build_datamodule_kwargs
 =======
 
@@ -30,6 +31,9 @@ MAX_STEPS = 450000
 BATCH_SIZE = 8
 ALLOW_UNEVEN_BATCHES = False
 >>>>>>> 6fb41e7 ([fix,refactor] ImageNet HF support and fixes)
+=======
+from utils import build_config, build_datamodule_kwargs
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
 
 
 def main():
@@ -39,6 +43,7 @@ def main():
 
     datamodules = []
     imagenet_datamodule = ImageDataModule(
+<<<<<<< HEAD
 <<<<<<< HEAD
         **build_datamodule_kwargs(config.datasets.image, config.training)
 =======
@@ -77,6 +82,9 @@ def main():
         num_workers=NUM_WORKERS,
         allow_unenven_batchs=ALLOW_UNEVEN_BATCHES,
 >>>>>>> 6fb41e7 ([fix,refactor] ImageNet HF support and fixes)
+=======
+        **build_datamodule_kwargs(config.datasets.image, config.training)
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
     )
     if "image" in config.datasets.selected:
         datamodules.append(imagenet_datamodule)

@@ -55,11 +55,16 @@ class ImageDataModule(LightningDataModule):
     def __init__(
         self,
 <<<<<<< HEAD
+<<<<<<< HEAD
         train_infos: List[HFDatasetInfo],
         val_infos: Optional[List[HFDatasetInfo]] = None,
 =======
         dataset_infos: List[HFDatasetInfo],
 >>>>>>> 6fb41e7 ([fix,refactor] ImageNet HF support and fixes)
+=======
+        train_infos: List[HFDatasetInfo],
+        val_infos: Optional[List[HFDatasetInfo]] = None,
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
         transforms: Optional[Tuple[Callable, Callable]] = None,
         batch_size: int = 32,
         num_workers: int = 4,
@@ -68,14 +73,20 @@ class ImageDataModule(LightningDataModule):
     ):
         super().__init__()
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
         self.train_dataset_infos = train_infos
         self.val_dataset_infos = val_infos
         if self.val_dataset_infos is None:
             self.val_dataset_infos = train_infos
 
+<<<<<<< HEAD
 =======
         self.dataset_infos = dataset_infos
 >>>>>>> 6fb41e7 ([fix,refactor] ImageNet HF support and fixes)
+=======
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.allow_uneven_batches = allow_uneven_batches
@@ -90,6 +101,7 @@ class ImageDataModule(LightningDataModule):
         val_transform = partial(transform_image, self.test_transform)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         self.train_dataset = build_datasets_from_info(
             self.train_dataset_infos, split="train"
         )
@@ -102,6 +114,14 @@ class ImageDataModule(LightningDataModule):
         self.val_dataset = build_datasets_from_info(
             self.dataset_infos, split="validation"
 >>>>>>> 6fb41e7 ([fix,refactor] ImageNet HF support and fixes)
+=======
+        self.train_dataset = build_datasets_from_info(
+            self.train_dataset_infos, split="train"
+        )
+        self.train_dataset.set_transform(train_transform)
+        self.val_dataset = build_datasets_from_info(
+            self.val_dataset_infos, split="validation"
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
         )
         self.val_dataset.set_transform(val_transform)
 

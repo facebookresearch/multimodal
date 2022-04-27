@@ -15,9 +15,12 @@ from datasets.utils.file_utils import get_datasets_user_agent
 from definitions import HFDatasetInfo
 from PIL import Image, UnidentifiedImageError
 
+<<<<<<< HEAD
 
 DATASETS_USER_AGENT = get_datasets_user_agent()
 
+=======
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
 
 DATASETS_USER_AGENT = get_datasets_user_agent()
 

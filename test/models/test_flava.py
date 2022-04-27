@@ -21,10 +21,14 @@ class TestFLAVA(unittest.TestCase):
         torch.manual_seed(1234)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     @unittest.skip("Pending fix network connection, see (T116682215)")
 =======
     @unittest.skip("dsds")
 >>>>>>> 6fb41e7 ([fix,refactor] ImageNet HF support and fixes)
+=======
+    @unittest.skip("Pending fix network connection, see (T116682215)")
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
     @torch.no_grad()
     def test_forward_classification(self):
         flava = flava_model_for_classification(NUM_CLASSES)
@@ -35,6 +39,7 @@ class TestFLAVA(unittest.TestCase):
 
         # Test multimodal scenario
         output = flava(image, text, "mm", labels)
+<<<<<<< HEAD
 <<<<<<< HEAD
         self.assertAlmostEqual(output.loss.item(), 0.9724, places=4)
 
@@ -56,22 +61,17 @@ class TestFLAVA(unittest.TestCase):
                 output.logits.sum(), torch.tensor(0.7676, dtype=torch.float), atol=1e-4
             )
         )
+=======
+        self.assertAlmostEqual(output.loss.item(), 0.9724, places=4)
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
 
         # Test unimodal image scenario
         output = flava(image, text, "image", labels)
-        self.assertTrue(
-            torch.allclose(
-                output.loss, torch.tensor(0.5453, dtype=torch.float), atol=1e-4
-            )
-        )
-        self.assertTrue(
-            torch.allclose(
-                output.logits.sum(), torch.tensor(-0.2235, dtype=torch.float), atol=1e-4
-            )
-        )
+        self.assertAlmostEqual(output.loss.item(), 0.5453, places=4)
 
         # Test unimodal text scenario
         output = flava(image, text, "text", labels)
+<<<<<<< HEAD
         self.assertTrue(
             torch.allclose(
                 output.loss, torch.tensor(0.7074, dtype=torch.float), atol=1e-4
@@ -83,6 +83,9 @@ class TestFLAVA(unittest.TestCase):
             )
         )
 >>>>>>> 6fb41e7 ([fix,refactor] ImageNet HF support and fixes)
+=======
+        self.assertAlmostEqual(output.loss.item(), 0.7074, places=4)
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
 
     @unittest.skip("Pending fix network connection, see (T116682215)")
     @torch.no_grad()
@@ -116,12 +119,16 @@ class TestFLAVA(unittest.TestCase):
         self.assertIsNotNone(output.mmm_image_output)
         self.assertIsNotNone(output.itm_output)
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
         self.assertAlmostEqual(
             sum(
                 value if value is not None else 0 for value in output.losses.values()
             ).item(),
             20.4199,
             places=4,
+<<<<<<< HEAD
 =======
         print(output.itm_output)
         return
@@ -135,6 +142,8 @@ class TestFLAVA(unittest.TestCase):
                 atol=1e-4,
             )
 >>>>>>> 6fb41e7 ([fix,refactor] ImageNet HF support and fixes)
+=======
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
         )
 
         output = flava(
@@ -179,12 +188,16 @@ class TestFLAVA(unittest.TestCase):
         self.assertIsNone(output.itm_output)
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
         self.assertAlmostEqual(
             sum(
                 value if value is not None else 0 for value in output.losses.values()
             ).item(),
             10.8777,
             places=4,
+<<<<<<< HEAD
 =======
         self.assertTrue(
             torch.allclose(
@@ -196,4 +209,6 @@ class TestFLAVA(unittest.TestCase):
                 atol=1e-4,
             )
 >>>>>>> 6fb41e7 ([fix,refactor] ImageNet HF support and fixes)
+=======
+>>>>>>> b2a1f6a ([feat] Add support for configuration system along with README)
         )
