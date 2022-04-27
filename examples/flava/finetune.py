@@ -4,14 +4,17 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import torchvision
 from data import (
     TorchVisionDataModule,
-    TorchVisionDatasetInfo,
+    TextDataModule,
 )
+from data.datamodules import VLDataModule
+from definitions import FLAVAArguments
 from model import FLAVAClassificationLightningModule
+from omegaconf import OmegaConf
 from pytorch_lightning import Trainer, seed_everything
 from pytorch_lightning.callbacks import LearningRateMonitor
+from utils import build_config, build_datamodule_kwargs
 
 AVAIL_GPUS = 1
 SEED = -1
@@ -22,28 +25,41 @@ MAX_STEPS = 24000
 BATCH_SIZE = 32
 
 
-rendered_sst2_info = TorchVisionDatasetInfo(
-    key="rendered_sst2",
-    class_ptr=torchvision.datasets.RenderedSST2,
-)
-
-
 def main():
-    if SEED != -1:
-        seed_everything(SEED, workers=True)
+    config: FLAVAArguments = build_config()
+    if config.training.seed != -1:
+        seed_everything(config.training.seed, workers=True)
 
-    datamodule = TorchVisionDataModule(
-        rendered_sst2_info,
-        batch_size=BATCH_SIZE,
-        num_workers=NUM_WORKERS,
-    )
+    assert len(config.datasets.selected) == 1
+    if "image" in config.datasets.selected:
+        datamodule = TorchVisionDataModule(
+            **build_datamodule_kwargs(config.datasets.image, config.training)
+        )
+    elif "text":
+        datamodule = TextDataModule(
+            **build_datamodule_kwargs(config.datasets.text, config.training)
+        )
+    else:
+        datamodule = VLDataModule(
+            **build_datamodule_kwargs(config.datasets.vl, config.training),
+            finetuning=True,
+        )
+
     datamodule.setup("fit")
-    model = FLAVAClassificationLightningModule(num_classes=NUM_CLASSES)
+
+    model = FLAVAClassificationLightningModule(
+        num_classes=config.datasets.num_classes,
+        learning_rate=config.training.learning_rate,
+        adam_eps=config.training.adam_eps,
+        adam_weight_decay=config.training.adam_weight_decay,
+        adam_betas=config.training.adam_betas,
+        warmup_steps=config.training.warmup_steps,
+        max_steps=config.training.lightning.max_steps,
+        **config.model,
+    )
 
     trainer = Trainer(
-        max_steps=MAX_STEPS,
-        gpus=AVAIL_GPUS,
-        progress_bar_refresh_rate=50,
+        **OmegaConf.to_container(config.training.lightning),
         callbacks=[
             LearningRateMonitor(logging_interval="step"),
         ],

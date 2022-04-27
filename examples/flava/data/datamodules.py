@@ -9,6 +9,8 @@ from functools import partial
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
+import torchvision
+from definitions import HFDatasetInfo, TorchVisionDatasetInfo
 from pytorch_lightning import LightningDataModule
 from transformers import (
     BertTokenizer,
@@ -19,7 +21,6 @@ from transformers import (
 )
 from transformers.data.data_collator import torch_default_data_collator
 
-from .definitions import HFDatasetInfo, TorchVisionDatasetInfo
 from .transforms import (
     default_image_pretraining_transforms,
     default_text_transform,
@@ -53,7 +54,8 @@ class DataCollatorForWholeWordMaskRetainingBatch(DataCollatorForWholeWordMask):
 class ImageDataModule(LightningDataModule):
     def __init__(
         self,
-        dataset_infos: List[HFDatasetInfo],
+        train_infos: List[HFDatasetInfo],
+        val_infos: Optional[List[HFDatasetInfo]] = None,
         transforms: Optional[Tuple[Callable, Callable]] = None,
         batch_size: int = 32,
         num_workers: int = 4,
@@ -61,7 +63,11 @@ class ImageDataModule(LightningDataModule):
         **kwargs: Any,
     ):
         super().__init__()
-        self.dataset_infos = dataset_infos
+        self.train_dataset_infos = train_infos
+        self.val_dataset_infos = val_infos
+        if self.val_dataset_infos is None:
+            self.val_dataset_infos = train_infos
+
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.allow_uneven_batches = allow_uneven_batches
@@ -75,10 +81,12 @@ class ImageDataModule(LightningDataModule):
         train_transform = partial(transform_image, self.train_transform)
         val_transform = partial(transform_image, self.test_transform)
 
-        self.train_dataset = build_datasets_from_info(self.dataset_infos, split="train")
+        self.train_dataset = build_datasets_from_info(
+            self.train_dataset_infos, split="train"
+        )
         self.train_dataset.set_transform(train_transform)
         self.val_dataset = build_datasets_from_info(
-            self.dataset_infos, split="validation"
+            self.val_dataset_infos, split="validation"
         )
         self.val_dataset.set_transform(val_transform)
 
@@ -122,7 +130,8 @@ class ImageDataModule(LightningDataModule):
 class TextDataModule(LightningDataModule):
     def __init__(
         self,
-        dataset_infos: List[HFDatasetInfo],
+        train_infos: List[HFDatasetInfo],
+        val_infos: Optional[List[HFDatasetInfo]] = None,
         tokenizer: Optional[Callable] = None,
         max_length: int = 512,
         batch_size: int = 32,
@@ -131,7 +140,10 @@ class TextDataModule(LightningDataModule):
         **kwargs: Any,
     ):
         super().__init__()
-        self.dataset_infos = dataset_infos
+        self.train_dataset_infos = train_infos
+        self.val_dataset_infos = val_infos
+        if self.val_dataset_infos is None:
+            self.val_dataset_infos = train_infos
         self.tokenizer = tokenizer
         self.max_length = max_length
         self.batch_size = batch_size
@@ -151,10 +163,12 @@ class TextDataModule(LightningDataModule):
             return_tensors="pt",
             return_special_tokens_mask=True,
         )
-        self.train_dataset = build_datasets_from_info(self.dataset_infos, split="train")
+        self.train_dataset = build_datasets_from_info(
+            self.train_dataset_infos, split="train"
+        )
         self.train_dataset.set_transform(transform)
         self.val_dataset = build_datasets_from_info(
-            self.dataset_infos, split="validation"
+            self.val_dataset_infos, split="validation"
         )
         self.val_dataset.set_transform(transform)
 
@@ -193,12 +207,13 @@ class TextDataModule(LightningDataModule):
 class MLMDataModule(TextDataModule):
     def __init__(
         self,
-        dataset_infos: List[HFDatasetInfo],
+        train_infos: List[HFDatasetInfo],
+        val_infos: Optional[List[HFDatasetInfo]] = None,
         mlm_probability: float = 0.15,
         ignore_index: int = -1,
         **kwargs: Any,
     ):
-        super().__init__(dataset_infos, **kwargs)
+        super().__init__(train_infos, val_infos, **kwargs)
         self.mlm_probability = mlm_probability
         self.ignore_index = ignore_index
 
@@ -224,13 +239,14 @@ class MLMDataModule(TextDataModule):
 class VLDataModule(LightningDataModule):
     def __init__(
         self,
-        train_dataset_infos: List[HFDatasetInfo],
-        val_dataset_infos: List[HFDatasetInfo],
+        train_infos: List[HFDatasetInfo],
+        val_infos: List[HFDatasetInfo],
         text_transform: Optional[Callable] = None,
         image_transforms: Optional[Tuple[Callable, Callable]] = None,
         mlm_probablity: float = 0.15,
         batch_size: int = 32,
         num_workers: int = 4,
+        finetuning: bool = False,
         ignore_index: int = -1,
         itm_probability: float = 0.1,
         allow_uneven_batches: bool = False,
@@ -243,11 +259,15 @@ class VLDataModule(LightningDataModule):
     ):
         super().__init__()
 
-        self.train_dataset_infos = train_dataset_infos
-        self.val_dataset_infos = val_dataset_infos
-
+        self.train_dataset_infos = train_infos
+        self.val_dataset_infos = val_infos
+        if self.val_dataset_infos is None:
+            self.val_dataset_infos = train_infos
         if image_transforms is None:
-            image_transforms = default_image_pretraining_transforms()
+            if not finetuning:
+                image_transforms = default_image_pretraining_transforms()
+            else:
+                image_transforms = default_torchvision_transforms(use_dict=True)
 
         self.train_image_transform, self.test_image_transform = image_transforms
         self.text_transform = text_transform
@@ -388,7 +408,9 @@ class VLDataModule(LightningDataModule):
 class TorchVisionDataModule(LightningDataModule):
     def __init__(
         self,
-        dataset_info: TorchVisionDatasetInfo,
+        train_infos: List[TorchVisionDatasetInfo],
+        # Val info is not used for torchvision datamodule, but kept to keep things consistent
+        val_infos: Optional[List[TorchVisionDatasetInfo]] = None,
         dataset_root: Optional[str] = None,
         image_transforms: Optional[Tuple[Callable, Callable]] = None,
         batch_size: int = 32,
@@ -396,41 +418,58 @@ class TorchVisionDataModule(LightningDataModule):
         **kwargs: Any,
     ):
         super().__init__()
+        self.train_info = train_infos[0]
+        if val_infos is None:
+            val_infos = train_infos
+        self.val_info = val_infos[0]
 
-        if dataset_root is None:
-            dataset_root = os.path.join(TRANSFORMERS_CACHE, "datasets", "torchvision")
-            dataset_root = os.path.join(
-                dataset_root, dataset_info.class_ptr.__name__.lower()
-            )
-            os.makedirs(dataset_root, exist_ok=True)
+        self.train_class_ptr, self.train_root = self._parse_info(
+            self.train_info, dataset_root=dataset_root
+        )
+        self.val_class_ptr, self.val_root = self._parse_info(
+            self.val_info, dataset_root=dataset_root
+        )
 
-        self.dataset_info = dataset_info
-        self.dataset_root = dataset_root
         if image_transforms is None:
             image_transforms = default_torchvision_transforms()
+
         self.train_transform, self.test_transform = image_transforms
         self.batch_size = batch_size
         self.num_workers = num_workers
 
+    def _parse_info(
+        self, info: TorchVisionDatasetInfo, dataset_root: Optional[str] = None
+    ):
+        assert hasattr(
+            torchvision.datasets, info.key
+        ), f"No dataset named {info.key} present in torchvision.datasets"
+        class_ptr = getattr(torchvision.datasets, info.key)
+        if dataset_root is None:
+            dataset_root = os.path.join(TRANSFORMERS_CACHE, "datasets", "torchvision")
+            dataset_root = os.path.join(dataset_root, class_ptr.__name__.lower())
+            os.makedirs(dataset_root, exist_ok=True)
+
+        return class_ptr, dataset_root
+
     def setup(self, stage=None):
-        self.train_dataset = self.dataset_info.class_ptr(
-            self.dataset_root,
-            split=self.dataset_info.train_split,
+        self.train_dataset = self.train_class_ptr(
+            self.train_root,
+            split=self.train_info.train_split,
             transform=self.train_transform,
             download=True,
         )
 
-        if self.dataset_info.has_val:
-            self.val_dataset = self.dataset_info.class_ptr(
-                self.dataset_root,
-                split=self.dataset_info.val_split,
+        if self.val_info.has_val:
+            self.val_dataset = self.val_class_ptr(
+                self.val_root,
+                split=self.val_info.val_split,
                 transform=self.test_transform,
                 download=True,
             )
 
-        self.test_dataset = self.dataset_info.class_ptr(
-            self.dataset_root,
-            split=self.dataset_info.test_split,
+        self.test_dataset = self.val_class_ptr(
+            self.val_root,
+            split=self.val_info.test_split,
             transform=self.test_transform,
             download=True,
         )
@@ -439,7 +478,7 @@ class TorchVisionDataModule(LightningDataModule):
         return self._build_dataloader(self.train_dataset)
 
     def val_dataloader(self):
-        if self.dataset_info.has_val:
+        if self.val_info.has_val:
             dataset = self.val_dataset
         else:
             dataset = self.test_dataset

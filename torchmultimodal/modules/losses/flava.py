@@ -179,6 +179,7 @@ class MaskedPredictionLoss(nn.Module):
         transform_act_fn: Callable[[Tensor], Tensor] = nn.functional.gelu,
         layer_norm_eps: float = 1e-5,
         ignore_index: int = -1,
+        ignore_nan: bool = False,
         **kwargs: Any,
     ):
         super().__init__()
@@ -192,6 +193,7 @@ class MaskedPredictionLoss(nn.Module):
         self.ignore_index = ignore_index
         self.vocab_size = vocab_size
         self.ce_loss = nn.CrossEntropyLoss(ignore_index=ignore_index)
+        self.ignore_nan = ignore_nan
 
     def forward(self, hidden_states: Tensor, masked_labels: Optional[Tensor] = None):
         if self.training:
@@ -216,7 +218,7 @@ class MaskedPredictionLoss(nn.Module):
 
         # When masked_labels are all ignore_index then masked_lm_loss is NaN,
         # so we replace NaN with 0.
-        if torch.isnan(masked_loss):
+        if torch.isnan(masked_loss) and self.ignore_nan:
             warnings.warn("NaN detected in masked_loss. Replacing it with 0.")
             masked_loss = torch.nan_to_num(masked_loss, nan=0.0)
 

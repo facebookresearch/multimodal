@@ -4,6 +4,8 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+from typing import Any, Tuple
+
 import torch
 from pytorch_lightning import LightningModule
 from torchmultimodal.models.flava import (
@@ -18,12 +20,14 @@ def get_optimizers_for_lightning(
     learning_rate: float,
     adam_eps: float,
     adam_weight_decay: float,
+    adam_betas: Tuple[int, int],
     warmup_steps: int,
     max_steps: int,
 ):
     optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=learning_rate,
+        betas=adam_betas,
         eps=adam_eps,
         weight_decay=adam_weight_decay,
     )
@@ -35,19 +39,22 @@ def get_optimizers_for_lightning(
     return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
 
 
-class FLAVALightningModule(LightningModule):
+class FLAVAPreTrainingLightningModule(LightningModule):
     def __init__(
         self,
         learning_rate: float = 0.0002,
         adam_eps: float = 1.0e-08,
         adam_weight_decay: float = 0.01,
+        adam_betas: Tuple[int, int] = (0.9, 0.999),
         warmup_steps: int = 2000,
         max_steps: int = 450000,
+        **flava_pretraining_kwargs: Any,
     ):
         super().__init__()
-        self.model = flava_model_for_pretraining(pretrained_model_key="flava_full")
+        self.model = flava_model_for_pretraining(**flava_pretraining_kwargs)
         self.learning_rate = learning_rate
         self.adam_eps = adam_eps
+        self.adam_betas = adam_betas
         self.adam_weight_decay = adam_weight_decay
         self.warmup_steps = warmup_steps
         self.max_steps = max_steps
@@ -104,30 +111,34 @@ class FLAVALightningModule(LightningModule):
             self.learning_rate,
             self.adam_eps,
             self.adam_weight_decay,
+            self.adam_betas,
             self.warmup_steps,
             self.max_steps,
         )
 
 
-class FLAVAClassificationLightningModule(FLAVALightningModule):
+class FLAVAClassificationLightningModule(LightningModule):
     def __init__(
         self,
         num_classes: int,
         learning_rate: float = 0.0002,
         adam_eps: float = 1.0e-08,
         adam_weight_decay: float = 0.01,
+        adam_betas: Tuple[int, int] = (0.9, 0.999),
         warmup_steps: int = 2000,
         max_steps: int = 450000,
+        **flava_classification_kwargs: Any,
     ):
         super().__init__()
         self.model = flava_model_for_classification(
-            num_classes=num_classes, pretrained_model_key="flava_full"
+            num_classes, **flava_classification_kwargs
         )
         self.learning_rate = learning_rate
         self.adam_eps = adam_eps
         self.adam_weight_decay = adam_weight_decay
         self.warmup_steps = warmup_steps
         self.max_steps = max_steps
+        self.adam_betas = adam_betas
 
     def training_step(self, batch, batch_idx):
         output = self._step(batch, batch_idx)
@@ -162,3 +173,14 @@ class FLAVAClassificationLightningModule(FLAVALightningModule):
 
         # TODO: Add accuracy metric to this later.
         return output
+
+    def configure_optimizers(self):
+        return get_optimizers_for_lightning(
+            self.model,
+            self.learning_rate,
+            self.adam_eps,
+            self.adam_weight_decay,
+            self.adam_betas,
+            self.warmup_steps,
+            self.max_steps,
+        )
