@@ -5,7 +5,6 @@
 # LICENSE file in the root directory of this source tree.
 
 import unittest
-from dataclasses import asdict
 
 import torch
 from torchmultimodal.models.flava import (
@@ -21,7 +20,7 @@ class TestFLAVA(unittest.TestCase):
     def setUp(self):
         torch.manual_seed(1234)
 
-    @unittest.skip("dsds")
+    @unittest.skip("Pending fix network connection, see (T116682215)")
     @torch.no_grad()
     def test_forward_classification(self):
         flava = flava_model_for_classification(NUM_CLASSES)
@@ -32,42 +31,15 @@ class TestFLAVA(unittest.TestCase):
 
         # Test multimodal scenario
         output = flava(image, text, "mm", labels)
-        self.assertTrue(
-            torch.allclose(
-                output.loss, torch.tensor(0.9303, dtype=torch.float), atol=1e-4
-            )
-        )
-        self.assertTrue(
-            torch.allclose(
-                output.logits.sum(), torch.tensor(0.7676, dtype=torch.float), atol=1e-4
-            )
-        )
+        self.assertAlmostEqual(output.loss.item(), 0.9724, places=4)
 
         # Test unimodal image scenario
         output = flava(image, text, "image", labels)
-        self.assertTrue(
-            torch.allclose(
-                output.loss, torch.tensor(0.5453, dtype=torch.float), atol=1e-4
-            )
-        )
-        self.assertTrue(
-            torch.allclose(
-                output.logits.sum(), torch.tensor(-0.2235, dtype=torch.float), atol=1e-4
-            )
-        )
+        self.assertAlmostEqual(output.loss.item(), 0.5453, places=4)
 
         # Test unimodal text scenario
         output = flava(image, text, "text", labels)
-        self.assertTrue(
-            torch.allclose(
-                output.loss, torch.tensor(0.7074, dtype=torch.float), atol=1e-4
-            )
-        )
-        self.assertTrue(
-            torch.allclose(
-                output.logits.sum(), torch.tensor(-1.0528, dtype=torch.float), atol=1e-4
-            )
-        )
+        self.assertAlmostEqual(output.loss.item(), 0.7074, places=4)
 
     @unittest.skip("Pending fix network connection, see (T116682215)")
     @torch.no_grad()
@@ -100,17 +72,12 @@ class TestFLAVA(unittest.TestCase):
         self.assertIsNotNone(output.mmm_text_output)
         self.assertIsNotNone(output.mmm_image_output)
         self.assertIsNotNone(output.itm_output)
-        print(output.itm_output)
-        return
-        self.assertTrue(
-            torch.allclose(
-                sum(
-                    value if value is not None else 0
-                    for _, value in asdict(output.losses).items()
-                ),
-                torch.tensor(20.6433, dtype=torch.float),
-                atol=1e-4,
-            )
+        self.assertAlmostEqual(
+            sum(
+                value if value is not None else 0 for value in output.losses.values()
+            ).item(),
+            20.4199,
+            places=4,
         )
 
         output = flava(
@@ -129,15 +96,12 @@ class TestFLAVA(unittest.TestCase):
         self.assertIsNone(output.mmm_text_output)
         self.assertIsNone(output.mmm_image_output)
         self.assertIsNone(output.itm_output)
-        self.assertTrue(
-            torch.allclose(
-                sum(
-                    value if value is not None else 0
-                    for _, value in asdict(output.losses).items()
-                ),
-                torch.tensor(9.3403, dtype=torch.float),
-                atol=1e-4,
-            )
+        self.assertAlmostEqual(
+            sum(
+                value if value is not None else 0 for value in output.losses.values()
+            ).item(),
+            9.3403,
+            places=4,
         )
 
         output = flava(
@@ -157,13 +121,10 @@ class TestFLAVA(unittest.TestCase):
         self.assertIsNone(output.mmm_image_output)
         self.assertIsNone(output.itm_output)
 
-        self.assertTrue(
-            torch.allclose(
-                sum(
-                    value if value is not None else 0
-                    for _, value in asdict(output.losses).items()
-                ),
-                torch.tensor(10.8777, dtype=torch.float),
-                atol=1e-4,
-            )
+        self.assertAlmostEqual(
+            sum(
+                value if value is not None else 0 for value in output.losses.values()
+            ).item(),
+            10.8777,
+            places=4,
         )

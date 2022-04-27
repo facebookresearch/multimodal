@@ -3,3 +3,5 @@ pytorch-lightning==1.6.0
 datasets==2.0.0
 requests==2.27.1
 DALL-E==0.1
+omegaconf==2.1.2
+hydra-core==1.1.2
