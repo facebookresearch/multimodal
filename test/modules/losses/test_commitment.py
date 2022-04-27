@@ -8,6 +8,7 @@ import unittest
 
 import torch
 from torchmultimodal.modules.losses.vqvae import CommitmentLoss
+from torchmultimodal.test.test_utils import set_rng_seed
 
 
 class TestCommitment(unittest.TestCase):
@@ -17,7 +18,7 @@ class TestCommitment(unittest.TestCase):
 
     def setUp(self):
         torch.set_printoptions(precision=10)
-        torch.manual_seed(4)
+        set_rng_seed(4)
         self.quantized = torch.randn((2, 3))
         self.encoded = torch.randn((2, 3))
 

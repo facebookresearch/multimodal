@@ -5,25 +5,33 @@
 # LICENSE file in the root directory of this source tree.
 
 import torch
-from torch import nn
+from torch import nn, Tensor
 
 
 class Quantisation(nn.Module):
-    """
-    Embedding layer that takes in a collection of flattened vectors and finds closest embedding vectors
-    to each flattened vector and outputs those selected embedding vectors. Also known as vector quantisation.
+    """Quantisation provides an embedding layer that takes in a collection of flattened vectors, usually the
+    output of an encoder architecture, and performs a nearest-neighbor lookup in the embedding space.
+
+    Vector quantisation was introduced in Oord et al. 2017 (https://arxiv.org/pdf/1711.00937.pdf) to generate high-fidelity
+    images, videos, and audio data.
+
+    Args:
+        num_embeddings (int): the number of vectors in the embedding space
+        embedding_dim (int): the dimensionality of the embedding vectors
     """
 
-    def __init__(self, num_embeddings, embedding_dim):
+    def __init__(self, num_embeddings: int, embedding_dim: int):
         super().__init__()
         self.embedding_dim = embedding_dim
         self.num_embeddings = num_embeddings
 
         self.embedding = nn.Embedding(self.num_embeddings, self.embedding_dim)
-        self.embedding.weight.data.normal_()
+        self.embedding.weight.data.uniform_(
+            -1 / self.num_embeddings, 1 / self.num_embeddings
+        )
         self.quantised_vectors = None
 
-    def forward(self, x_flat):
+    def forward(self, x_flat: Tensor):
         x_shape = x_flat.shape
         # channel dimension should be embedding dim so that each element in encoder
         # output volume gets associated with single embedding vector
@@ -33,21 +41,16 @@ class Quantisation(nn.Module):
 
         # Calculate distances from each encoder output vector to each embedding vector, ||x - emb||^2
         w_t = self.embedding.weight.t()
-        distances = (
-            torch.sum(x_flat ** 2, dim=1, keepdim=True)
-            - 2 * torch.matmul(x_flat, w_t)
-            + torch.sum(w_t ** 2, dim=0, keepdim=True)
-        )
+        distances = torch.cdist(x_flat, w_t, p=2.0) ** 2
 
         # Encoding - select closest embedding vectors
-        encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)
-        encodings = torch.zeros(
-            encoding_indices.shape[0], self.num_embeddings, device=x_flat.device
-        )
-        encodings.scatter_(1, encoding_indices, 1)
+        encoding_indices = torch.argmin(distances, dim=1)
 
         # Quantise
-        quantised_flattened = torch.matmul(encodings, self.embedding.weight)
+        quantised_flattened = self.embedding(encoding_indices)
+
+        # Straight through estimator
+        quantised_flattened = x_flat + (quantised_flattened - x_flat).detach()
         self.quantised_vectors = quantised_flattened
 
         return quantised_flattened

@@ -9,6 +9,7 @@ import unittest
 import torch
 from torch import nn
 from torchmultimodal.modules.layers.quantisation import Quantisation
+from torchmultimodal.test.test_utils import set_rng_seed
 from torchmultimodal.utils.preprocess import (
     flatten_to_channel_vectors,
     reshape_from_channel_vectors,
@@ -22,7 +23,7 @@ class TestQuantisation(unittest.TestCase):
 
     def setUp(self):
         torch.set_printoptions(precision=10)
-        torch.manual_seed(4)
+        set_rng_seed(4)
         self.num_embeddings = 4
         self.embedding_dim = 5
         self.encoded = torch.randn((2, self.embedding_dim, 3, 3))
