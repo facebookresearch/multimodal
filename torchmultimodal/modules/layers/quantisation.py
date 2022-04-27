@@ -31,13 +31,19 @@ class Quantisation(nn.Module):
         )
         self.quantised_vectors = None
 
-    def forward(self, x_flat: Tensor):
-        x_shape = x_flat.shape
+    def forward(self, x: Tensor):
+        # Rearrange from batch x channel x n dims to batch x n dims x channel
+        new_dims = (0,) + tuple(range(2, len(x.shape))) + (1,)
+        x_permuted = x.permute(new_dims).contiguous()
+        permuted_shape = x_permuted.shape
+
+        # Flatten input
+        x_flat = x_permuted.view(-1, permuted_shape[-1])
         # channel dimension should be embedding dim so that each element in encoder
         # output volume gets associated with single embedding vector
         assert (
-            x_shape[-1] == self.embedding_dim
-        ), f"Expected {x_shape[-1]} to be embedding size of {self.embedding_dim}"
+            x_flat.shape[-1] == self.embedding_dim
+        ), f"Expected {x_flat.shape[-1]} to be embedding size of {self.embedding_dim}"
 
         # Calculate distances from each encoder output vector to each embedding vector, ||x - emb||^2
         distances = torch.cdist(x_flat, self.embedding.weight, p=2.0) ** 2
@@ -46,13 +52,17 @@ class Quantisation(nn.Module):
         encoding_indices = torch.argmin(distances, dim=1)
 
         # Quantise
-        quantised_flattened = self.embedding(encoding_indices)
+        quantised_permuted = self.embedding(encoding_indices).view(permuted_shape)
 
         # Straight through estimator
-        quantised_flattened = x_flat + (quantised_flattened - x_flat).detach()
-        self.quantised_vectors = quantised_flattened
+        quantised_permuted = x_permuted + (quantised_permuted - x_permuted).detach()
 
-        return quantised_flattened
+        # Rearrange back to batch x channel x n dims
+        old_dims = (0,) + (len(x.shape) - 1,) + tuple(range(1, len(x.shape) - 1))
+        quantised = quantised_permuted.permute(old_dims).contiguous()
+        self.quantised_vectors = quantised
+
+        return quantised
 
     def get_quantised_vectors(self):
         # Retrieve the previously quantised vectors without forward passing again

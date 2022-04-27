@@ -10,10 +10,6 @@ import torch
 from test.test_utils import set_rng_seed
 from torch import nn
 from torchmultimodal.modules.layers.quantisation import Quantisation
-from torchmultimodal.utils.preprocess import (
-    flatten_to_channel_vectors,
-    reshape_from_channel_vectors,
-)
 
 
 class TestQuantisation(unittest.TestCase):
@@ -34,9 +30,7 @@ class TestQuantisation(unittest.TestCase):
             num_embeddings=self.num_embeddings, embedding_dim=self.embedding_dim
         )
         vq.embedding = nn.Embedding.from_pretrained(self.embedding_weights)
-        x, permuted_shape = flatten_to_channel_vectors(self.encoded, 1)
-        output = vq(x)
-        actual = reshape_from_channel_vectors(output, permuted_shape, 1)
+        actual = vq(self.encoded)
 
         # This is shape (2,5,3,3)
         expected = torch.Tensor(
@@ -109,9 +103,7 @@ class TestQuantisation(unittest.TestCase):
             num_embeddings=self.num_embeddings, embedding_dim=self.embedding_dim
         )
         vq.embedding = nn.Embedding.from_pretrained(self.embedding_weights)
-        x, permuted_shape = flatten_to_channel_vectors(self.encoded, 1)
-        output = vq(x)
-        output = reshape_from_channel_vectors(output, permuted_shape, 1)
+        output = vq(self.encoded)
         actual = torch.tensor(output.shape)
         expected = torch.tensor([2, 5, 3, 3])
 
