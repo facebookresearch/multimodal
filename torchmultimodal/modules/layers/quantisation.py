@@ -20,7 +20,8 @@ class Quantisation(nn.Module):
         embedding_dim (int): the dimensionality of the embedding vectors
 
     Inputs:
-        x (Tensor): Tensor containing a batch of encoder outputs. Expects dimensions to be batch x channel x n dims.
+        x (Tensor): Tensor containing a batch of encoder outputs.
+                    Expects dimensions to be batch x channel x n dims.
     """
 
     def __init__(self, num_embeddings: int, embedding_dim: int):

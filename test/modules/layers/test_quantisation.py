@@ -7,7 +7,6 @@
 import unittest
 
 import torch
-from test.test_utils import set_rng_seed
 from torch import nn
 from torchmultimodal.modules.layers.quantisation import Quantisation
 
@@ -18,10 +17,9 @@ class TestQuantisation(unittest.TestCase):
     """
 
     def setUp(self):
-        torch.set_printoptions(precision=10)
-        set_rng_seed(4)
         self.num_embeddings = 4
         self.embedding_dim = 5
+
         # This is 2x5x3
         self.encoded = torch.Tensor(
             [
@@ -34,17 +32,17 @@ class TestQuantisation(unittest.TestCase):
             [[1, 0, -1, -1, 2], [2, -2, 0, 0, 1], [2, 1, 0, 1, 1], [-1, -2, 0, 2, 0]]
         )
         # This is 4x3
-        self.test_tensor_flat = torch.Tensor(
+        self.input_tensor_flat = torch.Tensor(
             [[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]]
         )
 
-    def test_quantised_output(self):
-        vq = Quantisation(
+        self.vq = Quantisation(
             num_embeddings=self.num_embeddings, embedding_dim=self.embedding_dim
         )
-        vq.embedding = nn.Embedding.from_pretrained(self.embedding_weights)
-        actual = vq(self.encoded)
+        self.vq.embedding = nn.Embedding.from_pretrained(self.embedding_weights)
 
+    def test_quantised_output(self):
+        actual = self.vq(self.encoded)
         # This is shape (2,5,3)
         expected = torch.Tensor(
             [
@@ -71,24 +69,8 @@ class TestQuantisation(unittest.TestCase):
             msg=f"actual: {actual}, expected: {expected}",
         )
 
-    def test_quantised_shape(self):
-        vq = Quantisation(
-            num_embeddings=self.num_embeddings, embedding_dim=self.embedding_dim
-        )
-        vq.embedding = nn.Embedding.from_pretrained(self.embedding_weights)
-        output = vq(self.encoded)
-        actual = torch.tensor(output.shape)
-        expected = torch.tensor([2, 5, 3])
-
-        assert torch.equal(
-            actual, expected
-        ), f"actual shape: {actual}, expected shape: {expected}"
-
     def test_preprocess(self):
-        vq = Quantisation(
-            num_embeddings=self.num_embeddings, embedding_dim=self.embedding_dim
-        )
-        encoded_flat, permuted_shape = vq._preprocess(self.encoded)
+        encoded_flat, permuted_shape = self.vq._preprocess(self.encoded)
 
         expected_flat_shape = torch.tensor([6, 5])
         expected_permuted_shape = torch.tensor([2, 3, 5])
@@ -105,17 +87,11 @@ class TestQuantisation(unittest.TestCase):
         ), f"actual permuted shape: {actual_permuted_shape}, expected permuted shape: {expected_permuted_shape}"
 
     def test_preprocess_channel_dim_assertion(self):
-        vq = Quantisation(
-            num_embeddings=self.num_embeddings, embedding_dim=self.embedding_dim
-        )
         with self.assertRaises(Exception):
-            encoded_flat, permuted_shape = vq._preprocess(self.encoded[:, :4, :])
+            encoded_flat, permuted_shape = self.vq._preprocess(self.encoded[:, :4, :])
 
     def test_postprocess(self):
-        vq = Quantisation(
-            num_embeddings=self.num_embeddings, embedding_dim=self.embedding_dim
-        )
-        quantised = vq._postprocess(self.test_tensor_flat, torch.Size([2, 2, 3]))
+        quantised = self.vq._postprocess(self.input_tensor_flat, torch.Size([2, 2, 3]))
         actual_quantised_shape = torch.tensor(quantised.shape)
         expected_quantised_shape = torch.tensor([2, 3, 2])
 
