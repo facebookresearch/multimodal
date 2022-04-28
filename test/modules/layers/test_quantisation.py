@@ -22,8 +22,21 @@ class TestQuantisation(unittest.TestCase):
         set_rng_seed(4)
         self.num_embeddings = 4
         self.embedding_dim = 5
-        self.encoded = torch.randn((2, self.embedding_dim, 3, 3))
-        self.embedding_weights = torch.randn((self.num_embeddings, self.embedding_dim))
+        # This is 2x5x3
+        self.encoded = torch.Tensor(
+            [
+                [[-1, 0, 1], [2, 1, 0], [0, -1, -1], [0, 2, -1], [-2, -1, 1]],
+                [[2, 2, -1], [1, -1, -2], [0, 0, 0], [1, 2, 1], [1, 0, 0]],
+            ]
+        )
+        # This is 4x5
+        self.embedding_weights = torch.Tensor(
+            [[1, 0, -1, -1, 2], [2, -2, 0, 0, 1], [2, 1, 0, 1, 1], [-1, -2, 0, 2, 0]]
+        )
+        # This is 4x3
+        self.test_tensor_flat = torch.Tensor(
+            [[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]]
+        )
 
     def test_quantised_output(self):
         vq = Quantisation(
@@ -32,62 +45,22 @@ class TestQuantisation(unittest.TestCase):
         vq.embedding = nn.Embedding.from_pretrained(self.embedding_weights)
         actual = vq(self.encoded)
 
-        # This is shape (2,5,3,3)
+        # This is shape (2,5,3)
         expected = torch.Tensor(
             [
                 [
-                    [
-                        [-1.1265823841, -0.1376807690, 0.7218121886],
-                        [-0.1376807690, 0.7218121886, 0.7218121886],
-                        [-1.1265823841, -0.1376807690, -1.1265823841],
-                    ],
-                    [
-                        [-0.5252661109, 0.3244057596, -0.8940765262],
-                        [0.3244057596, -0.8940765262, -0.8940765262],
-                        [-0.5252661109, 0.3244057596, -0.5252661109],
-                    ],
-                    [
-                        [-0.9950634241, -1.0523844957, 1.7175949812],
-                        [-1.0523844957, 1.7175949812, 1.7175949812],
-                        [-0.9950634241, -1.0523844957, -0.9950634241],
-                    ],
-                    [
-                        [0.2679379284, -0.4480970800, -0.3190571964],
-                        [-0.4480970800, -0.3190571964, -0.3190571964],
-                        [0.2679379284, -0.4480970800, 0.2679379284],
-                    ],
-                    [
-                        [-0.6253433824, -0.5198931098, -0.8529881239],
-                        [-0.5198931098, -0.8529881239, -0.8529881239],
-                        [-0.6253433824, -0.5198931098, -0.6253433824],
-                    ],
+                    [2.0, 2.0, 1.0],
+                    [1.0, 1.0, 0.0],
+                    [0.0, 0.0, -1.0],
+                    [1.0, 1.0, -1.0],
+                    [1.0, 1.0, 2.0],
                 ],
                 [
-                    [
-                        [-1.6703201532, -1.1265823841, -0.1376807690],
-                        [-1.1265823841, 0.7218121886, -1.1265823841],
-                        [-0.1376807690, -0.1376807690, -0.1376807690],
-                    ],
-                    [
-                        [0.8635767698, -0.5252661109, 0.3244057596],
-                        [-0.5252661109, -0.8940765262, -0.5252661109],
-                        [0.3244057596, 0.3244057596, 0.3244057596],
-                    ],
-                    [
-                        [-1.5300362110, -0.9950634241, -1.0523844957],
-                        [-0.9950634241, 1.7175949812, -0.9950634241],
-                        [-1.0523844957, -1.0523844957, -1.0523844957],
-                    ],
-                    [
-                        [0.5375117064, 0.2679379284, -0.4480970800],
-                        [0.2679379284, -0.3190571964, 0.2679379284],
-                        [-0.4480970800, -0.4480970800, -0.4480970800],
-                    ],
-                    [
-                        [-1.6273639202, -0.6253433824, -0.5198931098],
-                        [-0.6253433824, -0.8529881239, -0.6253433824],
-                        [-0.5198931098, -0.5198931098, -0.5198931098],
-                    ],
+                    [2.0, 2.0, -1.0],
+                    [1.0, -2.0, -2.0],
+                    [0.0, 0.0, 0.0],
+                    [1.0, 0.0, 2.0],
+                    [1.0, 1.0, 0.0],
                 ],
             ]
         )
@@ -105,8 +78,47 @@ class TestQuantisation(unittest.TestCase):
         vq.embedding = nn.Embedding.from_pretrained(self.embedding_weights)
         output = vq(self.encoded)
         actual = torch.tensor(output.shape)
-        expected = torch.tensor([2, 5, 3, 3])
+        expected = torch.tensor([2, 5, 3])
 
         assert torch.equal(
             actual, expected
         ), f"actual shape: {actual}, expected shape: {expected}"
+
+    def test_preprocess(self):
+        vq = Quantisation(
+            num_embeddings=self.num_embeddings, embedding_dim=self.embedding_dim
+        )
+        encoded_flat, permuted_shape = vq._preprocess(self.encoded)
+
+        expected_flat_shape = torch.tensor([6, 5])
+        expected_permuted_shape = torch.tensor([2, 3, 5])
+
+        actual_flat_shape = torch.tensor(encoded_flat.shape)
+        actual_permuted_shape = torch.tensor(permuted_shape)
+
+        assert torch.equal(
+            actual_flat_shape, expected_flat_shape
+        ), f"actual flattened shape: {actual_flat_shape}, expected flattened shape: {expected_flat_shape}"
+
+        assert torch.equal(
+            actual_permuted_shape, expected_permuted_shape
+        ), f"actual permuted shape: {actual_permuted_shape}, expected permuted shape: {expected_permuted_shape}"
+
+    def test_preprocess_channel_dim_assertion(self):
+        vq = Quantisation(
+            num_embeddings=self.num_embeddings, embedding_dim=self.embedding_dim
+        )
+        with self.assertRaises(Exception):
+            encoded_flat, permuted_shape = vq._preprocess(self.encoded[:, :4, :])
+
+    def test_postprocess(self):
+        vq = Quantisation(
+            num_embeddings=self.num_embeddings, embedding_dim=self.embedding_dim
+        )
+        quantised = vq._postprocess(self.test_tensor_flat, torch.Size([2, 2, 3]))
+        actual_quantised_shape = torch.tensor(quantised.shape)
+        expected_quantised_shape = torch.tensor([2, 3, 2])
+
+        assert torch.equal(
+            actual_quantised_shape, expected_quantised_shape
+        ), f"actual quantised shape: {actual_quantised_shape}, expected quantised shape: {expected_quantised_shape}"
