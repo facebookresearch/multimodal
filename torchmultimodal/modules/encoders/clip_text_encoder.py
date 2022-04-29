@@ -75,12 +75,16 @@ class CLIPTextEncoder(nn.Module):
         attn_std = self.width ** -0.5
         fc_std = (2 * self.width) ** -0.5
         for layer in self.encoder.layers:
-            nn.init.normal_(layer.attention.input_projection.weight, std=attn_std)
-            nn.init.normal_(layer.attention.output_projection.weight, std=proj_std)
+            nn.init.normal_(
+                layer.better_transformer.self_attn.in_proj_weight, std=attn_std
+            )
+            nn.init.normal_(
+                layer.better_transformer.self_attn.out_proj.weight, std=proj_std
+            )
             # c_fc in CLIP corresponds to the first residual MLP layer
-            nn.init.normal_(layer.residual_mlp.mlp[0].weight, std=fc_std)
+            nn.init.normal_(layer.better_transformer.linear1.weight, std=fc_std)
             # c_proj in CLIP corresponds to the last residual MLP layer
-            nn.init.normal_(layer.residual_mlp.mlp[-2].weight, std=proj_std)
+            nn.init.normal_(layer.better_transformer.linear2.weight, std=proj_std)
 
         # Initialize projection
         nn.init.normal_(self.projection.weight, std=self.width ** -0.5)
