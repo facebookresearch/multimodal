@@ -87,7 +87,7 @@ class TestQuantisation(unittest.TestCase):
         ), f"actual permuted shape: {actual_permuted_shape}, expected permuted shape: {expected_permuted_shape}"
 
     def test_preprocess_channel_dim_assertion(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(ValueError):
             encoded_flat, permuted_shape = self.vq._preprocess(self.encoded[:, :4, :])
 
     def test_postprocess(self):

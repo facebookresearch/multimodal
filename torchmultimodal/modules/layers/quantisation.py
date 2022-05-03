@@ -45,9 +45,10 @@ class Quantisation(nn.Module):
         x_flat = x_permuted.view(-1, permuted_shape[-1])
         # channel dimension should be embedding dim so that each element in encoder
         # output volume gets associated with single embedding vector
-        assert (
-            x_flat.shape[-1] == self.embedding_dim
-        ), f"Expected {x_flat.shape[-1]} to be embedding size of {self.embedding_dim}"
+        if x_flat.shape[-1] != self.embedding_dim:
+            raise ValueError(
+                f"Expected {x_flat.shape[-1]} to be embedding size of {self.embedding_dim}"
+            )
 
         return x_flat, permuted_shape
 
