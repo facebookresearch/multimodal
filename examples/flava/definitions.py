@@ -71,7 +71,7 @@ class TrainingArguments:
     learning_rate: float = 0.0002
     adam_eps: float = 1e-08
     adam_weight_decay: float = 0.01
-    adam_betas: Tuple[int, int] = field(default_factory=lambda: (0.9, 0.999))
+    adam_betas: Tuple[float, float] = field(default_factory=lambda: (0.9, 0.999))
     warmup_steps: int = 2000
 
 

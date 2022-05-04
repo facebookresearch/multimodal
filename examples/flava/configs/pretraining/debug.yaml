@@ -10,7 +10,7 @@ training:
     num_sanity_val_steps: 0
   seed: -1
   batch_size: 8
-  num_workers: 4
+  num_workers: 1
   learning_rate: 2e-4
   adam_eps: 1e-8
   adam_weight_decay: 1e-2
@@ -19,17 +19,17 @@ training:
 datasets:
   _target_: definitions.TrainingDatasetsInfo
   selected:
-  - image
+  # - image
   - vl
   - text
-  image:
-    _target_: definitions.TrainingSingleDatasetInfo
-    train:
-      - _target_: definitions.HFDatasetInfo
-        key: aps/imagenet2012
-        subset: default
-        extra_kwargs:
-          data_dir: ${oc.env:IMAGENET_TAR}
+  # image:
+  #   _target_: definitions.TrainingSingleDatasetInfo
+  #   train:
+  #     - _target_: definitions.HFDatasetInfo
+  #       key: aps/imagenet2012
+  #       subset: default
+  #       extra_kwargs:
+  #         data_dir: ${oc.env:IMAGENET_TAR}
   text:
     _target_: definitions.TrainingSingleDatasetInfo
     train:

@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from callbacks.multimodal_eval import MultimodalEvalCallback
+# from callbacks.multimodal_eval import MultimodalEvalCallback
 from data import (
     ImageDataModule,
     MLMDataModule,
@@ -25,10 +25,11 @@ def main():
         seed_everything(config.training.seed, workers=True)
 
     datamodules = []
-    imagenet_datamodule = ImageDataModule(
-        **build_datamodule_kwargs(config.datasets.image, config.training)
-    )
+
     if "image" in config.datasets.selected:
+        imagenet_datamodule = ImageDataModule(
+            **build_datamodule_kwargs(config.datasets.image, config.training)
+        )
         datamodules.append(imagenet_datamodule)
 
     if "text" in config.datasets.selected:
@@ -60,9 +61,10 @@ def main():
         **OmegaConf.to_container(config.training.lightning),
         callbacks=[
             LearningRateMonitor(logging_interval="step"),
-            MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule),
+            # MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule),
         ],
         strategy="ddp",
+        accelerator="gpu",
     )
     trainer.fit(model, datamodule=datamodule)
     trainer.validate(model, datamodule=datamodule)
