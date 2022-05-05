@@ -71,20 +71,16 @@ class CLIPTextEncoder(nn.Module):
             std=self.POS_EMBEDDING_INIT_STD,
         )
 
-        proj_std = (self.width ** -0.5) * ((2 * len(self.encoder.layers)) ** -0.5)
+        proj_std = (self.width ** -0.5) * ((2 * self.encoder.layers.num_layers) ** -0.5)
         attn_std = self.width ** -0.5
         fc_std = (2 * self.width) ** -0.5
-        for layer in self.encoder.layers:
-            nn.init.normal_(
-                layer.better_transformer.self_attn.in_proj_weight, std=attn_std
-            )
-            nn.init.normal_(
-                layer.better_transformer.self_attn.out_proj.weight, std=proj_std
-            )
+        for layer in self.encoder.layers.layers:
+            nn.init.normal_(layer.self_attn.in_proj_weight, std=attn_std)
+            nn.init.normal_(layer.self_attn.out_proj.weight, std=proj_std)
             # c_fc in CLIP corresponds to the first residual MLP layer
-            nn.init.normal_(layer.better_transformer.linear1.weight, std=fc_std)
+            nn.init.normal_(layer.linear1.weight, std=fc_std)
             # c_proj in CLIP corresponds to the last residual MLP layer
-            nn.init.normal_(layer.better_transformer.linear2.weight, std=proj_std)
+            nn.init.normal_(layer.linear2.weight, std=proj_std)
 
         # Initialize projection
         nn.init.normal_(self.projection.weight, std=self.width ** -0.5)
