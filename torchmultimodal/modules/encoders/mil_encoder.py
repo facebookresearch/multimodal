@@ -83,7 +83,6 @@ class MILEncoder(nn.Module):
         return f"mil_{id}"
 
     def forward(self, x: Tensor) -> Tensor:
-        partitioned_input = {}
         idx = 0
         input_size = x.size(dim=1)
         if input_size != sum(self.partition_sizes):
