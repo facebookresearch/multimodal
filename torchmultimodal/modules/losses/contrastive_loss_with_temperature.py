@@ -6,7 +6,7 @@
 
 import math
 from dataclasses import dataclass
-from typing import Optional, Tuple, Union
+from typing import Optional, OrderedDict, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -16,7 +16,7 @@ from torch.distributed.nn.functional import all_gather as all_gather_with_backpr
 
 
 @dataclass
-class ContrastiveLossOutput:
+class ContrastiveLossOutput(OrderedDict):
     loss: torch.Tensor
     image_logits: torch.Tensor
     text_logits: torch.Tensor

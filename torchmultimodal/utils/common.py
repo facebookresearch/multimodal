@@ -6,6 +6,8 @@
 
 import hashlib
 import os
+from collections import OrderedDict
+from dataclasses import fields
 from typing import Optional
 
 import torch
@@ -47,3 +49,23 @@ class PretrainedMixin:
         if load_state_dict:
             self.load_state_dict(state_dict)
         return state_dict
+
+
+class ModelOutput(OrderedDict):
+    def keys(self):
+        for field in fields(self):
+            yield field.name
+
+    def __getitem__(self, key):
+        return getattr(self, key)
+
+    def __iter__(self):
+        yield from self.keys()
+
+    def values(self):
+        for field in fields(self):
+            yield getattr(self, field.name)
+
+    def items(self):
+        for field in fields(self):
+            yield field.name, getattr(self, field.name)

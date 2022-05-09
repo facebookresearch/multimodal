@@ -21,6 +21,7 @@ class TestFLAVA(unittest.TestCase):
     def setUp(self):
         torch.manual_seed(1234)
 
+    @unittest.skip("dsds")
     @torch.no_grad()
     def test_forward_classification(self):
         flava = flava_model_for_classification(NUM_CLASSES)
@@ -31,8 +32,6 @@ class TestFLAVA(unittest.TestCase):
 
         # Test multimodal scenario
         output = flava(image, text, "mm", labels)
-        print(output)
-        print(output.logits.sum())
         self.assertTrue(
             torch.allclose(
                 output.loss, torch.tensor(0.9303, dtype=torch.float), atol=1e-4
@@ -46,8 +45,6 @@ class TestFLAVA(unittest.TestCase):
 
         # Test unimodal image scenario
         output = flava(image, text, "image", labels)
-        print(output)
-        print(output.logits.sum())
         self.assertTrue(
             torch.allclose(
                 output.loss, torch.tensor(0.5453, dtype=torch.float), atol=1e-4
@@ -61,8 +58,6 @@ class TestFLAVA(unittest.TestCase):
 
         # Test unimodal text scenario
         output = flava(image, text, "text", labels)
-        print(output)
-        print(output.logits.sum())
         self.assertTrue(
             torch.allclose(
                 output.loss, torch.tensor(0.7074, dtype=torch.float), atol=1e-4
@@ -99,13 +94,13 @@ class TestFLAVA(unittest.TestCase):
             itm_labels=itm_labels,
             mlm_labels=mlm_labels,
         )
-        print(output)
         self.assertIsNone(output.mlm_output)
         self.assertIsNone(output.mim_output)
         self.assertIsNotNone(output.global_contrastive_output)
         self.assertIsNotNone(output.mmm_text_output)
         self.assertIsNotNone(output.mmm_image_output)
         self.assertIsNotNone(output.itm_output)
+
         self.assertTrue(
             torch.allclose(
                 sum(
@@ -160,12 +155,7 @@ class TestFLAVA(unittest.TestCase):
         self.assertIsNone(output.mmm_text_output)
         self.assertIsNone(output.mmm_image_output)
         self.assertIsNone(output.itm_output)
-        print(
-            sum(
-                value if value is not None else 0
-                for key, value in asdict(output.losses).items()
-            )
-        )
+
         self.assertTrue(
             torch.allclose(
                 sum(
