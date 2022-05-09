@@ -4,6 +4,9 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import time
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 from typing import List
 
 import requests
@@ -14,6 +17,9 @@ from PIL import Image, UnidentifiedImageError
 from .definitions import HFDatasetInfo
 
 
+DATASETS_USER_AGENT = get_datasets_user_agent()
+
+
 def build_datasets_from_info(dataset_infos: List[HFDatasetInfo], split: str = "train"):
     dataset_list = []
     for dataset_info in dataset_infos:
@@ -21,6 +27,7 @@ def build_datasets_from_info(dataset_infos: List[HFDatasetInfo], split: str = "t
             dataset_info.key,
             dataset_info.subset,
             split=dataset_info.split_key_mapping[split],
+            **dataset_info.extra_kwargs,
         )
         if dataset_info.remove_columns is not None:
             current_dataset = current_dataset.remove_columns(
@@ -35,21 +42,39 @@ def build_datasets_from_info(dataset_infos: List[HFDatasetInfo], split: str = "t
     return concatenate_datasets(dataset_list)
 
 
-def fetch_images(sample, timeout):
-    if "image" in sample:
-        return sample
-    image_url = sample["image_url"]
-    try:
-        image = Image.open(
-            requests.get(
-                image_url,
-                stream=True,
-                headers={"user-agent": get_datasets_user_agent()},
-                timeout=timeout,
-            ).raw
+def fetch_single_image(image_url, timeout, retries=0, sleep_timer=0):
+    for _ in range(retries + 1):
+        try:
+            image = Image.open(
+                requests.get(
+                    image_url,
+                    stream=True,
+                    headers={"user-agent": DATASETS_USER_AGENT},
+                    timeout=timeout,
+                ).raw
+            )
+            break
+        except (requests.exceptions.ConnectionError, UnidentifiedImageError):
+            image = None
+            time.sleep(sleep_timer)
+
+    return image
+
+
+def fetch_images(batch, num_threads, timeout=None, retries=0, sleep_timer=0):
+    if "image" in batch:
+        # This dataset already has "image" defined.
+        return batch
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        batch["image"] = list(
+            executor.map(
+                partial(
+                    fetch_single_image,
+                    timeout=timeout,
+                    retries=retries,
+                    sleep_timer=sleep_timer,
+                ),
+                batch["image_url"],
+            )
         )
-    except (requests.exceptions.ConnectionError, UnidentifiedImageError):
-        image = Image.new("RGB", (256, 256), (255, 255, 255))
-        sample["image_url"] = "empty"
-    sample["image"] = image
-    return sample
+    return batch

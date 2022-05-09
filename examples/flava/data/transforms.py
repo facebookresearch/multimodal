@@ -26,6 +26,8 @@ IMAGE_PRETRAINING_MEAN = (0.48145466, 0.4578275, 0.40821073)
 IMAGE_PRETRAINING_STD = (0.26862954, 0.26130258, 0.27577711)
 VL_MAX_LENGTH_DEFAULT = 77
 TEXT_MAX_LENGTH_DEFAULT = 512
+TEXT_DEFAULT_TOKENIZER = "bert-base-uncased"
+TEXT_WHOLE_WORD_MASK_TOKENIZER = "bert-large-uncased-whole-word-masking"
 
 
 def map_pixels(x: torch.Tensor) -> torch.Tensor:
@@ -69,7 +71,7 @@ def default_text_transform(
     **kwargs: Any,
 ):
     if text_tokenizer is None:
-        text_tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+        text_tokenizer = BertTokenizer.from_pretrained(TEXT_DEFAULT_TOKENIZER)
 
     text_transform = partial(
         encode_text,
@@ -82,6 +84,16 @@ def default_text_transform(
     )
 
     return text_transform
+
+
+def default_vl_text_transform(
+    text_tokenizer: Optional[Callable] = None,
+    max_text_length: int = VL_MAX_LENGTH_DEFAULT,
+    **kwargs: Any,
+):
+    if text_tokenizer is None:
+        text_tokenizer = BertTokenizer.from_pretrained(TEXT_WHOLE_WORD_MASK_TOKENIZER)
+    return default_text_transform(text_tokenizer, max_text_length=max_text_length)
 
 
 def pad_batch(batch, batch_size):
@@ -151,6 +163,10 @@ class TwoWayResize(transforms.Resize):
         second_interpolation=transforms.InterpolationMode.LANCZOS,
         **kwargs,
     ):
+
+        if not isinstance(size, (list, tuple)):
+            size = (size, size)
+
         super().__init__(size, **kwargs)
         # Backward compatibility with integer value
         if isinstance(second_interpolation, int):
@@ -287,7 +303,7 @@ class MaskedImageModelingTransform:
                 second_interpolation=codebook_interpolation,
             )
         else:
-            resize_func = TwoWayRandomResizedCrop(
+            resize_func = TwoWayResize(
                 size=encoder_input_size,
                 second_size=codebook_input_size,
                 interpolation=encoder_interpolation,

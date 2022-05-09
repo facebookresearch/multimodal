@@ -8,7 +8,7 @@ import logging
 
 import torch
 from data import default_text_transform, VL_MAX_LENGTH_DEFAULT
-from imagenet_zeroshot_data import imagenet_classnames, openai_imagenet_template
+from data.imagenet_zeroshot_data import imagenet_classnames, openai_imagenet_template
 from pytorch_lightning import Callback, LightningDataModule
 from pytorch_lightning.utilities import rank_zero_only
 from tqdm import tqdm
@@ -50,8 +50,10 @@ def run_imagenet_zero_shot(model, dataloader, device, text_transform, *args, **k
     classifier = _zero_shot_classifier(model, device, text_transform)
     logger.info("Classifier built")
     top1, top5, n = 0.0, 0.0, 0.0
-    for images, target in tqdm(dataloader):
-        images = images["image"].to(device)
+    for sample in tqdm(dataloader):
+        images = sample["image"]
+        target = sample["label"]
+        images = images.to(device)
         target = target.to(device)
 
         # predict
