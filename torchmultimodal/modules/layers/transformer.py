@@ -229,20 +229,23 @@ class TransformerEncoder(nn.Module):
         attention_mask: Optional[Tensor] = None,
         head_mask: Optional[Tensor] = None,
     ):
-        all_hidden_states = ()
-        all_self_attentions = ()
+        all_hidden_states = []
+        all_self_attentions = []
 
         for i, layer_module in enumerate(self.layer):
-            all_hidden_states = all_hidden_states + (hidden_states,)
+            all_hidden_states.append(hidden_states)
 
             layer_head_mask = head_mask[i] if head_mask is not None else None
             layer_outputs = layer_module(hidden_states, attention_mask, layer_head_mask)
 
             hidden_states = layer_outputs[0]
 
-            all_self_attentions = all_self_attentions + (layer_outputs[1],)
+            all_self_attentions.append(layer_outputs[1])
 
-        all_hidden_states = all_hidden_states + (hidden_states,)
+        all_hidden_states.append(hidden_states)
+
+        all_hidden_states = tuple(all_hidden_states)
+        all_self_attentions = tuple(all_self_attentions)
 
         return TransformerOutput(
             last_hidden_state=hidden_states,
