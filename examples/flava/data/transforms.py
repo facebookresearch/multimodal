@@ -37,16 +37,27 @@ def map_pixels(x: torch.Tensor) -> torch.Tensor:
     return (1 - 2 * LOGIT_LAPLACE_EPS) * x + LOGIT_LAPLACE_EPS
 
 
-def encode_text_batch(batch, tokenizer, text_column="text", *args, **kwargs):
-    return tokenizer(batch[text_column], *args, **kwargs)
-
-
 def encode_text(text, tokenizer, *args, **kwargs):
     return tokenizer(text, *args, **kwargs)
 
 
+def encode_text_batch(batch, tokenizer, text_columns=None, *args, **kwargs):
+    if text_columns is None:
+        text_columns = ["sentence1", "sentence2"]
+    texts = [batch[column] for column in text_columns]
+    batch.update(tokenizer(*texts, *args, **kwargs))
+    return batch
+
+
+def transform_image_dict(transform, image_dict, *args, **kwargs):
+    return {"image": transform(image_dict["image"], *args, **kwargs)}
+
+
 def default_torchvision_transforms(
-    size=IMAGE_DEFAULT_SIZE, mean=IMAGENET_DEFAULT_MEAN, std=IMAGENET_DEFAULT_STD
+    size=IMAGE_DEFAULT_SIZE,
+    mean=IMAGENET_DEFAULT_MEAN,
+    std=IMAGENET_DEFAULT_STD,
+    use_dict=False,
 ):
     transform = transforms.Compose(
         [
@@ -58,6 +69,10 @@ def default_torchvision_transforms(
             ),
         ]
     )
+
+    if use_dict:
+        transform = partial(transform_image_dict, transform=transform)
+
     return transform, transform
 
 

@@ -587,6 +587,8 @@ class FLAVAForClassification(nn.Module, PretrainedMixin):
             image=image,
             text=text,
             required_embedding=required_embedding,
+            # Don't skip the encoder for classification
+            skip_unmasked_mm_encoder=False,
         )
 
         hidden_state: Optional[Tensor] = None
