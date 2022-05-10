@@ -7,7 +7,7 @@
 import unittest
 
 import torch
-from test.test_utils import assert_tensors_equal
+from test.test_utils import assert_expected
 from torch import nn
 from torchmultimodal.modules.layers.quantisation import Quantisation
 
@@ -64,7 +64,7 @@ class TestQuantisation(unittest.TestCase):
             ]
         )
 
-        assert_tensors_equal(actual, expected)
+        assert_expected(actual, expected)
 
     def test_preprocess(self):
         encoded_flat, permuted_shape = self.vq._preprocess(self.encoded)

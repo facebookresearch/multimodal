@@ -7,7 +7,7 @@
 import unittest
 
 import torch
-from test.test_utils import assert_tensors_equal
+from test.test_utils import assert_expected
 from torchmultimodal.architectures.late_fusion import LateFusionArchitecture
 from torchmultimodal.modules.fusions.concat_fusion import ConcatFusionModule
 
@@ -45,7 +45,7 @@ class TestLateFusion(unittest.TestCase):
             [[1, 0, 0.25, 0.75, 3, 1, 0.8, 0.9], [0, 1, 0.6, 0.4, 0.7, 2, 0.6, 0]]
         )
 
-        assert_tensors_equal(actual, expected)
+        assert_expected(actual, expected)
 
     def test_script(self):
         modalities = {
@@ -65,7 +65,7 @@ class TestLateFusion(unittest.TestCase):
         scripted_late_fusion = torch.jit.script(self.late_fusion)
         actual = scripted_late_fusion(modalities)
         expected = torch.Tensor([[7, 0, 0.65, 8, 9, 0.8], [88, 5, 0.3, 0.74, 2, 0]])
-        assert_tensors_equal(actual, expected)
+        assert_expected(actual, expected)
 
     def test_missing_key_in_modalities(self):
         modalities = {

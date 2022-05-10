@@ -71,9 +71,13 @@ def get_asset_path(file_name: str) -> str:
     return str(_ASSET_DIR.joinpath(file_name))
 
 
-def assert_tensors_equal(actual: Tensor, expected: Tensor):
+def assert_expected(
+    actual: Tensor, expected: Tensor, rtol: float = None, atol: float = None
+):
     torch.testing.assert_close(
         actual,
         expected,
+        rtol=rtol,
+        atol=atol,
         msg=f"actual: {actual}, expected: {expected}",
     )
