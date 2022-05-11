@@ -95,7 +95,11 @@ class FLAVASelfAttention(nn.Module):
         return outputs
 
 
+<<<<<<< HEAD
 class FLAVAAttention(nn.Module):
+=======
+class TransformerAttention(nn.Module):
+>>>>>>> finished transformer.py
     def __init__(
         self,
         hidden_size: int = 768,
