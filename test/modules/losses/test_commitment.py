@@ -7,6 +7,7 @@
 import unittest
 
 import torch
+from test.test_utils import assert_expected
 from torchmultimodal.modules.losses.vqvae import CommitmentLoss
 
 
@@ -26,8 +27,4 @@ class TestCommitment(unittest.TestCase):
         actual = loss.item()
         expected = 2.0
 
-        torch.testing.assert_close(
-            actual,
-            expected,
-            msg=f"actual: {actual}, expected: {expected}",
-        )
+        assert_expected(actual, expected)

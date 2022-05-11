@@ -12,6 +12,7 @@ from pathlib import Path
 
 import torch
 import torch.distributed as dist
+from torch import Tensor
 
 
 def gpu_test(gpu_count: int = 1):
@@ -68,3 +69,15 @@ _ASSET_DIR = (Path(__file__).parent / "assets").resolve()
 def get_asset_path(file_name: str) -> str:
     """Get the path to the file under assets directory."""
     return str(_ASSET_DIR.joinpath(file_name))
+
+
+def assert_expected(
+    actual: Tensor, expected: Tensor, rtol: float = None, atol: float = None
+):
+    torch.testing.assert_close(
+        actual,
+        expected,
+        rtol=rtol,
+        atol=atol,
+        msg=f"actual: {actual}, expected: {expected}",
+    )

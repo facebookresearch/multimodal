@@ -8,7 +8,7 @@ import unittest
 from functools import partial
 
 import torch
-from test.test_utils import set_rng_seed
+from test.test_utils import set_rng_seed, assert_expected
 from torchmultimodal.modules.layers.mlp import MLP
 
 
@@ -36,11 +36,7 @@ class TestMLP(unittest.TestCase):
                 [1.710142, -0.744562, -0.199996],
             ],
         )
-        torch.testing.assert_close(
-            actual,
-            expected,
-            msg=f"actual: {actual}, expected: {expected}",
-        )
+        assert_expected(actual, expected)
 
     def test_pass_hidden_dims(self):
         mlp = MLP(
@@ -55,11 +51,7 @@ class TestMLP(unittest.TestCase):
                 [0.395047, 1.070629, -0.927500],
             ],
         )
-        torch.testing.assert_close(
-            actual,
-            expected,
-            msg=f"actual: {actual}, expected: {expected}",
-        )
+        assert_expected(actual, expected)
 
     def test_activation_and_normalization(self):
         activation = torch.nn.LeakyReLU
@@ -80,11 +72,7 @@ class TestMLP(unittest.TestCase):
                 [0.348458, 0.898804, -0.778149],
             ]
         )
-        torch.testing.assert_close(
-            actual,
-            expected,
-            msg=f"actual: {actual}, expected: {expected}",
-        )
+        assert_expected(actual, expected)
 
     def test_torchscript(self):
         mlp = MLP(in_dim=self.in_dim, out_dim=self.out_dim)

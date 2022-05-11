@@ -7,6 +7,7 @@
 import unittest
 
 import torch
+from test.test_utils import assert_expected
 from torchmultimodal.transforms.text_transforms import PadTransform, StrToIntTransform
 
 
@@ -22,40 +23,24 @@ class TestTextTransforms(unittest.TestCase):
 
         padded_1d_tensor_actual = pad_long(self.input_1d_tensor)
         padded_1d_tensor_expected = torch.cat([torch.ones(5), torch.zeros(2)])
-        torch.testing.assert_close(
-            padded_1d_tensor_actual,
-            padded_1d_tensor_expected,
-            msg=f"actual: {padded_1d_tensor_actual}, expected: {padded_1d_tensor_expected}",
-        )
+        assert_expected(padded_1d_tensor_actual, padded_1d_tensor_expected)
 
         padded_2d_tensor_actual = pad_long(self.input_2d_tensor)
         padded_2d_tensor_expected = torch.cat(
             [torch.ones(8, 5), torch.zeros(8, 2)], axis=-1
         )
-        torch.testing.assert_close(
-            padded_2d_tensor_actual,
-            padded_2d_tensor_expected,
-            msg=f"actual: {padded_2d_tensor_actual}, expected: {padded_2d_tensor_expected}",
-        )
+        assert_expected(padded_2d_tensor_actual, padded_2d_tensor_expected)
 
     def test_pad_transform_short(self):
         pad_short = PadTransform(max_length=3)
 
         padded_1d_tensor_actual = pad_short(self.input_1d_tensor)
         padded_1d_tensor_expected = self.input_1d_tensor
-        torch.testing.assert_close(
-            padded_1d_tensor_actual,
-            padded_1d_tensor_expected,
-            msg=f"actual: {padded_1d_tensor_actual}, expected: {padded_1d_tensor_expected}",
-        )
+        assert_expected(padded_1d_tensor_actual, padded_1d_tensor_expected)
 
         padded_2d_tensor_actual = pad_short(self.input_2d_tensor)
         padded_2d_tensor_expected = self.input_2d_tensor
-        torch.testing.assert_close(
-            padded_2d_tensor_actual,
-            padded_2d_tensor_expected,
-            msg=f"actual: {padded_2d_tensor_actual}, expected: {padded_2d_tensor_expected}",
-        )
+        assert_expected(padded_2d_tensor_actual, padded_2d_tensor_expected)
 
     def test_clip_multi_transform(self):
         str_to_int = StrToIntTransform()

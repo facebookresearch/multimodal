@@ -7,6 +7,7 @@
 import unittest
 
 import torch
+from test.test_utils import assert_expected
 from torch import nn
 from torchmultimodal.modules.layers.quantisation import Quantisation
 
@@ -63,11 +64,7 @@ class TestQuantisation(unittest.TestCase):
             ]
         )
 
-        torch.testing.assert_close(
-            actual,
-            expected,
-            msg=f"actual: {actual}, expected: {expected}",
-        )
+        assert_expected(actual, expected)
 
     def test_preprocess(self):
         encoded_flat, permuted_shape = self.vq._preprocess(self.encoded)
