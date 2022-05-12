@@ -83,7 +83,7 @@ class AttentionPool2d(nn.Module):
     ):
         super().__init__()
         self.positional_embedding = nn.Parameter(
-            torch.randn(spacial_dim ** 2 + 1, embed_dim) / embed_dim ** 0.5
+            torch.randn(spacial_dim**2 + 1, embed_dim) / embed_dim**0.5
         )
         self.k_proj = nn.Linear(embed_dim, embed_dim)
         self.q_proj = nn.Linear(embed_dim, embed_dim)
@@ -200,7 +200,7 @@ class ResNetForCLIP(nn.Module):
 
     def initialize_parameters(self):
         if self.attnpool is not None:
-            std = self.attnpool.c_proj.in_features ** -0.5
+            std = self.attnpool.c_proj.in_features**-0.5
             nn.init.normal_(self.attnpool.q_proj.weight, std=std)
             nn.init.normal_(self.attnpool.k_proj.weight, std=std)
             nn.init.normal_(self.attnpool.v_proj.weight, std=std)

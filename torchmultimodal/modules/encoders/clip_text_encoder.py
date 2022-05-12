@@ -71,8 +71,8 @@ class CLIPTextEncoder(nn.Module):
             std=self.POS_EMBEDDING_INIT_STD,
         )
 
-        proj_std = (self.width ** -0.5) * ((2 * self.encoder.layers.num_layers) ** -0.5)
-        attn_std = self.width ** -0.5
+        proj_std = (self.width**-0.5) * ((2 * self.encoder.layers.num_layers) ** -0.5)
+        attn_std = self.width**-0.5
         fc_std = (2 * self.width) ** -0.5
         for layer in self.encoder.layers.layers:
             nn.init.normal_(layer.self_attn.in_proj_weight, std=attn_std)
@@ -83,7 +83,7 @@ class CLIPTextEncoder(nn.Module):
             nn.init.normal_(layer.linear2.weight, std=proj_std)
 
         # Initialize projection
-        nn.init.normal_(self.projection.weight, std=self.width ** -0.5)
+        nn.init.normal_(self.projection.weight, std=self.width**-0.5)
 
     def build_attention_mask(self) -> torch.Tensor:
         mask = torch.full((self.context_length, self.context_length), True).triu(1)
