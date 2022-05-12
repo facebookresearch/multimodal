@@ -218,6 +218,7 @@ def shifted_window_attention_3d(
     x = x[:, :D, :H, :W, :].contiguous()
     return x
 
+
 # Commented because mypy can't detect torch.fx
 # torch.fx.wrap("shifted_window_attention_3d")
 
@@ -239,8 +240,8 @@ class ShiftedWindowAttention(nn.Module):
         dropout: float = 0.0,
     ):
         super().__init__()
-        self.window_size = window_size  # Wd, Wh, Ww
-        self.shift_size = shift_size
+        self.window_size = list(window_size)  # Wd, Wh, Ww
+        self.shift_size = list(shift_size)
         self.num_heads = num_heads
         self.attention_dropout = attention_dropout
         self.dropout = dropout
@@ -454,10 +455,9 @@ class PatchEmbedOmnivore(nn.Module):
         return x
 
 
-class SwinTransformer3d(nn.Module):
+class SwinTransformer3dEncoder(nn.Module):
     """
-    Implements Swin Transformer from the `"Swin Transformer: Hierarchical Vision Transformer using
-    Shifted Windows" <https://arxiv.org/pdf/2103.14030>`_ paper.
+    Implements 3D Swin Transformer from the `"Video Swin Transformer" <https://arxiv.org/abs/2106.13230>`_ paper.
     Args:
         patch_size (List[int]): Patch size.
         embed_dim (int): Patch embedding dimension.
@@ -475,7 +475,6 @@ class SwinTransformer3d(nn.Module):
 
     def __init__(
         self,
-        patch_size: List[int],
         embed_dim: int,
         depths: List[int],
         num_heads: List[int],
@@ -487,6 +486,7 @@ class SwinTransformer3d(nn.Module):
         norm_layer: Optional[Callable[..., nn.Module]] = None,
         block: Optional[Callable[..., nn.Module]] = None,
         patch_embed: Optional[Callable[..., nn.Module]] = None,
+        patch_size: Optional[List[int]] = None,
     ):
         super().__init__()
 
@@ -499,6 +499,7 @@ class SwinTransformer3d(nn.Module):
         # split image into non-overlapping patches
         self.patch_embed: Callable[..., nn.Module]
         if patch_embed is None:
+            assert patch_size is not None, "If patch_embed is not provided, patch_size must be provided!"
             self.patch_embed = PatchEmbed3D(
                 patch_size=patch_size, embed_dim=embed_dim, norm_layer=norm_layer
             )
@@ -542,8 +543,8 @@ class SwinTransformer3d(nn.Module):
                 layers.append(PatchMerging3d(dim, norm_layer))
         self.features = nn.Sequential(*layers)
 
-        num_features = embed_dim * 2 ** (len(depths) - 1)
-        self.norm = norm_layer(num_features)
+        self.num_features = embed_dim * 2 ** (len(depths) - 1)
+        self.norm = norm_layer(self.num_features)
         self.avgpool = nn.AdaptiveAvgPool2d(1)
 
         for m in self.modules():
