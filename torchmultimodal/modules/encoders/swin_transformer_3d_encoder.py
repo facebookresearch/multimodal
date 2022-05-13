@@ -547,7 +547,7 @@ class SwinTransformer3dEncoder(nn.Module):
 
         self.num_features = embed_dim * 2 ** (len(depths) - 1)
         self.norm = norm_layer(self.num_features)
-        self.avgpool = nn.AdaptiveAvgPool2d(1)
+        self.avgpool = nn.AdaptiveAvgPool3d(1)
 
         for m in self.modules():
             if isinstance(m, nn.Linear):
