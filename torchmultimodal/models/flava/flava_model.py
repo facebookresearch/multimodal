@@ -349,7 +349,7 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
             skip_unmasked_mm_encoder=skip_unmasked_mm_encoder,
         )
 
-        return self.loss(
+        out = self.loss(
             image_sequence=flava_output.image.last_hidden_state,
             text_sequence=flava_output.text.last_hidden_state,
             image_masked_sequence=flava_output.image_masked.last_hidden_state,
@@ -364,6 +364,8 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
             projected_image_embeddings=flava_output.projected_image_embeddings,
             projected_text_embeddings=flava_output.projected_text_embeddings,
         )
+        # print("in models flava output", out)
+        return out
 
 
 class FLAVAForClassification(nn.Module, PretrainedMixin):
@@ -518,7 +520,8 @@ def flava_model_for_pretraining(
     # TODO: Add parameters for loss here
 ) -> FLAVAForPreTraining:
     model = flava_model(**flava_model_kwargs)
-    losses = FLAVAPretrainingLoss()
+    hidden_size = flava_model_kwargs.get("multimodal_hidden_size", 768)
+    losses = FLAVAPretrainingLoss(hidden_size)
     codebook = DalleVAEEncoder(image_size=codebook_image_size)
 
     flava = FLAVAForPreTraining(
