@@ -11,11 +11,13 @@ from torchvision.models.vision_transformer import MLPBlock
 from torchvision.ops.stochastic_depth import StochasticDepth
 
 
-def _compute_pad_size_3d(size_dhw: List[int], patch_size: List[int]) -> List[int]:
+def _compute_pad_size_3d(
+    size_dhw: Tuple[int, int, int], patch_size: Tuple[int, int, int]
+) -> Tuple[int, int, int]:
     pad_size = [
         (patch_size[i] - size_dhw[i] % patch_size[i]) % patch_size[i] for i in range(3)
     ]
-    return pad_size
+    return (pad_size[0], pad_size[1], pad_size[2])
 
 
 # Cache the attention mask for performance
@@ -102,9 +104,9 @@ def shifted_window_attention_3d(
     qkv_weight: Tensor,
     proj_weight: Tensor,
     relative_position_bias: Tensor,
-    window_size: List[int],
+    window_size: Tuple[int, int, int],
     num_heads: int,
-    shift_size: List[int] = [0, 0, 0],
+    shift_size: Tuple[int, int, int] = (0, 0, 0),
     attention_dropout: float = 0.0,
     dropout: float = 0.0,
     qkv_bias: Optional[Tensor] = None,
@@ -118,9 +120,9 @@ def shifted_window_attention_3d(
         qkv_weight (Tensor[in_dim, out_dim]): The weight tensor of query, key, value.
         proj_weight (Tensor[out_dim, out_dim]): The weight tensor of projection.
         relative_position_bias (Tensor): The learned relative position bias added to attention.
-        window_size (List[int]): 3-dimensions window size, D, H, W .
+        window_size (Tuple[int, int, int]): 3-dimensions window size, D, H, W .
         num_heads (int): Number of attention heads.
-        shift_size (List[int]): Shift size for shifted window attention (D, H, W). Default: [0, 0, 0]
+        shift_size (Tuple[int, int, int]): Shift size for shifted window attention (D, H, W). Default: (0, 0, 0)
         attention_dropout (float): Dropout ratio of attention weight. Default: 0.0.
         dropout (float): Dropout ratio of output. Default: 0.0.
         qkv_bias (Tensor[out_dim], optional): The bias tensor of query, key, value. Default: None.
@@ -130,15 +132,10 @@ def shifted_window_attention_3d(
     """
     B, D, H, W, C = input.shape
     # pad feature maps to multiples of window size
-    pad_size = _compute_pad_size_3d([D, H, W], window_size)
+    pad_size = _compute_pad_size_3d((D, H, W), window_size)
     x = F.pad(input, (0, 0, 0, pad_size[2], 0, pad_size[1], 0, pad_size[0]))
     _, Dp, Hp, Wp, _ = x.shape
     padded_size = [Dp, Hp, Wp]
-
-    # If window size is larger than feature size, there is no need to shift window.
-    for i in range(3):
-        if window_size[i] >= padded_size[i]:
-            shift_size[i] = 0
 
     # cyclic shift
     if sum(shift_size) > 0:
@@ -180,7 +177,10 @@ def shifted_window_attention_3d(
     if sum(shift_size) > 0:
         # generate attention mask, we convert to tuple so it can be cache-able
         attn_mask = _compute_attention_mask_3d(
-            x, tuple(padded_size), tuple(window_size), tuple(shift_size)
+            x,
+            (padded_size[0], padded_size[1], padded_size[2]),
+            (window_size[0], window_size[1], window_size[2]),
+            (shift_size[0], shift_size[1], shift_size[2]),
         )
         attn = attn.view(
             x.size(0) // num_windows, num_windows, num_heads, x.size(1), x.size(1)
@@ -231,8 +231,8 @@ class ShiftedWindowAttention(nn.Module):
     def __init__(
         self,
         dim: int,
-        window_size: List[int],
-        shift_size: List[int],
+        window_size: Tuple[int, int, int],
+        shift_size: Tuple[int, int, int],
         num_heads: int,
         qkv_bias: bool = True,
         proj_bias: bool = True,
@@ -240,8 +240,8 @@ class ShiftedWindowAttention(nn.Module):
         dropout: float = 0.0,
     ):
         super().__init__()
-        self.window_size = list(window_size)  # Wd, Wh, Ww
-        self.shift_size = list(shift_size)
+        self.window_size = window_size  # Wd, Wh, Ww
+        self.shift_size = shift_size
         self.num_heads = num_heads
         self.attention_dropout = attention_dropout
         self.dropout = dropout
@@ -286,8 +286,8 @@ class ShiftedWindowAttention(nn.Module):
 
     def forward(self, x: Tensor):
         _, D, H, W, _ = x.shape
-        size_dhw = [D, H, W]
-        window_size, shift_size = self.window_size.copy(), self.shift_size.copy()
+        size_dhw = (D, H, W)
+        window_size, shift_size = list(self.window_size), list(self.shift_size)
         # Handle case where window_size is larger than the input tensor
         for i in range(3):
             if size_dhw[i] <= window_size[i]:
@@ -307,9 +307,9 @@ class ShiftedWindowAttention(nn.Module):
             self.qkv.weight,
             self.proj.weight,
             relative_position_bias,
-            window_size,
+            (window_size[0], window_size[1], window_size[2]),
             self.num_heads,
-            shift_size=shift_size,
+            shift_size=(shift_size[0], shift_size[1], shift_size[2]),
             attention_dropout=self.attention_dropout,
             dropout=self.dropout,
             qkv_bias=self.qkv.bias,
@@ -323,8 +323,8 @@ class SwinTransformerBlock3d(nn.Module):
     Args:
         dim (int): Number of input channels.
         num_heads (int): Number of attention heads.
-        window_size (List[int]): Window size. Default: [2, 7, 7].
-        shift_size (List[int]): Shift size for shifted window attention. Default: [0, 0, 0].
+        window_size (Tuple[int, int, int]): Window size. Default: (2, 7, 7).
+        shift_size (Tuple[int, int, int]): Shift size for shifted window attention. Default: (0, 0, 0).
         mlp_ratio (float): Ratio of mlp hidden dim to embedding dim. Default: 4.0.
         dropout (float): Dropout rate. Default: 0.0.
         attention_dropout (float): Attention dropout rate. Default: 0.0.
@@ -336,8 +336,8 @@ class SwinTransformerBlock3d(nn.Module):
         self,
         dim: int,
         num_heads: int,
-        window_size: List[int] = [2, 7, 7],
-        shift_size: List[int] = [0, 0, 0],
+        window_size: Tuple[int, int, int] = (2, 7, 7),
+        shift_size: Tuple[int, int, int] = (0, 0, 0),
         mlp_ratio: float = 4.0,
         dropout: float = 0.0,
         attention_dropout: float = 0.0,
@@ -365,11 +365,11 @@ class SwinTransformerBlock3d(nn.Module):
 
 
 # Modified from https://github.com/SwinTransformer/Video-Swin-Transformer/blob/master/mmaction/models/backbones/swin_transformer.py#L416
-class PatchEmbed3D(nn.Module):
+class PatchEmbed3d(nn.Module):
     """Video to Patch Embedding.
 
     Args:
-        patch_size (List[int]): Patch token size. Default: [2,4,4].
+        patch_size (Tuple[int, int, int]): Patch token size. Default: (2, 4, 4).
         in_chans (int): Number of input channels. Default: 3
         embed_dim (int): Number of linear projection output channels. Default: 96.
         norm_layer (nn.Module, optional): Normalization layer. Default: None
@@ -377,7 +377,7 @@ class PatchEmbed3D(nn.Module):
 
     def __init__(
         self,
-        patch_size: List[int] = [2, 4, 4],
+        patch_size: Tuple[int, int, int] = (2, 4, 4),
         in_chans: int = 3,
         embed_dim: int = 96,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
@@ -398,7 +398,7 @@ class PatchEmbed3D(nn.Module):
         """Forward function."""
         # padding
         _, _, D, H, W = x.size()
-        pad_size = _compute_pad_size_3d([D, H, W], self.patch_size)
+        pad_size = _compute_pad_size_3d((D, H, W), self.patch_size)
         x = F.pad(x, (0, pad_size[2], 0, pad_size[1], 0, pad_size[0]))
         x = self.proj(x)  # B C D Wh Ww
         x = x.permute(0, 2, 3, 4, 1)  # B D Wh Ww C
@@ -409,31 +409,31 @@ class PatchEmbed3D(nn.Module):
 
 class PatchEmbedOmnivore(nn.Module):
     """Patch Embedding strategy for Omnivore model
-    It will use common PatchEmbed3D for image and video,
+    It will use common PatchEmbed3d for image and video,
     for single view depth image it will have separate embedding for the depth channel
     and add the embedding result with the RGB channel
     reference: https://arxiv.org/abs/2201.08377
 
     Args:
-        patch_size (List[int]): Patch token size. Default: [2, 4, 4]
+        patch_size (Tuple[int, int, int]): Patch token size. Default: (2, 4, 4)
         embed_dim (int): Number of linear projection output channels. Default: 96
         norm_layer (nn.Module, optional): Normalization layer. Default: None
     """
 
     def __init__(
         self,
-        patch_size: List[int] = [2, 4, 4],
+        patch_size: Tuple[int, int, int] = (2, 4, 4),
         embed_dim: int = 96,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
     ):
         super().__init__()
-        self.patch_embed = PatchEmbed3D(
+        self.patch_embed = PatchEmbed3d(
             patch_size=patch_size,
             embed_dim=embed_dim,
             norm_layer=norm_layer,
         )
 
-        self.depth_patch_embed = PatchEmbed3D(
+        self.depth_patch_embed = PatchEmbed3d(
             patch_size=patch_size,
             in_chans=1,
             embed_dim=embed_dim,
@@ -459,11 +459,11 @@ class SwinTransformer3dEncoder(nn.Module):
     """
     Implements 3D Swin Transformer from the `"Video Swin Transformer" <https://arxiv.org/abs/2106.13230>`_ paper.
     Args:
-        patch_size (List[int]): Patch size.
+        patch_size (Tuple[int, int, int]): Patch size.
         embed_dim (int): Patch embedding dimension.
         depths (List(int)): Depth of each Swin Transformer layer.
         num_heads (List(int)): Number of attention heads in different layers.
-        window_size (List[int]): Window size. Default: [2, 7, 7].
+        window_size (Tuple[int, int, int]): Window size. Default: (2, 7, 7).
         mlp_ratio (float): Ratio of mlp hidden dim to embedding dim. Default: 4.0.
         dropout (float): Dropout rate. Default: 0.0.
         attention_dropout (float): Attention dropout rate. Default: 0.0.
@@ -478,7 +478,7 @@ class SwinTransformer3dEncoder(nn.Module):
         embed_dim: int,
         depths: List[int],
         num_heads: List[int],
-        window_size: List[int] = [2, 7, 7],
+        window_size: Tuple[int, int, int] = (2, 7, 7),
         mlp_ratio: float = 4.0,
         dropout: float = 0.0,
         attention_dropout: float = 0.0,
@@ -486,7 +486,7 @@ class SwinTransformer3dEncoder(nn.Module):
         norm_layer: Optional[Callable[..., nn.Module]] = None,
         block: Optional[Callable[..., nn.Module]] = None,
         patch_embed: Optional[Callable[..., nn.Module]] = None,
-        patch_size: Optional[List[int]] = None,
+        patch_size: Optional[Tuple[int, int, int]] = None,
     ):
         super().__init__()
 
@@ -499,8 +499,10 @@ class SwinTransformer3dEncoder(nn.Module):
         # split image into non-overlapping patches
         self.patch_embed: Callable[..., nn.Module]
         if patch_embed is None:
-            assert patch_size is not None, "If patch_embed is not provided, patch_size must be provided!"
-            self.patch_embed = PatchEmbed3D(
+            assert (
+                patch_size is not None
+            ), "If patch_embed is not provided, patch_size must be provided!"
+            self.patch_embed = PatchEmbed3d(
                 patch_size=patch_size, embed_dim=embed_dim, norm_layer=norm_layer
             )
         else:
@@ -526,7 +528,7 @@ class SwinTransformer3dEncoder(nn.Module):
                         dim,
                         num_heads[i_stage],
                         window_size=window_size,
-                        shift_size=[0, 0, 0]
+                        shift_size=(0, 0, 0)
                         if i_layer % 2 == 0
                         else [w // 2 for w in window_size],
                         mlp_ratio=mlp_ratio,
