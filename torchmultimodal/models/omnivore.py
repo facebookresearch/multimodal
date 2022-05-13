@@ -1,11 +1,14 @@
-from torchmultimodal.architectures.omnivore import OmnivoreArchitecture
-from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import SwinTransformer3dEncoder, PatchEmbedOmnivore
-
 from torch import nn
+from torchmultimodal.architectures.omnivore import OmnivoreArchitecture
+from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
+    SwinTransformer3dEncoder,
+    PatchEmbedOmnivore,
+)
 
 
 def _imagenet1k_head(input_dim: int) -> nn.Module:
     return nn.Linear(input_dim, 1000, bias=True)
+
 
 def _kinetics400_head(input_dim: int) -> nn.Module:
     return nn.Sequential(
@@ -13,15 +16,20 @@ def _kinetics400_head(input_dim: int) -> nn.Module:
         nn.Linear(input_dim, 400, bias=True),
     )
 
+
 def _sunrgbd_head(input_dim: int) -> nn.Module:
     return nn.Linear(input_dim, 19, bias=True)
 
-def _multimodal_head(input_dim: int) -> nn.Module:
-    return nn.ModuleDict({
-        "image": _imagenet1k_head(input_dim),
-        "rgbd": _sunrgbd_head(input_dim),
-        "video": _kinetics400_head(input_dim),
-    })
+
+def _multimodal_head(input_dim: int) -> nn.ModuleDict:
+    return nn.ModuleDict(
+        {
+            "image": _imagenet1k_head(input_dim),
+            "rgbd": _sunrgbd_head(input_dim),
+            "video": _kinetics400_head(input_dim),
+        }
+    )
+
 
 def omnivore_swin_t() -> nn.Module:
     embed_dim = 96
@@ -42,5 +50,3 @@ def omnivore_swin_t() -> nn.Module:
     )
     heads = _multimodal_head(input_dim=encoder.num_features)
     return OmnivoreArchitecture(encoder, heads)
-
-
