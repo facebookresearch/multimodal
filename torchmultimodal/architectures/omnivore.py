@@ -25,6 +25,7 @@ class OmnivoreArchitecture(nn.Module):
     """
 
     def __init__(self, encoder: nn.Module, heads: nn.ModuleDict):
+        super().__init__()
         self.encoder = encoder
         self.heads = heads
         self.input_types = set(heads.keys())
