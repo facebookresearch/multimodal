@@ -18,42 +18,94 @@ class TestTransformer(unittest.TestCase):
 
     def setUp(self):
         set_rng_seed(4)
-        self.encoder = TransformerEncoder()
-        self.test_input = torch.rand((3, 4, 768))
+        self.encoder = TransformerEncoder(
+            hidden_size=2, num_attention_heads=2, num_hidden_layers=2
+        )
+        self.test_input = torch.rand((2, 3, 2))
 
     def test_encoder(self):
         output = self.encoder(self.test_input)
 
-        actual_last_hidden_state = torch.mean(
-            output.last_hidden_state, 2
-        )  # mean across hidden dim
-        actual_hidden_states = torch.mean(
-            torch.stack(output.hidden_states), (0, 3)
-        )  # mean across hidden & stack dim
-        actual_attentions = torch.mean(
-            torch.stack(output.attentions), (0, 1, 2)
-        )  # mean across all dims except last two, which should be 4x4
+        actual_last_hidden_state = output.last_hidden_state
+        actual_hidden_states = torch.stack(output.hidden_states)
+        actual_attentions = torch.stack(output.attentions)
 
         expected_last_hidden_state = torch.Tensor(
             [
-                [0.4657, 0.4493, 0.4593, 0.4590],
-                [0.4784, 0.4553, 0.4645, 0.4720],
-                [0.5625, 0.5720, 0.5698, 0.5460],
+                [[0.4387, 2.2609], [0.4937, 2.1976], [0.1847, 2.4323]],
+                [[0.4651, 2.1418], [0.0404, 2.1412], [-0.1759, 1.9571]],
             ]
         )
         expected_hidden_states = torch.Tensor(
             [
-                [0.4799, 0.4721, 0.4774, 0.4611],
-                [0.4884, 0.4756, 0.4815, 0.4799],
-                [0.5430, 0.5478, 0.5513, 0.5308],
+                [
+                    [[0.5924, 0.9998], [0.7723, 0.3792], [0.4945, 0.6260]],
+                    [[0.8161, 0.2282], [0.3914, 0.2276], [0.1751, 0.0436]],
+                ],
+                [
+                    [[0.7162, 1.0436], [0.7712, 0.9802], [0.4622, 1.2150]],
+                    [[0.7426, 0.9244], [0.3179, 0.9238], [0.1016, 0.7398]],
+                ],
+                [
+                    [[0.4387, 2.2609], [0.4937, 2.1976], [0.1847, 2.4323]],
+                    [[0.4651, 2.1418], [0.0404, 2.1412], [-0.1759, 1.9571]],
+                ],
             ]
         )
         expected_attentions = torch.Tensor(
             [
-                [0.2504, 0.2495, 0.2482, 0.2519],
-                [0.2533, 0.2497, 0.2461, 0.2509],
-                [0.2524, 0.2492, 0.2475, 0.2508],
-                [0.2523, 0.2486, 0.2486, 0.2505],
+                [
+                    [
+                        [
+                            [0.3503, 0.2993, 0.3503],
+                            [0.3503, 0.2994, 0.3503],
+                            [0.3503, 0.2993, 0.3503],
+                        ],
+                        [
+                            [0.2756, 0.4488, 0.2756],
+                            [0.2336, 0.5329, 0.2336],
+                            [0.2756, 0.4488, 0.2756],
+                        ],
+                    ],
+                    [
+                        [
+                            [0.3333, 0.3333, 0.3333],
+                            [0.3333, 0.3333, 0.3333],
+                            [0.3333, 0.3333, 0.3333],
+                        ],
+                        [
+                            [0.3333, 0.3333, 0.3333],
+                            [0.3333, 0.3333, 0.3333],
+                            [0.3333, 0.3333, 0.3333],
+                        ],
+                    ],
+                ],
+                [
+                    [
+                        [
+                            [0.3333, 0.3333, 0.3333],
+                            [0.3333, 0.3333, 0.3333],
+                            [0.3333, 0.3333, 0.3333],
+                        ],
+                        [
+                            [0.3333, 0.3333, 0.3333],
+                            [0.3333, 0.3333, 0.3333],
+                            [0.3333, 0.3333, 0.3333],
+                        ],
+                    ],
+                    [
+                        [
+                            [0.3333, 0.3333, 0.3333],
+                            [0.3333, 0.3333, 0.3333],
+                            [0.3333, 0.3333, 0.3333],
+                        ],
+                        [
+                            [0.3333, 0.3333, 0.3333],
+                            [0.3333, 0.3333, 0.3333],
+                            [0.3333, 0.3333, 0.3333],
+                        ],
+                    ],
+                ],
             ]
         )
 
