@@ -6,6 +6,7 @@
 
 import math
 import warnings
+from collections import OrderedDict
 from dataclasses import dataclass, field
 from typing import Any, Callable, Optional, Union
 
@@ -130,7 +131,11 @@ class ITMLoss(nn.Module):
                 scores.view(-1, 2),
                 labels.view(-1),
             )
-        return ITMLossOutput(logits=scores, loss=loss)
+        # return ITMLossOutput(logits=scores, loss=loss)
+        ret = OrderedDict()
+        ret["logits"] = scores
+        ret["loss"] = loss
+        return ret
 
 
 class MaskedPredictionHead(nn.Module):
@@ -222,10 +227,14 @@ class MaskedPredictionLoss(nn.Module):
             warnings.warn("NaN detected in masked_loss. Replacing it with 0.")
             masked_loss = torch.nan_to_num(masked_loss, nan=0.0)
 
-        return MaskedPredictionLossOutput(
-            logits=prediction,
-            loss=masked_loss,
-        )
+        # return MaskedPredictionLossOutput(
+        #     logits=prediction,
+        #     loss=masked_loss,
+        # )
+        ret = OrderedDict()
+        ret["logits"] = prediction
+        ret["loss"] = masked_loss
+        return ret
 
 
 class FLAVAGlobalContrastiveLoss(nn.Module):
@@ -279,16 +288,27 @@ class FLAVAGlobalContrastiveLoss(nn.Module):
             backprop_in_gather=True,
         )
 
-        return FLAVAGlobalContrastiveLossOutput(
-            loss=output.loss,
-            image_logits=output.image_logits,
-            text_logits=output.text_logits,
-            image_loss=output.image_loss,
-            text_loss=output.text_loss,
-            text_embedding=text_embedding,
-            image_embedding=image_embedding,
-            logit_scale=self.logit_scale.data,
-        )
+        # return FLAVAGlobalContrastiveLossOutput(
+        #     loss=output.loss,
+        #     image_logits=output.image_logits,
+        #     text_logits=output.text_logits,
+        #     image_loss=output.image_loss,
+        #     text_loss=output.text_loss,
+        #     text_embedding=text_embedding,
+        #     image_embedding=image_embedding,
+        #     logit_scale=self.logit_scale.data,
+        # )
+        ret = OrderedDict()
+
+        ret["loss"] = output.loss
+        ret["image_logits"] = output.image_logits
+        ret["text_logits"] = output.text_logits
+        ret["image_loss"] = output.image_loss
+        ret["text_loss"] = output.text_loss
+        ret["text_embedding"] = text_embedding
+        ret["image_embedding"] = image_embedding
+        ret["logit_scale"] = self.logit_scale.data
+        return ret
 
 
 class FLAVAPretrainingLoss(nn.Module):
@@ -394,8 +414,10 @@ class FLAVAPretrainingLoss(nn.Module):
             outputs.mim_output = self.mim_loss(
                 image_masked_sequence[:, start_index:, :], mim_labels
             )
-            outputs.mim_output.loss *= self.mim_weight
-            outputs.losses.mim_loss = outputs.mim_output.loss
+            # outputs.mim_output.loss *= self.mim_weight
+            # outputs.losses.mim_loss = outputs.mim_output.loss
+            outputs.mim_output["loss"] *= self.mim_weight
+            outputs.losses.mim_loss = outputs.mim_output["loss"]
 
         # Check multimodal_masked_sequence to make sure this is unimodal case
         if (
@@ -407,8 +429,10 @@ class FLAVAPretrainingLoss(nn.Module):
             outputs.mlm_output = self.mlm_loss(
                 text_masked_sequence[:, start_index:, :], mlm_labels
             )
-            outputs.mlm_output.loss *= self.mlm_weight
-            outputs.losses.mlm_loss = outputs.mlm_output.loss
+            # outputs.mlm_output.loss *= self.mlm_weight
+            outputs.mlm_output["loss"] *= self.mlm_weight
+            # outputs.losses.mlm_loss = outputs.mlm_output.loss
+            outputs.losses.mlm_loss = outputs.mlm_output["loss"]
 
         if multimodal_masked_sequence is not None and self.itm_loss_weight > 0:
             if itm_labels is not None:
@@ -422,8 +446,10 @@ class FLAVAPretrainingLoss(nn.Module):
                     device=multimodal_masked_sequence.device,
                 ).bool()
             outputs.itm_output = self.itm_loss(multimodal_masked_sequence, itm_labels)
-            outputs.itm_output.loss *= self.itm_loss_weight
-            outputs.losses.itm_loss = outputs.itm_output.loss
+            # outputs.itm_output.loss *= self.itm_loss_weight
+            outputs.itm_output["loss"] *= self.itm_loss_weight
+            # outputs.losses.itm_loss = outputs.itm_output.loss
+            outputs.losses.itm_loss = outputs.itm_output["loss"]
 
             multimodal_masked_sequence = multimodal_masked_sequence[pos_mask]
             if mlm_labels is not None:
@@ -442,8 +468,10 @@ class FLAVAPretrainingLoss(nn.Module):
                 sequence_for_text,
                 mlm_labels,
             )
-            outputs.mmm_text_output.loss *= self.mmm_text_loss_weight
-            outputs.losses.mmm_text_loss = outputs.mmm_text_output.loss
+            # outputs.mmm_text_output.loss *= self.mmm_text_loss_weight
+            outputs.mmm_text_output["loss"] *= self.mmm_text_loss_weight
+            # outputs.losses.mmm_text_loss = outputs.mmm_text_output.loss
+            outputs.losses.mmm_text_loss = outputs.mmm_text_output["loss"]
 
         if multimodal_masked_sequence is not None and self.mmm_image_loss_weight > 0:
             # Starts from 2 because of 2 CLS, one for multimodal encoder and one
@@ -458,8 +486,10 @@ class FLAVAPretrainingLoss(nn.Module):
                 sequence_for_image,
                 mim_labels,
             )
-            outputs.mmm_image_output.loss *= self.mmm_image_loss_weight
-            outputs.losses.mmm_image_loss = outputs.mmm_image_output.loss
+            # outputs.mmm_image_output.loss *= self.mmm_image_loss_weight
+            # outputs.losses.mmm_image_loss = outputs.mmm_image_output.loss
+            outputs.mmm_image_output["loss"] *= self.mmm_image_loss_weight
+            outputs.losses.mmm_image_loss = outputs.mmm_image_output["loss"]
 
         if (
             image_sequence is not None
@@ -471,9 +501,26 @@ class FLAVAPretrainingLoss(nn.Module):
                 text_sequence,
                 pos_mask,
             )
-            outputs.global_contrastive_output.loss *= self.contrastive_loss_weight
-            outputs.losses.global_contrastive_loss = (
-                outputs.global_contrastive_output.loss
-            )
+            # outputs.global_contrastive_output.loss *= self.contrastive_loss_weight
+            # outputs.losses.global_contrastive_loss = (
+            #     outputs.global_contrastive_output.loss
+            # )
+            outputs.global_contrastive_output["loss"] *= self.contrastive_loss_weight
+            outputs.losses.global_contrastive_loss = outputs.global_contrastive_output[
+                "loss"
+            ]
 
-        return outputs
+        output_dict = OrderedDict()
+        for k, v in outputs.items():
+            if k == "losses":
+                losses = {}
+                for k2, v2 in v.items():
+                    losses[k2] = v2
+                output_dict[k] = losses
+            else:
+                output_dict[k] = v
+
+        # print("in loss the flava output", output_dict)
+
+        return output_dict
+        # return outputs
