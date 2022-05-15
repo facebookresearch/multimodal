@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from definitions import FLAVAArguments, DatasetInfo, TrainingArguments
+from definitions import DatasetInfo, FLAVAArguments, TrainingArguments
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
 

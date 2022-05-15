@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import torch
-from torch import nn, Tensor, Size
+from torch import nn, Size, Tensor
 
 
 class Quantisation(nn.Module):

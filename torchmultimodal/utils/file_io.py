@@ -7,10 +7,7 @@
 
 def _get_path_manager():
     try:
-        from torchmultimodal.fb.utils.file_io import (
-            register_handlers,
-            FBPathManager,
-        )
+        from torchmultimodal.fb.utils.file_io import FBPathManager, register_handlers
 
         pm = FBPathManager()
         register_handlers(pm)

@@ -14,9 +14,9 @@ from definitions import HFDatasetInfo, TorchVisionDatasetInfo
 from pytorch_lightning import LightningDataModule
 from transformers import (
     BertTokenizer,
-    DefaultDataCollator,
     DataCollatorForLanguageModeling,
     DataCollatorForWholeWordMask,
+    DefaultDataCollator,
     TRANSFORMERS_CACHE,
 )
 from transformers.data.data_collator import torch_default_data_collator
@@ -27,10 +27,10 @@ from .transforms import (
     default_torchvision_transforms,
     encode_text_batch,
     pad_batch,
-    VLTransform,
     TEXT_DEFAULT_TOKENIZER,
     TEXT_WHOLE_WORD_MASK_TOKENIZER,
     VL_MAX_LENGTH_DEFAULT,
+    VLTransform,
 )
 from .utils import build_datasets_from_info, fetch_images
 

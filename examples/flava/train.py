@@ -5,16 +5,11 @@
 # LICENSE file in the root directory of this source tree.
 
 from callbacks.multimodal_eval import MultimodalEvalCallback
-from data import (
-    ImageDataModule,
-    MLMDataModule,
-    MultiDataModule,
-    VLDataModule,
-)
+from data import ImageDataModule, MLMDataModule, MultiDataModule, VLDataModule
 from definitions import FLAVAArguments
 from model import FLAVAPreTrainingLightningModule
 from omegaconf import OmegaConf
-from pytorch_lightning import Trainer, seed_everything
+from pytorch_lightning import seed_everything, Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor
 from utils import build_config, build_datamodule_kwargs
 

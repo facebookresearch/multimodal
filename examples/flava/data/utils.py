@@ -10,7 +10,7 @@ from functools import partial
 from typing import List
 
 import requests
-from datasets import load_dataset, concatenate_datasets
+from datasets import concatenate_datasets, load_dataset
 from datasets.utils.file_utils import get_datasets_user_agent
 from definitions import HFDatasetInfo
 from PIL import Image, UnidentifiedImageError
