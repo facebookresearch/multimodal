@@ -16,14 +16,14 @@ import torch
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 
-TransformerOutput = namedtuple(
-    "TransformerOutput",
+FLAVATransformerOutput = namedtuple(
+    "FLAVATransformerOutput",
     ["last_hidden_state", "pooler_output", "hidden_states", "attentions"],
     defaults=(None, None, None, None),
 )
 
 
-class TransformerSelfAttention(nn.Module):
+class FLAVASelfAttention(nn.Module):
     def __init__(
         self,
         hidden_size: int = 768,
@@ -95,7 +95,7 @@ class TransformerSelfAttention(nn.Module):
         return outputs
 
 
-class TransformerAttention(nn.Module):
+class FLAVAAttention(nn.Module):
     def __init__(
         self,
         hidden_size: int = 768,
@@ -104,7 +104,7 @@ class TransformerAttention(nn.Module):
         attention_probs_dropout_prob: float = 0.0,
     ):
         super().__init__()
-        self.attention = TransformerSelfAttention(
+        self.attention = FLAVASelfAttention(
             hidden_size=hidden_size,
             num_attention_heads=num_attention_heads,
             attention_probs_dropout_prob=attention_probs_dropout_prob,
@@ -132,7 +132,7 @@ class TransformerAttention(nn.Module):
         return outputs
 
 
-class TransformerLayer(nn.Module):
+class FLAVATransformerLayer(nn.Module):
     def __init__(
         self,
         hidden_size: int = 768,
@@ -144,7 +144,7 @@ class TransformerLayer(nn.Module):
         layer_norm_eps: float = 1e-12,
     ):
         super().__init__()
-        self.attention = TransformerAttention(
+        self.attention = FLAVAAttention(
             hidden_size=hidden_size,
             num_attention_heads=num_attention_heads,
             hidden_dropout_prob=hidden_dropout_prob,
@@ -196,7 +196,7 @@ class TransformerLayer(nn.Module):
         return outputs
 
 
-class TransformerEncoder(nn.Module):
+class FLAVATransformerEncoder(nn.Module):
     def __init__(
         self,
         hidden_size: int = 768,
@@ -212,7 +212,7 @@ class TransformerEncoder(nn.Module):
         super().__init__()
         self.layer = nn.ModuleList(
             [
-                TransformerLayer(
+                FLAVATransformerLayer(
                     hidden_size=hidden_size,
                     num_attention_heads=num_attention_heads,
                     hidden_dropout_prob=hidden_dropout_prob,
@@ -250,14 +250,14 @@ class TransformerEncoder(nn.Module):
         all_hidden_states = tuple(all_hidden_states)
         all_self_attentions = tuple(all_self_attentions)
 
-        return TransformerOutput(
+        return FLAVATransformerOutput(
             last_hidden_state=hidden_states,
             hidden_states=all_hidden_states,
             attentions=all_self_attentions,
         )
 
 
-class TransformerWithoutEmbeddings(nn.Module):
+class FLAVATransformerWithoutEmbeddings(nn.Module):
     # TODO(asg): Add support for pretrained checkpoint loading
     def __init__(
         self,
@@ -305,7 +305,7 @@ class TransformerWithoutEmbeddings(nn.Module):
             self.pooler(sequence_output) if self.pooler is not None else None
         )
 
-        return TransformerOutput(
+        return FLAVATransformerOutput(
             last_hidden_state=sequence_output,
             pooler_output=pooled_output,
             hidden_states=encoder_outputs.hidden_states,
