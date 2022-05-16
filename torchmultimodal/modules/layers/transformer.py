@@ -4,6 +4,9 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+# Code for some of the transformers components in this file are initialized
+# from their counterparts in Hugging Face Transformers library.
+
 import math
 from collections import namedtuple
 from functools import partial
