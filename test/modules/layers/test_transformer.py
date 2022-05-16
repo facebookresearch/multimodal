@@ -8,7 +8,7 @@ import unittest
 
 import torch
 from test.test_utils import set_rng_seed, assert_expected
-from torchmultimodal.modules.layers.transformer import TransformerEncoder
+from torchmultimodal.modules.layers.transformer import FLAVATransformerEncoder
 
 
 class TestTransformer(unittest.TestCase):
@@ -18,7 +18,7 @@ class TestTransformer(unittest.TestCase):
 
     def setUp(self):
         set_rng_seed(4)
-        self.encoder = TransformerEncoder(
+        self.encoder = FLAVATransformerEncoder(
             hidden_size=2, num_attention_heads=2, num_hidden_layers=2
         )
         self.test_input = torch.rand((2, 3, 2))
