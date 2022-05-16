@@ -24,6 +24,7 @@ from torchmultimodal.modules.layers.transformer import (
     TransformerOutput,
     TransformerEncoder,
     TransformerWithoutEmbeddings,
+    init_transformer_weights,
 )
 from torchmultimodal.modules.losses.flava import (
     FLAVAPretrainingLoss,
@@ -752,7 +753,9 @@ class ImageTransformer(nn.Module):
         self.pooler = pooler
 
         if weight_init_fn is None:
-            weight_init_fn = partial(_init_weights, initializer_range=initializer_range)
+            weight_init_fn = partial(
+                init_transformer_weights, initializer_range=initializer_range
+            )
 
         self.apply(weight_init_fn)
 
@@ -928,7 +931,9 @@ class TextTransformer(nn.Module):
         self.pad_token_id = pad_token_id
 
         if weight_init_fn is None:
-            weight_init_fn = partial(_init_weights, initializer_range=initializer_range)
+            weight_init_fn = partial(
+                init_transformer_weights, initializer_range=initializer_range
+            )
 
         self.apply(weight_init_fn)
 
