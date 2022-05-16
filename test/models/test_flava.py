@@ -20,7 +20,7 @@ class TestFLAVA(unittest.TestCase):
     def setUp(self):
         torch.manual_seed(1234)
 
-    @unittest.skip("Pending fix network connection, see (T116682215)")
+    # @unittest.skip("Pending fix network connection, see (T116682215)")
     @torch.no_grad()
     def test_forward_classification(self):
         flava = flava_model_for_classification(NUM_CLASSES)
