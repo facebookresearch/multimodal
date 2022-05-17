@@ -1,3 +1,9 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree.
+
 # Modified from 2d Swin Transformers in torchvision:
 # https://github.com/pytorch/vision/blob/main/torchvision/models/swin_transformer.py
 
