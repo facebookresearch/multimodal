@@ -11,7 +11,7 @@ import torchmultimodal.models.omnivore as omnivore
 from torchmultimodal.utils.common import get_current_device
 
 
-class TestCLIPModule(unittest.TestCase):
+class TestOmnivoreModel(unittest.TestCase):
     def setUp(self):
         torch.manual_seed(42)
         self.device = get_current_device()
