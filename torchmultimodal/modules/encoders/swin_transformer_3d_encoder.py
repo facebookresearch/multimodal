@@ -1,8 +1,8 @@
 # Modified from 2d Swin Transformers in torchvision:
 # https://github.com/pytorch/vision/blob/main/torchvision/models/swin_transformer.py
 
-from functools import partial, lru_cache
-from typing import Optional, Callable, List, Tuple
+from functools import lru_cache, partial
+from typing import Callable, List, Optional, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -219,10 +219,6 @@ def shifted_window_attention_3d(
     return x
 
 
-# Commented because mypy can't detect torch.fx
-# torch.fx.wrap("shifted_window_attention_3d")
-
-
 class ShiftedWindowAttention(nn.Module):
     """
     See :func:`shifted_window_attention_3d`.
@@ -370,7 +366,7 @@ class PatchEmbed3d(nn.Module):
 
     Args:
         patch_size (Tuple[int, int, int]): Patch token size. Default: (2, 4, 4).
-        in_chans (int): Number of input channels. Default: 3
+        in_channels (int): Number of input channels. Default: 3
         embed_dim (int): Number of linear projection output channels. Default: 96.
         norm_layer (nn.Module, optional): Normalization layer. Default: None
     """
@@ -378,16 +374,15 @@ class PatchEmbed3d(nn.Module):
     def __init__(
         self,
         patch_size: Tuple[int, int, int] = (2, 4, 4),
-        in_chans: int = 3,
+        in_channels: int = 3,
         embed_dim: int = 96,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
     ):
         super().__init__()
         self.patch_size = patch_size
-        tuple_patch_size = (patch_size[0], patch_size[1], patch_size[2])
 
         self.proj = nn.Conv3d(
-            in_chans, embed_dim, kernel_size=tuple_patch_size, stride=tuple_patch_size
+            in_channels, embed_dim, kernel_size=patch_size, stride=patch_size
         )
         if norm_layer is not None:
             self.norm = norm_layer(embed_dim)
@@ -404,54 +399,6 @@ class PatchEmbed3d(nn.Module):
         x = x.permute(0, 2, 3, 4, 1)  # B D Wh Ww C
         if self.norm is not None:
             x = self.norm(x)
-        return x
-
-
-class PatchEmbedOmnivore(nn.Module):
-    """Patch Embedding strategy for Omnivore model
-    It will use common PatchEmbed3d for image and video,
-    for single view depth image it will have separate embedding for the depth channel
-    and add the embedding result with the RGB channel
-    reference: https://arxiv.org/abs/2201.08377
-
-    Args:
-        patch_size (Tuple[int, int, int]): Patch token size. Default: (2, 4, 4)
-        embed_dim (int): Number of linear projection output channels. Default: 96
-        norm_layer (nn.Module, optional): Normalization layer. Default: None
-    """
-
-    def __init__(
-        self,
-        patch_size: Tuple[int, int, int] = (2, 4, 4),
-        embed_dim: int = 96,
-        norm_layer: Optional[Callable[..., nn.Module]] = None,
-    ):
-        super().__init__()
-        self.patch_embed = PatchEmbed3d(
-            patch_size=patch_size,
-            embed_dim=embed_dim,
-            norm_layer=norm_layer,
-        )
-
-        self.depth_patch_embed = PatchEmbed3d(
-            patch_size=patch_size,
-            in_chans=1,
-            embed_dim=embed_dim,
-            norm_layer=norm_layer,
-        )
-
-    def forward(self, x):
-        # x: B C D H W
-        # Note: D here represent time
-        assert x.ndim == 5
-        has_depth = x.shape[1] == 4
-
-        if has_depth:
-            x_rgb = self.patch_embed(x[:, :3, ...])
-            x_d = self.depth_patch_embed(x[:, 3:, ...])
-            x = x_rgb + x_d
-        else:
-            x = self.patch_embed(x)
         return x
 
 
@@ -475,6 +422,7 @@ class SwinTransformer3dEncoder(nn.Module):
 
     def __init__(
         self,
+        patch_size: Tuple[int, int, int],
         embed_dim: int,
         depths: List[int],
         num_heads: List[int],
@@ -486,7 +434,6 @@ class SwinTransformer3dEncoder(nn.Module):
         norm_layer: Optional[Callable[..., nn.Module]] = None,
         block: Optional[Callable[..., nn.Module]] = None,
         patch_embed: Optional[Callable[..., nn.Module]] = None,
-        patch_size: Optional[Tuple[int, int, int]] = None,
     ):
         super().__init__()
 
@@ -499,14 +446,12 @@ class SwinTransformer3dEncoder(nn.Module):
         # split image into non-overlapping patches
         self.patch_embed: Callable[..., nn.Module]
         if patch_embed is None:
-            assert (
-                patch_size is not None
-            ), "If patch_embed is not provided, patch_size must be provided!"
-            self.patch_embed = PatchEmbed3d(
-                patch_size=patch_size, embed_dim=embed_dim, norm_layer=norm_layer
-            )
-        else:
-            self.patch_embed = patch_embed
+            # We use standard swin_transformer_3d patch_embed block if not specified
+            patch_embed = PatchEmbed3d
+
+        self.patch_embed = patch_embed(
+            patch_size=patch_size, embed_dim=embed_dim, norm_layer=norm_layer
+        )
         self.pos_drop = nn.Dropout(p=dropout)
 
         layers: List[nn.Module] = []
@@ -515,7 +460,7 @@ class SwinTransformer3dEncoder(nn.Module):
         # build SwinTransformer blocks
         for i_stage in range(len(depths)):
             stage: List[nn.Module] = []
-            dim = embed_dim * 2 ** i_stage
+            dim = embed_dim * 2**i_stage
             for i_layer in range(depths[i_stage]):
                 # adjust stochastic depth probability based on the depth of the stage block
                 sd_prob = (
