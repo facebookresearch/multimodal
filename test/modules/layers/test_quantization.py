@@ -9,12 +9,12 @@ import unittest
 import torch
 from test.test_utils import assert_expected
 from torch import nn
-from torchmultimodal.modules.layers.quantisation import Quantisation
+from torchmultimodal.modules.layers.quantization import Quantization
 
 
-class TestQuantisation(unittest.TestCase):
+class TestQuantization(unittest.TestCase):
     """
-    Test the Quantisation class
+    Test the Quantization class
     """
 
     def setUp(self):
@@ -37,15 +37,16 @@ class TestQuantisation(unittest.TestCase):
             [[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]]
         )
 
-        self.vq = Quantisation(
+        self.vq = Quantization(
             num_embeddings=self.num_embeddings, embedding_dim=self.embedding_dim
         )
         self.vq.embedding = nn.Embedding.from_pretrained(self.embedding_weights)
 
-    def test_quantised_output(self):
-        actual = self.vq(self.encoded)
+    def test_quantized_output(self):
+        output = self.vq(self.encoded)
+        _, actual_quantized_flat, actual_codebook_indices, actual_quantized = output
         # This is shape (2,5,3)
-        expected = torch.Tensor(
+        expected_quantized = torch.Tensor(
             [
                 [
                     [2.0, 2.0, 1.0],
@@ -63,8 +64,16 @@ class TestQuantisation(unittest.TestCase):
                 ],
             ]
         )
+        expected_quantized_flat = (
+            expected_quantized.permute(0, 2, 1).contiguous().view(-1, 5)
+        )
+        expected_codebook_indices = torch.Tensor([2, 2, 0, 2, 1, 3]).type(
+            torch.LongTensor
+        )
 
-        assert_expected(actual, expected)
+        assert_expected(actual_quantized, expected_quantized)
+        assert_expected(actual_quantized_flat, expected_quantized_flat)
+        assert_expected(actual_codebook_indices, expected_codebook_indices)
 
     def test_preprocess(self):
         encoded_flat, permuted_shape = self.vq._preprocess(self.encoded)
@@ -88,10 +97,10 @@ class TestQuantisation(unittest.TestCase):
             encoded_flat, permuted_shape = self.vq._preprocess(self.encoded[:, :4, :])
 
     def test_postprocess(self):
-        quantised = self.vq._postprocess(self.input_tensor_flat, torch.Size([2, 2, 3]))
-        actual_quantised_shape = torch.tensor(quantised.shape)
-        expected_quantised_shape = torch.tensor([2, 3, 2])
+        quantized = self.vq._postprocess(self.input_tensor_flat, torch.Size([2, 2, 3]))
+        actual_quantized_shape = torch.tensor(quantized.shape)
+        expected_quantized_shape = torch.tensor([2, 3, 2])
 
         assert torch.equal(
-            actual_quantised_shape, expected_quantised_shape
-        ), f"actual quantised shape: {actual_quantised_shape}, expected quantised shape: {expected_quantised_shape}"
+            actual_quantized_shape, expected_quantized_shape
+        ), f"actual quantized shape: {actual_quantized_shape}, expected quantized shape: {expected_quantized_shape}"
