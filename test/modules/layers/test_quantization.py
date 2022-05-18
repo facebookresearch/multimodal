@@ -7,7 +7,7 @@
 import unittest
 
 import torch
-from test.test_utils import assert_expected
+from test.test_utils import assert_expected, set_rng_seed
 from torch import nn
 from torchmultimodal.modules.layers.quantization import Quantization
 
@@ -18,6 +18,7 @@ class TestQuantization(unittest.TestCase):
     """
 
     def setUp(self):
+        set_rng_seed(4)
         self.num_embeddings = 4
         self.embedding_dim = 5
 
@@ -38,7 +39,9 @@ class TestQuantization(unittest.TestCase):
         )
 
         self.vq = Quantization(
-            num_embeddings=self.num_embeddings, embedding_dim=self.embedding_dim
+            num_embeddings=self.num_embeddings,
+            embedding_dim=self.embedding_dim,
+            decay=0.5,
         )
 
     def test_quantized_output(self):
@@ -85,23 +88,72 @@ class TestQuantization(unittest.TestCase):
         actual_flat_shape = torch.tensor(encoded_flat.shape)
         actual_permuted_shape = torch.tensor(permuted_shape)
 
-        assert torch.equal(
-            actual_flat_shape, expected_flat_shape
-        ), f"actual flattened shape: {actual_flat_shape}, expected flattened shape: {expected_flat_shape}"
+        assert_expected(actual_flat_shape, expected_flat_shape)
 
-        assert torch.equal(
-            actual_permuted_shape, expected_permuted_shape
-        ), f"actual permuted shape: {actual_permuted_shape}, expected permuted shape: {expected_permuted_shape}"
+        assert_expected(actual_permuted_shape, expected_permuted_shape)
 
     def test_preprocess_channel_dim_assertion(self):
         with self.assertRaises(ValueError):
-            encoded_flat, permuted_shape = self.vq._preprocess(self.encoded[:, :4, :])
+            _, _ = self.vq._preprocess(self.encoded[:, :4, :])
 
     def test_postprocess(self):
         quantized = self.vq._postprocess(self.input_tensor_flat, torch.Size([2, 2, 3]))
         actual_quantized_shape = torch.tensor(quantized.shape)
         expected_quantized_shape = torch.tensor([2, 3, 2])
 
-        assert torch.equal(
-            actual_quantized_shape, expected_quantized_shape
-        ), f"actual quantized shape: {actual_quantized_shape}, expected quantized shape: {expected_quantized_shape}"
+        assert_expected(actual_quantized_shape, expected_quantized_shape)
+
+    def test_embed_init(self):
+        assert not self.vq._is_embedding_init, "embedding init flag not False initially"
+
+        _, _ = self.vq._init_embedding_and_preprocess(self.encoded)
+
+        assert self.vq._is_embedding_init, "embedding init flag not True after init"
+
+        actual_weight = self.vq.embedding.weight
+        expected_weight = torch.Tensor(
+            [
+                [2.0, -1.0, 0.0, 2.0, 0.0],
+                [2.0, 1.0, 0.0, 1.0, 1.0],
+                [0.0, 1.0, -1.0, 2.0, -1.0],
+                [1.0, 0.0, -1.0, -1.0, 1.0],
+            ]
+        )
+        assert_expected(actual_weight, expected_weight)
+
+        actual_code_avg = self.vq._code_avg
+        expected_code_avg = actual_weight
+        assert_expected(actual_code_avg, expected_code_avg)
+
+        actual_code_usage = self.vq._code_usage
+        expected_code_usage = torch.ones(self.num_embeddings)
+        assert_expected(actual_code_usage, expected_code_usage)
+
+    def test_ema_update(self):
+        _ = self.vq(self.encoded)
+
+        actual_weight = self.vq.embedding.weight
+        expected_weight = torch.Tensor(
+            [
+                [1.0000, -1.3333, 0.0000, 1.6667, 0.0000],
+                [2.0000, 1.0000, 0.0000, 1.0000, 1.0000],
+                [-0.3333, 1.3333, -0.6667, 1.3333, -1.3333],
+                [1.0000, 0.0000, -1.0000, -1.0000, 1.0000],
+            ]
+        )
+        assert_expected(actual_weight, expected_weight, rtol=0.0, atol=1e-4)
+
+        actual_code_avg = self.vq._code_avg
+        expected_code_avg = torch.Tensor(
+            [
+                [1.5000, -2.0000, 0.0000, 2.5000, 0.0000],
+                [2.0000, 1.0000, 0.0000, 1.0000, 1.0000],
+                [-0.5000, 2.0000, -1.0000, 2.0000, -2.0000],
+                [1.0000, 0.0000, -1.0000, -1.0000, 1.0000],
+            ]
+        )
+        assert_expected(actual_code_avg, expected_code_avg, rtol=0.0, atol=1e-4)
+
+        actual_code_usage = self.vq._code_usage
+        expected_code_usage = torch.Tensor([1.5000, 1.0000, 1.5000, 1.0000])
+        assert_expected(actual_code_usage, expected_code_usage, rtol=0.0, atol=1e-4)
