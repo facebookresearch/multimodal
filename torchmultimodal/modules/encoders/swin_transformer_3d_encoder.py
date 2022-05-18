@@ -225,7 +225,7 @@ def shifted_window_attention_3d(
     return x
 
 
-class ShiftedWindowAttention(nn.Module):
+class ShiftedWindowAttention3d(nn.Module):
     """
     See :func:`shifted_window_attention_3d`.
     """
@@ -348,7 +348,7 @@ class SwinTransformerBlock3d(nn.Module):
     ):
         super().__init__()
         self.norm1 = norm_layer(dim)
-        self.attn = ShiftedWindowAttention(
+        self.attn = ShiftedWindowAttention3d(
             dim,
             window_size,
             shift_size,

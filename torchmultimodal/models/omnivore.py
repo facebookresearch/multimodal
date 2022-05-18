@@ -1,5 +1,6 @@
 from typing import Callable, Optional, Tuple
 
+import torch
 from torch import nn
 from torchmultimodal.architectures.omnivore import OmnivoreArchitecture
 from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
@@ -66,7 +67,7 @@ class PatchEmbedOmnivore(nn.Module):
             norm_layer=norm_layer,
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: B C D H W
         # Note: D here represent time
         assert x.ndim == 5
