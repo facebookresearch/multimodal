@@ -69,8 +69,41 @@ class Quantization(nn.Module):
 
         return quantized
 
+    def _ema_update_embedding(self, encoded_flat: Tensor, codebook_indices: Tensor):
+        # Closed form solution of codebook loss, ||e - E(x)||^2, is simply the average
+        # of the encoder output. However, we can't compute this in minibatches, so we
+        # must use exponential moving average.
+
+        # Convert indices to one hot encoding
+        codebook_onehot = nn.functional.one_hot(
+            codebook_indices, num_classes=self.num_embeddings
+        )
+        # Count how often each embedding vector was looked up
+        codebook_selection_count = torch.sum(codebook_onehot, 0)
+        # Update usage value for each embedding vector
+        self._code_usage = self._code_usage * self._decay + codebook_selection_count * (
+            1 - self._decay
+        )
+        # Laplace smoothing of codebook usage - to prevent zero counts
+        n = torch.sum(self._code_usage)
+        self._code_usage = (
+            (self._code_usage + self._epsilon)
+            / (n + self.num_embeddings * self._epsilon)
+            * n
+        )
+        # Get all encoded vectors attracted to each embedding vector
+        encoded_per_codebook = torch.matmul(codebook_onehot.t(), encoded_flat)
+        # Update each embedding vector with the sum of encoded vectors that are attracted to it,
+        # divided by its usage to yield the mean of encoded vectors that choose it
+        self._code_sum = nn.Parameter(
+            self._code_sum * self._decay + (1 - self._decay) * encoded_per_codebook
+        )
+        self.embedding.weight = nn.Parameter(
+            self._code_sum / self._code_usage.unsqueeze(1)
+        )
+
     def _quantize(self, encoded_flat: Tensor) -> Tuple[Tensor, Tensor]:
-        # Calculate distances from each encoder output vector to each embedding vector, ||x - emb||^2
+        # Calculate distances from each encoder, E(x), output vector to each embedding vector, e, ||E(x) - e||^2
         distances = torch.cdist(encoded_flat, self.embedding.weight, p=2.0) ** 2
 
         # Encoding - select closest embedding vectors
@@ -78,6 +111,11 @@ class Quantization(nn.Module):
 
         # Quantize
         quantized_flat = self.embedding(codebook_indices)
+
+        # Use exponential moving average to update the embedding instead of a codebook loss,
+        # as suggested by Oord et al. 2017 and Razavi et al. 2019.
+        if self.training:
+            self._ema_update_embedding(encoded_flat, codebook_indices)
 
         # Straight through estimator
         quantized_flat = encoded_flat + (quantized_flat - encoded_flat).detach()
