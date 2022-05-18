@@ -24,24 +24,60 @@ class Quantization(nn.Module):
     Vector quantization was introduced in Oord et al. 2017 (https://arxiv.org/pdf/1711.00937.pdf)
     to generate high-fidelity images, videos, and audio data.
 
+    The embedding weights are trained with exponential moving average updates as described
+    in original paper.
+
     Args:
         num_embeddings (int): the number of vectors in the embedding space
         embedding_dim (int): the dimensionality of the embedding vectors
 
     Inputs:
-        x (Tensor): Tensor containing a batch of encoder outputs.
+        z (Tensor): Tensor containing a batch of encoder outputs.
                     Expects dimensions to be batch x channel x n dims.
     """
 
-    def __init__(self, num_embeddings: int, embedding_dim: int):
+    def __init__(
+        self,
+        num_embeddings: int,
+        embedding_dim: int,
+        decay: float = 0.99,
+        epsilon: float = 1e-7,
+    ):
         super().__init__()
         self.embedding_dim = embedding_dim
         self.num_embeddings = num_embeddings
 
         self.embedding = nn.Embedding(self.num_embeddings, self.embedding_dim)
-        self.embedding.weight.data.uniform_(
-            -1 / self.num_embeddings, 1 / self.num_embeddings
-        )
+        # These are used in EMA update of embedding weights as m, N, and lambda, respectively, from Oord et al.
+        self._code_avg = self.embedding.weight.detach().clone()
+        self._code_usage = torch.zeros(self.num_embeddings)
+        self._decay = decay
+        # Used in Laplace smoothing of code usage
+        self._epsilon = epsilon
+
+        # Flag to track if we need to initialize embedding with encoder output
+        self._is_embedding_init = False
+
+    def _init_embedding_and_preprocess(self, z: Tensor) -> Tuple[Tensor, Size]:
+        # Embedding should be initialized with random output vectors from the encoder
+        # on the first forward pass for faster convergence, as in VideoGPT (Yan et al. 2021)
+        #
+        # This requires preprocessing the encoder output, so return this as well.
+
+        self._is_embedding_init = True
+
+        # Get random flattened encoder outputs
+        encoded_flat, permuted_shape = self._preprocess(z)
+        idx = torch.randperm(encoded_flat.shape[0])
+        encoded_flat_rand = encoded_flat[idx][: self.num_embeddings]
+
+        # Initialize embedding and intermediate values for EMA updates
+        with torch.no_grad():
+            self.embedding.weight.copy_(encoded_flat_rand)
+            self._code_avg.copy_(encoded_flat_rand)
+            self._code_usage.copy_(torch.ones(self.num_embeddings))
+
+        return encoded_flat, permuted_shape
 
     def _preprocess(self, encoded: Tensor) -> Tuple[Tensor, Size]:
         # Rearrange from batch x channel x n dims to batch x n dims x channel
@@ -93,14 +129,12 @@ class Quantization(nn.Module):
         )
         # Get all encoded vectors attracted to each embedding vector
         encoded_per_codebook = torch.matmul(codebook_onehot.t(), encoded_flat)
-        # Update each embedding vector with the sum of encoded vectors that are attracted to it,
+        # Update each embedding vector with new encoded vectors that are attracted to it,
         # divided by its usage to yield the mean of encoded vectors that choose it
-        self._code_sum = nn.Parameter(
-            self._code_sum * self._decay + (1 - self._decay) * encoded_per_codebook
+        self._code_avg = (
+            self._code_avg * self._decay + (1 - self._decay) * encoded_per_codebook
         )
-        self.embedding.weight = nn.Parameter(
-            self._code_sum / self._code_usage.unsqueeze(1)
-        )
+        self.embedding.weight = self._code_avg / self._code_usage.unsqueeze(1)
 
     def _quantize(self, encoded_flat: Tensor) -> Tuple[Tensor, Tensor]:
         # Calculate distances from each encoder, E(x), output vector to each embedding vector, e, ||E(x) - e||^2
@@ -122,9 +156,13 @@ class Quantization(nn.Module):
 
         return quantized_flat, codebook_indices
 
-    def forward(self, x: Tensor) -> QuantizationOutput:
-        # Reshape and flatten encoder output for quantization
-        encoded_flat, permuted_shape = self._preprocess(x)
+    def forward(self, z: Tensor) -> QuantizationOutput:
+        # First check if embedding is initialized correctly
+        if not self._is_embedding_init and self.training:
+            encoded_flat, permuted_shape = self._init_embedding_and_preprocess(z)
+        else:
+            # Reshape and flatten encoder output for quantization
+            encoded_flat, permuted_shape = self._preprocess(z)
 
         # Quantization via nearest neighbor lookup
         quantized_flat, codebook_indices = self._quantize(encoded_flat)
