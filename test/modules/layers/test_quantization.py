@@ -40,9 +40,10 @@ class TestQuantization(unittest.TestCase):
         self.vq = Quantization(
             num_embeddings=self.num_embeddings, embedding_dim=self.embedding_dim
         )
-        self.vq.embedding = nn.Embedding.from_pretrained(self.embedding_weights)
 
     def test_quantized_output(self):
+        self.vq.embedding = nn.Embedding.from_pretrained(self.embedding_weights)
+        self.vq._is_embedding_init = True
         output = self.vq(self.encoded)
         _, actual_quantized_flat, actual_codebook_indices, actual_quantized = output
         # This is shape (2,5,3)

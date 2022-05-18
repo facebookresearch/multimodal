@@ -113,7 +113,7 @@ class Quantization(nn.Module):
         # Convert indices to one hot encoding
         codebook_onehot = nn.functional.one_hot(
             codebook_indices, num_classes=self.num_embeddings
-        )
+        ).type(torch.float)
         # Count how often each embedding vector was looked up
         codebook_selection_count = torch.sum(codebook_onehot, 0)
         # Update usage value for each embedding vector
@@ -134,7 +134,9 @@ class Quantization(nn.Module):
         self._code_avg = (
             self._code_avg * self._decay + (1 - self._decay) * encoded_per_codebook
         )
-        self.embedding.weight = self._code_avg / self._code_usage.unsqueeze(1)
+        self.embedding.weight = nn.Parameter(
+            self._code_avg / self._code_usage.unsqueeze(1)
+        )
 
     def _quantize(self, encoded_flat: Tensor) -> Tuple[Tensor, Tensor]:
         # Calculate distances from each encoder, E(x), output vector to each embedding vector, e, ||E(x) - e||^2
