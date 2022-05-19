@@ -274,7 +274,7 @@ class FLAVATransformerWithoutEmbeddings(nn.Module):
         self.layernorm = layernorm
         self.pooler = pooler
         if use_cls_token:
-            self.cls_token = nn.Parameter(torch.zeros(1, 1, encoder.hidden_size))
+            self.cls_token = nn.Parameter(torch.zeros(1, 1, encoder.hidden_size))  # type: ignore
         else:
             self.cls_token = None
 
