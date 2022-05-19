@@ -21,8 +21,8 @@ from torch import device, nn, Tensor
 from torchmultimodal.modules.layers.mlp import MLP
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.modules.layers.transformer import (
-    FLAVATransformerOutput,
     FLAVATransformerEncoder,
+    FLAVATransformerOutput,
     FLAVATransformerWithoutEmbeddings,
     init_transformer_weights,
 )
@@ -1030,7 +1030,7 @@ class DalleConv2d(nn.Module):
         super().__init__()
 
         w = torch.empty((n_out, n_in, kw, kw), dtype=torch.float32)
-        w.normal_(std=1 / math.sqrt(n_in * kw**2))
+        w.normal_(std=1 / math.sqrt(n_in * kw ** 2))
 
         b = torch.zeros((n_out,), dtype=torch.float32)
         self.w, self.b = nn.Parameter(w), nn.Parameter(b)
@@ -1044,7 +1044,7 @@ class DalleEncoderBlock(nn.Module):
     def __init__(self, n_in: int, n_out: int, n_layers: int):
         super().__init__()
         n_hid = n_out // 4
-        self.post_gain = 1 / (n_layers**2)
+        self.post_gain = 1 / (n_layers ** 2)
 
         self.id_path = DalleConv2d(n_in, n_out, 1) if n_in != n_out else nn.Identity()
         self.res_path = nn.Sequential(
