@@ -274,6 +274,9 @@ class FLAVATransformerWithoutEmbeddings(nn.Module):
         self.layernorm = layernorm
         self.pooler = pooler
         if use_cls_token:
+            assert hasattr(
+                encoder, "hidden_size"
+            ), "hidden size not defined for given encoder"
             self.cls_token = nn.Parameter(torch.zeros(1, 1, encoder.hidden_size))  # type: ignore
         else:
             self.cls_token = None
