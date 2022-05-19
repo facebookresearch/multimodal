@@ -1,3 +1,4 @@
 pytest
 mypy
 pre-commit
+DALL-E==0.1
