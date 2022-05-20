@@ -14,11 +14,12 @@ from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
     SwinTransformer3dEncoder,
 )
 from torchmultimodal.utils.common import get_current_device
+from ...test_utils import set_rng_seed
 
 
 class TestSwinTransformer3dEncoder(unittest.TestCase):
     def setUp(self):
-        torch.manual_seed(42)
+        set_rng_seed(42)
         self.device = get_current_device()
 
         # Setup Encoder to test
@@ -34,17 +35,14 @@ class TestSwinTransformer3dEncoder(unittest.TestCase):
                 patch_embed=PatchEmbed3d,
             )
             .to(self.device)
-            .eval()
         )
 
     def test_swin_transformer_3d_encoder(self):
-        torch.manual_seed(42)
-        self.assertTrue(isinstance(self.encoder, torch.nn.Module))
         image = torch.randn(1, 3, 1, 112, 112)  # B C D H W
 
         scores = self.encoder(image)
         self.assertEqual(scores.size(), torch.Size([1, 768]))
-        self.assertAlmostEqual(scores.abs().sum().item(), 281.83926, 3)
+        self.assertAlmostEqual(scores.abs().sum().item(), 257.66665, 3)
 
     def test_swin_transformer_3d_scripting(self):
         torch.jit.script(self.encoder)
@@ -52,14 +50,13 @@ class TestSwinTransformer3dEncoder(unittest.TestCase):
 
 class TestSwinTransformer3dComponents(unittest.TestCase):
     def setUp(self):
+        set_rng_seed(42)
         self.device = get_current_device()
 
     def test_patch_merging_3d(self):
-        torch.manual_seed(42)
         module = (
-            PatchMerging3d(dim=12, norm_layer=torch.nn.LayerNorm).to(self.device).eval()
+            PatchMerging3d(dim=12, norm_layer=torch.nn.LayerNorm).to(self.device)
         )
-        self.assertTrue(isinstance(module, torch.nn.Module))
         x_in = torch.randn(1, 1, 56, 56, 12)
         x_out = module(x_in)
 
@@ -67,16 +64,12 @@ class TestSwinTransformer3dComponents(unittest.TestCase):
         self.assertAlmostEqual(x_out.abs().sum().item(), 8705.25390, 3)
 
     def test_shifted_window_attention_3d(self):
-        torch.manual_seed(42)
         module = (
             ShiftedWindowAttention3d(
                 dim=12, window_size=(8, 7, 7), shift_size=(4, 3, 3), num_heads=3
             )
             .to(self.device)
-            .eval()
         )
-
-        self.assertTrue(isinstance(module, torch.nn.Module))
         x_in = torch.randn(1, 1, 56, 56, 12)
         x_out = module(x_in)
 
