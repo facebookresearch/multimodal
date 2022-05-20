@@ -75,3 +75,16 @@ class TestSwinTransformer3dComponents(unittest.TestCase):
 
         self.assertEqual(x_out.size(), torch.Size([1, 1, 56, 56, 12]))
         self.assertAlmostEqual(x_out.abs().sum().item(), 6189.71777, 3)
+
+    def test_shifted_window_attention_3d_zero_shift(self):
+        module = (
+            ShiftedWindowAttention3d(
+                dim=12, window_size=(8, 7, 7), shift_size=(0, 0, 0), num_heads=3
+            )
+            .to(self.device)
+        )
+        x_in = torch.randn(1, 1, 56, 56, 12)
+        x_out = module(x_in)
+
+        self.assertEqual(x_out.size(), torch.Size([1, 1, 56, 56, 12]))
+        self.assertAlmostEqual(x_out.abs().sum().item(), 6131.83691, 3)
