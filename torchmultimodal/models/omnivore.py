@@ -82,7 +82,8 @@ class PatchEmbedOmnivore(nn.Module):
         return x
 
 
-def omnivore_swin_t() -> nn.Module:
+# TODO: add pretrained weight capability
+def omnivore_swin_t(encoder_only=False) -> nn.Module:
     encoder = SwinTransformer3dEncoder(
         patch_size=(2, 4, 4),
         embed_dim=96,
@@ -93,5 +94,8 @@ def omnivore_swin_t() -> nn.Module:
         norm_layer=nn.LayerNorm,
         patch_embed=PatchEmbedOmnivore,
     )
+    if encoder_only:
+        return encoder
+
     heads = _multimodal_head(input_dim=encoder.num_features)
     return OmnivoreArchitecture(encoder, heads)

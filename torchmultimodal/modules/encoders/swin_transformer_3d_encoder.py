@@ -141,7 +141,7 @@ def shifted_window_attention_3d(
     pad_size = _compute_pad_size_3d((D, H, W), window_size)
     x = F.pad(input, (0, 0, 0, pad_size[2], 0, pad_size[1], 0, pad_size[0]))
     _, Dp, Hp, Wp, _ = x.shape
-    padded_size = [Dp, Hp, Wp]
+    padded_size = (Dp, Hp, Wp)
 
     # cyclic shift
     if sum(shift_size) > 0:
@@ -181,12 +181,12 @@ def shifted_window_attention_3d(
     attn = attn + relative_position_bias
 
     if sum(shift_size) > 0:
-        # generate attention mask, we convert to tuple so it can be cache-able
+        # generate attention mask to handle shifted windows with varying size
         attn_mask = _compute_attention_mask_3d(
             x,
-            (padded_size[0], padded_size[1], padded_size[2]),
-            (window_size[0], window_size[1], window_size[2]),
-            (shift_size[0], shift_size[1], shift_size[2]),
+            padded_size,
+            window_size,
+            shift_size,
         )
         attn = attn.view(
             x.size(0) // num_windows, num_windows, num_heads, x.size(1), x.size(1)
@@ -422,8 +422,8 @@ class SwinTransformer3dEncoder(nn.Module):
         attention_dropout (float): Attention dropout rate. Default: 0.0.
         stochastic_depth_prob (float): Stochastic depth rate. Default: 0.0.
         num_classes (int): Number of classes for classification head. Default: 1000.
-        block (nn.Module, optional): SwinTransformer Block. Default: None.
-        norm_layer (nn.Module, optional): Normalization layer. Default: None.
+        norm_layer (nn.Module, optional): Normalization layer. Default: partial(nn.LayerNorm, eps=1e-5).
+        patch_embed (nn.Module, optional): Patch Embedding layer. Default: PatchEmbed3d
     """
 
     def __init__(
@@ -437,24 +437,14 @@ class SwinTransformer3dEncoder(nn.Module):
         dropout: float = 0.0,
         attention_dropout: float = 0.0,
         stochastic_depth_prob: float = 0.0,
-        norm_layer: Optional[Callable[..., nn.Module]] = None,
-        block: Optional[Callable[..., nn.Module]] = None,
-        patch_embed: Optional[Callable[..., nn.Module]] = None,
+        norm_layer: Optional[Callable[..., nn.Module]] = partial(
+            nn.LayerNorm, eps=1e-5
+        ),
+        patch_embed: Optional[Callable[..., nn.Module]] = PatchEmbed3d,
     ):
         super().__init__()
 
-        if block is None:
-            block = SwinTransformerBlock3d
-
-        if norm_layer is None:
-            norm_layer = partial(nn.LayerNorm, eps=1e-5)
-
         # split image into non-overlapping patches
-        self.patch_embed: Callable[..., nn.Module]
-        if patch_embed is None:
-            # We use standard swin_transformer_3d patch_embed block if not specified
-            patch_embed = PatchEmbed3d
-
         self.patch_embed = patch_embed(
             patch_size=patch_size, embed_dim=embed_dim, norm_layer=norm_layer
         )
@@ -466,7 +456,7 @@ class SwinTransformer3dEncoder(nn.Module):
         # build SwinTransformer blocks
         for i_stage in range(len(depths)):
             stage: List[nn.Module] = []
-            dim = embed_dim * 2**i_stage
+            dim = embed_dim * 2 ** i_stage
             for i_layer in range(depths[i_stage]):
                 # adjust stochastic depth probability based on the depth of the stage block
                 sd_prob = (
@@ -475,13 +465,17 @@ class SwinTransformer3dEncoder(nn.Module):
                     / (total_stage_blocks - 1)
                 )
                 stage.append(
-                    block(
+                    SwinTransformerBlock3d(
                         dim,
                         num_heads[i_stage],
                         window_size=window_size,
                         shift_size=(0, 0, 0)
                         if i_layer % 2 == 0
-                        else [w // 2 for w in window_size],
+                        else (
+                            window_size[0] // 2,
+                            window_size[1] // 2,
+                            window_size[2] // 2,
+                        ),
                         mlp_ratio=mlp_ratio,
                         dropout=dropout,
                         attention_dropout=attention_dropout,
