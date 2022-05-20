@@ -8,7 +8,6 @@ import unittest
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
-from torch import nn
 from torchmultimodal.modules.layers.quantization import Quantization
 
 
@@ -45,7 +44,7 @@ class TestQuantization(unittest.TestCase):
         )
 
     def test_quantized_output(self):
-        self.vq.embedding = nn.Embedding.from_pretrained(self.embedding_weights)
+        self.vq.embedding = self.embedding_weights
         self.vq._is_embedding_init = True
         output = self.vq(self.encoded)
         _, actual_quantized_flat, actual_codebook_indices, actual_quantized = output
@@ -103,14 +102,14 @@ class TestQuantization(unittest.TestCase):
 
         assert_expected(actual_quantized_shape, expected_quantized_shape)
 
-    def test_embed_init(self):
+    def test_init_embedding_and_preprocess(self):
         assert not self.vq._is_embedding_init, "embedding init flag not False initially"
 
         _, _ = self.vq._init_embedding_and_preprocess(self.encoded)
 
         assert self.vq._is_embedding_init, "embedding init flag not True after init"
 
-        actual_weight = self.vq.embedding.weight
+        actual_weight = self.vq.embedding
         expected_weight = torch.Tensor(
             [
                 [2.0, -1.0, 0.0, 2.0, 0.0],
@@ -121,18 +120,18 @@ class TestQuantization(unittest.TestCase):
         )
         assert_expected(actual_weight, expected_weight)
 
-        actual_code_avg = self.vq._code_avg
+        actual_code_avg = self.vq.code_avg
         expected_code_avg = actual_weight
         assert_expected(actual_code_avg, expected_code_avg)
 
-        actual_code_usage = self.vq._code_usage
+        actual_code_usage = self.vq.code_usage
         expected_code_usage = torch.ones(self.num_embeddings)
         assert_expected(actual_code_usage, expected_code_usage)
 
     def test_ema_update(self):
         _ = self.vq(self.encoded)
 
-        actual_weight = self.vq.embedding.weight
+        actual_weight = self.vq.embedding
         expected_weight = torch.Tensor(
             [
                 [1.0000, -1.3333, 0.0000, 1.6667, 0.0000],
@@ -143,7 +142,7 @@ class TestQuantization(unittest.TestCase):
         )
         assert_expected(actual_weight, expected_weight, rtol=0.0, atol=1e-4)
 
-        actual_code_avg = self.vq._code_avg
+        actual_code_avg = self.vq.code_avg
         expected_code_avg = torch.Tensor(
             [
                 [1.5000, -2.0000, 0.0000, 2.5000, 0.0000],
@@ -154,6 +153,6 @@ class TestQuantization(unittest.TestCase):
         )
         assert_expected(actual_code_avg, expected_code_avg, rtol=0.0, atol=1e-4)
 
-        actual_code_usage = self.vq._code_usage
+        actual_code_usage = self.vq.code_usage
         expected_code_usage = torch.Tensor([1.5000, 1.0000, 1.5000, 1.0000])
         assert_expected(actual_code_usage, expected_code_usage, rtol=0.0, atol=1e-4)

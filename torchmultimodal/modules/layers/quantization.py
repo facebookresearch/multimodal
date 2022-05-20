@@ -8,6 +8,7 @@ from typing import NamedTuple, Tuple
 
 import torch
 from torch import nn, Size, Tensor
+from torch.nn import functional as F
 
 
 class QuantizationOutput(NamedTuple):
@@ -27,6 +28,11 @@ class Quantization(nn.Module):
     The embedding weights are trained with exponential moving average updates as described
     in original paper.
 
+    Code was largely inspired by a PyTorch implementation of the author's original code, found here:
+    https://colab.research.google.com/github/zalandoresearch/pytorch-vq-vae/blob/master/vq-vae.ipynb
+    and by the implementation in MUGEN (Hayes et al. 2022), found here:
+    https://github.com/mugen-org/MUGEN_baseline/blob/main/lib/models/video_vqvae/vqvae.py
+
     Args:
         num_embeddings (int): the number of vectors in the embedding space
         embedding_dim (int): the dimensionality of the embedding vectors
@@ -44,13 +50,16 @@ class Quantization(nn.Module):
         epsilon: float = 1e-7,
     ):
         super().__init__()
+        # Embedding weights and parameters for EMA update will be registered to buffer, as they
+        # will not be updated by the optimizer but are still model parameters.
+        # code_usage and code_avg correspond with N and m, respectively, from Oord et al.
+        self.register_buffer("embedding", torch.randn(num_embeddings, embedding_dim))
+        self.register_buffer("code_usage", torch.zeros(num_embeddings))
+        self.register_buffer("code_avg", self.embedding.clone())
+
         self.embedding_dim = embedding_dim
         self.num_embeddings = num_embeddings
 
-        self.embedding = nn.Embedding(self.num_embeddings, self.embedding_dim)
-        # These are used in EMA update of embedding weights as m, N, and lambda, respectively, from Oord et al.
-        self._code_avg = self.embedding.weight.detach().clone()
-        self._code_usage = torch.zeros(self.num_embeddings)
         self._decay = decay
         # Used in Laplace smoothing of code usage
         self._epsilon = epsilon
@@ -58,26 +67,19 @@ class Quantization(nn.Module):
         # Flag to track if we need to initialize embedding with encoder output
         self._is_embedding_init = False
 
-    def _init_embedding_and_preprocess(self, z: Tensor) -> Tuple[Tensor, Size]:
-        # Embedding should be initialized with random output vectors from the encoder
-        # on the first forward pass for faster convergence, as in VideoGPT (Yan et al. 2021)
-        #
-        # This requires preprocessing the encoder output, so return this as well.
-
-        self._is_embedding_init = True
-
-        # Get random flattened encoder outputs
-        encoded_flat, permuted_shape = self._preprocess(z)
-        idx = torch.randperm(encoded_flat.shape[0])
-        encoded_flat_rand = encoded_flat[idx][: self.num_embeddings]
-
-        # Initialize embedding and intermediate values for EMA updates
-        with torch.no_grad():
-            self.embedding.weight.copy_(encoded_flat_rand)
-            self._code_avg.copy_(encoded_flat_rand)
-            self._code_usage.copy_(torch.ones(self.num_embeddings))
-
-        return encoded_flat, permuted_shape
+    def _tile(self, x):
+        # Repeat encoder vectors in cases where the encoder output does not have enough vectors
+        # to initialize the codebook on first forward pass
+        num_encoder_vectors, num_channels = x.shape
+        if num_encoder_vectors < self.embedding_dim:
+            num_repeats = (
+                self.num_embeddings + num_encoder_vectors - 1
+            ) // num_encoder_vectors
+            # Add a small amount of noise to repeated vectors
+            std = 0.01 / torch.sqrt(num_channels)
+            x = x.repeat(num_repeats, 1)
+            x = x + torch.randn_like(x) * std
+        return x
 
     def _preprocess(self, encoded: Tensor) -> Tuple[Tensor, Size]:
         # Rearrange from batch x channel x n dims to batch x n dims x channel
@@ -105,6 +107,27 @@ class Quantization(nn.Module):
 
         return quantized
 
+    def _init_embedding_and_preprocess(self, z: Tensor) -> Tuple[Tensor, Size]:
+        # Embedding should be initialized with random output vectors from the encoder
+        # on the first forward pass for faster convergence, as in VideoGPT (Yan et al. 2021)
+        #
+        # This requires preprocessing the encoder output, so return this as well.
+
+        self._is_embedding_init = True
+
+        # Flatten encoder outputs, tile to match num embeddings, get random encoder outputs
+        encoded_flat, permuted_shape = self._preprocess(z)
+        encoded_flat_tiled = self._tile(encoded_flat)
+        idx = torch.randperm(encoded_flat_tiled.shape[0])
+        encoded_flat_rand = encoded_flat_tiled[idx][: self.num_embeddings]
+
+        # Initialize embedding and intermediate values for EMA updates
+        self.embedding = encoded_flat_rand
+        self.code_avg = encoded_flat_rand
+        self.code_usage = torch.ones(self.num_embeddings)
+
+        return encoded_flat, permuted_shape
+
     def _ema_update_embedding(self, encoded_flat: Tensor, codebook_indices: Tensor):
         # Closed form solution of codebook loss, ||e - E(x)||^2, is simply the average
         # of the encoder output. However, we can't compute this in minibatches, so we
@@ -117,13 +140,13 @@ class Quantization(nn.Module):
         # Count how often each embedding vector was looked up
         codebook_selection_count = torch.sum(codebook_onehot, 0)
         # Update usage value for each embedding vector
-        self._code_usage = self._code_usage * self._decay + codebook_selection_count * (
+        self.code_usage = self.code_usage * self._decay + codebook_selection_count * (
             1 - self._decay
         )
         # Laplace smoothing of codebook usage - to prevent zero counts
-        n = torch.sum(self._code_usage)
-        self._code_usage = (
-            (self._code_usage + self._epsilon)
+        n = torch.sum(self.code_usage)
+        self.code_usage = (
+            (self.code_usage + self._epsilon)
             / (n + self.num_embeddings * self._epsilon)
             * n
         )
@@ -131,22 +154,20 @@ class Quantization(nn.Module):
         encoded_per_codebook = torch.matmul(codebook_onehot.t(), encoded_flat)
         # Update each embedding vector with new encoded vectors that are attracted to it,
         # divided by its usage to yield the mean of encoded vectors that choose it
-        self._code_avg = (
-            self._code_avg * self._decay + (1 - self._decay) * encoded_per_codebook
+        self.code_avg = (
+            self.code_avg * self._decay + (1 - self._decay) * encoded_per_codebook
         )
-        self.embedding.weight = nn.Parameter(
-            self._code_avg / self._code_usage.unsqueeze(1)
-        )
+        self.embedding = self.code_avg / self.code_usage.unsqueeze(1)
 
     def _quantize(self, encoded_flat: Tensor) -> Tuple[Tensor, Tensor]:
         # Calculate distances from each encoder, E(x), output vector to each embedding vector, e, ||E(x) - e||^2
-        distances = torch.cdist(encoded_flat, self.embedding.weight, p=2.0) ** 2
+        distances = torch.cdist(encoded_flat, self.embedding, p=2.0) ** 2
 
         # Encoding - select closest embedding vectors
         codebook_indices = torch.argmin(distances, dim=1)
 
         # Quantize
-        quantized_flat = self.embedding(codebook_indices)
+        quantized_flat = F.embedding(codebook_indices, self.embedding)
 
         # Use exponential moving average to update the embedding instead of a codebook loss,
         # as suggested by Oord et al. 2017 and Razavi et al. 2019.
