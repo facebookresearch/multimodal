@@ -52,9 +52,10 @@ class Quantization(nn.Module):
         # Embedding weights and parameters for EMA update will be registered to buffer, as they
         # will not be updated by the optimizer but are still model parameters.
         # code_usage and code_avg correspond with N and m, respectively, from Oord et al.
-        self.register_buffer("embedding", torch.randn(num_embeddings, embedding_dim))
+        randn_init_embedding = torch.randn(num_embeddings, embedding_dim)
+        self.register_buffer("embedding", randn_init_embedding.clone())
         self.register_buffer("code_usage", torch.zeros(num_embeddings))
-        self.register_buffer("code_avg", self.embedding.clone())
+        self.register_buffer("code_avg", randn_init_embedding.clone())
 
         self.embedding_dim = embedding_dim
         self.num_embeddings = num_embeddings
