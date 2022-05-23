@@ -67,19 +67,23 @@ class Quantization(nn.Module):
         # Flag to track if we need to initialize embedding with encoder output
         self._is_embedding_init = False
 
-    def _tile(self, x):
-        # Repeat encoder vectors in cases where the encoder output does not have enough vectors
-        # to initialize the codebook on first forward pass
-        num_encoder_vectors, num_channels = x.shape
-        if num_encoder_vectors < self.embedding_dim:
-            num_repeats = (
-                self.num_embeddings + num_encoder_vectors - 1
-            ) // num_encoder_vectors
+    def _tile(self, x, n):
+        # Repeat vectors in x if x has less than n vectors
+        num_vectors, num_channels = x.shape
+        if num_vectors < n:
+            num_repeats = (n + num_vectors - 1) // num_vectors
             # Add a small amount of noise to repeated vectors
             std = 0.01 / torch.sqrt(torch.tensor(num_channels))
             x = x.repeat(num_repeats, 1)
             x = x + torch.randn_like(x) * std
         return x
+
+    def _get_random_vectors(self, x, n):
+        # Gets n random row vectors from 2D tensor x
+        x_tiled = self._tile(x, n)
+        idx = torch.randperm(x_tiled.shape[0])
+        x_rand = x_tiled[idx][:n]
+        return x_rand
 
     def _preprocess(self, encoded: Tensor) -> Tuple[Tensor, Size]:
         # Rearrange from batch x channel x n dims to batch x n dims x channel
@@ -117,9 +121,7 @@ class Quantization(nn.Module):
 
         # Flatten encoder outputs, tile to match num embeddings, get random encoder outputs
         encoded_flat, permuted_shape = self._preprocess(z)
-        encoded_flat_tiled = self._tile(encoded_flat)
-        idx = torch.randperm(encoded_flat_tiled.shape[0])
-        encoded_flat_rand = encoded_flat_tiled[idx][: self.num_embeddings]
+        encoded_flat_rand = self._get_random_vectors(encoded_flat, self.num_embeddings)
 
         # Initialize embedding and intermediate values for EMA updates
         self.embedding = encoded_flat_rand
