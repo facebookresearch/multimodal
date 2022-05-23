@@ -8,7 +8,6 @@ from typing import NamedTuple, Tuple
 
 import torch
 from torch import nn, Size, Tensor
-from torch.nn import functional as F
 
 
 class QuantizationOutput(NamedTuple):
@@ -76,7 +75,7 @@ class Quantization(nn.Module):
                 self.num_embeddings + num_encoder_vectors - 1
             ) // num_encoder_vectors
             # Add a small amount of noise to repeated vectors
-            std = 0.01 / torch.sqrt(num_channels)
+            std = 0.01 / torch.sqrt(torch.tensor(num_channels))
             x = x.repeat(num_repeats, 1)
             x = x + torch.randn_like(x) * std
         return x
@@ -167,7 +166,7 @@ class Quantization(nn.Module):
         codebook_indices = torch.argmin(distances, dim=1)
 
         # Quantize
-        quantized_flat = F.embedding(codebook_indices, self.embedding)
+        quantized_flat = self.embedding[codebook_indices]
 
         # Use exponential moving average to update the embedding instead of a codebook loss,
         # as suggested by Oord et al. 2017 and Razavi et al. 2019.

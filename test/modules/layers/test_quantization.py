@@ -28,6 +28,7 @@ class TestQuantization(unittest.TestCase):
                 [[2, 2, -1], [1, -1, -2], [0, 0, 0], [1, 2, 1], [1, 0, 0]],
             ]
         )
+        self.encoded.requires_grad_()
         # This is 4x5
         self.embedding_weights = torch.Tensor(
             [[1, 0, -1, -1, 2], [2, -2, 0, 0, 1], [2, 1, 0, 1, 1], [-1, -2, 0, 2, 0]]
@@ -156,3 +157,30 @@ class TestQuantization(unittest.TestCase):
         actual_code_usage = self.vq.code_usage
         expected_code_usage = torch.Tensor([1.7000, 1.0000, 1.7000, 1.0000])
         assert_expected(actual_code_usage, expected_code_usage, rtol=0.0, atol=1e-4)
+
+    def test_register_buffer_tensors(self):
+        out = self.vq(self.encoded)
+        out.quantized.sum().backward()
+
+        msg_has_grad = "tensor assigned to buffer but accumulated grad"
+        assert not self.vq.code_avg.grad, msg_has_grad
+        assert not self.vq.code_usage.grad, msg_has_grad
+        assert not self.vq.embedding.grad, msg_has_grad
+
+        assert not list(
+            self.vq.parameters()
+        ), "buffer variables incorrectly assigned as params"
+
+    def test_tile(self):
+        encoded_small = self.encoded[:1, :, :2]
+        out = self.vq(encoded_small)
+        encoded_small_flat = out.encoded_flat
+        embed = self.vq.embedding
+        # Check for each embedding vector if there is one equal encoded vector + noise
+        for emb in embed:
+            assert any(
+                [
+                    torch.isclose(emb, enc, rtol=0, atol=0.01).all()
+                    for enc in encoded_small_flat
+                ]
+            ), "embedding initialized from encoder output incorrectly"
