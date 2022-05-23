@@ -171,7 +171,7 @@ class TestQuantization(unittest.TestCase):
             self.vq.parameters()
         ), "buffer variables incorrectly assigned as params"
 
-    def test_tile(self):
+    def test_init_embedding_smaller_encoded(self):
         encoded_small = self.encoded[:1, :, :2]
         out = self.vq(encoded_small)
         encoded_small_flat = out.encoded_flat
