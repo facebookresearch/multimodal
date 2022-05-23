@@ -8,7 +8,7 @@ import unittest
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.models.flava import flava_image_encoder
+from torchmultimodal.modules.encoders.flava_image_encoder import flava_image_encoder
 from torchmultimodal.modules.layers.transformer import (
     FLAVASelfAttention,
     FLAVATransformerEncoder,
