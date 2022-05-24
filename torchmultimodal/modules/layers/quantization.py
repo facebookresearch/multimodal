@@ -46,6 +46,7 @@ class Quantization(nn.Module):
         num_embeddings: int,
         embedding_dim: int,
         decay: float = 0.99,
+        codebook_usage_threshold: float = 1.0,
         epsilon: float = 1e-7,
     ):
         super().__init__()
@@ -63,6 +64,9 @@ class Quantization(nn.Module):
         self._decay = decay
         # Used in Laplace smoothing of code usage
         self._epsilon = epsilon
+
+        # Threshold for randomly reseting unused embedding vectors
+        self.codebook_usage_threshold = codebook_usage_threshold
 
         # Flag to track if we need to initialize embedding with encoder output
         self._is_embedding_init = False
@@ -160,6 +164,12 @@ class Quantization(nn.Module):
             self.code_avg * self._decay + (1 - self._decay) * encoded_per_codebook
         )
         self.embedding = self.code_avg / self.code_usage.unsqueeze(1)
+        # Reset any embedding vectors that fall below threshold usage with random encoded vectors
+        encoded_flat_rand = self._get_random_vectors(encoded_flat, self.num_embeddings)
+        is_enough_usage = self.code_usage.unsqueeze(1) >= self.codebook_usage_threshold
+        self.embedding = self.embedding * is_enough_usage + encoded_flat_rand * (
+            1 - is_enough_usage
+        )
 
     def _quantize(self, encoded_flat: Tensor) -> Tuple[Tensor, Tensor]:
         # Calculate distances from each encoder, E(x), output vector to each embedding vector, e, ||E(x) - e||^2
