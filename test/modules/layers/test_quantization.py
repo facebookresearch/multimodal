@@ -180,7 +180,27 @@ class TestQuantization(unittest.TestCase):
         for emb in embed:
             assert any(
                 [
-                    torch.isclose(emb, enc, rtol=0, atol=0.01).all()
+                    torch.isclose(emb, enc, rtol=0, atol=0.1).all()
                     for enc in encoded_small_flat
                 ]
             ), "embedding initialized from encoder output incorrectly"
+
+    def test_codebook_restart(self):
+        # First forward pass to init and diversify embedding
+        _ = self.vq(self.encoded)
+        # Second pass for using only one embedding vector and forcing restarts
+        encoded_low_usage = self.encoded[:1, :, :1].repeat(2, 1, 2) + torch.Tensor(
+            [
+                [[1, 0], [0, 1], [0, 0], [0, 0], [0, 0]],
+                [[0, 0], [0, 0], [1, 0], [0, 1], [0, 0]],
+            ]
+        )
+        out = self.vq(encoded_low_usage)
+
+        # Check if embedding contains restarts
+        for i, emb in enumerate(self.vq.embedding):
+            if i == 2:
+                continue
+            assert any(
+                [(emb == enc).all() for enc in out.encoded_flat]
+            ), "embedding restarted from encoder output incorrectly"

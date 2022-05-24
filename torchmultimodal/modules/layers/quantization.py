@@ -167,8 +167,8 @@ class Quantization(nn.Module):
         # Reset any embedding vectors that fall below threshold usage with random encoded vectors
         encoded_flat_rand = self._get_random_vectors(encoded_flat, self.num_embeddings)
         is_enough_usage = self.code_usage.unsqueeze(1) >= self.codebook_usage_threshold
-        self.embedding = self.embedding * is_enough_usage + encoded_flat_rand * (
-            1 - is_enough_usage
+        self.embedding = (
+            self.embedding * is_enough_usage + encoded_flat_rand * ~is_enough_usage
         )
 
     def _quantize(self, encoded_flat: Tensor) -> Tuple[Tensor, Tensor]:
