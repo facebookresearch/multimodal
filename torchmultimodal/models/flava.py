@@ -668,8 +668,8 @@ class ImageEmbeddings(nn.Module):
         """
 
         npatch = embeddings.shape[1] - 1
-        N = self.position_embeddings.shape[1] - 1
-        if npatch == N and height == width:
+        n = self.position_embeddings.shape[1] - 1
+        if npatch == n and height == width:
             return self.position_embeddings
         class_pos_embed = self.position_embeddings[:, 0]
         patch_pos_embed = self.position_embeddings[:, 1:]
@@ -681,9 +681,9 @@ class ImageEmbeddings(nn.Module):
         h0, w0 = h0 + 0.1, w0 + 0.1
         patch_pos_embed = nn.functional.interpolate(
             patch_pos_embed.reshape(
-                1, int(math.sqrt(N)), int(math.sqrt(N)), dim
+                1, int(math.sqrt(n)), int(math.sqrt(n)), dim
             ).permute(0, 3, 1, 2),
-            scale_factor=(h0 / math.sqrt(N), w0 / math.sqrt(N)),
+            scale_factor=(h0 / math.sqrt(n), w0 / math.sqrt(n)),
             mode="bicubic",
             align_corners=False,
         )
@@ -1030,7 +1030,7 @@ class DalleConv2d(nn.Module):
         super().__init__()
 
         w = torch.empty((n_out, n_in, kw, kw), dtype=torch.float32)
-        w.normal_(std=1 / math.sqrt(n_in * kw ** 2))
+        w.normal_(std=1 / math.sqrt(n_in * kw**2))
 
         b = torch.zeros((n_out,), dtype=torch.float32)
         self.w, self.b = nn.Parameter(w), nn.Parameter(b)
@@ -1044,7 +1044,7 @@ class DalleEncoderBlock(nn.Module):
     def __init__(self, n_in: int, n_out: int, n_layers: int):
         super().__init__()
         n_hid = n_out // 4
-        self.post_gain = 1 / (n_layers ** 2)
+        self.post_gain = 1 / (n_layers**2)
 
         self.id_path = DalleConv2d(n_in, n_out, 1) if n_in != n_out else nn.Identity()
         self.res_path = nn.Sequential(
