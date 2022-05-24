@@ -63,7 +63,7 @@ Ideally, flake and ufmt should be run via pre-commit hooks.
 But if for some reason you want to run them separately follow this:
 
 ```
-pip install -r requirements-lint.txt
+pip install -r dev-requirements.txt
 flake8 (examples|test|torchmultimodal)
 ufmt format (examples|test|torchmultimodal)
 ```
