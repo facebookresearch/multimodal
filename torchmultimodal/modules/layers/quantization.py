@@ -186,11 +186,6 @@ class Quantization(nn.Module):
         if self.training:
             self._ema_update_embedding(encoded_flat, codebook_indices)
 
-        # Use exponential moving average to update the embedding instead of a codebook loss,
-        # as suggested by Oord et al. 2017 and Razavi et al. 2019.
-        if self.training:
-            self._ema_update_embedding(encoded_flat, codebook_indices)
-
         # Straight through estimator
         quantized_flat = encoded_flat + (quantized_flat - encoded_flat).detach()
 
