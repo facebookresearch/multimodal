@@ -94,6 +94,7 @@ class FLAVASelfAttention(nn.Module):
         outputs = (context_layer, attention_probs)
         return outputs
 
+
 class FLAVAAttention(nn.Module):
     def __init__(
         self,
