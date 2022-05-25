@@ -32,7 +32,7 @@ repos:
         additional_dependencies:
           - flake8-bugbear == 22.4.25
           - pep8-naming == 0.12.1
-        args: ['- --config=.flake8']
+        args: ['--config=.flake8']
 
 -   repo: https://github.com/omnilib/ufmt
     rev: v1.3.0
