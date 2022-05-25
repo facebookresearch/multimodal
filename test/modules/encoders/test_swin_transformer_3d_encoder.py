@@ -9,30 +9,31 @@ import unittest
 import torch
 from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
     PatchEmbed3d,
-    PatchMerging3d,
+    PatchMerging,
     ShiftedWindowAttention3d,
-    SwinTransformer3dEncoder,
+    SwinTransformer3d,
 )
 from torchmultimodal.utils.common import get_current_device
 from ...test_utils import set_rng_seed
 
 
-class TestSwinTransformer3dEncoder(unittest.TestCase):
+class TestSwinTransformer3d(unittest.TestCase):
     def setUp(self):
         set_rng_seed(42)
         self.device = get_current_device()
 
         # Setup Encoder to test
         self.encoder = (
-            SwinTransformer3dEncoder(
-                patch_size=(2, 4, 4),
+            SwinTransformer3d(
+                patch_size=[2, 4, 4],
                 embed_dim=96,
                 depths=[2, 2, 6, 2],
                 num_heads=[3, 6, 12, 24],
-                window_size=(8, 7, 7),
+                window_size=[8, 7, 7],
                 stochastic_depth_prob=0.2,
                 norm_layer=torch.nn.LayerNorm,
                 patch_embed=PatchEmbed3d,
+                num_classes=None,
             )
             .to(self.device)
         )
@@ -55,7 +56,7 @@ class TestSwinTransformer3dComponents(unittest.TestCase):
 
     def test_patch_merging_3d(self):
         module = (
-            PatchMerging3d(dim=12, norm_layer=torch.nn.LayerNorm).to(self.device)
+            PatchMerging(dim=12, norm_layer=torch.nn.LayerNorm).to(self.device)
         )
         x_in = torch.randn(1, 1, 56, 56, 12)
         x_out = module(x_in)
@@ -66,7 +67,7 @@ class TestSwinTransformer3dComponents(unittest.TestCase):
     def test_shifted_window_attention_3d(self):
         module = (
             ShiftedWindowAttention3d(
-                dim=12, window_size=(8, 7, 7), shift_size=(4, 3, 3), num_heads=3
+                dim=12, window_size=[8, 7, 7], shift_size=[4, 3, 3], num_heads=3
             )
             .to(self.device)
         )
@@ -79,7 +80,7 @@ class TestSwinTransformer3dComponents(unittest.TestCase):
     def test_shifted_window_attention_3d_zero_shift(self):
         module = (
             ShiftedWindowAttention3d(
-                dim=12, window_size=(8, 7, 7), shift_size=(0, 0, 0), num_heads=3
+                dim=12, window_size=[8, 7, 7], shift_size=[0, 0, 0], num_heads=3
             )
             .to(self.device)
         )

@@ -1,11 +1,11 @@
-from typing import Callable, Optional, Tuple
+from typing import Callable, Optional, List
 
 import torch
 from torch import nn
 from torchmultimodal.architectures.omnivore import OmnivoreArchitecture
 from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
     PatchEmbed3d,
-    SwinTransformer3dEncoder,
+    SwinTransformer3d,
 )
 
 
@@ -49,7 +49,7 @@ class PatchEmbedOmnivore(nn.Module):
 
     def __init__(
         self,
-        patch_size: Tuple[int, int, int] = (2, 4, 4),
+        patch_size: List[int],
         embed_dim: int = 96,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
     ):
@@ -84,15 +84,16 @@ class PatchEmbedOmnivore(nn.Module):
 
 # TODO: add pretrained weight capability
 def omnivore_swin_t(encoder_only=False) -> nn.Module:
-    encoder = SwinTransformer3dEncoder(
-        patch_size=(2, 4, 4),
+    encoder = SwinTransformer3d(
+        patch_size=[2, 4, 4],
         embed_dim=96,
         depths=[2, 2, 6, 2],
         num_heads=[3, 6, 12, 24],
-        window_size=(8, 7, 7),
+        window_size=[8, 7, 7],
         stochastic_depth_prob=0.2,
         norm_layer=nn.LayerNorm,
         patch_embed=PatchEmbedOmnivore,
+        num_classes=None,
     )
     if encoder_only:
         return encoder
