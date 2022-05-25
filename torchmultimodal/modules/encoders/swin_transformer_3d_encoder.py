@@ -142,7 +142,9 @@ def shifted_window_attention_3d(
     """
     B, D, H, W, C = input.shape
     # pad feature maps to multiples of window size
-    pad_size = _compute_pad_size_3d((D, H, W), (window_size[0], window_size[1], window_size[2]))
+    pad_size = _compute_pad_size_3d(
+        (D, H, W), (window_size[0], window_size[1], window_size[2])
+    )
     x = F.pad(input, (0, 0, 0, pad_size[2], 0, pad_size[1], 0, pad_size[0]))
     _, Dp, Hp, Wp, _ = x.shape
     padded_size = (Dp, Hp, Wp)
@@ -313,9 +315,9 @@ class ShiftedWindowAttention3d(nn.Module):
             self.qkv.weight,
             self.proj.weight,
             relative_position_bias,
-            (window_size[0], window_size[1], window_size[2]),
+            window_size,
             self.num_heads,
-            shift_size=(shift_size[0], shift_size[1], shift_size[2]),
+            shift_size=shift_size,
             attention_dropout=self.attention_dropout,
             dropout=self.dropout,
             qkv_bias=self.qkv.bias,
@@ -391,10 +393,13 @@ class PatchEmbed3d(nn.Module):
         norm_layer: Optional[Callable[..., nn.Module]] = None,
     ):
         super().__init__()
-        self.patch_size = patch_size
+        self.tuple_patch_size = (patch_size[0], patch_size[1], patch_size[2])
 
         self.proj = nn.Conv3d(
-            in_channels, embed_dim, kernel_size=patch_size, stride=patch_size
+            in_channels,
+            embed_dim,
+            kernel_size=self.tuple_patch_size,
+            stride=self.tuple_patch_size,
         )
         if norm_layer is not None:
             self.norm = norm_layer(embed_dim)
@@ -405,7 +410,7 @@ class PatchEmbed3d(nn.Module):
         """Forward function."""
         # padding
         _, _, D, H, W = x.size()
-        pad_size = _compute_pad_size_3d((D, H, W), (self.patch_size[0], self.patch_size[1], self.patch_size[2]))
+        pad_size = _compute_pad_size_3d((D, H, W), self.tuple_patch_size)
         x = F.pad(x, (0, pad_size[2], 0, pad_size[1], 0, pad_size[0]))
         x = self.proj(x)  # B C D Wh Ww
         x = x.permute(0, 2, 3, 4, 1)  # B D Wh Ww C
@@ -440,7 +445,7 @@ class SwinTransformer3d(nn.Module):
         embed_dim: int,
         depths: List[int],
         num_heads: List[int],
-        window_size: List[int] = (2, 7, 7),
+        window_size: List[int],
         mlp_ratio: float = 4.0,
         dropout: float = 0.0,
         attention_dropout: float = 0.0,
@@ -461,7 +466,6 @@ class SwinTransformer3d(nn.Module):
 
         if patch_embed is None:
             patch_embed = PatchEmbed3d
-
 
         # split image into non-overlapping patches
         self.patch_embed = patch_embed(
@@ -488,7 +492,9 @@ class SwinTransformer3d(nn.Module):
                         dim,
                         num_heads[i_stage],
                         window_size=window_size,
-                        shift_size=[0 if i_layer % 2 == 0 else w // 2 for w in window_size],
+                        shift_size=[
+                            0 if i_layer % 2 == 0 else w // 2 for w in window_size
+                        ],
                         mlp_ratio=mlp_ratio,
                         dropout=dropout,
                         attention_dropout=attention_dropout,

@@ -10,7 +10,7 @@ import torch
 import torchmultimodal.models.omnivore as omnivore
 from torchmultimodal.utils.common import get_current_device
 
-from ..test_utils import set_rng_seed, assert_expected
+from ..test_utils import set_rng_seed
 
 
 class TestOmnivoreModel(unittest.TestCase):
@@ -40,7 +40,10 @@ class TestOmnivoreModel(unittest.TestCase):
     def test_omnivore_forward_wrong_input_type(self):
         model = omnivore.omnivore_swin_t().to(self.device)
 
-        image = torch.randn(1, 3, 1, 112, 112) # B C D H W
+        image = torch.randn(1, 3, 1, 112, 112)  # B C D H W
         with self.assertRaises(AssertionError) as cm:
             _ = model(image, input_type="_WRONG_TYPE_")
-            self.assertEqual("Unsupported input_type: _WRONG_TYPE_, please use one of {'video', 'rgbd', 'image'}", str(cm.exception))
+            self.assertEqual(
+                "Unsupported input_type: _WRONG_TYPE_, please use one of {'video', 'rgbd', 'image'}",
+                str(cm.exception),
+            )
