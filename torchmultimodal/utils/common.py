@@ -8,9 +8,10 @@ import hashlib
 import os
 from collections import OrderedDict
 from dataclasses import fields
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import torch
+from torch import Tensor
 
 
 def get_current_device():
@@ -20,7 +21,29 @@ def get_current_device():
         return torch.device("cpu")
 
 
-def calculate_same_padding(kernel_size: Tuple[int, ...], stride: Tuple[int, ...]):
+def calculate_same_padding(
+    kernel_size: Union[int, Tuple[int, ...]], stride: Union[int, Tuple[int, ...]]
+):
+    """Calculates padding amount on each dimension based on given kernel size and stride.
+
+    Pads to match the 'SAME' padding in Keras, i.e., with a stride of 1 output is guaranteed
+    to have the same shape as input, with stride 2 the dimensions of output are halved.
+
+    Code taken from VideoGPT
+    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
+
+    Args:
+        kernel_size (int or Tuple): size of convolutional kernel
+        stride (int or Tuple): stride amount of kernel
+
+    Returns:
+        Tuple: the padding amount in a tuple of tuples for each dimension
+    """
+    if isinstance(kernel_size, int):
+        kernel_size = (kernel_size,) * 3
+    if isinstance(stride, int):
+        stride = (stride,) * 3
+
     # assumes that the input shape is divisible by stride
     total_pad = tuple([k - s for k, s in zip(kernel_size, stride)])
     pad_input = []
@@ -28,6 +51,50 @@ def calculate_same_padding(kernel_size: Tuple[int, ...], stride: Tuple[int, ...]
         pad_input.append((p // 2 + p % 2, p // 2))
     pad_input = tuple(sum(pad_input, tuple()))
     return pad_input
+
+
+def shift_dim(
+    x: Tensor, src_dim: int = -1, dest_dim: int = -1, make_contiguous: bool = True
+):
+    """Permutes tensor x by moving src_dim to dest_dim.
+    i.e. shift_dim(x, 1, -1) would be (b, c, t, h, w) -> (b, t, h, w, c)
+
+    Code taken from VideoGPT
+    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/utils.py
+
+    Args:
+        x (Tensor): input Tensor you want to permute
+        src_dim (int, optional): the axis you want to move. Negative indexing supported. Defaults to -1.
+        dest_dim (int, optional): the axis you want to move to. Negative indexing supported. Defaults to -1.
+        make_contiguous (bool, optional): if you want the output tensor to be contiguous in memory. Defaults to True.
+
+    Returns:
+        Tensor: permuted Tensor
+    """
+    n_dims = len(x.shape)
+    # Remap negative dim
+    if src_dim < 0:
+        src_dim = n_dims + src_dim
+    if dest_dim < 0:
+        dest_dim = n_dims + dest_dim
+
+    assert 0 <= src_dim < n_dims and 0 <= dest_dim < n_dims
+
+    dims = list(range(n_dims))
+    del dims[src_dim]
+
+    permutation = []
+    ctr = 0
+    for i in range(n_dims):
+        if i == dest_dim:
+            permutation.append(src_dim)
+        else:
+            permutation.append(dims[ctr])
+            ctr += 1
+    x = x.permute(permutation)
+    if make_contiguous:
+        x = x.contiguous()
+    return x
 
 
 class PretrainedMixin:
