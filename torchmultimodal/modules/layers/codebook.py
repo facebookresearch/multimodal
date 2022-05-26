@@ -8,17 +8,18 @@ from typing import NamedTuple, Tuple
 
 import torch
 from torch import nn, Size, Tensor
+from torchmultimodal.utils.common import shift_dim
 
 
-class QuantizationOutput(NamedTuple):
+class CodebookOutput(NamedTuple):
     encoded_flat: Tensor  # the flattened encoder output
     quantized_flat: Tensor  # the chosen nearest embeddings
     codebook_indices: Tensor  # indices of the chosen embeddings
     quantized: Tensor  # the chosen embeddings (unflattened)
 
 
-class Quantization(nn.Module):
-    """Quantization provides an embedding layer that takes in the output of an encoder
+class Codebook(nn.Module):
+    """Codebook provides an embedding layer that takes in the output of an encoder
     and performs a nearest-neighbor lookup in the embedding space.
 
     Vector quantization was introduced in Oord et al. 2017 (https://arxiv.org/pdf/1711.00937.pdf)
@@ -91,8 +92,7 @@ class Quantization(nn.Module):
 
     def _preprocess(self, encoded: Tensor) -> Tuple[Tensor, Size]:
         # Rearrange from batch x channel x n dims to batch x n dims x channel
-        new_dims = (0,) + tuple(range(2, len(encoded.shape))) + (1,)
-        encoded_permuted = encoded.permute(new_dims).contiguous()
+        encoded_permuted = shift_dim(encoded, 1, -1)
         permuted_shape = encoded_permuted.shape
 
         # Flatten input
@@ -110,8 +110,7 @@ class Quantization(nn.Module):
         # Rearrange back to batch x channel x n dims
         num_dims = len(permuted_shape)
         quantized_permuted = quantized_flat.view(permuted_shape)
-        old_dims = (0,) + (num_dims - 1,) + tuple(range(1, num_dims - 1))
-        quantized = quantized_permuted.permute(old_dims).contiguous()
+        quantized = shift_dim(quantized_permuted, -1, 1)
 
         return quantized
 
@@ -191,7 +190,7 @@ class Quantization(nn.Module):
 
         return quantized_flat, codebook_indices
 
-    def forward(self, z: Tensor) -> QuantizationOutput:
+    def forward(self, z: Tensor) -> CodebookOutput:
         # First check if embedding is initialized correctly
         if not self._is_embedding_init and self.training:
             encoded_flat, permuted_shape = self._init_embedding_and_preprocess(z)
@@ -205,6 +204,4 @@ class Quantization(nn.Module):
         # Reshape back to original dims
         quantized = self._postprocess(quantized_flat, permuted_shape)
 
-        return QuantizationOutput(
-            encoded_flat, quantized_flat, codebook_indices, quantized
-        )
+        return CodebookOutput(encoded_flat, quantized_flat, codebook_indices, quantized)

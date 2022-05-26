@@ -8,12 +8,12 @@ import unittest
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.modules.layers.quantization import Quantization
+from torchmultimodal.modules.layers.codebook import Codebook
 
 
-class TestQuantization(unittest.TestCase):
+class TestCodebook(unittest.TestCase):
     """
-    Test the Quantization class
+    Test the Codebook class
     """
 
     def setUp(self):
@@ -38,7 +38,7 @@ class TestQuantization(unittest.TestCase):
             [[1, 1, 1], [1, 1, 1], [1, 1, 1], [1, 1, 1]]
         )
 
-        self.vq = Quantization(
+        self.vq = Codebook(
             num_embeddings=self.num_embeddings,
             embedding_dim=self.embedding_dim,
             decay=0.3,
