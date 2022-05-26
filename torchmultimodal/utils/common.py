@@ -8,7 +8,7 @@ import hashlib
 import os
 from collections import OrderedDict
 from dataclasses import fields
-from typing import Optional
+from typing import Optional, Tuple
 
 import torch
 
@@ -18,6 +18,16 @@ def get_current_device():
         return f"cuda:{torch.cuda.current_device()}"
     else:
         return torch.device("cpu")
+
+
+def calculate_same_padding(kernel_size: Tuple[int, ...], stride: Tuple[int, ...]):
+    # assumes that the input shape is divisible by stride
+    total_pad = tuple([k - s for k, s in zip(kernel_size, stride)])
+    pad_input = []
+    for p in total_pad[::-1]:  # reverse since F.pad starts from last dim
+        pad_input.append((p // 2 + p % 2, p // 2))
+    pad_input = tuple(sum(pad_input, tuple()))
+    return pad_input
 
 
 class PretrainedMixin:
