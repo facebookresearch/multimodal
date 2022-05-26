@@ -8,6 +8,7 @@ from typing import NamedTuple, Tuple
 
 import torch
 from torch import nn, Size, Tensor
+from torchmultimodal.utils.common import shift_dim
 
 
 class CodebookOutput(NamedTuple):
@@ -83,8 +84,7 @@ class Codebook(nn.Module):
 
     def _preprocess(self, encoded: Tensor) -> Tuple[Tensor, Size]:
         # Rearrange from batch x channel x n dims to batch x n dims x channel
-        new_dims = (0,) + tuple(range(2, len(encoded.shape))) + (1,)
-        encoded_permuted = encoded.permute(new_dims).contiguous()
+        encoded_permuted = shift_dim(encoded, 1, -1)
         permuted_shape = encoded_permuted.shape
 
         # Flatten input
@@ -102,8 +102,7 @@ class Codebook(nn.Module):
         # Rearrange back to batch x channel x n dims
         num_dims = len(permuted_shape)
         quantized_permuted = quantized_flat.view(permuted_shape)
-        old_dims = (0,) + (num_dims - 1,) + tuple(range(1, num_dims - 1))
-        quantized = quantized_permuted.permute(old_dims).contiguous()
+        quantized = shift_dim(quantized_permuted, -1, 1)
 
         return quantized
 
