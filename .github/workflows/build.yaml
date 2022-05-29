@@ -1,0 +1,35 @@
+name: build
+on:
+  workflow_call:
+    inputs:
+      branch:
+        required: true
+        type: string
+        default: 'main'
+
+jobs:
+  build_wheel:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: [3.8, 3.9]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Check out repository
+        uses: actions/checkout@v2
+      - name: Build wheel
+        run: |
+          pip3 install wheel
+          python setup.py bdist_wheel
+      - name: Install wheel
+        run: |
+          pip3 install dist/torchmultimodal*.whl
+      - name: Upload to github
+        uses: actions/upload-artifact@v2
+        with:
+          name: torchmultimodal wheel
+          path: dist/torchmultimodal*.whl

@@ -1,0 +1,5 @@
+name: Test build workflow
+on: workflow_dispatch
+jobs:
+  test_build:
+    uses: ./.github/workflows/build.yaml
