@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import NamedTuple, Tuple
+from typing import NamedTuple, Tuple, Union
 
 import torch
 from torch import nn, Size, Tensor
@@ -48,7 +48,7 @@ class Codebook(nn.Module):
         embedding_dim: int,
         decay: float = 0.99,
         epsilon: float = 1e-7,
-    ):
+    ) -> None:
         super().__init__()
         # Embedding weights and parameters for EMA update will be registered to buffer, as they
         # will not be updated by the optimizer but are still model parameters.
@@ -68,7 +68,7 @@ class Codebook(nn.Module):
         # Flag to track if we need to initialize embedding with encoder output
         self._is_embedding_init = False
 
-    def _tile(self, x):
+    def _tile(self, x) -> Tensor:
         # Repeat encoder vectors in cases where the encoder output does not have enough vectors
         # to initialize the codebook on first forward pass
         num_encoder_vectors, num_channels = x.shape
@@ -98,7 +98,9 @@ class Codebook(nn.Module):
 
         return encoded_flat, permuted_shape
 
-    def _postprocess(self, quantized_flat: Tensor, permuted_shape: Size) -> Tensor:
+    def _postprocess(
+        self, quantized_flat: Tensor, permuted_shape: Union[Size, Tuple]
+    ) -> Tensor:
         # Rearrange back to batch x channel x n dims
         num_dims = len(permuted_shape)
         quantized_permuted = quantized_flat.view(permuted_shape)

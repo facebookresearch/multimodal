@@ -8,7 +8,7 @@ import hashlib
 import os
 from collections import OrderedDict
 from dataclasses import fields
-from typing import Optional, Tuple, Union
+from typing import Optional
 
 import torch
 from torch import Tensor
@@ -19,38 +19,6 @@ def get_current_device():
         return f"cuda:{torch.cuda.current_device()}"
     else:
         return torch.device("cpu")
-
-
-def calculate_same_padding(
-    kernel_size: Union[int, Tuple[int, ...]], stride: Union[int, Tuple[int, ...]]
-):
-    """Calculates padding amount on each dimension based on given kernel size and stride.
-
-    Pads to match the 'SAME' padding in Keras, i.e., with a stride of 1 output is guaranteed
-    to have the same shape as input, with stride 2 the dimensions of output are halved.
-
-    Code taken from VideoGPT
-    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
-
-    Args:
-        kernel_size (int or Tuple): size of convolutional kernel
-        stride (int or Tuple): stride amount of kernel
-
-    Returns:
-        Tuple: the padding amount in a tuple of tuples for each dimension
-    """
-    if isinstance(kernel_size, int):
-        kernel_size = (kernel_size,) * 3
-    if isinstance(stride, int):
-        stride = (stride,) * 3
-
-    # assumes that the input shape is divisible by stride
-    total_pad = tuple([k - s for k, s in zip(kernel_size, stride)])
-    pad_input = []
-    for p in total_pad[::-1]:  # reverse since F.pad starts from last dim
-        pad_input.append((p // 2 + p % 2, p // 2))
-    pad_input = tuple(sum(pad_input, tuple()))
-    return pad_input
 
 
 def shift_dim(
