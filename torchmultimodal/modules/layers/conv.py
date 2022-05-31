@@ -60,7 +60,7 @@ class SamePadConvTranspose3d(nn.Module):
         self.kernel_size = _triple(kernel_size)
         self.stride = _triple(stride)
 
-        self.convt = nn.ConvTranspose3d(
+        self.conv = nn.ConvTranspose3d(
             in_channels,
             out_channels,
             kernel_size,
@@ -129,7 +129,13 @@ def calculate_transpose_padding(
     input_shape: Union[Size, Tuple],
     input_pad: Tuple[int, ...] = None,
 ) -> Tuple[Tuple, Tuple]:
-    """Calculates
+    """Calculates padding for transposed convolution based on input dims, kernel size, and stride.
+
+    Pads to match the 'SAME' padding in Keras, i.e., with a stride of 1 output is guaranteed
+    to have the same shape as input, with stride 2 the dimensions of output are doubled.
+
+    The 'padding' argument in ConvTranspose effectively trims the output, and the 'output_padding'
+    argument effectively expands the output. These two knobs are adjusted to meet desired output dim.
 
     Args:
         kernel_size (Tuple): size of convolutional kernel
