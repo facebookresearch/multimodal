@@ -13,6 +13,23 @@ from torch.nn.modules.utils import _ntuple, _triple
 
 
 class SamePadConv3d(nn.Module):
+    """Performs a same padded convolution on a 3D input. This maintains input shape with unit
+    stride, and divides input dims by non-unit stride.
+
+    Code taken from VideoGPT
+    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
+
+    Args:
+        in_channels (int): number of channels in input, same as Conv3d
+        out_channels (int): number of channels for output, same as Conv3d
+        kernel_size (int or Tuple): size of convolutional filter, same as Conv3d
+        stride (int or Tuple): stride for convolution, same as Conv3d
+        bias (bool): use a bias for convolutional layer or not, same as Conv3d
+
+    Inputs:
+        x (Tensor): input of dims B x C x D1 x D2 x D3
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -38,6 +55,7 @@ class SamePadConv3d(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
+        # Calculate padding needed based on input shape only once to reduce run time
         if self.pad_input is None:
             self.pad_input = calculate_same_padding(
                 self.kernel_size, self.stride, x.shape[2:]
@@ -46,6 +64,23 @@ class SamePadConv3d(nn.Module):
 
 
 class SamePadConvTranspose3d(nn.Module):
+    """Performs a same padded transposed convolution on a 3D input. This maintains input shape
+    with unit stride, and multiplies input dims by non-unit stride.
+
+    Code taken from VideoGPT
+    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
+
+    Args:
+        in_channels (int): number of channels in input, same as Conv3d
+        out_channels (int): number of channels for output, same as Conv3d
+        kernel_size (int or Tuple): size of convolutional filter, same as Conv3d
+        stride (int or Tuple): stride for convolution, same as Conv3d
+        bias (bool): use a bias for convolutional layer or not, same as Conv3d
+
+    Inputs:
+        x (Tensor): input of dims B x C x D1 x D2 x D3
+    """
+
     def __init__(
         self,
         in_channels: int,
@@ -66,6 +101,7 @@ class SamePadConvTranspose3d(nn.Module):
         )
 
     def forward(self, x) -> Tensor:
+        # Calculate padding needed based on input shape only once to reduce run time
         if self.pad_input is None:
             self.pad_input = calculate_same_padding(
                 self.kernel_size, self.stride, x.shape[2:]
