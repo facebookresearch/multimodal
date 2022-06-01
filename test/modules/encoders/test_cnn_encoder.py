@@ -10,7 +10,6 @@ import torch
 from torch import nn, Tensor
 from test.test_utils import assert_expected
 from torchmultimodal.modules.encoders.cnn_encoder import CNNEncoder
-
 class TestCnnEncoder(unittest.TestCase):
     def test_invalid_arg_lengths(self):
         input_dims = [1,2]
@@ -44,3 +43,9 @@ class TestCnnEncoder(unittest.TestCase):
         actual = cnn_encoder(input)
         expected = torch.zeros(5,768)
         assert_expected(actual, expected)
+
+    def test_varying_dims_and_kernels(self):
+        input = torch.rand(5,3,128,128)
+        cnn_encoder = CNNEncoder([3,2,1],[2,1,2],[3,5,7])
+        out = cnn_encoder(input)
+        self.assertEqual(out.size(), torch.Size([5,512]))
