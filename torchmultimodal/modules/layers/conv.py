@@ -4,13 +4,12 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from itertools import repeat
 from typing import Tuple, Union
 
 from torch import nn, Size, Tensor
 from torch.nn import functional as F
-from torch.nn.common_types import _size_3_t
-from torch.nn.modules.utils import _triple
+from torch.nn.common_types import _size_3_t, _size_any_t
+from torch.nn.modules.utils import _ntuple, _triple
 
 
 class SamePadConv3d(nn.Module):
@@ -21,6 +20,7 @@ class SamePadConv3d(nn.Module):
         kernel_size: _size_3_t,
         stride: _size_3_t = 1,
         bias: bool = True,
+        **kwargs
     ) -> None:
         super().__init__()
 
@@ -33,8 +33,8 @@ class SamePadConv3d(nn.Module):
             out_channels,
             self.kernel_size,
             stride=self.stride,
-            padding=0,
             bias=bias,
+            **kwargs
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -53,6 +53,7 @@ class SamePadConvTranspose3d(nn.Module):
         kernel_size: _size_3_t,
         stride: _size_3_t = 1,
         bias: bool = True,
+        **kwargs
     ) -> None:
         super().__init__()
 
@@ -61,11 +62,7 @@ class SamePadConvTranspose3d(nn.Module):
         self.stride = _triple(stride)
 
         self.conv = nn.ConvTranspose3d(
-            in_channels,
-            out_channels,
-            kernel_size,
-            stride=stride,
-            bias=bias,
+            in_channels, out_channels, kernel_size, stride=stride, bias=bias, **kwargs
         )
 
     def forward(self, x) -> Tensor:
@@ -80,8 +77,8 @@ class SamePadConvTranspose3d(nn.Module):
 
 
 def calculate_same_padding(
-    kernel_size: Tuple[int, ...],
-    stride: Tuple[int, ...],
+    kernel_size: _size_any_t,
+    stride: _size_any_t,
     input_shape: Union[Size, Tuple],
 ) -> Tuple:
     """Calculates padding amount on each dimension based on given kernel size and stride.
@@ -104,9 +101,12 @@ def calculate_same_padding(
         Tuple: the padding amount in a tuple of tuples for each dimension
     """
 
-    assert (
-        len(kernel_size) == len(stride) == len(input_shape)
-    ), "dims for kernel, stride, and input must match"
+    convert_to_tuple = _ntuple(len(input_shape))
+    kernel_size = convert_to_tuple(kernel_size)
+    stride = convert_to_tuple(stride)
+
+    if not (len(kernel_size) == len(stride) == len(input_shape)):
+        raise ValueError("dims for kernel, stride, and input must match")
 
     total_pad = []
     for k, s, d in zip(kernel_size, stride, input_shape):
@@ -124,10 +124,10 @@ def calculate_same_padding(
 
 
 def calculate_transpose_padding(
-    kernel_size: Tuple[int, ...],
-    stride: Tuple[int, ...],
+    kernel_size: _size_any_t,
+    stride: _size_any_t,
     input_shape: Union[Size, Tuple],
-    input_pad: Tuple[int, ...] = None,
+    input_pad: _size_any_t = 0,
 ) -> Tuple[Tuple, Tuple]:
     """Calculates padding for transposed convolution based on input dims, kernel size, and stride.
 
@@ -147,14 +147,15 @@ def calculate_transpose_padding(
         Tuple: padding and output_padding to be used in ConvTranspose layers
     """
 
-    assert (
-        len(kernel_size) == len(stride) == len(input_shape)
-    ), "dims for kernel, stride, and input must match"
-    if input_pad is None:
-        input_pad = tuple(repeat(0, len(input_shape) * 2))
-    assert len(input_pad) % 2 == 0 and len(input_pad) // 2 == len(
-        input_shape
-    ), "input_pad length must be twice the number of dims"
+    convert_to_tuple = _ntuple(len(input_shape))
+    kernel_size = convert_to_tuple(kernel_size)
+    stride = convert_to_tuple(stride)
+
+    if not (len(kernel_size) == len(stride) == len(input_shape)):
+        raise ValueError("dims for kernel, stride, and input must match")
+    input_pad = _ntuple(len(input_shape) * 2)(input_pad)
+    if len(input_pad) % 2 != 0 or len(input_pad) // 2 != len(input_shape):
+        raise ValueError("input_pad length must be twice the number of dims")
 
     transpose_pad = []
     output_pad = []
