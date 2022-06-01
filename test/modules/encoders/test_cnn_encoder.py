@@ -7,6 +7,8 @@
 import unittest
 
 import torch
+from torch import nn, Tensor
+from test.test_utils import assert_expected
 from torchmultimodal.modules.encoders.cnn_encoder import CNNEncoder
 
 class TestCnnEncoder(unittest.TestCase):
@@ -18,10 +20,27 @@ class TestCnnEncoder(unittest.TestCase):
             AssertionError, CNNEncoder, input_dims, output_dims, kernel_sizes
         )
 
-    def test_invalid_output_dim(self):
+    def test_invalid_output_dims(self):
         input_dims = [0,1,2,3]
         output_dims = [1,2,4,5]
         kernel_sizes = [8,9,10,11]
         self.assertRaises(
             AssertionError, CNNEncoder, input_dims, output_dims, kernel_sizes
         )
+
+    def test_single_layer_output_shape(self):
+        input = torch.zeros(5,3,128,128)
+        cnn_encoder = CNNEncoder([3],[3],[5])
+        actual = cnn_encoder(input)
+        expected = torch.zeros(5,12288)
+        assert_expected(actual, expected)
+
+    def test_multilayers_output_shape(self):
+        input = torch.zeros(5,3,128,128)
+        cnn_encoder = CNNEncoder([3,3,3],[3,3,3],[5,5,5])
+        zero_bias = nn.Parameter(Tensor([0.,0.,0.]))
+        for i in range(3):
+            cnn_encoder.cnn[i][0].bias = zero_bias
+        actual = cnn_encoder(input)
+        expected = torch.zeros(5,768)
+        assert_expected(actual, expected)
