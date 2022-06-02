@@ -111,12 +111,16 @@ class TestSamePadConv3d(unittest.TestCase):
             transpose_pad_actual, output_pad_actual = calculate_transpose_padding(
                 kernel, stride, inp.shape[2:], pad
             )
-            assert (
-                transpose_pad_actual == self.transpose_pad_expected[i]
-            ), f"transpose padding incorrect for shape {inp.shape}, kernel {kernel}, stride {stride}"
-            assert (
-                output_pad_actual == self.output_pad_expected[i]
-            ), f"output padding incorrect for shape {inp.shape}, kernel {kernel}, stride {stride}"
+            self.assertEqual(
+                transpose_pad_actual,
+                self.transpose_pad_expected[i],
+                f"transpose padding incorrect for shape {inp.shape}, kernel {kernel}, stride {stride}",
+            )
+            self.assertEqual(
+                output_pad_actual,
+                self.output_pad_expected[i],
+                f"output padding incorrect for shape {inp.shape}, kernel {kernel}, stride {stride}",
+            )
 
     def test_samepadconvtranspose3d_forward(self):
         for i, (inp, kernel, stride) in enumerate(self.test_cases):
