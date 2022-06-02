@@ -61,7 +61,7 @@ class TestCnnEncoder(unittest.TestCase):
         )
         cnn_encoder = CNNEncoder([1],[1],[2])
         cnn_encoder.cnn[0][0].bias = nn.Parameter(Tensor([0.]))
-        cnn_encoder.cnn[0][0].weight = nn.Parameter(Tensor([[[[1.,1.],[1.,1.]]]]))
+        cnn_encoder.cnn[0][0].weight = nn.Parameter(Tensor([[1.,1.],[1.,1.]]).unsqueeze(0).unsqueeze(0))
         actual = cnn_encoder(input)
         expected = Tensor(
             [
@@ -80,7 +80,7 @@ class TestCnnEncoder(unittest.TestCase):
         )
         cnn_encoder = CNNEncoder([1],[1],[2])
         cnn_encoder.cnn[0][0].bias = nn.Parameter(Tensor([0.]))
-        cnn_encoder.cnn[0][0].weight = nn.Parameter(Tensor([[[[1.,1.],[1.,1.]]]]))
+        cnn_encoder.cnn[0][0].weight = nn.Parameter(Tensor([[1.,1.],[1.,1.]]).unsqueeze(0).unsqueeze(0))
         scripted_encoder = torch.jit.script(cnn_encoder)
         actual = scripted_encoder(input)
         expected = Tensor(
