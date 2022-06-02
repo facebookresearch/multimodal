@@ -27,17 +27,17 @@ training:
 datasets:
   _target_: definitions.TrainingDatasetsInfo
   selected:
-  - image
+  # - image
   - vl
   - text
-  image:
-    _target_: definitions.TrainingSingleDatasetInfo
-    train:
-      - _target_: definitions.HFDatasetInfo
-        key: imagenet-1k
-        subset: default
-        extra_kwargs:
-          data_dir: ${oc.env:IMAGENET_TAR}
+  # image:
+  #   _target_: definitions.TrainingSingleDatasetInfo
+  #   train:
+  #     - _target_: definitions.HFDatasetInfo
+  #       key: imagenet-1k
+  #       subset: default
+  #       extra_kwargs:
+  #         data_dir: ${oc.env:IMAGENET_TAR}
   text:
     _target_: definitions.TrainingSingleDatasetInfo
     train:

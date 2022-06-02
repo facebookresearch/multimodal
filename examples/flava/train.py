@@ -22,11 +22,11 @@ def main():
     datamodules = []
 
     # also needed for the imagenet eval callback
-    imagenet_datamodule = ImageDataModule(
-        **build_datamodule_kwargs(config.datasets.image, config.training)
-    )
-    if "image" in config.datasets.selected:
-        datamodules.append(imagenet_datamodule)
+    # imagenet_datamodule = ImageDataModule(
+    #     **build_datamodule_kwargs(config.datasets.image, config.training)
+    # )
+    # if "image" in config.datasets.selected:
+    #     datamodules.append(imagenet_datamodule)
 
     if "text" in config.datasets.selected:
         mlm_datamodule = MLMDataModule(
@@ -55,7 +55,7 @@ def main():
 
     callbacks = [
         LearningRateMonitor(logging_interval="step"),
-        MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule),
+        # MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule),
     ]
 
     if config.training.lightning_checkpoint is not None:
