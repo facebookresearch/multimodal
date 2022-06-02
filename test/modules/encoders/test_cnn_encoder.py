@@ -18,21 +18,18 @@ class TestCNNEncoder(unittest.TestCase):
                 [[1,3,5],[2,4,6]]
             ]
         ).unsqueeze(1)
+        self.input_dims = [0,1,2,3]
+        self.output_dims = [1,2,4,5]
+        self.kernel_sizes = [6,7,8,9]
 
     def test_invalid_arg_lengths(self):
-        input_dims = [1,2]
-        output_dims = [3,4,5]
-        kernel_sizes = [6,7,8]
         self.assertRaises(
-            AssertionError, CNNEncoder, input_dims, output_dims, kernel_sizes
+            AssertionError, CNNEncoder, self.input_dims[1:], self.output_dims, self.kernel_sizes
         )
 
     def test_invalid_output_dims(self):
-        input_dims = [0,1,2,3]
-        output_dims = [1,2,4,5]
-        kernel_sizes = [8,9,10,11]
         self.assertRaises(
-            AssertionError, CNNEncoder, input_dims, output_dims, kernel_sizes
+            AssertionError, CNNEncoder, self.input_dims, self.output_dims, self.kernel_sizes
         )
 
     def test_single_layer_output_shape(self):
