@@ -8,7 +8,7 @@ import hashlib
 import os
 from collections import OrderedDict
 from dataclasses import fields
-from typing import Optional
+from typing import Any, Callable, Dict, Optional
 
 import torch
 
@@ -113,3 +113,9 @@ class NestedTensor(object):
 
     def __repr__(self):
         return repr(self.tensors)
+
+
+def filter_dict(
+    key_condition: Callable[..., bool], d: Dict[Any, Any]
+) -> Dict[Any, Any]:
+    return {k: v for k, v in d.items() if key_condition(k)}
