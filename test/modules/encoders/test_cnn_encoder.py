@@ -10,7 +10,7 @@ import torch
 from torch import nn, Tensor
 from test.test_utils import assert_expected
 from torchmultimodal.modules.encoders.cnn_encoder import CNNEncoder
-class TestCnnEncoder(unittest.TestCase):
+class TestCNNEncoder(unittest.TestCase):
     def setUp(self):
         self.input = Tensor(
             [
