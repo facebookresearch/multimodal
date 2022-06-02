@@ -8,10 +8,11 @@ import unittest
 
 import torch
 from torch import nn, Tensor
-from test.test_utils import assert_expected
+from test.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.modules.encoders.cnn_encoder import CNNEncoder
 class TestCNNEncoder(unittest.TestCase):
     def setUp(self):
+        set_rng_seed(0)
         self.input = Tensor(
             [
                 [[1,2,3],[4,5,6]],
@@ -32,30 +33,31 @@ class TestCNNEncoder(unittest.TestCase):
             AssertionError, CNNEncoder, self.input_dims, self.output_dims, self.kernel_sizes
         )
 
-    def test_single_layer_output_shape(self):
-        input = torch.zeros(5,3,128,128)
+    def test_single_layer(self):
+        input = torch.rand(3,3,2,2)
         cnn_encoder = CNNEncoder([3],[3],[5])
         actual = cnn_encoder(input)
-        # expected size = (N, C * H/2 * W/2)
-        expected = torch.zeros(5,12288)
+        expected = Tensor(
+            [
+                [-0.452341,  0.680854, -0.557894],
+                [-0.924794,  0.729902, -0.836271],
+                [ 1.377135, -1.410758,  1.394166]
+            ]
+        )
         assert_expected(actual, expected)
 
-    def test_multilayers_output_shape(self):
-        input = torch.zeros(5,3,128,128)
-        cnn_encoder = CNNEncoder([3,3,3],[3,3,3],[5,5,5])
-        zero_bias = nn.Parameter(Tensor([0.,0.,0.]))
-        for i in range(3):
-            cnn_encoder.cnn[i][0].bias = zero_bias
-        actual = cnn_encoder(input)
-        # expected size = (N, C * H/(2^3) * W/(2^3))
-        expected = torch.zeros(5,768)
-        assert_expected(actual, expected)
-
-    def test_varying_dims_and_kernels(self):
-        input = torch.rand(5,3,128,128)
+    def test_multiple_layer(self):
+        input = torch.rand(3,3,8,8)
         cnn_encoder = CNNEncoder([3,2,1],[2,1,2],[3,5,7])
-        out = cnn_encoder(input)
-        self.assertEqual(out.size(), torch.Size([5,512]))
+        actual = cnn_encoder(input)
+        expected = Tensor(
+            [
+                [-0.482730, -0.253406],
+                [ 1.391524,  1.298026],
+                [-0.908794, -1.044622]
+            ]
+        )
+        assert_expected(actual, expected)
 
     def test_fixed_weight_and_bias(self):
         cnn_encoder = CNNEncoder([1],[1],[2])
