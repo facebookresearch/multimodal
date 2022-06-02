@@ -11,6 +11,14 @@ from torch import nn, Tensor
 from test.test_utils import assert_expected
 from torchmultimodal.modules.encoders.cnn_encoder import CNNEncoder
 class TestCnnEncoder(unittest.TestCase):
+    def setUp(self):
+        self.input = Tensor(
+            [
+                [[1,2,3],[4,5,6]],
+                [[1,3,5],[2,4,6]]
+            ]
+        ).unsqueeze(1)
+
     def test_invalid_arg_lengths(self):
         input_dims = [1,2]
         output_dims = [3,4,5]
@@ -53,16 +61,10 @@ class TestCnnEncoder(unittest.TestCase):
         self.assertEqual(out.size(), torch.Size([5,512]))
 
     def test_fixed_weight_and_bias(self):
-        input = Tensor(
-            [
-                [[[1,2,3],[4,5,6]]],
-                [[[1,3,5],[2,4,6]]]
-            ]
-        )
         cnn_encoder = CNNEncoder([1],[1],[2])
         cnn_encoder.cnn[0][0].bias = nn.Parameter(Tensor([0.]))
         cnn_encoder.cnn[0][0].weight = nn.Parameter(Tensor([[1.,1.],[1.,1.]]).unsqueeze(0).unsqueeze(0))
-        actual = cnn_encoder(input)
+        actual = cnn_encoder(self.input)
         expected = Tensor(
             [
                 [-0.6324555, 0.6324555],
@@ -72,17 +74,11 @@ class TestCnnEncoder(unittest.TestCase):
         assert_expected(actual, expected)
 
     def test_scripting(self):
-        input = Tensor(
-            [
-                [[[1,2,3],[4,5,6]]],
-                [[[1,3,5],[2,4,6]]]
-            ]
-        )
         cnn_encoder = CNNEncoder([1],[1],[2])
         cnn_encoder.cnn[0][0].bias = nn.Parameter(Tensor([0.]))
         cnn_encoder.cnn[0][0].weight = nn.Parameter(Tensor([[1.,1.],[1.,1.]]).unsqueeze(0).unsqueeze(0))
         scripted_encoder = torch.jit.script(cnn_encoder)
-        actual = scripted_encoder(input)
+        actual = scripted_encoder(self.input)
         expected = Tensor(
             [
                 [-0.6324555, 0.6324555],
