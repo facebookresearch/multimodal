@@ -49,7 +49,7 @@ class TestCNNEncoder(unittest.TestCase):
                 [1.377135, -1.410758, 1.394166],
             ]
         )
-        assert_expected(actual, expected)
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_multiple_layer(self):
         input = torch.rand(3, 3, 8, 8)
@@ -58,7 +58,7 @@ class TestCNNEncoder(unittest.TestCase):
         expected = Tensor(
             [[-0.482730, -0.253406], [1.391524, 1.298026], [-0.908794, -1.044622]]
         )
-        assert_expected(actual, expected)
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_fixed_weight_and_bias(self):
         cnn_encoder = CNNEncoder([1], [1], [2])
@@ -68,7 +68,7 @@ class TestCNNEncoder(unittest.TestCase):
         )
         actual = cnn_encoder(self.input)
         expected = Tensor([[-0.434959, 0.807781], [-1.429150, 1.056329]])
-        assert_expected(actual, expected)
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_scripting(self):
         cnn_encoder = CNNEncoder([1], [1], [2])
@@ -79,4 +79,4 @@ class TestCNNEncoder(unittest.TestCase):
         scripted_encoder = torch.jit.script(cnn_encoder)
         actual = scripted_encoder(self.input)
         expected = Tensor([[-0.434959, 0.807781], [-1.429150, 1.056329]])
-        assert_expected(actual, expected)
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
