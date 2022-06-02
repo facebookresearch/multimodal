@@ -31,6 +31,7 @@ class TestCnnEncoder(unittest.TestCase):
         input = torch.zeros(5,3,128,128)
         cnn_encoder = CNNEncoder([3],[3],[5])
         actual = cnn_encoder(input)
+        # expected size = (N, C * H/2 * W/2)
         expected = torch.zeros(5,12288)
         assert_expected(actual, expected)
 
@@ -41,6 +42,7 @@ class TestCnnEncoder(unittest.TestCase):
         for i in range(3):
             cnn_encoder.cnn[i][0].bias = zero_bias
         actual = cnn_encoder(input)
+        # expected size = (N, C * H/(2^3) * W/(2^3))
         expected = torch.zeros(5,768)
         assert_expected(actual, expected)
 
