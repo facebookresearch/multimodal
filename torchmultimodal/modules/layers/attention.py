@@ -9,7 +9,7 @@ from typing import Dict, Tuple
 import torch
 from torch import nn, Tensor
 from torch.nn import functional as F
-from torchmultimodal.utils.common import shift_dim, view_range
+from torchmultimodal.utils.common import shift_dim
 
 
 class MultiHeadAttention(nn.Module):
@@ -66,9 +66,9 @@ class MultiHeadAttention(nn.Module):
     def forward(self, q, k, v, decode_step=None, decode_idx=None):
         # compute k, q, v
         d_k, d_v, n_head = self.d_k, self.d_v, self.n_head
-        q = view_range(self.w_qs(q), -1, None, (n_head, d_k))
-        k = view_range(self.w_ks(k), -1, None, (n_head, d_k))
-        v = view_range(self.w_vs(v), -1, None, (n_head, d_v))
+        q = self.w_qs(q).unflatten(-1, (n_head, d_k))
+        k = self.w_ks(k).unflatten(-1, (n_head, d_k))
+        v = self.w_vs(v).unflatten(-1, (n_head, d_v))
 
         # b x n_head x seq_len x d
         # (b, *d_shape, n_head, d) ->  (b, n_head, *d_shape, d)
@@ -140,7 +140,7 @@ class FullAttention(nn.Module):
             q, k, v, mask=mask, attn_dropout=self.attn_dropout, training=self.training
         )
 
-        return view_range(out, 2, 3, old_shape)
+        return out.unflatten(2, old_shape)
 
 
 class AxialAttention(nn.Module):
