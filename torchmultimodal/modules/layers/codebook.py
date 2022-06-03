@@ -49,7 +49,7 @@ class Codebook(nn.Module):
         decay: float = 0.99,
         codebook_usage_threshold: float = 1.0,
         epsilon: float = 1e-7,
-    ):
+    ) -> None:
         super().__init__()
         # Embedding weights and parameters for EMA update will be registered to buffer, as they
         # will not be updated by the optimizer but are still model parameters.
@@ -72,7 +72,7 @@ class Codebook(nn.Module):
         # Flag to track if we need to initialize embedding with encoder output
         self._is_embedding_init = False
 
-    def _tile(self, x, n):
+    def _tile(self, x: Tensor, n: int) -> Tensor:
         # Repeat vectors in x if x has less than n vectors
         num_vectors, num_channels = x.shape
         if num_vectors < n:
@@ -83,7 +83,7 @@ class Codebook(nn.Module):
             x = x + torch.randn_like(x) * std
         return x
 
-    def _get_random_vectors(self, x, n):
+    def _get_random_vectors(self, x: Tensor, n: int) -> Tensor:
         # Gets n random row vectors from 2D tensor x
         x_tiled = self._tile(x, n)
         idx = torch.randperm(x_tiled.shape[0])
@@ -145,22 +145,20 @@ class Codebook(nn.Module):
         # Count how often each embedding vector was looked up
         codebook_selection_count = torch.sum(codebook_onehot, 0)
         # Update usage value for each embedding vector
-        self.code_usage = self.code_usage * self._decay + codebook_selection_count * (
-            1 - self._decay
+        self.code_usage.mul_(self._decay).add_(
+            codebook_selection_count, alpha=(1 - self._decay)
         )
         # Laplace smoothing of codebook usage - to prevent zero counts
         n = torch.sum(self.code_usage)
-        self.code_usage = (
-            (self.code_usage + self._epsilon)
-            / (n + self.num_embeddings * self._epsilon)
-            * n
-        )
+        self.code_usage.add_(self._epsilon).divide_(
+            n + self.num_embeddings * self._epsilon
+        ).mul_(n)
         # Get all encoded vectors attracted to each embedding vector
         encoded_per_codebook = torch.matmul(codebook_onehot.t(), encoded_flat)
         # Update each embedding vector with new encoded vectors that are attracted to it,
         # divided by its usage to yield the mean of encoded vectors that choose it
-        self.code_avg = (
-            self.code_avg * self._decay + (1 - self._decay) * encoded_per_codebook
+        self.code_avg.mul_(self._decay).add_(
+            encoded_per_codebook, alpha=(1 - self._decay)
         )
         self.embedding = self.code_avg / self.code_usage.unsqueeze(1)
         # Reset any embedding vectors that fall below threshold usage with random encoded vectors

@@ -192,15 +192,24 @@ class TestCodebook(unittest.TestCase):
         encoded_flat, _ = self.vq._init_embedding_and_preprocess(self.encoded)
         # Use only embedding vector at index = 1 and force restarts.
         # Slightly modify encoded_flat to make sure vectors restart to something new
+        embedding_no_restart = self.vq.embedding[1]
         encoded_flat_noise = encoded_flat + torch.randn_like(encoded_flat)
         codebook_indices_low_usage = torch.ones(encoded_flat.shape[0], dtype=torch.long)
         self.vq._ema_update_embedding(encoded_flat_noise, codebook_indices_low_usage)
 
         # Check if embedding contains restarts
         for i, emb in enumerate(self.vq.embedding):
-            # We used only emb vector with index = 1, so skip because it was not restarted
+            # We used only emb vector with index = 1, so check it was not restarted
             if i == 1:
-                continue
-            assert any(
-                [(emb == enc).all() for enc in encoded_flat_noise]
-            ), "embedding restarted from encoder output incorrectly"
+                assert_expected(
+                    emb, self.vq.code_avg[1] / self.vq.code_usage[1], rtol=0, atol=1e-4
+                )
+            # Compare each embedding vector to each encoded vector.
+            # If at least one match, then restart happened.
+            else:
+                assert any(
+                    [
+                        torch.isclose(emb, enc, rtol=0, atol=1e-4).all()
+                        for enc in encoded_flat_noise
+                    ]
+                ), "embedding restarted from encoder output incorrectly"
