@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Dict, Tuple
+from typing import Dict
 
 import torch
 from torch import nn, Tensor
@@ -32,14 +32,14 @@ class MultiHeadAttention(nn.Module):
 
     def __init__(
         self,
-        shape: Tuple,
+        shape: Tensor,
         dim_q: int,
         dim_kv: int,
         n_head: int,
         n_layer: int,
         causal: bool,
         attn_module: nn.Module,
-    ):
+    ) -> None:
         super().__init__()
         self.causal = causal
         self.shape = shape
@@ -63,7 +63,9 @@ class MultiHeadAttention(nn.Module):
 
         self.cache: Dict[str, Tensor] = dict()
 
-    def forward(self, q, k, v, decode_step=None, decode_idx=None):
+    def forward(
+        self, q: Tensor, k: Tensor, v: Tensor, decode_step=None, decode_idx=None
+    ) -> Tensor:
         # compute k, q, v
         d_k, d_v, n_head = self.d_k, self.d_v, self.n_head
         q = self.w_qs(q).unflatten(-1, (n_head, d_k))
@@ -114,7 +116,7 @@ class MultiHeadAttention(nn.Module):
 
 
 class FullAttention(nn.Module):
-    def __init__(self, shape, causal, attn_dropout):
+    def __init__(self, shape: Tensor, causal: bool, attn_dropout: float) -> None:
         super().__init__()
         self.causal = causal
         self.attn_dropout = attn_dropout
@@ -123,7 +125,9 @@ class FullAttention(nn.Module):
         if self.causal:
             self.register_buffer("mask", torch.tril(torch.ones(seq_len, seq_len)))
 
-    def forward(self, q, k, v, decode_step, decode_idx):
+    def forward(
+        self, q: Tensor, k: Tensor, v: Tensor, decode_step, decode_idx
+    ) -> Tensor:
         mask = torch.Tensor(self.mask) if self.causal else None
         if decode_step is not None and mask is not None:
             mask = mask[[decode_step]]
@@ -144,7 +148,7 @@ class FullAttention(nn.Module):
 
 
 class AxialAttention(nn.Module):
-    def __init__(self, n_dim, axial_dim):
+    def __init__(self, n_dim: int, axial_dim: int) -> None:
         super().__init__()
         if axial_dim < 0:
             axial_dim = 2 + n_dim + 1 + axial_dim
@@ -152,7 +156,9 @@ class AxialAttention(nn.Module):
             axial_dim += 2  # account for batch, head, dim
         self.axial_dim = axial_dim
 
-    def forward(self, q, k, v, decode_step, decode_idx):
+    def forward(
+        self, q: Tensor, k: Tensor, v: Tensor, decode_step, decode_idx
+    ) -> Tensor:
         q = shift_dim(q, self.axial_dim, -2).flatten(end_dim=-3)
         k = shift_dim(k, self.axial_dim, -2).flatten(end_dim=-3)
         v = shift_dim(v, self.axial_dim, -2)
@@ -165,12 +171,19 @@ class AxialAttention(nn.Module):
         return out
 
 
-def scaled_dot_product_attention(q, k, v, mask=None, attn_dropout=0.0, training=True):
+def scaled_dot_product_attention(
+    q: Tensor,
+    k: Tensor,
+    v: Tensor,
+    mask: Tensor = None,
+    attn_dropout: float = 0.0,
+    training: bool = True,
+) -> Tensor:
     # Performs scaled dot-product attention over the second to last dimension dn
 
     # (b, n_head, d1, ..., dn, d)
     attn = torch.matmul(q, k.transpose(-1, -2))
-    attn = attn / torch.sqrt(q.shape[-1])
+    attn = attn / torch.sqrt(torch.tensor(q.shape[-1]))
     if mask is not None:
         attn = attn.masked_fill(mask == 0, float("-inf"))
     attn_float = F.softmax(attn, dim=-1)
