@@ -20,10 +20,7 @@ class TestEmbeddingEncoder(unittest.TestCase):
         embedding_weights = torch.Tensor(
             [
                 [1, 1],
-                [
-                    2,
-                    2,
-                ],
+                [2, 2],
                 [1, 0],
             ]
         )
@@ -32,8 +29,8 @@ class TestEmbeddingEncoder(unittest.TestCase):
     def test_forward_sum_pooling(self):
         input = torch.Tensor(
             [
-                [1, 0, 0.25, 0.75],
-                [0, 1, 0.6, 0.4],
+                [0.25, 0.75, 0],
+                [0.6, 0, 0.4],
             ]
         )
         weighted_embedding_encoder = WeightedEmbeddingEncoder(
@@ -42,8 +39,8 @@ class TestEmbeddingEncoder(unittest.TestCase):
         actual = weighted_embedding_encoder(input)
         expected = torch.Tensor(
             [
-                [1.25, 1.25],
-                [1.4, 1.4],
+                [1.75, 1.75],
+                [1.0, 0.6],
             ]
         )
         assert_expected(actual, expected)
@@ -51,8 +48,8 @@ class TestEmbeddingEncoder(unittest.TestCase):
     def test_forward_mean_pooling(self):
         input = torch.Tensor(
             [
-                [1, 0, 0.25, 0.75],
-                [0, 1, 0.6, 0.4],
+                [0.25, 0.75, 0],
+                [0.6, 0, 0.4],
             ]
         )
         weighted_embedding_encoder = WeightedEmbeddingEncoder(
@@ -61,8 +58,8 @@ class TestEmbeddingEncoder(unittest.TestCase):
         actual = weighted_embedding_encoder(input)
         expected = torch.Tensor(
             [
-                [0.625, 0.625],
-                [0.7, 0.7],
+                [1.75 / 3, 1.75 / 3],
+                [1.0 / 3, 0.2],
             ]
         )
         assert_expected(actual, expected)
@@ -70,8 +67,8 @@ class TestEmbeddingEncoder(unittest.TestCase):
     def test_forward_max_pooling(self):
         input = torch.Tensor(
             [
-                [1, 0, 0.25, 0.75],
-                [0, 1, 0.6, 0.4],
+                [0.25, 0.75, 0],
+                [0.6, 0, 0.4],
             ]
         )
         weighted_embedding_encoder = WeightedEmbeddingEncoder(
@@ -80,8 +77,8 @@ class TestEmbeddingEncoder(unittest.TestCase):
         actual = weighted_embedding_encoder(input)
         expected = torch.Tensor(
             [
-                [0.75, 0.75],
-                [0.8, 0.8],
+                [1.5, 1.5],
+                [0.6, 0.6],
             ]
         )
         assert_expected(actual, expected)
@@ -89,8 +86,8 @@ class TestEmbeddingEncoder(unittest.TestCase):
     def test_forward_hash_no_padding(self):
         input = torch.Tensor(
             [
-                [1, 3, 0.25, 0.75],
-                [6, 1, 0.6, 0.4],
+                [0.2, 0.7, 0, 0.1],
+                [0.3, 0, 0.4, 0.3],
             ]
         )
         weighted_embedding_encoder = WeightedEmbeddingEncoder(
@@ -99,8 +96,8 @@ class TestEmbeddingEncoder(unittest.TestCase):
         actual = weighted_embedding_encoder(input)
         expected = torch.Tensor(
             [
-                [0.75, 0.75],
-                [0.8, 0.8],
+                [1.4, 1.4],
+                [0.4, 0.3],
             ]
         )
         assert_expected(actual, expected)
@@ -108,8 +105,8 @@ class TestEmbeddingEncoder(unittest.TestCase):
     def test_forward_hash_zero_padding(self):
         input = torch.Tensor(
             [
-                [0, 1, 0.25, 0.75],
-                [6, 1, 0.6, 0.4],
+                [0.2, 0.7, 0, 0.1],
+                [0.3, 0, 0.4, 0.3],
             ]
         )
         embedding = deepcopy(self.embedding)
@@ -120,8 +117,8 @@ class TestEmbeddingEncoder(unittest.TestCase):
         actual = weighted_embedding_encoder(input)
         expected = torch.Tensor(
             [
-                [1.75, 1.75],
-                [1.4, 0.8],
+                [1.8, 1.8],
+                [1.3, 0.9],
             ]
         )
         assert_expected(actual, expected)
@@ -136,8 +133,8 @@ class TestEmbeddingEncoder(unittest.TestCase):
     def test_scripting(self):
         input = torch.Tensor(
             [
-                [1, 0, 0.25, 0.75],
-                [0, 1, 0.6, 0.4],
+                [0.25, 0.75, 0],
+                [0.6, 0, 0.4],
             ]
         )
         weighted_embedding_encoder = WeightedEmbeddingEncoder(
@@ -147,8 +144,8 @@ class TestEmbeddingEncoder(unittest.TestCase):
         actual = scripted_encoder(input)
         expected = torch.Tensor(
             [
-                [0.625, 0.625],
-                [0.7, 0.7],
+                [1.75 / 3, 1.75 / 3],
+                [1.0 / 3, 0.2],
             ]
         )
         assert_expected(actual, expected)
