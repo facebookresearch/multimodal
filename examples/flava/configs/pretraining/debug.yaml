@@ -14,6 +14,7 @@ training:
   adam_eps: 1e-8
   adam_weight_decay: 1e-2
   warmup_steps: 2000
+  strategy: ddp
 
 datasets:
   _target_: definitions.TrainingDatasetsInfo

@@ -59,7 +59,7 @@ def main():
             LearningRateMonitor(logging_interval="step"),
             MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule),
         ],
-        strategy="ddp",
+        strategy=config.training.strategy,
     )
     trainer.fit(model, datamodule=datamodule)
     trainer.validate(model, datamodule=datamodule)
