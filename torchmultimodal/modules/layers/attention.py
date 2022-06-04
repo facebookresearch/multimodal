@@ -63,7 +63,7 @@ class MultiHeadAttention(nn.Module):
 
         self.cache: Dict[str, Tensor] = dict()
 
-    def _split_multihead(self, x: Tensor):
+    def _split_multihead(self, x: Tensor) -> Tensor:
         # Splits input tensor of size (b x (d1...dn) x hidden)
         # into (b x (d1...dn) x n_head x emb_dim)
         x = x.unflatten(-1, (self.n_head, -1))
@@ -71,7 +71,7 @@ class MultiHeadAttention(nn.Module):
         x = shift_dim(x, -2, 1)
         return x
 
-    def _combine_multihead(self, x: Tensor):
+    def _combine_multihead(self, x: Tensor) -> Tensor:
         # Moves head dim back to original location and concatenates heads
         # (b x n_head x (d1...dn) x emb_dim) -> (b x (d1...dn) x hidden)
         return shift_dim(x, 1, -2).flatten(start_dim=-2)
