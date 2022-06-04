@@ -63,20 +63,27 @@ class MultiHeadAttention(nn.Module):
 
         self.cache: Dict[str, Tensor] = dict()
 
+    def _split_multihead(self, x: Tensor):
+        # Splits input tensor of size (b x (d1...dn) x hidden)
+        # into (b x (d1...dn) x n_head x emb_dim)
+        x = x.unflatten(-1, (self.n_head, -1))
+        # Rearrange to put head dim first, (b x n_head x (d1...dn) x emb_dim)
+        x = shift_dim(x, -2, 1)
+        return x
+
+    def _combine_multihead(self, x: Tensor):
+        # Moves head dim back to original location and concatenates heads
+        # (b x n_head x (d1...dn) x emb_dim) -> (b x (d1...dn) x hidden)
+        return shift_dim(x, 1, -2).flatten(start_dim=-2)
+
     def forward(
         self, q: Tensor, k: Tensor, v: Tensor, decode_step=None, decode_idx=None
     ) -> Tensor:
         # compute k, q, v
         d_k, d_v, n_head = self.d_k, self.d_v, self.n_head
-        q = self.w_qs(q).unflatten(-1, (n_head, d_k))
-        k = self.w_ks(k).unflatten(-1, (n_head, d_k))
-        v = self.w_vs(v).unflatten(-1, (n_head, d_v))
-
-        # b x n_head x seq_len x d
-        # (b, *d_shape, n_head, d) ->  (b, n_head, *d_shape, d)
-        q = shift_dim(q, -2, 1)
-        k = shift_dim(k, -2, 1)
-        v = shift_dim(v, -2, 1)
+        q = self._split_multihead(self.w_qs(q))
+        k = self._split_multihead(self.w_qs(k))
+        v = self._split_multihead(self.w_qs(v))
 
         # fast decoding
         if decode_step is not None:
@@ -107,10 +114,8 @@ class MultiHeadAttention(nn.Module):
             k, v = self.cache["k"], self.cache["v"]
 
         a = self.attn(q, k, v, decode_step, decode_idx)
-
-        # (b, *d_shape, n_head, d) -> (b, *d_shape, n_head * d)
-        a = shift_dim(a, 1, -2).flatten(start_dim=-2)
-        a = self.fc(a)  # (b x seq_len x embd_dim)
+        a = self._combine_multihead(a)
+        a = self.fc(a)
 
         return a
 
