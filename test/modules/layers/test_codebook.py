@@ -192,7 +192,6 @@ class TestCodebook(unittest.TestCase):
         encoded_flat, _ = self.vq._init_embedding_and_preprocess(self.encoded)
         # Use only embedding vector at index = 1 and force restarts.
         # Slightly modify encoded_flat to make sure vectors restart to something new
-        embedding_no_restart = self.vq.embedding[1]
         encoded_flat_noise = encoded_flat + torch.randn_like(encoded_flat)
         codebook_indices_low_usage = torch.ones(encoded_flat.shape[0], dtype=torch.long)
         self.vq._ema_update_embedding(encoded_flat_noise, codebook_indices_low_usage)
