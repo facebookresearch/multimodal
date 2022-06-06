@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Dict
+from typing import Dict, Optional
 
 import torch
 from torch import nn, Tensor
@@ -82,8 +82,8 @@ class MultiHeadAttention(nn.Module):
         # compute k, q, v
         d_k, d_v, n_head = self.d_k, self.d_v, self.n_head
         q = self._split_multihead(self.w_qs(q))
-        k = self._split_multihead(self.w_qs(k))
-        v = self._split_multihead(self.w_qs(v))
+        k = self._split_multihead(self.w_ks(k))
+        v = self._split_multihead(self.w_vs(v))
 
         # fast decoding
         if decode_step is not None:
@@ -121,17 +121,19 @@ class MultiHeadAttention(nn.Module):
 
 
 class FullAttention(nn.Module):
-    def __init__(self, shape: Tensor, causal: bool, attn_dropout: float) -> None:
+    def __init__(
+        self, shape: Tensor, causal: bool = False, attn_dropout: float = 0.0
+    ) -> None:
         super().__init__()
         self.causal = causal
         self.attn_dropout = attn_dropout
 
-        seq_len = int(torch.prod(shape).item())
         if self.causal:
+            seq_len = int(torch.prod(shape).item())
             self.register_buffer("mask", torch.tril(torch.ones(seq_len, seq_len)))
 
     def forward(
-        self, q: Tensor, k: Tensor, v: Tensor, decode_step, decode_idx
+        self, q: Tensor, k: Tensor, v: Tensor, decode_step=None, decode_idx=None
     ) -> Tensor:
         mask = torch.Tensor(self.mask) if self.causal else None
         if decode_step is not None and mask is not None:
@@ -162,7 +164,7 @@ class AxialAttention(nn.Module):
         self.axial_dim = axial_dim
 
     def forward(
-        self, q: Tensor, k: Tensor, v: Tensor, decode_step, decode_idx
+        self, q: Tensor, k: Tensor, v: Tensor, decode_step=None, decode_idx=None
     ) -> Tensor:
         q = shift_dim(q, self.axial_dim, -2).flatten(end_dim=-3)
         k = shift_dim(k, self.axial_dim, -2).flatten(end_dim=-3)
@@ -180,10 +182,12 @@ def scaled_dot_product_attention(
     q: Tensor,
     k: Tensor,
     v: Tensor,
-    mask: Tensor = None,
+    mask: Optional[Tensor] = None,
     attn_dropout: float = 0.0,
     training: bool = True,
 ) -> Tensor:
+    """Similar to PyTorch Core's _scaled_dot_product_attention but generalized
+    to handle n-dimensional input tokens (images, video) and support multihead"""
     # Performs scaled dot-product attention over the second to last dimension dn
 
     # (b, n_head, d1, ..., dn, d)
