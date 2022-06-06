@@ -36,7 +36,7 @@ class TestAttention(unittest.TestCase):
             1, self.n_heads, *self.input_shape, self.hidden_dim // self.n_heads
         )
         self.full = FullAttention(self.input_shape, causal=False, attn_dropout=0.0)
-        self.ax = AxialAttention(3, 2)  # only on third axis of input
+        self.ax = AxialAttention(3, 1)  # only on second axis of input
         self.mha = MultiHeadAttention(
             self.input_shape,
             self.hidden_dim,
@@ -96,12 +96,12 @@ class TestAttention(unittest.TestCase):
                 [
                     [
                         [
-                            [[0.7199, 2.2441, -0.7576], [0.4518, 1.5191, -0.2356]],
-                            [[-1.1097, -0.1524, 0.3367], [0.0885, -0.2590, 0.4254]],
+                            [[0.8644, 2.3747, -0.8809], [-0.7204, 0.0344, 0.4795]],
+                            [[0.8348, 2.4704, -0.9301], [-0.5203, 0.0964, 0.5355]],
                         ],
                         [
-                            [[-0.1849, 0.3928, 0.3666], [-0.5445, 0.0442, -0.0061]],
-                            [[0.8435, -1.4510, -1.1567], [0.2037, -0.9690, -0.4564]],
+                            [[-0.7800, -0.5387, -0.4397], [0.7498, -1.2456, -0.9972]],
+                            [[-0.7235, -0.5575, -0.4205], [0.7629, -1.2702, -1.0178]],
                         ],
                     ]
                 ]
