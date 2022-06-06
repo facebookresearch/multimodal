@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from callbacks.multimodal_eval import MultimodalEvalCallback
-from data import ImageDataModule, MLMDataModule, MultiDataModule, VLDataModule
+from data import ImageDataModule, MLMDataModule, MultiDataModule, VLDataModule, MultiDataPipeModule, MLMDataPipeModule
 from definitions import FLAVAArguments
 from model import FLAVAPreTrainingLightningModule
 from omegaconf import OmegaConf
@@ -25,14 +25,17 @@ def main():
     # imagenet_datamodule = ImageDataModule(
     #     **build_datamodule_kwargs(config.datasets.image, config.training)
     # )
-    # if "image" in config.datasets.selected:
-    #     datamodules.append(imagenet_datamodule)
+    if "image" in config.datasets.selected:
+        datamodules.append(imagenet_datamodule)
 
     if "text" in config.datasets.selected:
         mlm_datamodule = MLMDataModule(
             **build_datamodule_kwargs(config.datasets.text, config.training)
         )
-        datamodules.append(mlm_datamodule)
+        mlm_datamodule = MLMDataPipeModule(
+            **build_datamodule_kwargs(config.datasets.text, config.training)
+        )
+        # datamodules.append(mlm_datamodule)
 
     if "vl" in config.datasets.selected:
         vl_datamodule = VLDataModule(
@@ -40,7 +43,8 @@ def main():
         )
         datamodules.append(vl_datamodule)
 
-    datamodule = MultiDataModule(datamodules)
+    # datamodule = MultiDataModule(datamodules)
+    datamodule = MultiDataPipeModule(datamodules)
 
     datamodule.setup("fit")
     model = FLAVAPreTrainingLightningModule(

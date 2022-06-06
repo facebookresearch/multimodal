@@ -14,7 +14,7 @@ from datasets import concatenate_datasets, load_dataset
 from datasets.utils.file_utils import get_datasets_user_agent
 from definitions import HFDatasetInfo
 from PIL import Image, UnidentifiedImageError
-
+from torchdata.datapipes.iter import IterableWrapper
 
 DATASETS_USER_AGENT = get_datasets_user_agent()
 
@@ -41,6 +41,27 @@ def build_datasets_from_info(dataset_infos: List[HFDatasetInfo], split: str = "t
 
     return concatenate_datasets(dataset_list)
 
+def build_datapipes_from_info(dataset_infos: List[HFDatasetInfo], split: str = "train"):
+    dataset_list = []
+    for dataset_info in dataset_infos:
+        current_dataset = load_dataset(
+            dataset_info.key,
+            dataset_info.subset,
+            split=dataset_info.split_key_mapping[split],
+            **dataset_info.extra_kwargs,
+        )
+        if dataset_info.remove_columns is not None:
+            current_dataset = current_dataset.remove_columns(
+                dataset_info.remove_columns
+            )
+        if dataset_info.rename_columns is not None:
+            for rename in dataset_info.rename_columns:
+                current_dataset = current_dataset.rename_column(rename[0], rename[1])
+
+        dataset_list.append(current_dataset)
+
+    concatenate_dataset_list = concatenate_datasets(dataset_list)
+    return IterableWrapper(concatenate_dataset_list)
 
 def fetch_single_image(image_url, timeout, retries=0, sleep_timer=0):
     for _ in range(retries + 1):
