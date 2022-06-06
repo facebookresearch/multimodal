@@ -8,6 +8,7 @@ training:
     progress_bar_refresh_rate: 50
     val_check_interval: 100
     num_sanity_val_steps: 0
+    strategy: ddp
   seed: -1
   batch_size: 32
   num_workers: 4
@@ -15,7 +16,6 @@ training:
   adam_eps: 1e-8
   adam_weight_decay: 1e-2
   warmup_steps: 1256
-  strategy: ddp
 
 
 datasets:

@@ -38,4 +38,8 @@ def build_config():
         "max_steps" in config.training.lightning
     ), "lightning config must specify 'max_steps'"
 
+    assert (
+        "strategy" in config.training.lightning
+    ), "lightning config must specify 'strategy'"
+
     return config

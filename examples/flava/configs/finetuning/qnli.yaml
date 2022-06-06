@@ -8,6 +8,7 @@ training:
     progress_bar_refresh_rate: 50
     val_check_interval: 1000
     num_sanity_val_steps: 0
+    strategy: ddp
   seed: -1
   batch_size: 32
   num_workers: 4
@@ -18,7 +19,6 @@ training:
   - 0.9
   - 0.98
   warmup_steps: 1986
-  strategy: ddp
 
 
 datasets:
