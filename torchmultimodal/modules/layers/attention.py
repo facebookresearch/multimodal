@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 
 import torch
 from torch import nn, Tensor
@@ -13,10 +13,17 @@ from torchmultimodal.utils.common import shift_dim
 
 
 class MultiHeadAttention(nn.Module):
-    """Compute multihead attention with flexible attention function
+    """Compute multihead attention with flexible attention function.
+
+    Multihead attention linearly projects queries, keys, and values into an embedding
+    space, which is divided into multiple 'heads'. Attention is computed for each head
+    individually instead of across the entire embedding space once. This enables more
+    varied representations and allows the model to jointly attend to information from
+    different representation subspaces at different positions, as described in
+    Attention Is All You Need (Vaswani et al. 2017).
 
     Args:
-        shape (Tuple): ?
+        shape (Tuple): shape of input data (d1 x ... x dn)
         dim_q (int): dimensionality of input into query weights
         dim_kv (int): dimensionality of input into key and value weights
         n_head (int): number of attention heads
@@ -32,7 +39,7 @@ class MultiHeadAttention(nn.Module):
 
     def __init__(
         self,
-        shape: Tensor,
+        shape: Tuple,
         dim_q: int,
         dim_kv: int,
         n_head: int,
@@ -121,15 +128,28 @@ class MultiHeadAttention(nn.Module):
 
 
 class FullAttention(nn.Module):
+    """Computes attention over the entire flattened input.
+
+    Args:
+        shape (Tuple): shape of input data (d1 x ... x dn)
+        causal (bool): use causal attention or not
+        attn_dropout (float): probability of dropout after softmax
+
+    Inputs:
+        q, k, v (Tensor): a [b, d1, ..., dn, c] tensor or
+                          a [b, 1, ..., 1, c] tensor if decode_step is not None
+
+    """
+
     def __init__(
-        self, shape: Tensor, causal: bool = False, attn_dropout: float = 0.0
+        self, shape: Tuple, causal: bool = False, attn_dropout: float = 0.0
     ) -> None:
         super().__init__()
         self.causal = causal
         self.attn_dropout = attn_dropout
 
         if self.causal:
-            seq_len = int(torch.prod(shape).item())
+            seq_len = int(torch.prod(torch.tensor(shape)).item())
             self.register_buffer("mask", torch.tril(torch.ones(seq_len, seq_len)))
 
     def forward(
@@ -155,17 +175,30 @@ class FullAttention(nn.Module):
 
 
 class AxialAttention(nn.Module):
-    def __init__(self, n_dim: int, axial_dim: int) -> None:
+    """Computes attention over a single axis of the input. Other dims are flattened
+    into the batch dimension.
+
+    Args:
+        axial_dim (int): dimension to compute attention on, index by input dimensions
+                         (i.e., 0 for first input dimension, 1 for second)
+
+    Inputs:
+        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor or
+                          a [b, h, 1, ..., 1, c] tensor if decode_step is not None
+
+    """
+
+    def __init__(self, axial_dim: int) -> None:
         super().__init__()
-        if axial_dim < 0:
-            axial_dim = 2 + n_dim + 1 + axial_dim
-        else:
-            axial_dim += 2  # account for batch, head, dim
-        self.axial_dim = axial_dim
+        self.axial_dim = axial_dim + 2  # account for batch, head
 
     def forward(
         self, q: Tensor, k: Tensor, v: Tensor, decode_step=None, decode_idx=None
     ) -> Tensor:
+        # Ensure axial dim is within right dimensions, should be between head dim and embedding dim
+        if self.axial_dim >= len(q.shape) - 1:
+            raise ValueError("axial dim does not match input shape")
+
         q = shift_dim(q, self.axial_dim, -2).flatten(end_dim=-3)
         k = shift_dim(k, self.axial_dim, -2).flatten(end_dim=-3)
         v = shift_dim(v, self.axial_dim, -2)
@@ -187,18 +220,21 @@ def scaled_dot_product_attention(
     training: bool = True,
 ) -> Tensor:
     """Similar to PyTorch Core's _scaled_dot_product_attention but generalized
-    to handle n-dimensional input tokens (images, video) and support multihead"""
-    # Performs scaled dot-product attention over the second to last dimension dn
+    to handle n-dimensional input tokens (images, video) and support multihead.
+    Computes attention as described in Attention Is All You Need (Vaswani et al. 2017)
 
-    # (b, n_head, d1, ..., dn, d)
+    Inputs:
+        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor
+    """
+
     attn = torch.matmul(q, k.transpose(-1, -2))
     attn = attn / torch.sqrt(torch.tensor(q.shape[-1]))
     if mask is not None:
         attn = attn.masked_fill(mask == 0, float("-inf"))
     attn_float = F.softmax(attn, dim=-1)
-    attn = attn_float.type_as(attn)  # b x n_head x d1 x ... x dn x d
+    attn = attn_float.type_as(attn)  # b x n_head x d1 x ... x dn x c
     attn = F.dropout(attn, p=attn_dropout, training=training)
 
-    a = torch.matmul(attn, v)  # b x n_head x d1 x ... x dn x d
+    a = torch.matmul(attn, v)  # b x n_head x d1 x ... x dn x c
 
     return a
