@@ -47,8 +47,9 @@ class Codebook(nn.Module):
         num_embeddings: int,
         embedding_dim: int,
         decay: float = 0.99,
+        codebook_usage_threshold: float = 1.0,
         epsilon: float = 1e-7,
-    ):
+    ) -> None:
         super().__init__()
         # Embedding weights and parameters for EMA update will be registered to buffer, as they
         # will not be updated by the optimizer but are still model parameters.
@@ -65,22 +66,29 @@ class Codebook(nn.Module):
         # Used in Laplace smoothing of code usage
         self._epsilon = epsilon
 
+        # Threshold for randomly reseting unused embedding vectors
+        self.codebook_usage_threshold = codebook_usage_threshold
+
         # Flag to track if we need to initialize embedding with encoder output
         self._is_embedding_init = False
 
-    def _tile(self, x):
-        # Repeat encoder vectors in cases where the encoder output does not have enough vectors
-        # to initialize the codebook on first forward pass
-        num_encoder_vectors, num_channels = x.shape
-        if num_encoder_vectors < self.embedding_dim:
-            num_repeats = (
-                self.num_embeddings + num_encoder_vectors - 1
-            ) // num_encoder_vectors
+    def _tile(self, x: Tensor, n: int) -> Tensor:
+        # Repeat vectors in x if x has less than n vectors
+        num_vectors, num_channels = x.shape
+        if num_vectors < n:
+            num_repeats = (n + num_vectors - 1) // num_vectors
             # Add a small amount of noise to repeated vectors
             std = 0.01 / torch.sqrt(torch.tensor(num_channels))
             x = x.repeat(num_repeats, 1)
             x = x + torch.randn_like(x) * std
         return x
+
+    def _get_random_vectors(self, x: Tensor, n: int) -> Tensor:
+        # Gets n random row vectors from 2D tensor x
+        x_tiled = self._tile(x, n)
+        idx = torch.randperm(x_tiled.shape[0])
+        x_rand = x_tiled[idx][:n]
+        return x_rand
 
     def _preprocess(self, encoded: Tensor) -> Tuple[Tensor, Size]:
         # Rearrange from batch x channel x n dims to batch x n dims x channel
@@ -116,9 +124,7 @@ class Codebook(nn.Module):
 
         # Flatten encoder outputs, tile to match num embeddings, get random encoder outputs
         encoded_flat, permuted_shape = self._preprocess(z)
-        encoded_flat_tiled = self._tile(encoded_flat)
-        idx = torch.randperm(encoded_flat_tiled.shape[0])
-        encoded_flat_rand = encoded_flat_tiled[idx][: self.num_embeddings]
+        encoded_flat_rand = self._get_random_vectors(encoded_flat, self.num_embeddings)
 
         # Initialize embedding and intermediate values for EMA updates
         self.embedding = encoded_flat_rand
@@ -139,24 +145,29 @@ class Codebook(nn.Module):
         # Count how often each embedding vector was looked up
         codebook_selection_count = torch.sum(codebook_onehot, 0)
         # Update usage value for each embedding vector
-        self.code_usage = self.code_usage * self._decay + codebook_selection_count * (
-            1 - self._decay
+        self.code_usage.mul_(self._decay).add_(
+            codebook_selection_count, alpha=(1 - self._decay)
         )
         # Laplace smoothing of codebook usage - to prevent zero counts
         n = torch.sum(self.code_usage)
-        self.code_usage = (
-            (self.code_usage + self._epsilon)
-            / (n + self.num_embeddings * self._epsilon)
-            * n
-        )
+        self.code_usage.add_(self._epsilon).divide_(
+            n + self.num_embeddings * self._epsilon
+        ).mul_(n)
         # Get all encoded vectors attracted to each embedding vector
         encoded_per_codebook = torch.matmul(codebook_onehot.t(), encoded_flat)
         # Update each embedding vector with new encoded vectors that are attracted to it,
         # divided by its usage to yield the mean of encoded vectors that choose it
-        self.code_avg = (
-            self.code_avg * self._decay + (1 - self._decay) * encoded_per_codebook
+        self.code_avg.mul_(self._decay).add_(
+            encoded_per_codebook, alpha=(1 - self._decay)
         )
         self.embedding = self.code_avg / self.code_usage.unsqueeze(1)
+        # Reset any embedding vectors that fall below threshold usage with random encoded vectors
+        encoded_flat_rand = self._get_random_vectors(encoded_flat, self.num_embeddings)
+        self.embedding = torch.where(
+            self.code_usage.unsqueeze(1) >= self.codebook_usage_threshold,
+            self.embedding,
+            encoded_flat_rand,
+        )
 
     def _quantize(self, encoded_flat: Tensor) -> Tuple[Tensor, Tensor]:
         # Calculate distances from each encoder, E(x), output vector to each embedding vector, e, ||E(x) - e||^2
