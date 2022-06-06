@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 import itertools
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 
@@ -71,7 +71,7 @@ class BroadcastPositionEmbedding(nn.Module):
         return np.prod(self.shape)
 
     @property
-    def decode_idxs(self) -> List[Tuple[int]]:
+    def decode_idxs(self):
         """Indices along the dims of data, e.g., ``(time, height, width)``."""
         return list(itertools.product(*[range(s) for s in self.shape]))
 
