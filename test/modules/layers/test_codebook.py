@@ -130,7 +130,10 @@ class TestCodebook(unittest.TestCase):
         assert_expected(actual_code_usage, expected_code_usage)
 
     def test_ema_update_embedding(self):
-        _ = self.vq(self.encoded)
+        encoded_flat, _ = self.vq._init_embedding_and_preprocess(self.encoded)
+        distances = torch.cdist(encoded_flat, self.vq.embedding, p=2.0) ** 2
+        codebook_indices = torch.argmin(distances, dim=1)
+        self.vq._ema_update_embedding(encoded_flat, codebook_indices)
 
         actual_weight = self.vq.embedding
         expected_weight = torch.Tensor(
@@ -173,8 +176,7 @@ class TestCodebook(unittest.TestCase):
 
     def test_init_embedding_smaller_encoded(self):
         encoded_small = self.encoded[:1, :, :2]
-        out = self.vq(encoded_small)
-        encoded_small_flat = out.encoded_flat
+        encoded_small_flat, _ = self.vq._init_embedding_and_preprocess(encoded_small)
         embed = self.vq.embedding
         # Check for each embedding vector if there is one equal encoded vector + noise
         for emb in embed:
@@ -184,3 +186,29 @@ class TestCodebook(unittest.TestCase):
                     for enc in encoded_small_flat
                 ]
             ), "embedding initialized from encoder output incorrectly"
+
+    def test_codebook_restart(self):
+        # First init and diversify embedding
+        encoded_flat, _ = self.vq._init_embedding_and_preprocess(self.encoded)
+        # Use only embedding vector at index = 1 and force restarts.
+        # Slightly modify encoded_flat to make sure vectors restart to something new
+        encoded_flat_noise = encoded_flat + torch.randn_like(encoded_flat)
+        codebook_indices_low_usage = torch.ones(encoded_flat.shape[0], dtype=torch.long)
+        self.vq._ema_update_embedding(encoded_flat_noise, codebook_indices_low_usage)
+
+        # Check if embedding contains restarts
+        for i, emb in enumerate(self.vq.embedding):
+            # We used only emb vector with index = 1, so check it was not restarted
+            if i == 1:
+                assert_expected(
+                    emb, self.vq.code_avg[1] / self.vq.code_usage[1], rtol=0, atol=1e-4
+                )
+            # Compare each embedding vector to each encoded vector.
+            # If at least one match, then restart happened.
+            else:
+                assert any(
+                    [
+                        torch.isclose(emb, enc, rtol=0, atol=1e-4).all()
+                        for enc in encoded_flat_noise
+                    ]
+                ), "embedding restarted from encoder output incorrectly"

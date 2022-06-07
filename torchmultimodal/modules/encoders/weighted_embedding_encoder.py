@@ -23,8 +23,7 @@ class WeightedEmbeddingEncoder(nn.Module):
         before embedding layer
 
     Inputs:
-        x (Tensor): Tensor bsz x len where first half (0 : len/2) of tensor are embedding indices
-        and the second half are corresponding weights for the embedding indices
+        weights (Tensor): Tensor containing weights
 
     """
 
@@ -47,13 +46,8 @@ class WeightedEmbeddingEncoder(nn.Module):
         self.pooling_dim = pooling_dim
         self.use_hash = use_hash
 
-    def forward(self, x: Tensor) -> Tensor:
-        index, weights = torch.split(
-            x,
-            int(x.size()[1] / 2),
-            dim=1,
-        )
-        index = index.long()
+    def forward(self, weights: Tensor) -> Tensor:
+        index = torch.arange(0, weights.size(1), dtype=torch.int)
         if self.use_hash:
             # TODO: pull this out into a common function T111523602
             if self.embedding.padding_idx is None:
