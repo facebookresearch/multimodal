@@ -13,23 +13,22 @@ from torchmultimodal.utils.common import shift_dim
 
 
 class MultiHeadAttention(nn.Module):
-    """Compute multihead attention with flexible attention function.
+    """Computes multihead attention with flexible attention mechanism.
 
-    Multihead attention linearly projects queries, keys, and values into an embedding
-    space, which is divided into multiple 'heads'. Attention is computed for each head
-    individually instead of across the entire embedding space once. This enables more
-    varied representations and allows the model to jointly attend to information from
-    different representation subspaces at different positions, as described in
-    Attention Is All You Need (Vaswani et al. 2017).
+    Multihead attention linearly projects and divides queries, keys, and values into
+    multiple 'heads'. This enables the computation of attention multiple times in
+    parallel, creating more varied representations and allows the model to jointly
+    attend to information from different representation subspaces at different positions,
+    as described in Attention Is All You Need (Vaswani et al. 2017).
 
     Args:
-        shape (Tuple): shape of input data (d1 x ... x dn)
-        dim_q (int): dimensionality of input into query weights
-        dim_kv (int): dimensionality of input into key and value weights
+        shape (Tuple[int]): shape of input data (d1, ..., dn)
+        dim_q (int): dimensionality of query
+        dim_kv (int): dimensionality of key/value
         n_head (int): number of attention heads
         n_layer (int): ?
         causal (bool): use causal attention or not
-        attn_module (nn.Module): module of attention function to use
+        attn_module (nn.Module): module of attention mechanism to use
 
     Inputs:
         q, k, v (Tensor): a [b, d1, ..., dn, c] tensor or
@@ -39,7 +38,7 @@ class MultiHeadAttention(nn.Module):
 
     def __init__(
         self,
-        shape: Tuple,
+        shape: Tuple[int],
         dim_q: int,
         dim_kv: int,
         n_head: int,
@@ -71,16 +70,16 @@ class MultiHeadAttention(nn.Module):
         self.cache: Dict[str, Tensor] = dict()
 
     def _split_multihead(self, x: Tensor) -> Tensor:
-        # Splits input tensor of size (b x (d1...dn) x hidden)
+        # Splits input tensor of size (b x (d1, ..., dn) x hidden)
         # into (b x (d1...dn) x n_head x emb_dim)
         x = x.unflatten(-1, (self.n_head, -1))
-        # Rearrange to put head dim first, (b x n_head x (d1...dn) x emb_dim)
+        # Rearrange to put head dim first, (b x n_head x (d1, ..., dn) x emb_dim)
         x = shift_dim(x, -2, 1)
         return x
 
     def _combine_multihead(self, x: Tensor) -> Tensor:
         # Moves head dim back to original location and concatenates heads
-        # (b x n_head x (d1...dn) x emb_dim) -> (b x (d1...dn) x hidden)
+        # (b x n_head x (d1, ..., dn) x emb_dim) -> (b x (d1, ..., dn) x hidden)
         return shift_dim(x, 1, -2).flatten(start_dim=-2)
 
     def forward(
@@ -131,7 +130,7 @@ class FullAttention(nn.Module):
     """Computes attention over the entire flattened input.
 
     Args:
-        shape (Tuple): shape of input data (d1 x ... x dn)
+        shape (Tuple[int]): shape of input data (d1, ..., dn)
         causal (bool): use causal attention or not
         attn_dropout (float): probability of dropout after softmax
 
@@ -142,7 +141,7 @@ class FullAttention(nn.Module):
     """
 
     def __init__(
-        self, shape: Tuple, causal: bool = False, attn_dropout: float = 0.0
+        self, shape: Tuple[int], causal: bool = False, attn_dropout: float = 0.0
     ) -> None:
         super().__init__()
         self.causal = causal
@@ -232,9 +231,9 @@ def scaled_dot_product_attention(
     if mask is not None:
         attn = attn.masked_fill(mask == 0, float("-inf"))
     attn_float = F.softmax(attn, dim=-1)
-    attn = attn_float.type_as(attn)  # b x n_head x d1 x ... x dn x c
+    attn = attn_float.type_as(attn)  # b x n_head x (d1, ..., dn) x c
     attn = F.dropout(attn, p=attn_dropout, training=training)
 
-    a = torch.matmul(attn, v)  # b x n_head x d1 x ... x dn x c
+    a = torch.matmul(attn, v)  # b x n_head x (d1, ..., dn) x c
 
     return a
