@@ -86,9 +86,11 @@ class TestSamePadConv3d(unittest.TestCase):
     def test_calculate_same_padding_output(self):
         for i, (inp, kernel, stride) in enumerate(self.test_cases):
             pad_actual = calculate_same_padding(kernel, stride, inp.shape[2:])
-            assert (
-                pad_actual == self.pad_expected[i]
-            ), f"padding incorrect for shape {inp.shape}, kernel {kernel}, stride {stride}"
+            self.assertEqual(
+                pad_actual,
+                self.pad_expected[i],
+                f"padding incorrect for shape {inp.shape}, kernel {kernel}, stride {stride}",
+            )
 
     def test_samepadconv3d_forward(self):
         for i, (inp, kernel, stride) in enumerate(self.test_cases):

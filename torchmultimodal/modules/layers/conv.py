@@ -70,8 +70,8 @@ class SamePadConv3d(nn.Module):
 
 
 class SamePadConvTranspose3d(nn.Module):
-    """Performs a same padded transposed convolution on a 3D input. This maintains input shape
-    with unit stride, and multiplies input dims by non-unit stride.
+    """Performs a same padded transposed convolution on a 3D input.
+    This ensures output shape in input shape multiplied by stride.
 
     Code taken from VideoGPT
     https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
