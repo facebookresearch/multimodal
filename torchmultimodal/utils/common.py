@@ -86,19 +86,10 @@ class NestedTensor(object):
 
     @classmethod
     def from_tensor_list(cls, tensor_list, do_round=False):
-        # TODO make this more general
         if tensor_list[0].ndim == 3:
-            # TODO make it support different-sized images
             max_size = tuple(max(s) for s in zip(*[img.shape for img in tensor_list]))
-            # min_size = tuple(min(s) for s in zip(*[img.shape for img in tensor_list]))
             batch_shape = (len(tensor_list),) + max_size
-            b, c, h, w = batch_shape
-            if do_round:
-                # Round to an even size to avoid rounding issues in fpn
-                p = 128
-                h = h if h % p == 0 else (h // p + 1) * p
-                w = w if w % p == 0 else (w // p + 1) * p
-                batch_shape = b, c, h, w
+            b, _, h, w = batch_shape
 
             dtype = tensor_list[0].dtype
             device = tensor_list[0].device

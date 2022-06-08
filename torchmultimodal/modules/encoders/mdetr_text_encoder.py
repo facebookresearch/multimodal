@@ -8,6 +8,8 @@ from typing import List, Optional, Union
 
 import torch
 from torch import nn, Tensor
+from torchmultimodal.utils.common import filter_dict
+from torchtext.models import ROBERTA_BASE_ENCODER
 
 
 def create_position_ids_from_input_ids(input_ids, padding_idx):
@@ -50,11 +52,8 @@ class MDETRTextEmbeddings(nn.Module):
         )
         self.token_type_embeddings = nn.Embedding(type_vocab_size, hidden_size)
 
-        # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
-        # any TensorFlow checkpoint file
         self.LayerNorm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
         self.dropout = nn.Dropout(hidden_dropout_prob)
-        # position_ids (1, len position emb) is contiguous in memory and exported when serialized
         position_ids_range = torch.arange(max_position_embeddings).expand((1, -1))
         self.register_buffer("position_ids", position_ids_range.clone())
         self.register_buffer(
@@ -83,9 +82,6 @@ class MDETRTextEmbeddings(nn.Module):
         if attention_mask is None:
             attention_mask = torch.ones(((batch_size, seq_length)), device=device)
 
-        # Setting the token_type_ids to the registered buffer in constructor where it is all zeros, which usually occurs
-        # when its auto-generated, registered buffer helps users when tracing the model without passing token_type_ids, solves
-        # issue #5664
         if token_type_ids is None:
             if hasattr(self, "token_type_ids"):
                 buffered_token_type_ids = self.token_type_ids[:, :seq_length]  # type: ignore
@@ -143,12 +139,12 @@ class WrappedTransformerEncoder(nn.Module):
         self.normalize_before = normalize_before
         self.embedding_layer_norm = nn.LayerNorm(embedding_dim)
         self.return_all_layers = return_all_layers
+        self.embedding_dim = embedding_dim
 
     def _forward_return_all_layers(
         self,
         embeddings: torch.Tensor,
         attn_mask: Optional[torch.Tensor] = None,
-        padding_mask: Optional[torch.Tensor] = None,
     ) -> List[torch.Tensor]:
         encoded = embeddings
         states = [encoded]
@@ -164,7 +160,6 @@ class WrappedTransformerEncoder(nn.Module):
         self,
         embeddings: torch.Tensor,
         attn_mask: Optional[torch.Tensor] = None,
-        padding_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         encoded = embeddings
         for layer in self.layers.layers:
@@ -177,13 +172,12 @@ class WrappedTransformerEncoder(nn.Module):
         self,
         embeddings: torch.Tensor,
         attn_mask: Optional[torch.Tensor] = None,
-        padding_mask: Optional[torch.Tensor] = None,
     ) -> Union[torch.Tensor, List[torch.Tensor]]:
         out: Union[torch.Tensor, List[torch.Tensor]]
         if self.return_all_layers:
-            out = self._forward_return_all_layers(embeddings, attn_mask, padding_mask)
+            out = self._forward_return_all_layers(embeddings, attn_mask)
         else:
-            out = self._forward_return_last_layer(embeddings, attn_mask, padding_mask)
+            out = self._forward_return_last_layer(embeddings, attn_mask)
 
         return out
 
@@ -221,3 +215,26 @@ class MDETRTextEncoder(nn.Module):
         )
 
         return out
+
+
+def mdetr_text_encoder():
+    embeddings = MDETRTextEmbeddings(
+        hidden_size=768,
+        vocab_size=50265,
+        pad_token_id=1,
+        type_vocab_size=1,
+        max_position_embeddings=514,
+        layer_norm_eps=1e-05,
+        hidden_dropout_prob=0.1,
+    )
+
+    wrapped_args = filter_dict(
+        lambda x: x not in ["vocab_size", "padding_idx", "max_seq_len", "scaling"],
+        ROBERTA_BASE_ENCODER.encoderConf.__dict__,
+    )
+    wrapped_transformer_encoder = WrappedTransformerEncoder(**wrapped_args)
+
+    text_encoder = MDETRTextEncoder(
+        embeddings=embeddings, encoder=wrapped_transformer_encoder
+    )
+    return text_encoder
