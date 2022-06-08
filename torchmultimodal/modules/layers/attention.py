@@ -26,7 +26,7 @@ class MultiHeadAttention(nn.Module):
         dim_q (int): dimensionality of query
         dim_kv (int): dimensionality of key/value
         n_head (int): number of attention heads
-        n_layer (int): ?
+        n_layer (int): number of attention layers being used in higher level stack
         causal (bool): use causal attention or not
         attn_module (nn.Module): module of attention mechanism to use
 
@@ -35,6 +35,8 @@ class MultiHeadAttention(nn.Module):
                           a [b, 1, ..., 1, c] tensor if decode_step is not None
 
     """
+
+    # TODO: remove dependency on n_layer, higher level detail should not be a parameter
 
     def __init__(
         self,
