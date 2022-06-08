@@ -9,7 +9,7 @@ import unittest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.modules.encoders.mdetr_image_encoder import (
-    _mdetr_resnet101_backbone,
+    mdetr_resnet101_backbone,
 )
 from torchmultimodal.utils.common import NestedTensor
 
@@ -20,7 +20,7 @@ class TestMDETRImageEncoder(unittest.TestCase):
         test_tensor = torch.rand(4, 3, 64, 64)
         mask = torch.zeros(4, 64, 64)
         self.test_data = NestedTensor(test_tensor, mask)
-        self.resnet101_encoder = _mdetr_resnet101_backbone()
+        self.resnet101_encoder = mdetr_resnet101_backbone()
         self.resnet101_encoder.eval()
 
     def test_resnet_101_forward(self):
