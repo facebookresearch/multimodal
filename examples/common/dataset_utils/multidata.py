@@ -10,6 +10,7 @@ from functools import partial
 from typing import Callable, List, Optional
 
 import torch
+from common.dataset_utils.iteration_strategies import IterationStrategy
 from pytorch_lightning import LightningDataModule
 
 
@@ -20,6 +21,7 @@ class MultiDataLoader:
         self,
         loaders: List[torch.utils.data.DataLoader],
         sampling_func: Optional[Callable] = None,
+        iteration_strategy: IterationStrategy = None,
     ):
         """MultiDataLoader takes in a list of dataloaders and a sampling function
         and cycles between these dataloaders after each batch based on the index
@@ -43,6 +45,10 @@ class MultiDataLoader:
             sampling_func = partial(random.choice, range(len(loaders)))
 
         self.sampling_func = sampling_func
+
+        if iteration_strategy is None:
+            iteration_strategy = RoundRobinIterationStrategy()
+
         self.loaders = loaders
         self.num_datasets = len(self.loaders)
         self.iterators = [None for _ in loaders]
@@ -146,10 +152,12 @@ class MultiDataModule(LightningDataModule):
         self,
         datamodules: List[LightningDataModule],
         sampling_func: Optional[Callable] = None,
+        iteration_strategy_factory: Optional[Callable] = None,
     ):
         super().__init__()
         self.datamodules = datamodules
         self.sampling_func = sampling_func
+        self.iteration_strategy_factory = iteration_strategy_factory
         self.current_datamodule_idx = 0
 
     def setup(self, stage=None):
@@ -175,7 +183,11 @@ class MultiDataModule(LightningDataModule):
         for datamodule in self.datamodules:
             dataloaders.append(getattr(datamodule, f"{split}_dataloader")())
 
-        return MultiDataLoader(dataloaders, self.sampling_func)
+        return MultiDataLoader(
+            dataloaders,
+            self.sampling_func,
+            self.iteration_strategy_factory(dataloaders),
+        )
 
     def on_before_batch_transfer(self, batch, *args):
         batch, index = batch["batch"], batch["datamodule_index"]
