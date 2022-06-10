@@ -12,7 +12,6 @@ from flava.data import ImageDataModule, MLMDataModule, VLDataModule
 from flava.definitions import FLAVAArguments
 from flava.model import FLAVAPreTrainingLightningModule
 from flava.utils import build_config, build_datamodule_kwargs
-
 from omegaconf import OmegaConf
 from pytorch_lightning import seed_everything, Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor
@@ -26,9 +25,9 @@ def main():
     datamodules = []
 
     # also needed for the imagenet eval callback
-    imagenet_datamodule = ImageDataModule(
-        **build_datamodule_kwargs(config.datasets.image, config.training)
-    )
+    # imagenet_datamodule = ImageDataModule(
+    #    **build_datamodule_kwargs(config.datasets.image, config.training)
+    # )
     if "image" in config.datasets.selected:
         datamodules.append(imagenet_datamodule)
 
@@ -63,7 +62,7 @@ def main():
         **OmegaConf.to_container(config.training.lightning),
         callbacks=[
             LearningRateMonitor(logging_interval="step"),
-            MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule),
+            # MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule),
         ],
         strategy="ddp",
     )

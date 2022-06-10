@@ -10,7 +10,11 @@ from functools import partial
 from typing import Callable, List, Optional
 
 import torch
-from common.dataset_utils.iteration_strategies import IterationStrategy
+from common.dataset_utils.iteration_strategies import (
+    IterationStrategy,
+    IterationStrategyFactory,
+    DEFAULT_ITERATION_STRATEGY_FACTORY,
+)
 from pytorch_lightning import LightningDataModule
 
 
@@ -47,7 +51,7 @@ class MultiDataLoader:
         self.sampling_func = sampling_func
 
         if iteration_strategy is None:
-            iteration_strategy = RoundRobinIterationStrategy()
+            iteration_strategy = DEFAULT_ITERATION_STRATEGY_FACTORY(loaders)
 
         self.loaders = loaders
         self.num_datasets = len(self.loaders)
@@ -151,8 +155,8 @@ class MultiDataModule(LightningDataModule):
     def __init__(
         self,
         datamodules: List[LightningDataModule],
+        iteration_strategy_factory: IterationStrategyFactory = DEFAULT_ITERATION_STRATEGY_FACTORY,
         sampling_func: Optional[Callable] = None,
-        iteration_strategy_factory: Optional[Callable] = None,
     ):
         super().__init__()
         self.datamodules = datamodules

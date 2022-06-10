@@ -90,3 +90,6 @@ _iteration_strategy_factory_registry: Dict[str, IterationStrategyFactory] = {
 
 def iteration_strategy_factory(config: DictConfig) -> IterationStrategyFactory:
     return _iteration_strategy_factory_registry[config.type]
+
+
+DEFAULT_ITERATION_STRATEGY_FACTORY = _iteration_strategy_factory_registry["random"]
