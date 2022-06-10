@@ -9,7 +9,7 @@ from collections import namedtuple
 
 import torch
 import torch.nn.functional as F
-from torch import nn
+from torch import nn, Tensor
 
 from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
     _gather_embeddings_and_labels,
@@ -71,17 +71,17 @@ class ALBEFModel(nn.Module):
         self.register_buffer("text_queue", torch.randn(embed_dim, queue_size))
         self.register_buffer("queue_ptr", torch.zeros(1, dtype=torch.long))
 
-        self.image_queue: torch.Tensor
-        self.text_queue: torch.Tensor
-        self.queue_ptr: torch.Tensor
+        self.image_queue: Tensor
+        self.text_queue: Tensor
+        self.queue_ptr: Tensor
         self.image_queue = nn.functional.normalize(self.image_queue, dim=0)
         self.text_queue = nn.functional.normalize(self.text_queue, dim=0)
 
     def forward(
         self,
-        image: torch.Tensor,
-        text: torch.Tensor,
-        text_atts: torch.Tensor = None,
+        image: Tensor,
+        text: Tensor,
+        text_atts: Tensor = None,
         alpha: float = 0.4,
     ):
         image_embeds, text_embeds, image_feat, text_feat = self._unimodal_embeddings(
