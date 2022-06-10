@@ -11,6 +11,10 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
+    _gather_embeddings_and_labels,
+)
+
 
 ALBEFOutput = namedtuple(
     "ALBEFOutput",
@@ -32,7 +36,7 @@ ALBEFSimilarity = namedtuple(
 )
 
 
-class ALBEFArchitecture(nn.Module):
+class ALBEFModel(nn.Module):
     def __init__(
         self,
         vision_encoder: nn.Module,
@@ -41,7 +45,7 @@ class ALBEFArchitecture(nn.Module):
         vision_proj: nn.Module,
         text_proj: nn.Module,
         embed_dim: int = 256,
-        queue_size: int = 65534,
+        queue_size: int = 65536,
         temp: float = 0.07,
         momentum: float = 0.995,
     ):
@@ -149,22 +153,10 @@ class ALBEFArchitecture(nn.Module):
                 )
 
     @torch.no_grad()
-    def _concat_all_gather(self, tensor):
-        if torch.is_distributed(tensor):
-            tensors_gather = [
-                torch.ones_like(tensor)
-                for _ in range(torch.distributed.get_world_size())
-            ]
-            torch.disstributed.all_gather(tensors_gather, tensor, async_op=False)
-            output = torch.cat(tensors_gather, dim=0)
-            return output
-        else:
-            return tensor
-
-    @torch.no_grad()
     def _update_queue(self, image_feat_m, text_feat_m):
-        image_feats = self._concat_all_gather(image_feat_m)
-        text_feats = self._concat_all_gather(text_feat_m)
+        image_feats, text_feats, _ = _gather_embeddings_and_labels(
+            image_feat_m, text_feat_m
+        )
         batch_size = image_feats.shape[0]
         ptr = int(self.queue_ptr)
         assert self.queue_size % batch_size == 0
