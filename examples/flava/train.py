@@ -3,15 +3,15 @@
 #
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
-
-from callbacks.multimodal_eval import MultimodalEvalCallback
-from data import ImageDataModule, MLMDataModule, MultiDataModule, VLDataModule
-from definitions import FLAVAArguments
-from model import FLAVAPreTrainingLightningModule
+from common.dataset_utils import MultiDataModule
+from flava.callbacks.multimodal_eval import MultimodalEvalCallback
+from flava.data import ImageDataModule, MLMDataModule, VLDataModule
+from flava.definitions import FLAVAArguments
+from flava.model import FLAVAPreTrainingLightningModule
+from flava.utils import build_config, build_datamodule_kwargs
 from omegaconf import OmegaConf
 from pytorch_lightning import seed_everything, Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor
-from utils import build_config, build_datamodule_kwargs
 
 
 def main():
