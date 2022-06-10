@@ -31,12 +31,37 @@ ALBEFOutput = namedtuple(
 
 ALBEFSimilarity = namedtuple(
     "ALBEFSimilarity",
-    ["sim_i2t", "sim_t2i", "sim_i2t_targets", "sim_t2i_targets"],
+    [
+        "sim_i2t",  # image to text similarity
+        "sim_t2i",  # text to image similarity
+        "sim_i2t_m",  # image to text similarity for momentum embeddings
+        "sim_t2i_m",  # text to image similarity for momentum embeddings
+    ],
     defaults=(None, None, None, None),
 )
 
 
 class ALBEFModel(nn.Module):
+    """
+    ALBEF is a model to ALign the image and text representations BEfore Fusing
+    (ALBEF) them through cross-modal attention, which enables more grounded vision
+    and language representation learning. (https://arxiv.org/pdf/2107.07651.pdf)
+
+    Args:   vision_encoder (nn.Module): Instantiated vision encoder
+            text_encoder (nn.Module): instantiated text encoder
+            multimodal_encoder (nn.Module): Instantiated multimodal encoder
+            vision_proj (nn.Module): Instantiated vision projection layer
+            text_proj (nn.Module): Instantiated text projection layer
+            embed_dim (int): embedding size of the vision and text projection layers
+            queue_size (int): size of image and text queues for momentum distillation
+            temp (float): temperature parameter
+            momentum (float): momentum parameter
+
+    Inputs: image (Tensor): Tensor containing image features
+            text (Tensor): Tensor containing text features
+            text_atts (Tensor): Tensor containing text attention mask
+    """
+
     def __init__(
         self,
         vision_encoder: nn.Module,
@@ -82,6 +107,8 @@ class ALBEFModel(nn.Module):
         self.temp = temp
         self.momentum = momentum
 
+        # queues keep track of the most recent M image and text representations for momentum distillation
+        # queues decouple M from the batch size, allowing it to be big
         self.register_buffer("image_queue", torch.randn(embed_dim, queue_size))
         self.register_buffer("text_queue", torch.randn(embed_dim, queue_size))
         self.register_buffer("queue_ptr", torch.zeros(1, dtype=torch.long))
@@ -97,7 +124,6 @@ class ALBEFModel(nn.Module):
         image: Tensor,
         text: Tensor,
         text_atts: Tensor = None,
-        alpha: float = 0.4,
     ):
         image_embeds, text_embeds, image_feat, text_feat = self._unimodal_embeddings(
             image, text, text_atts
@@ -105,9 +131,7 @@ class ALBEFModel(nn.Module):
         image_embeds_m, image_feat_m, text_feat_m = self._momentum_embeddings(
             image, text, text_atts
         )
-        similarity = self._similarity(
-            image_feat, text_feat, image_feat_m, text_feat_m, alpha
-        )
+        similarity = self._similarity(image_feat, text_feat, image_feat_m, text_feat_m)
         image_embeds_neg, text_embeds_neg, text_atts_neg = self._neg_embeddings(
             image_embeds, text_embeds, text_atts, similarity
         )
@@ -176,7 +200,7 @@ class ALBEFModel(nn.Module):
         ptr = (ptr + batch_size) % self.queue_size
         self.queue_ptr[0] = ptr
 
-    def _similarity(self, image_feat, text_feat, image_feat_m, text_feat_m, alpha):
+    def _similarity(self, image_feat, text_feat, image_feat_m, text_feat_m):
         with torch.no_grad():
             image_feat_all = torch.cat(
                 [image_feat_m.t(), self.image_queue.clone().detach()], dim=1
@@ -187,16 +211,6 @@ class ALBEFModel(nn.Module):
             sim_i2t_m = image_feat_m @ text_feat_all / self.temp
             sim_t2i_m = text_feat_m @ image_feat_all / self.temp
 
-            sim_targets = torch.zeros(sim_i2t_m.size()).to(image_feat.device)
-            sim_targets.fill_diagonal_(1)
-
-            sim_i2t_targets = (
-                alpha * F.softmax(sim_i2t_m, dim=1) + (1 - alpha) * sim_targets
-            )
-            sim_t2i_targets = (
-                alpha * F.softmax(sim_t2i_m, dim=1) + (1 - alpha) * sim_targets
-            )
-
         sim_i2t = image_feat @ text_feat_all / self.temp
         sim_t2i = text_feat @ image_feat_all / self.temp
         self._update_queue(image_feat_m, text_feat_m)
@@ -204,8 +218,8 @@ class ALBEFModel(nn.Module):
         return ALBEFSimilarity(
             sim_i2t=sim_i2t,
             sim_t2i=sim_t2i,
-            sim_i2t_targets=sim_i2t_targets,
-            sim_t2i_targets=sim_t2i_targets,
+            sim_i2t_m=sim_i2t_m,
+            sim_t2i_m=sim_t2i_m,
         )
 
     def _neg_embeddings(self, image_embeds, text_embeds, text_atts, similarity):
