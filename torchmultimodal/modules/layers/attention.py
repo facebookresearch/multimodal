@@ -102,7 +102,7 @@ class MultiHeadAttention(nn.Module):
                         n_head,
                         *self.shape,
                         self.d_k,
-                    )  # B x n_head x 3 x 32 x 32 x d
+                    )
                     v_shape = (q.shape[0], n_head, *self.shape, self.d_v)
                     self.cache = dict(
                         k=torch.zeros(k_shape, dtype=k.dtype, device=q.device),
@@ -169,7 +169,7 @@ class FullAttention(nn.Module):
         v = v.flatten(start_dim=2, end_dim=-2)
 
         out = scaled_dot_product_attention(
-            q, k, v, mask=mask, attn_dropout=self.attn_dropout, training=self.training
+            q, k, v, mask=mask, attn_dropout=self.attn_dropout if self.training else 0.0
         )
 
         return out.unflatten(2, old_shape)
@@ -189,8 +189,9 @@ class AxialAttention(nn.Module):
 
     """
 
-    def __init__(self, axial_dim: int) -> None:
+    def __init__(self, axial_dim: int, attn_dropout: float = 0.0) -> None:
         super().__init__()
+        self.attn_dropout = attn_dropout
         self.axial_dim = axial_dim + 2  # account for batch, head
 
     def forward(
@@ -206,7 +207,9 @@ class AxialAttention(nn.Module):
         old_shape = list(v.shape)
         v = v.flatten(end_dim=-3)
 
-        out = scaled_dot_product_attention(q, k, v, training=self.training)
+        out = scaled_dot_product_attention(
+            q, k, v, attn_dropout=self.attn_dropout if self.training else 0.0
+        )
         out = out.view(*old_shape)
         out = shift_dim(out, -2, self.axial_dim)
         return out
@@ -218,7 +221,6 @@ def scaled_dot_product_attention(
     v: Tensor,
     mask: Optional[Tensor] = None,
     attn_dropout: float = 0.0,
-    training: bool = True,
 ) -> Tensor:
     """Similar to PyTorch Core's _scaled_dot_product_attention but generalized
     to handle n-dimensional input tokens (images, video) and support multihead.
@@ -234,7 +236,7 @@ def scaled_dot_product_attention(
         attn = attn.masked_fill(mask == 0, float("-inf"))
     attn_float = F.softmax(attn, dim=-1)
     attn = attn_float.type_as(attn)  # b x n_head x (d1, ..., dn) x c
-    attn = F.dropout(attn, p=attn_dropout, training=training)
+    attn = F.dropout(attn, p=attn_dropout)
 
     a = torch.matmul(attn, v)  # b x n_head x (d1, ..., dn) x c
 
