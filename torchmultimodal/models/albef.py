@@ -61,7 +61,22 @@ class ALBEFModel(nn.Module):
         self.vision_proj_m = copy.deepcopy(vision_proj)
         self.text_proj_m = copy.deepcopy(text_proj)
 
-        self._copy_params()
+        self.models = [
+            self.vision_encoder,
+            self.text_encoder,
+            self.multimodal_encoder,
+            self.vision_proj,
+            self.text_proj,
+        ]
+        self.models_m = [
+            self.vision_encoder_m,
+            self.text_encoder_m,
+            self.multimodal_encoder_m,
+            self.vision_proj_m,
+            self.text_proj_m,
+        ]
+
+        self._copy_params_momentum_models()
 
         self.queue_size = queue_size
         self.temp = temp
@@ -114,14 +129,8 @@ class ALBEFModel(nn.Module):
         )
 
     @torch.no_grad()
-    def _copy_params(self):
-        for model, model_m in [
-            [self.vision_encoder, self.vision_encoder_m],
-            [self.text_encoder, self.text_encoder_m],
-            [self.multimodal_encoder, self.multimodal_encoder_m],
-            [self.vision_proj, self.vision_proj_m],
-            [self.text_proj, self.text_proj_m],
-        ]:
+    def _copy_params_momentum_models(self):
+        for model, model_m in zip(self.models, self.models_m):
             for param, param_m in zip(model.parameters(), model_m.parameters()):
                 param_m.data.copy_(param.data)
                 param_m.requires_grad = False
@@ -144,13 +153,7 @@ class ALBEFModel(nn.Module):
 
     @torch.no_grad()
     def _momentum_update(self):
-        for model, model_m in [
-            [self.vision_encoder, self.vision_encoder_m],
-            [self.text_encoder, self.text_encoder_m],
-            [self.multimodal_encoder, self.multimodal_encoder_m],
-            [self.vision_proj, self.vision_proj_m],
-            [self.text_proj, self.text_proj_m],
-        ]:
+        for model, model_m in zip(self.models, self.models_m):
             for param, param_m in zip(model.parameters(), model_m.parameters()):
                 param_m.data = param_m.data * self.momentum + param.data * (
                     1 - self.momentum
