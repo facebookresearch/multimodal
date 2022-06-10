@@ -4,6 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+from dataclasses import make_dataclass
 from typing import Dict
 
 import torch
@@ -20,32 +21,31 @@ class CLIPArchitecture(nn.Module):
     encoders, while the loss is implemented in ContrastiveLossWithTemperature.
 
 
-    Args:   vision_encoder (nn.Module): Instantiated vision encoder.
-                See e.g. ResNetForCLIP class.
-            text_encoder (nn.Module): Instantiated text encoder.
-                See CLIPTextEncoder class.
+    Args:   encoders (nn.ModuleDict): Dict of instantiated encoders, keyed by modality.
+                E.g. {"vision": ResNetForCLIP(), "text": CLIPTextEncoder()}
 
-    Inputs: image (Tensor): Tensor containing image features.
-            text (Tensor): Tensor containing text features.
+    Inputs: modalities (Dict[str, Tensor]): Dict of Tensor features, keyed by modality.
     """
 
     def __init__(
         self,
-        vision_encoder: nn.Module,
-        text_encoder: nn.Module,
+        encoders: nn.ModuleDict,
     ):
         super().__init__()
-        self.vision_encoder = vision_encoder
-        self.text_encoder = text_encoder
+        self.encoders = nn.ModuleDict({k: encoders[k] for k in sorted(encoders.keys())})
 
     def forward(
         self,
-        image: torch.Tensor,
-        text: torch.Tensor,
+        modalities: Dict[str, torch.Tensor],
     ) -> Dict[str, torch.Tensor]:
+        embeddings = {}
+        for key, features in modalities.items():
+            assert key in self.encoders, f"No encoder for {key} modality"
+            embeddings[key] = F.normalize(self.encoders[key](features))
+        embeddings = {k: embeddings[k] for k in sorted(embeddings.keys())}
 
-        img_embeddings = self.vision_encoder(image)
-        text_embeddings = self.text_encoder(text)
-        img_embeddings = F.normalize(img_embeddings)
-        text_embeddings = F.normalize(text_embeddings)
-        return {"image": img_embeddings, "text": text_embeddings}
+        # Return a dataclass instead of a dictionary
+        clip_output = make_dataclass(
+            "CLIPOutput", [(f"{k}_embeddings", torch.Tensor) for k in embeddings.keys()]
+        )
+        return clip_output(**embeddings)
