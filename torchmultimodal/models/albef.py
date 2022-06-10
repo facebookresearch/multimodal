@@ -70,6 +70,10 @@ class ALBEFModel(nn.Module):
         self.register_buffer("image_queue", torch.randn(embed_dim, queue_size))
         self.register_buffer("text_queue", torch.randn(embed_dim, queue_size))
         self.register_buffer("queue_ptr", torch.zeros(1, dtype=torch.long))
+
+        self.image_queue: torch.Tensor
+        self.text_queue: torch.Tensor
+        self.queue_ptr: torch.Tensor
         self.image_queue = nn.functional.normalize(self.image_queue, dim=0)
         self.text_queue = nn.functional.normalize(self.text_queue, dim=0)
 
