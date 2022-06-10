@@ -6,6 +6,7 @@
 
 import copy
 from collections import namedtuple
+from typing import Optional, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -123,8 +124,8 @@ class ALBEFModel(nn.Module):
         self,
         image: Tensor,
         text: Tensor,
-        text_atts: Tensor = None,
-    ):
+        text_atts: Optional[Tensor] = None,
+    ) -> ALBEFOutput:
         image_embeds, text_embeds, image_feat, text_feat = self._unimodal_embeddings(
             image, text, text_atts
         )
@@ -153,13 +154,15 @@ class ALBEFModel(nn.Module):
         )
 
     @torch.no_grad()
-    def _copy_params_momentum_models(self):
+    def _copy_params_momentum_models(self) -> None:
         for model, model_m in zip(self.models, self.models_m):
             for param, param_m in zip(model.parameters(), model_m.parameters()):
                 param_m.data.copy_(param.data)
                 param_m.requires_grad = False
 
-    def _unimodal_embeddings(self, image, text, text_atts):
+    def _unimodal_embeddings(
+        self, image: Tensor, text: Tensor, text_atts: Tensor
+    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
         image_embeds = self.vision_encoder(image)
         text_embeds = self.text_encoder(text, attention_mask=text_atts)
         image_feat = F.normalize(self.vision_proj(image_embeds[:, 0, :]), dim=-1)
@@ -167,7 +170,9 @@ class ALBEFModel(nn.Module):
         return image_embeds, text_embeds, image_feat, text_feat
 
     @torch.no_grad()
-    def _momentum_embeddings(self, image, text, text_atts):
+    def _momentum_embeddings(
+        self, image: Tensor, text: Tensor, text_atts: Tensor
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         self._momentum_update()
         image_embeds_m = self.vision_encoder_m(image)
         text_embeds_m = self.text_encoder_m(text, attention_mask=text_atts)
@@ -177,7 +182,7 @@ class ALBEFModel(nn.Module):
         return image_embeds_m, image_feat_m, text_feat_m
 
     @torch.no_grad()
-    def _momentum_update(self):
+    def _momentum_update(self) -> None:
         for model, model_m in zip(self.models, self.models_m):
             for param, param_m in zip(model.parameters(), model_m.parameters()):
                 param_m.data = param_m.data * self.momentum + param.data * (
@@ -185,7 +190,7 @@ class ALBEFModel(nn.Module):
                 )
 
     @torch.no_grad()
-    def _dequeue_and_enqueue(self, image_feat_m, text_feat_m):
+    def _dequeue_and_enqueue(self, image_feat_m: Tensor, text_feat_m: Tensor) -> None:
         # gather keys before updating queue
         image_feats, text_feats, _ = _gather_embeddings_and_labels(
             image_feat_m, text_feat_m
@@ -203,7 +208,13 @@ class ALBEFModel(nn.Module):
         ptr = (ptr + batch_size) % self.queue_size
         self.queue_ptr[0] = ptr
 
-    def _similarity(self, image_feat, text_feat, image_feat_m, text_feat_m):
+    def _similarity(
+        self,
+        image_feat: Tensor,
+        text_feat: Tensor,
+        image_feat_m: Tensor,
+        text_feat_m: Tensor,
+    ) -> ALBEFSimilarity:
         with torch.no_grad():
             image_feat_all = torch.cat(
                 [image_feat_m.t(), self.image_queue.clone().detach()], dim=1
@@ -224,7 +235,13 @@ class ALBEFModel(nn.Module):
             sim_t2i_m=sim_t2i_m,
         )
 
-    def _neg_embeddings(self, image_embeds, text_embeds, text_atts, similarity):
+    def _neg_embeddings(
+        self,
+        image_embeds: Tensor,
+        text_embeds: Tensor,
+        text_atts: Tensor,
+        similarity: ALBEFSimilarity,
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         with torch.no_grad():
             bs = image_embeds.size(0)
             weights_i2t = F.softmax(similarity.sim_i2t[:, :bs], dim=1)
@@ -248,13 +265,13 @@ class ALBEFModel(nn.Module):
 
     def _multimodal_embeddings(
         self,
-        image_embeds,
-        text_embeds,
-        image_embeds_neg,
-        text_embeds_neg,
-        text_atts,
-        text_atts_neg,
-    ):
+        image_embeds: Tensor,
+        text_embeds: Tensor,
+        image_embeds_neg: Tensor,
+        text_embeds_neg: Tensor,
+        text_atts: Tensor,
+        text_atts_neg: Tensor,
+    ) -> Tensor:
         image_embeds_all = torch.cat([image_embeds_neg, image_embeds], dim=0)
         text_embeds_all = torch.cat([text_embeds, text_embeds_neg], dim=0)
         text_atts_all = torch.cat([text_atts, text_atts_neg], dim=0)
