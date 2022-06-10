@@ -184,7 +184,8 @@ class ALBEFModel(nn.Module):
                 )
 
     @torch.no_grad()
-    def _update_queue(self, image_feat_m, text_feat_m):
+    def _dequeue_and_enqueue(self, image_feat_m, text_feat_m):
+        # gather keys before updating queue
         image_feats, text_feats, _ = _gather_embeddings_and_labels(
             image_feat_m, text_feat_m
         )
@@ -195,6 +196,7 @@ class ALBEFModel(nn.Module):
             self.queue_size % batch_size == 0
         ), "queue_size should be divisible by batch_size"
 
+        # replace the keys at ptr (dequeue and enqueue)
         self.image_queue[:, ptr : ptr + batch_size] = image_feats.T
         self.text_queue[:, ptr : ptr + batch_size] = text_feats.T
         ptr = (ptr + batch_size) % self.queue_size
@@ -213,7 +215,7 @@ class ALBEFModel(nn.Module):
 
         sim_i2t = image_feat @ text_feat_all / self.temp
         sim_t2i = text_feat @ image_feat_all / self.temp
-        self._update_queue(image_feat_m, text_feat_m)
+        self._dequeue_and_enqueue(image_feat_m, text_feat_m)
 
         return ALBEFSimilarity(
             sim_i2t=sim_i2t,
