@@ -166,7 +166,10 @@ class ALBEFModel(nn.Module):
         )
         batch_size = image_feats.shape[0]
         ptr = int(self.queue_ptr)
-        assert self.queue_size % batch_size == 0
+
+        assert (
+            self.queue_size % batch_size == 0
+        ), "queue_size should be divisible by batch_size"
 
         self.image_queue[:, ptr : ptr + batch_size] = image_feats.T
         self.text_queue[:, ptr : ptr + batch_size] = text_feats.T
