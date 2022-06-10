@@ -173,6 +173,7 @@ class ALBEFModel(nn.Module):
         text_embeds_m = self.text_encoder_m(text, attention_mask=text_atts)
         image_feat_m = F.normalize(self.vision_proj_m(image_embeds_m[:, 0, :]), dim=-1)
         text_feat_m = F.normalize(self.text_proj_m(text_embeds_m[:, 0, :]), dim=-1)
+        self._dequeue_and_enqueue(image_feat_m, text_feat_m)
         return image_embeds_m, image_feat_m, text_feat_m
 
     @torch.no_grad()
@@ -215,7 +216,6 @@ class ALBEFModel(nn.Module):
 
         sim_i2t = image_feat @ text_feat_all / self.temp
         sim_t2i = text_feat @ image_feat_all / self.temp
-        self._dequeue_and_enqueue(image_feat_m, text_feat_m)
 
         return ALBEFSimilarity(
             sim_i2t=sim_i2t,
