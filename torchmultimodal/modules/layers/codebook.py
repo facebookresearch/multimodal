@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import NamedTuple, Tuple
+from typing import NamedTuple, Tuple, Union
 
 import torch
 from torch import nn, Size, Tensor
@@ -106,7 +106,9 @@ class Codebook(nn.Module):
 
         return encoded_flat, permuted_shape
 
-    def _postprocess(self, quantized_flat: Tensor, permuted_shape: Size) -> Tensor:
+    def _postprocess(
+        self, quantized_flat: Tensor, permuted_shape: Union[Size, Tuple]
+    ) -> Tensor:
         # Rearrange back to batch x channel x n dims
         num_dims = len(permuted_shape)
         quantized_permuted = quantized_flat.view(permuted_shape)
