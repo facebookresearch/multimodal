@@ -217,10 +217,10 @@ class ALBEFModel(nn.Module):
     ) -> ALBEFSimilarity:
         with torch.no_grad():
             image_feat_all = torch.cat(
-                [image_feat_m.t(), self.image_queue.clone().detach()], dim=1
+                [image_feat_m.t(), self.image_queue.detach().clone()], dim=1
             )
             text_feat_all = torch.cat(
-                [text_feat_m.t(), self.text_queue.clone().detach()], dim=1
+                [text_feat_m.t(), self.text_queue.detach().clone()], dim=1
             )
             sim_i2t_m = image_feat_m @ text_feat_all / self.temp
             sim_t2i_m = text_feat_m @ image_feat_all / self.temp
@@ -251,12 +251,12 @@ class ALBEFModel(nn.Module):
 
         image_embeds_neg, text_embeds_neg, text_atts_neg = [], [], []
         for b in range(bs):
-            neg_idx = torch.multinomial(weights_t2i[b], 1).item()
+            neg_idx = int(torch.multinomial(weights_t2i[b], 1).item())
             image_embeds_neg.append(image_embeds[neg_idx])
         image_embeds_neg = torch.stack(image_embeds_neg, dim=0)
 
         for b in range(bs):
-            neg_idx = torch.multinomial(weights_i2t[b], 1).item()
+            neg_idx = int(torch.multinomial(weights_i2t[b], 1).item())
             text_embeds_neg.append(text_embeds[neg_idx])
             text_atts_neg.append(text_atts[neg_idx])
         text_embeds_neg = torch.stack(text_embeds_neg, dim=0)
