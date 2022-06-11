@@ -22,26 +22,26 @@ def main():
     if config.training.seed != -1:
         seed_everything(config.training.seed, workers=True)
 
-    datamodules = []
+    datamodules = {}
 
     # also needed for the imagenet eval callback
     # imagenet_datamodule = ImageDataModule(
     #    **build_datamodule_kwargs(config.datasets.image, config.training)
     # )
     if "image" in config.datasets.selected:
-        datamodules.append(imagenet_datamodule)
+        datamodules["image"] = imagenet_datamodule
 
     if "text" in config.datasets.selected:
         mlm_datamodule = MLMDataModule(
             **build_datamodule_kwargs(config.datasets.text, config.training)
         )
-        datamodules.append(mlm_datamodule)
+        datamodules["text"] = mlm_datamodule
 
     if "vl" in config.datasets.selected:
         vl_datamodule = VLDataModule(
             **build_datamodule_kwargs(config.datasets.vl, config.training)
         )
-        datamodules.append(vl_datamodule)
+        datamodules["vl"] = vl_datamodule
 
     datamodule = MultiDataModule(
         datamodules, iteration_strategy_factory(config.datasets.iteration_strategy)

@@ -22,14 +22,13 @@ datasets:
   - vl
   - text
   iteration_strategy:
-    type: round_robin
-
-#    type: ratios
-#    params:
-#       sampling_ratios:
-#         image: 0.2
-#         text: 0.7
-#         vl: 0.1
+#    type: round_robin
+    type: ratios
+    params:
+     sampling_ratios:
+       image: 0.2
+       text: 0.7
+       vl: 0.1
 
 #  image:
 #    _target_: flava.definitions.TrainingSingleDatasetInfo

@@ -57,6 +57,7 @@ class TrainingSingleDatasetInfo:
 @dataclass
 class IterationStrategyInfo:
     type: str = "round_robin"
+    params: Dict[str, Any] = None
 
 
 @dataclass
