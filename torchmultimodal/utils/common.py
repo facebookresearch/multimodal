@@ -68,14 +68,14 @@ def shift_dim(
 def tensor_slice(x: Tensor, begin: List[int], size: List[int]) -> Tensor:
     """Slices a tensor dimension-wise.
 
-    The input tensor is sliced at each dimension by specifying the start and
+    The input tensor is sliced along each dimension by specifying the starts and
     the increments.
 
     Args:
         x (Tensor): tensor to be sliced.
         begin (List[int]): list of starts corresponding to each dimension.
-        size (List[int]): list of increments with respect to the starts for each
-            dimension.
+        size (List[int]): list of increments with respect to the starts along each dimension. Specifically,
+                        ``-1`` means slicing from begin to the last element (inclusive) of that dimension.
 
     Returns:
         The sliced tensor.

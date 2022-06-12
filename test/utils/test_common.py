@@ -22,12 +22,11 @@ def test_shift_dim():
     assert_expected(actual, expected)
 
 
-@pytest.fixture(scope="class")
-def test_input():
-    return torch.tensor([[[0, 1], [2, 3], [5, 6]]])
-
-
 class TestTensorSlice:
+    @pytest.fixture(scope="class")
+    def test_input(self):
+        return torch.tensor([[[0, 1], [2, 3], [5, 6]]])
+
     def test_default(self, test_input):
         actual = tensor_slice(test_input, [0, 1, 0], [1, 1, 2])
         expected = torch.tensor([[[2, 3]]])
@@ -42,12 +41,10 @@ class TestTensorSlice:
     def test_uneven_begin_size(self, test_input):
         """Test uneven begin and size vectors"""
         actual = tensor_slice(test_input, [0, 1, 0], [1, 1])
-        expected = torch.tensor([[[2, 3], [5, 6]]])
         expected = torch.tensor([[[2, 3]]])
         assert_expected(actual, expected)
 
         actual = tensor_slice(test_input, [0, 1], [1, 1, 2])
-        expected = torch.tensor([[[2, 3], [5, 6]]])
         expected = torch.tensor([[[2, 3]]])
         assert_expected(actual, expected)
 
