@@ -83,53 +83,6 @@ class TestEmbeddingEncoder(unittest.TestCase):
         )
         assert_expected(actual, expected)
 
-    def test_forward_hash_no_padding(self):
-        input = torch.Tensor(
-            [
-                [0.2, 0.7, 0, 0.1],
-                [0.3, 0, 0.4, 0.3],
-            ]
-        )
-        weighted_embedding_encoder = WeightedEmbeddingEncoder(
-            embedding=self.embedding, pooling_function=torch.max, use_hash=True
-        )
-        actual = weighted_embedding_encoder(input)
-        expected = torch.Tensor(
-            [
-                [1.4, 1.4],
-                [0.4, 0.3],
-            ]
-        )
-        assert_expected(actual, expected)
-
-    def test_forward_hash_zero_padding(self):
-        input = torch.Tensor(
-            [
-                [0.2, 0.7, 0, 0.1],
-                [0.3, 0, 0.4, 0.3],
-            ]
-        )
-        embedding = deepcopy(self.embedding)
-        embedding.padding_idx = 0
-        weighted_embedding_encoder = WeightedEmbeddingEncoder(
-            embedding=embedding, pooling_function=torch.sum, use_hash=True
-        )
-        actual = weighted_embedding_encoder(input)
-        expected = torch.Tensor(
-            [
-                [1.8, 1.8],
-                [1.3, 0.9],
-            ]
-        )
-        assert_expected(actual, expected)
-
-    def test_forward_hash_invalid_padding(self):
-        embedding = deepcopy(self.embedding)
-        embedding.padding_idx = 2
-        self.assertRaises(
-            ValueError, WeightedEmbeddingEncoder, embedding, torch.sum, 1, True
-        )
-
     def test_scripting(self):
         input = torch.Tensor(
             [
@@ -138,7 +91,8 @@ class TestEmbeddingEncoder(unittest.TestCase):
             ]
         )
         weighted_embedding_encoder = WeightedEmbeddingEncoder(
-            embedding=self.embedding, pooling_function=torch.mean, use_hash=True
+            embedding=self.embedding,
+            pooling_function=torch.mean,
         )
         scripted_encoder = torch.jit.script(weighted_embedding_encoder)
         actual = scripted_encoder(input)
