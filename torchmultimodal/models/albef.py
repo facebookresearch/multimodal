@@ -58,9 +58,9 @@ class ALBEFModel(nn.Module):
             temp (float): temperature parameter
             momentum (float): momentum parameter
 
-    Inputs: image (Tensor): Tensor containing image features
-            text (Tensor): Tensor containing text features
-            text_atts (Tensor): Tensor containing text attention mask
+    Inputs: image (Tensor): Tensor of shape (B, C, H, W) containing image features
+            text (Tensor): Tensor of shape (B, L) containing text features
+            text_atts (Tensor): Tensor of shape (B, L) containing text attention mask
     """
 
     def __init__(
