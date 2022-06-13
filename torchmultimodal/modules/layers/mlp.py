@@ -57,7 +57,8 @@ class MLP(nn.Module):
             if normalization:
                 layers.append(normalization(hidden_dim))
             layers.append(activation())
-            layers.append(nn.Dropout(dropout))
+            if dropout > 0:
+                layers.append(nn.Dropout(dropout))
             in_dim = hidden_dim
         layers.append(nn.Linear(in_dim, out_dim))
         self.model = nn.Sequential(*layers)
