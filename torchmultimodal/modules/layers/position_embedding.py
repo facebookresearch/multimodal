@@ -21,7 +21,7 @@ class BroadcastedPositionEmbedding(nn.Module):
     :math:`N = \prod_{j>i}\text{dim}[j]`.
 
     Args:
-        shape (Tuple[int]): shape of raw data before batching and embedding
+        shape (Tuple[int, ...]): shape of raw data before batching and embedding
         embedding_dim (int): the size of each embedding vector
 
     Raises:
@@ -34,7 +34,7 @@ class BroadcastedPositionEmbedding(nn.Module):
 
     def __init__(
         self,
-        shape: Tuple[int],
+        shape: Tuple[int, ...],
         embedding_dim: int,
     ) -> None:
         super().__init__()
@@ -59,7 +59,7 @@ class BroadcastedPositionEmbedding(nn.Module):
     @property
     def seq_len(self) -> int:
         """Dimension of flattened data, e.g., time * height * width"""
-        return torch.prod(torch.tensor(self.shape)).item()
+        return int(torch.prod(torch.tensor(self.shape)).item())
 
     @property
     def decode_idxs(self):
@@ -101,7 +101,7 @@ class BroadcastedPositionEmbedding(nn.Module):
         return emb
 
     def _decode(
-        self, decode_step: int, embeddings: Tensor, x_shape: Tuple[int]
+        self, decode_step: int, embeddings: Tensor, x_shape: Tuple[int, ...]
     ) -> Tensor:
         """Returns the embedding vector immediately before the decoding location."""
         decode_idx = self.decode_idxs[decode_step - 1]
