@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import itertools
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import torch
 from torch import nn, Tensor
@@ -62,7 +62,7 @@ class BroadcastedPositionEmbedding(nn.Module):
         return int(torch.prod(torch.tensor(self.shape)).item())
 
     @property
-    def decode_idxs(self):
+    def decode_idxs(self) -> List:
         """Indices along the dims of data, e.g., ``(time, height, width)``."""
         return list(itertools.product(*[range(s) for s in self.shape]))
 
