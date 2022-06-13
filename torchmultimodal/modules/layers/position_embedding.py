@@ -126,7 +126,7 @@ class BroadcastedPositionEmbedding(nn.Module):
         )  # concatenated embeddings: (1, *(shape), embedding_dim)
 
         if decode_step is not None:
-            embeddings = self._decode(decode_step, embeddings, x.shape)
+            embeddings = self._decode(decode_step, embeddings, tuple(x.shape))
             # decoded embedding: (1, *repeat(1, len(shape)), embedding_dim)
 
         return embeddings.flatten(start_dim=1, end_dim=-2)
