@@ -7,7 +7,6 @@
 import pytest
 
 import torch
-
 from test.test_utils import assert_expected
 from torch import nn
 from torchmultimodal.modules.layers.position_embedding import (
@@ -15,15 +14,14 @@ from torchmultimodal.modules.layers.position_embedding import (
 )
 
 
-@pytest.fixture(scope="class")
-def pos_emb():
-    return BroadcastedPositionEmbedding(
-        shape=(1, 2),
-        embedding_dim=6,
-    )
-
-
 class TestBroadcastedPositionEmbedding:
+    @pytest.fixture(scope="class")
+    def pos_emb(self):
+        return BroadcastedPositionEmbedding(
+            shape=(1, 2),
+            embedding_dim=6,
+        )
+
     def test_init_sets_embedding(self, pos_emb):
         """Test the embeddings are initialized with the correct dimensions"""
         expected = [(1, 3), (2, 3)]
