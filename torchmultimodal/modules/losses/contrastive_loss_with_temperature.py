@@ -45,8 +45,8 @@ def _gather_embeddings_and_labels(
         rtv_embeddings_all_gpus = all_gather_with_backprop(retrieval_embeddings)
 
     # Otherwise just backprop to the current worker
-    # This means that the image gradients on a given worker will only
-    # consider the text samples from the same worker
+    # This means that the query gradients on a given worker will only
+    # consider the retrieval samples from the same worker
     else:
         rtv_embeddings_all_gpus = [
             torch.zeros_like(retrieval_embeddings) for _ in range(world_size)
@@ -163,6 +163,7 @@ class ContrastiveLossWithTemperature(nn.Module):
                 (In the CLIP model, these are the outputs of the image encoder.)
             retrieval_embeddings (Tensor): Tensor containing retrieval features.
                 (In the CLIP model, these are the outputs of the text encoder.)
+                retrieval_embeddings shape and query_embeddings shape should be equal.
             backprop_in_gather (bool): Whether to backpropagate the gradients from
                 all_gather to all workers (versus just the local worker).
     """

@@ -4,6 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import warnings
 from dataclasses import make_dataclass
 from typing import Dict
 
@@ -39,13 +40,16 @@ class CLIPArchitecture(nn.Module):
         modalities: Dict[str, torch.Tensor],
     ) -> Dict[str, torch.Tensor]:
         embeddings = {}
-        for key, features in modalities.items():
-            assert key in self.encoders, f"No encoder for {key} modality"
-            embeddings[key] = F.normalize(self.encoders[key](features))
-        embeddings = {k: embeddings[k] for k in sorted(embeddings.keys())}
+        for key, encoder in self.encoders.items():
+            assert key in modalities, f"{key} missing in input"
+            embeddings[f"{key}_embeddings"] = F.normalize(encoder(modalities[key]))
+        for key in modalities.keys():
+            if key not in self.encoders:
+                warnings.warn(f"Missing encoder for extra input {key}")
 
-        # Return a dataclass instead of a dictionary
+        # Return a dataclass object instead of a dictionary
         clip_output = make_dataclass(
-            "CLIPOutput", [(f"{k}_embeddings", torch.Tensor) for k in embeddings.keys()]
+            "CLIPOutput",
+            [(f"{k}_embeddings", torch.Tensor) for k in self.encoders.keys()],
         )
         return clip_output(**embeddings)
