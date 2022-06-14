@@ -10,13 +10,7 @@ from typing import OrderedDict
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn, Tensor
-from torchmultimodal.modules.encoders.albef_vision_encoder import (
-    Attention,
-    Block,
-    Mlp,
-    PatchEmbed,
-    VisionTransformer,
-)
+from torchmultimodal.modules.encoders.albef_vision_encoder import ALBEFVisionEncoder
 
 
 class TestALBEFVisionEncoder:
@@ -63,61 +57,47 @@ class TestALBEFVisionEncoder:
         + [("blocks.0." + key, val) for key, val in encoder_block_state_dict.items()]
         + [("blocks.1." + key, val) for key, val in encoder_block_state_dict.items()]
     )
+    vision_encoder = ALBEFVisionEncoder(
+        image_size=4,
+        patch_size=4,
+        num_layers=2,
+        num_heads=1,
+        hidden_dim=3,
+        mlp_dim=6,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        num_classes=3,
+    )
 
     def test_conv_proj(self):
-        conv_proj = PatchEmbed(
-            img_size=4,
-            patch_size=4,
-            in_chans=3,
-            embed_dim=3,
-        )
+        conv_proj = self.vision_encoder.conv_proj
         conv_proj.load_state_dict(self.proj_state_dict)
         output = conv_proj(self.input)
         expected = Tensor([-5.115712, 3.110137, -2.686451]).reshape(1, 1, 3)
         assert_expected(output, expected, rtol=0, atol=1e-4)
 
     def test_attention(self):
-        attention = Attention(
-            3,
-            num_heads=1,
-            qkv_bias=True,
-        )
+        attention = self.vision_encoder.encoder.layers[0].self_attention
         attention.load_state_dict(self.attention_state_dict)
         output = attention(self.proj_input)
         expected = Tensor([0.799757, 0.632195, 2.890842]).reshape(1, 1, 3)
         assert_expected(output, expected, rtol=0, atol=1e-4)
 
     def test_mlp_block(self):
-        mlp = Mlp(3, hidden_features=6, act_layer=nn.GELU)
+        mlp = self.vision_encoder.encoder.layers[0].mlp
         mlp.load_state_dict(self.mlp_state_dict)
         output = mlp(self.proj_input)
         expected = Tensor([14.869835, 3.666760, 0.993663]).reshape(1, 1, 3)
         assert_expected(output, expected, rtol=0, atol=1e-4)
 
     def test_encoder_block(self):
-        encoder_block = Block(
-            dim=3,
-            num_heads=1,
-            mlp_ratio=2,
-            qkv_bias=True,
-            norm_layer=partial(nn.LayerNorm, eps=1e-6),
-        )
+        encoder_block = self.vision_encoder.encoder.layers[0]
         encoder_block.load_state_dict(self.encoder_block_state_dict)
         output = encoder_block(self.proj_input)
         expected = Tensor([41.667698, 15.369812, 1.672322]).reshape(1, 1, 3)
         assert_expected(output, expected, rtol=0, atol=1e-4)
 
     def test_vision_transformer(self):
-        vit = VisionTransformer(
-            img_size=4,
-            patch_size=4,
-            embed_dim=3,
-            depth=2,
-            num_heads=1,
-            mlp_ratio=2,
-            qkv_bias=True,
-            norm_layer=partial(nn.LayerNorm, eps=1e-6),
-        )
+        vit = self.vision_encoder
         vit.load_state_dict(self.vit_state_dict)
         output = vit(self.input)
         expected = Tensor(
