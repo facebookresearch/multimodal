@@ -5,6 +5,8 @@
 # LICENSE file in the root directory of this source tree.
 import pytest
 
+import pytest
+
 import torch
 from test.test_utils import assert_expected
 

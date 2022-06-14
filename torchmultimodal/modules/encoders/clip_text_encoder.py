@@ -86,11 +86,15 @@ class CLIPTextEncoder(nn.Module):
         nn.init.normal_(self.projection.weight, std=self.width**-0.5)
 
     def build_attention_mask(self) -> torch.Tensor:
-        mask = torch.full((self.context_length, self.context_length), True).triu(1)
+        # To support torchscripting, we have to pass an int as fill_value
+        mask = torch.full((self.context_length, self.context_length), int(True)).triu(1)
         return mask.to(device=None, dtype=torch.bool)
 
     def forward(self, text: torch.Tensor) -> torch.Tensor:
         embeddings = self.encoder(text, attn_mask=self.build_attention_mask())
+        # To support torchscripting, embeddings must explicitly be a Tensor and not List[Tensor]
+        if not isinstance(embeddings, torch.Tensor):
+            raise TypeError("`embeddings` must be of type Tensor.")
         # [n_ctx, bs, transformer.width] -> [bs, n_ctx, transformer.width]
         embeddings = torch.permute(embeddings, (1, 0, 2))
         embeddings = self.ln_final(embeddings)
