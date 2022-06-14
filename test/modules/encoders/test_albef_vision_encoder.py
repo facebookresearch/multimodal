@@ -4,6 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+from functools import partial
 from typing import OrderedDict
 
 import torch
@@ -11,6 +12,7 @@ from test.test_utils import assert_expected, set_rng_seed
 from torch import nn, Tensor
 from torchmultimodal.modules.encoders.albef_vision_encoder import (
     Attention,
+    Block,
     Mlp,
     PatchEmbed,
 )
@@ -38,6 +40,16 @@ class TestALBEFVisionEncoder:
             ("fc2.weight", torch.randn(3, 6)),
             ("fc2.bias", torch.randn(3)),
         ]
+    )
+    encoder_block_state_dict = OrderedDict(
+        [
+            ("norm1.weight", torch.randn(3)),
+            ("norm1.bias", torch.randn(3)),
+            ("norm2.weight", torch.randn(3)),
+            ("norm2.bias", torch.randn(3)),
+        ]
+        + [("attn." + key, val) for key, val in attention_state_dict.items()]
+        + [("mlp." + key, val) for key, val in mlp_state_dict.items()]
     )
 
     def test_conv_proj(self):
@@ -68,4 +80,17 @@ class TestALBEFVisionEncoder:
         mlp.load_state_dict(self.mlp_state_dict)
         output = mlp(self.proj_input)
         expected = Tensor([14.869835, 3.666760, 0.993663]).reshape(1, 1, 3)
+        assert_expected(output, expected, rtol=0, atol=1e-4)
+
+    def test_encoder_block(self):
+        encoder_block = Block(
+            dim=3,
+            num_heads=1,
+            mlp_ratio=2,
+            qkv_bias=True,
+            norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        )
+        encoder_block.load_state_dict(self.encoder_block_state_dict)
+        output = encoder_block(self.proj_input)
+        expected = Tensor([41.667698, 15.369812, 1.672322]).reshape(1, 1, 3)
         assert_expected(output, expected, rtol=0, atol=1e-4)
