@@ -42,5 +42,5 @@ class TestIterationStrategies(unittest.TestCase):
 
         iter_strat = f(dataloaders)
 
-        for x in range(text_len):
+        for _ in range(text_len):
             self.assertEqual(iter_strat(), 1)
