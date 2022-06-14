@@ -6,4 +6,3 @@
 
 from .multidata import *  # noqa F401
 from .iteration_strategies import *  # noqa F401
-

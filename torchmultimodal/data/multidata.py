@@ -4,19 +4,17 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import random
 import warnings
 from collections import OrderedDict
-from functools import partial
-from typing import Callable, Dict, List, Optional
+from typing import List
 
 import torch
+from pytorch_lightning import LightningDataModule
 from torchmultimodal.data.iteration_strategies import (
     IterationStrategy,
     IterationStrategyFactory,
     DEFAULT_ITERATION_STRATEGY_FACTORY,
 )
-from pytorch_lightning import LightningDataModule
 
 
 class MultiDataLoader:

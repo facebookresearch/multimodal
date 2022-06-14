@@ -53,7 +53,6 @@ class TrainingSingleDatasetInfo:
     datamodule_extra_kwargs: Dict[str, Any] = field(default_factory=dict)
 
 
-# move to dataset_utils
 @dataclass
 class IterationStrategyInfo:
     type: str = "round_robin"
