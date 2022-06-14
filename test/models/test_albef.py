@@ -4,6 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn
 from torchmultimodal.models.albef import ALBEFModel
@@ -28,3 +29,10 @@ class TestALBEFModel:
             for param, param_m in zip(model.parameters(), model_m.parameters()):
                 assert_expected(param, param_m)
                 assert not param_m.requires_grad
+
+    def test_dequeue_and_enqueue(self):
+        image_feat_m = torch.randn(2, 2)
+        text_feat_m = torch.randn(2, 2)
+        self.albef._dequeue_and_enqueue(image_feat_m, text_feat_m)
+        assert_expected(self.albef.image_queue[:, 0:2], image_feat_m.T)
+        assert_expected(self.albef.text_queue[:, 0:2], text_feat_m.T)
