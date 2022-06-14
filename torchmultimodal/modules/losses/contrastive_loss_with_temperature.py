@@ -18,70 +18,69 @@ from torch.distributed.nn.functional import all_gather as all_gather_with_backpr
 @dataclass
 class ContrastiveLossOutput(OrderedDict):
     loss: torch.Tensor
-    query_logits: torch.Tensor
-    retrieval_logits: torch.Tensor
-    query_loss: torch.Tensor
-    retrieval_loss: torch.Tensor
+    image_logits: torch.Tensor
+    text_logits: torch.Tensor
+    image_loss: torch.Tensor
+    text_loss: torch.Tensor
 
 
 def _gather_embeddings_and_labels(
-    query_embeddings: torch.Tensor,
-    retrieval_embeddings: torch.Tensor,
+    image_embeddings: torch.Tensor,
+    text_embeddings: torch.Tensor,
     backprop_in_gather: bool = True,
 ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     if not torch.distributed.is_available() or not torch.distributed.is_initialized():
-        labels = torch.arange(query_embeddings.size(0), device=query_embeddings.device)
-        return query_embeddings, retrieval_embeddings, labels
+        labels = torch.arange(image_embeddings.size(0), device=image_embeddings.device)
+        return image_embeddings, text_embeddings, labels
 
-    # query_embeddings has shape [local_batch_size, embedding_dim]
-    local_batch_size = query_embeddings.size(0)
+    # image_embeddings has shape [local_batch_size, embedding_dim]
+    local_batch_size = image_embeddings.size(0)
 
     world_size = torch.distributed.get_world_size()
 
     # This uses the all_gather from torch.distributed.nn.functional,
     # which backpropagates gradients to all workers
     if backprop_in_gather:
-        qry_embeddings_all_gpus = all_gather_with_backprop(query_embeddings)
-        rtv_embeddings_all_gpus = all_gather_with_backprop(retrieval_embeddings)
+        img_embeddings_all_gpus = all_gather_with_backprop(image_embeddings)
+        text_embeddings_all_gpus = all_gather_with_backprop(text_embeddings)
 
     # Otherwise just backprop to the current worker
-    # This means that the query gradients on a given worker will only
-    # consider the retrieval samples from the same worker
+    # This means that the image gradients on a given worker will only
+    # consider the text samples from the same worker
     else:
-        rtv_embeddings_all_gpus = [
-            torch.zeros_like(retrieval_embeddings) for _ in range(world_size)
+        text_embeddings_all_gpus = [
+            torch.zeros_like(text_embeddings) for _ in range(world_size)
         ]
-        qry_embeddings_all_gpus = [
-            torch.zeros_like(query_embeddings) for _ in range(world_size)
+        img_embeddings_all_gpus = [
+            torch.zeros_like(image_embeddings) for _ in range(world_size)
         ]
-        all_gather_no_backprop(qry_embeddings_all_gpus, query_embeddings)
-        all_gather_no_backprop(rtv_embeddings_all_gpus, retrieval_embeddings)
+        all_gather_no_backprop(img_embeddings_all_gpus, image_embeddings)
+        all_gather_no_backprop(text_embeddings_all_gpus, text_embeddings)
 
     labels = local_batch_size * torch.distributed.get_rank() + torch.arange(
-        local_batch_size, device=query_embeddings.device
+        local_batch_size, device=image_embeddings.device
     )
 
     return (
-        torch.cat(qry_embeddings_all_gpus),
-        torch.cat(rtv_embeddings_all_gpus),
+        torch.cat(img_embeddings_all_gpus),
+        torch.cat(text_embeddings_all_gpus),
         labels,
     )
 
 
 def contrastive_loss_with_temperature(
-    query_embeddings: torch.Tensor,
-    retrieval_embeddings: torch.Tensor,
+    image_embeddings: torch.Tensor,
+    text_embeddings: torch.Tensor,
     logit_scale: nn.Parameter,
     mask: Optional[torch.Tensor] = None,
     backprop_in_gather: bool = True,
 ) -> ContrastiveLossOutput:
     """Functional component for the ContrastiveLossWithTemperature. Please
     check the class for more details
-
     Args:
-        query_embeddings (Tensor): Tensor containing query features.
+        image_embeddings (Tensor): Tensor containing image features.
             (In the CLIP model, these are the outputs of the image encoder.)
-        retrieval_embeddings (Tensor): Tensor containing retrieval features.
+        text_embeddings (Tensor): Tensor containing text features.
             (In the CLIP model, these are the outputs of the text encoder.)
         logit_scale (nn.Parameter): Parameter with value of log of the learned temperature
         mask (Optional[torch.Tensor], optional): If certain elements of the inputs shouldn't
@@ -89,7 +88,6 @@ def contrastive_loss_with_temperature(
             mask. Size is (BatchSize,). Defaults to None.
         backprop_in_gather (bool): Whether to backpropagate the gradients from
             all_gather to all workers (versus just the local worker).
-
     Returns:
         ContrastiveLossOutput: instance of ContrastiveLossOutput with all of the
             relevant fields.
@@ -99,38 +97,38 @@ def contrastive_loss_with_temperature(
     temperature = torch.exp(logit_scale)
 
     (
-        qry_embeddings_all_gpus,
-        rtv_embeddings_all_gpus,
+        img_embeddings_all_gpus,
+        text_embeddings_all_gpus,
         labels,
     ) = _gather_embeddings_and_labels(
-        query_embeddings, retrieval_embeddings, backprop_in_gather
+        image_embeddings, text_embeddings, backprop_in_gather
     )
 
-    # logits_per_query has shape [local_batch_size, global_batch_size]
-    logits_per_query = (
-        torch.matmul(query_embeddings, rtv_embeddings_all_gpus.transpose(0, 1))
+    # logits_per_image has shape [local_batch_size, global_batch_size]
+    logits_per_image = (
+        torch.matmul(image_embeddings, text_embeddings_all_gpus.transpose(0, 1))
         * temperature
     )
-    logits_per_retrieval = (
-        torch.matmul(retrieval_embeddings, qry_embeddings_all_gpus.transpose(0, 1))
+    logits_per_text = (
+        torch.matmul(text_embeddings, img_embeddings_all_gpus.transpose(0, 1))
         * temperature
     )
 
     if mask is not None:
-        logits_per_query = logits_per_query[mask]
-        logits_per_retrieval = logits_per_retrieval[mask]
+        logits_per_image = logits_per_image[mask]
+        logits_per_text = logits_per_text[mask]
         labels = labels[mask]
 
-    loss_q = F.cross_entropy(logits_per_query, labels)
-    loss_r = F.cross_entropy(logits_per_retrieval, labels)
-    loss = (loss_q + loss_r) / 2
+    loss_i = F.cross_entropy(logits_per_image, labels)
+    loss_t = F.cross_entropy(logits_per_text, labels)
+    loss = (loss_i + loss_t) / 2
 
     return ContrastiveLossOutput(
         loss=loss,
-        query_logits=logits_per_query,
-        retrieval_logits=logits_per_retrieval,
-        query_loss=loss_q,
-        retrieval_loss=loss_r,
+        image_logits=logits_per_image,
+        text_logits=logits_per_text,
+        image_loss=loss_i,
+        text_loss=loss_t,
     )
 
 
@@ -141,29 +139,22 @@ class ContrastiveLossWithTemperature(nn.Module):
     """Contrastive loss with a temperature parameter, as used in CLIP and FLAVA.
     CLIP: https://arxiv.org/pdf/2103.00020.pdf
     FLAVA: https://arxiv.org/pdf/2112.04482.pdf
-
-
-    A contrastive loss over pairs of query and retrieval embeddings. For each query
-    embedding, we compute a weighted cosine similarity with all retrieval embeddings,
-    then calculate the cross entropy loss against the true (query, retrieval) pairing.
-    Each retrieval embedding is evaluated against all query embeddings similarly.
-    The batch's loss is the average cross entropy over all query and retrieval embeddings
+    A contrastive loss over pairs of image and text embeddings. For each image
+    embedding, we compute a weighted cosine similarity with all text embeddings,
+    then calculate the cross entropy loss against the true (image, text) pairing.
+    Each text embedding is evaluated against all image embeddings similarly.
+    The batch's loss is the average cross entropy over all image and text embeddings
     in the batch.
-
     Temperature is a learned parameter clamped to ``[1, 100]`` and
     initialized to 1 / 0.07 as in the CLIP paper.
-
-
     Args:
         logit_scale (Union[float, nn.Module]): Log of the learnable temperature parameter value
             A nn.Parameter instantiation can also be passed directly in case parent class
             is handling the initialization.
-
-    Inputs: query_embeddings (Tensor): Tensor containing query features.
+    Inputs: image_embeddings (Tensor): Tensor containing image features.
                 (In the CLIP model, these are the outputs of the image encoder.)
-            retrieval_embeddings (Tensor): Tensor containing retrieval features.
+            text_embeddings (Tensor): Tensor containing text features.
                 (In the CLIP model, these are the outputs of the text encoder.)
-                retrieval_embeddings shape and query_embeddings shape should be equal.
             backprop_in_gather (bool): Whether to backpropagate the gradients from
                 all_gather to all workers (versus just the local worker).
     """
@@ -179,16 +170,16 @@ class ContrastiveLossWithTemperature(nn.Module):
 
     def forward(
         self,
-        query_embeddings: torch.Tensor,
-        retrieval_embeddings: torch.Tensor,
+        image_embeddings: torch.Tensor,
+        text_embeddings: torch.Tensor,
         backprop_in_gather: bool = True,
     ):
 
         # Note: we clamp to 4.6052 = ln(100), as in the original paper.
         self.logit_scale.data.clamp_(0, 4.6052)
         return contrastive_loss_with_temperature(
-            query_embeddings=query_embeddings,
-            retrieval_embeddings=retrieval_embeddings,
+            image_embeddings=image_embeddings,
+            text_embeddings=text_embeddings,
             logit_scale=self.logit_scale,
             backprop_in_gather=backprop_in_gather,
         ).loss
