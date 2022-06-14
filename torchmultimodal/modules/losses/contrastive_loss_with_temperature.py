@@ -77,6 +77,7 @@ def contrastive_loss_with_temperature(
 ) -> ContrastiveLossOutput:
     """Functional component for the ContrastiveLossWithTemperature. Please
     check the class for more details
+
     Args:
         image_embeddings (Tensor): Tensor containing image features.
             (In the CLIP model, these are the outputs of the image encoder.)
@@ -88,6 +89,7 @@ def contrastive_loss_with_temperature(
             mask. Size is (BatchSize,). Defaults to None.
         backprop_in_gather (bool): Whether to backpropagate the gradients from
             all_gather to all workers (versus just the local worker).
+
     Returns:
         ContrastiveLossOutput: instance of ContrastiveLossOutput with all of the
             relevant fields.
@@ -139,18 +141,24 @@ class ContrastiveLossWithTemperature(nn.Module):
     """Contrastive loss with a temperature parameter, as used in CLIP and FLAVA.
     CLIP: https://arxiv.org/pdf/2103.00020.pdf
     FLAVA: https://arxiv.org/pdf/2112.04482.pdf
+
+
     A contrastive loss over pairs of image and text embeddings. For each image
     embedding, we compute a weighted cosine similarity with all text embeddings,
     then calculate the cross entropy loss against the true (image, text) pairing.
     Each text embedding is evaluated against all image embeddings similarly.
     The batch's loss is the average cross entropy over all image and text embeddings
     in the batch.
+
     Temperature is a learned parameter clamped to ``[1, 100]`` and
     initialized to 1 / 0.07 as in the CLIP paper.
+
+
     Args:
         logit_scale (Union[float, nn.Module]): Log of the learnable temperature parameter value
             A nn.Parameter instantiation can also be passed directly in case parent class
             is handling the initialization.
+
     Inputs: image_embeddings (Tensor): Tensor containing image features.
                 (In the CLIP model, these are the outputs of the image encoder.)
             text_embeddings (Tensor): Tensor containing text features.
