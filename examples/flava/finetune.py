@@ -4,9 +4,9 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from flava.data import TextDataModule, TorchVisionDataModule
-from flava.data.datamodules import VLDataModule
-from flava.definitions import FLAVAArguments
+from data import TextDataModule, TorchVisionDataModule
+from data.datamodules import VLDataModule
+from definitions import FLAVAArguments
 from model import FLAVAClassificationLightningModule
 from omegaconf import OmegaConf
 from pytorch_lightning import seed_everything, Trainer

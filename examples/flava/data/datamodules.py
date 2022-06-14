@@ -10,7 +10,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 import torchvision
-from flava.definitions import HFDatasetInfo, TorchVisionDatasetInfo
+from definitions import HFDatasetInfo, TorchVisionDatasetInfo
 from pytorch_lightning import LightningDataModule
 from transformers import (
     BertTokenizer,

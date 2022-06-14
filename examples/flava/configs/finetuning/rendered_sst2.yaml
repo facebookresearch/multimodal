@@ -1,7 +1,7 @@
 # Note that in original FLAVA paper, only Logistic Regression numbers were provided for image datasets.
-_target_: flava.definitions.FLAVAArguments
+_target_: definitions.FLAVAArguments
 training:
-  _target_: flava.definitions.TrainingArguments
+  _target_: definitions.TrainingArguments
   lightning:
     max_steps: 20935
     gpus: -1
@@ -18,12 +18,12 @@ training:
 
 
 datasets:
-  _target_: flava.definitions.TrainingDatasetsInfo
+  _target_: definitions.TrainingDatasetsInfo
   selected:
   - image
   num_classes: 2
   image:
-    _target_: flava.definitions.TrainingSingleDatasetInfo
+    _target_: definitions.TrainingSingleDatasetInfo
     train:
-      - _target_: flava.definitions.TorchVisionDatasetInfo
+      - _target_: definitions.TorchVisionDatasetInfo
         key: RenderedSST2

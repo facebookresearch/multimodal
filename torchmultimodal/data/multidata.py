@@ -6,10 +6,16 @@
 
 import random
 import warnings
+from collections import OrderedDict
 from functools import partial
-from typing import Callable, List, Optional
+from typing import Callable, Dict, List, Optional
 
 import torch
+from torchmultimodal.data.iteration_strategies import (
+    IterationStrategy,
+    IterationStrategyFactory,
+    DEFAULT_ITERATION_STRATEGY_FACTORY,
+)
 from pytorch_lightning import LightningDataModule
 
 
@@ -18,8 +24,8 @@ class MultiDataLoader:
     # epoch based sampling funcs.
     def __init__(
         self,
-        loaders: List[torch.utils.data.DataLoader],
-        sampling_func: Optional[Callable] = None,
+        loaders: OrderedDict[str, torch.utils.data.DataLoader],
+        iteration_strategy: IterationStrategy = None,
     ):
         """MultiDataLoader takes in a list of dataloaders and a sampling function
         and cycles between these dataloaders after each batch based on the index
@@ -39,26 +45,25 @@ class MultiDataLoader:
                 "unintended consequences."
             )
 
-        if sampling_func is None:
-            sampling_func = partial(random.choice, range(len(loaders)))
-
-        self.sampling_func = sampling_func
+        if iteration_strategy is None:
+            iteration_strategy = DEFAULT_ITERATION_STRATEGY_FACTORY(loaders)
+        self.iteration_strategy = iteration_strategy
         self.loaders = loaders
         self.num_datasets = len(self.loaders)
-        self.iterators = [None for _ in loaders]
+        self.iterators = [None] * len(self.loaders)
         self.current_index = 0
         self.set_samplers()
 
     def set_samplers(self):
         self.samplers: List[torch.utils.data.Sampler] = []
-        for loader in self.loaders:
+        for loader in self.loaders.values():
             if hasattr(loader, "sampler"):
                 self.samplers.append(loader.sampler)
 
     def __iter__(self):
         self.iterators = []
 
-        for loader in self.loaders:
+        for loader in self.loaders.values():
             self.iterators.append(iter(loader))
 
         self.change_dataloader()
@@ -114,7 +119,7 @@ class MultiDataLoader:
             self.current_iterator = self.iterators[self.current_index]
             return
 
-        choice = [self.sampling_func()]
+        choice = [self.iteration_strategy()]
         if torch.distributed.is_available() and torch.distributed.is_initialized():
             # This broadcast is probably unnecessary with lightning if everything
             # is already properly seeded. But,to be on safe side, we can still
@@ -144,20 +149,21 @@ class MultiDataModule(LightningDataModule):
     # as required
     def __init__(
         self,
-        datamodules: List[LightningDataModule],
-        sampling_func: Optional[Callable] = None,
+        datamodules: OrderedDict[str, LightningDataModule],
+        iteration_strategy_factory: IterationStrategyFactory = DEFAULT_ITERATION_STRATEGY_FACTORY,
     ):
         super().__init__()
         self.datamodules = datamodules
-        self.sampling_func = sampling_func
+        self.datamodules_list = list(datamodules.values())
+        self.iteration_strategy_factory = iteration_strategy_factory
         self.current_datamodule_idx = 0
 
     def setup(self, stage=None):
-        for datamodule in self.datamodules:
+        for datamodule in self.datamodules.values():
             datamodule.setup(stage)
 
     def prepare_data(self):
-        for datamodule in self.datamodules:
+        for datamodule in self.datamodules.values():
             datamodule.prepare_data()
 
     def train_dataloader(self) -> MultiDataLoader:
@@ -171,24 +177,26 @@ class MultiDataModule(LightningDataModule):
         return self._build_multi_dataloader("test")
 
     def _build_multi_dataloader(self, split="train"):
-        dataloaders = []
-        for datamodule in self.datamodules:
-            dataloaders.append(getattr(datamodule, f"{split}_dataloader")())
-
-        return MultiDataLoader(dataloaders, self.sampling_func)
+        dataloaders = {}
+        for key, datamodule in self.datamodules.items():
+            dataloaders[key] = getattr(datamodule, f"{split}_dataloader")()
+        return MultiDataLoader(
+            dataloaders,
+            self.iteration_strategy_factory(dataloaders),
+        )
 
     def on_before_batch_transfer(self, batch, *args):
         batch, index = batch["batch"], batch["datamodule_index"]
         self.current_datamodule_idx = index
-        return self.datamodules[self.current_datamodule_idx].on_before_batch_transfer(
-            batch, *args
-        )
+        return self.datamodules_list[
+            self.current_datamodule_idx
+        ].on_before_batch_transfer(batch, *args)
 
     def on_after_batch_transfer(self, batch, *args):
-        return self.datamodules[self.current_datamodule_idx].on_after_batch_transfer(
-            batch, *args
-        )
+        return self.datamodules_list[
+            self.current_datamodule_idx
+        ].on_after_batch_transfer(batch, *args)
 
     def teardown(self, stage):
-        for datamodule in self.datamodules:
+        for datamodule in self.datamodules.values():
             datamodule.teardown(stage)

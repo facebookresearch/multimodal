@@ -53,9 +53,17 @@ class TrainingSingleDatasetInfo:
     datamodule_extra_kwargs: Dict[str, Any] = field(default_factory=dict)
 
 
+# move to dataset_utils
+@dataclass
+class IterationStrategyInfo:
+    type: str = "round_robin"
+    params: Dict[str, Any] = None
+
+
 @dataclass
 class TrainingDatasetsInfo:
     selected: List[str] = field(default_factory=lambda: ["image", "text", "vl"])
+    iteration_strategy: Optional[IterationStrategyInfo] = None
     image: Optional[TrainingSingleDatasetInfo] = None
     text: Optional[TrainingSingleDatasetInfo] = None
     vl: Optional[TrainingSingleDatasetInfo] = None

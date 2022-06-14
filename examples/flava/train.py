@@ -3,15 +3,17 @@
 #
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
-from common.dataset_utils import MultiDataModule
-from flava.callbacks.multimodal_eval import MultimodalEvalCallback
-from flava.data import ImageDataModule, MLMDataModule, VLDataModule
-from flava.definitions import FLAVAArguments
-from flava.model import FLAVAPreTrainingLightningModule
-from flava.utils import build_config, build_datamodule_kwargs
+
+
+from callbacks.multimodal_eval import MultimodalEvalCallback
+from data import ImageDataModule, MLMDataModule, VLDataModule
+from definitions import FLAVAArguments
+from model import FLAVAPreTrainingLightningModule
 from omegaconf import OmegaConf
 from pytorch_lightning import seed_everything, Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor
+from torchmultimodal.data import MultiDataModule, iteration_strategy_factory
+from utils import build_config, build_datamodule_kwargs
 
 
 def main():
@@ -19,28 +21,30 @@ def main():
     if config.training.seed != -1:
         seed_everything(config.training.seed, workers=True)
 
-    datamodules = []
+    datamodules = {}
 
     # also needed for the imagenet eval callback
     imagenet_datamodule = ImageDataModule(
         **build_datamodule_kwargs(config.datasets.image, config.training)
     )
     if "image" in config.datasets.selected:
-        datamodules.append(imagenet_datamodule)
+        datamodules["image"] = imagenet_datamodule
 
     if "text" in config.datasets.selected:
         mlm_datamodule = MLMDataModule(
             **build_datamodule_kwargs(config.datasets.text, config.training)
         )
-        datamodules.append(mlm_datamodule)
+        datamodules["text"] = mlm_datamodule
 
     if "vl" in config.datasets.selected:
         vl_datamodule = VLDataModule(
             **build_datamodule_kwargs(config.datasets.vl, config.training)
         )
-        datamodules.append(vl_datamodule)
+        datamodules["vl"] = vl_datamodule
 
-    datamodule = MultiDataModule(datamodules)
+    datamodule = MultiDataModule(
+        datamodules, iteration_strategy_factory(config.datasets.iteration_strategy)
+    )
 
     datamodule.setup("fit")
     model = FLAVAPreTrainingLightningModule(

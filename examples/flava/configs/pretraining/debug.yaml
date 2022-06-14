@@ -1,6 +1,6 @@
-_target_: flava.definitions.FLAVAArguments
+_target_: definitions.FLAVAArguments
 training:
-  _target_: flava.definitions.TrainingArguments
+  _target_: definitions.TrainingArguments
   lightning:
     max_steps: 450000
     gpus: -1
@@ -16,37 +16,46 @@ training:
   warmup_steps: 2000
 
 datasets:
-  _target_: flava.definitions.TrainingDatasetsInfo
+  _target_: definitions.TrainingDatasetsInfo
   selected:
   - image
   - vl
   - text
+  iteration_strategy:
+    type: round_robin
+#    type: ratios
+#    params:
+#     sampling_ratios:
+#       image: 0.2
+#       text: 0.7
+#       vl: 0.1
+
   image:
-    _target_: flava.definitions.TrainingSingleDatasetInfo
+    _target_: definitions.TrainingSingleDatasetInfo
     train:
-      - _target_: flava.definitions.HFDatasetInfo
+      - _target_: definitions.HFDatasetInfo
         key: imagenet-1k
         subset: default
         extra_kwargs:
           data_dir: ${oc.env:IMAGENET_TAR}
   text:
-    _target_: flava.definitions.TrainingSingleDatasetInfo
+    _target_: definitions.TrainingSingleDatasetInfo
     train:
-      - _target_: flava.definitions.HFDatasetInfo
+      - _target_: definitions.HFDatasetInfo
         key: wikitext
         subset: wikitext-103-raw-v1
     datamodule_extra_kwargs:
       text_columns: ["text"]
   vl:
-    _target_: flava.definitions.TrainingSingleDatasetInfo
+    _target_: definitions.TrainingSingleDatasetInfo
     train:
-      - _target_: flava.definitions.HFDatasetInfo
+      - _target_: definitions.HFDatasetInfo
         key: red_caps
         subset: jellyfish
         rename_columns:
           - ["caption", "text"]
     val:
-      - _target_: flava.definitions.HFDatasetInfo
+      - _target_: definitions.HFDatasetInfo
         key: red_caps
         subset: jellyfish
         rename_columns:
