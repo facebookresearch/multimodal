@@ -7,7 +7,7 @@
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn, Tensor
-from torchmultimodal.models.albef import ALBEFModel
+from torchmultimodal.models.albef import ALBEFModel, ALBEFSimilarity
 
 
 class TestALBEFModel:
@@ -85,3 +85,27 @@ class TestALBEFModel:
         assert_expected(output.sim_t2i, expected_sim_t2i)
         assert_expected(output.sim_i2t_m, expected_sim_i2t_m)
         assert_expected(output.sim_t2i_m, expected_sim_t2i_m)
+
+    def test_neg_embeddings(self):
+        image_embeds = torch.randn(2, 1, 3)
+        text_embeds = torch.randn(2, 1, 3)
+        text_atts = torch.randn(2, 1)
+        similarity = ALBEFSimilarity(
+            sim_i2t=torch.randn(2, 5),
+            sim_t2i=torch.randn(2, 5),
+            sim_i2t_m=torch.randn(2, 5),
+            sim_t2i_m=torch.randn(2, 5),
+        )
+        image_embeds_neg, text_embeds_neg, text_atts_neg = self.albef._neg_embeddings(
+            image_embeds, text_embeds, text_atts, similarity
+        )
+        expected_image_embeds_neg = Tensor(
+            [[-1.209532, 1.344070, 2.383219], [0.273870, 0.567926, -0.673102]]
+        ).unsqueeze(1)
+        expected_text_embeds_neg = Tensor(
+            [[0.875558, -2.672565, -0.031333], [-0.566464, -1.153617, -2.502301]]
+        ).unsqueeze(1)
+        expected_text_atts_neg = Tensor([-0.523323, 0.498786]).unsqueeze(1)
+        assert_expected(image_embeds_neg, expected_image_embeds_neg)
+        assert_expected(text_embeds_neg, expected_text_embeds_neg)
+        assert_expected(text_atts_neg, expected_text_atts_neg)
