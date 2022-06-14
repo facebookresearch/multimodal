@@ -37,7 +37,7 @@ class SamePadConv3d(nn.Module):
         kernel_size: Union[int, Tuple[int, int, int]],
         stride: Union[int, Tuple[int, int, int]] = 1,
         bias: bool = True,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__()
 
@@ -57,7 +57,7 @@ class SamePadConv3d(nn.Module):
             self.kernel_size,
             stride=self.stride,
             bias=bias,
-            **kwargs
+            **kwargs,
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -94,7 +94,7 @@ class SamePadConvTranspose3d(nn.Module):
         kernel_size: Union[int, Tuple[int, int, int]],
         stride: Union[int, Tuple[int, int, int]] = 1,
         bias: bool = True,
-        **kwargs
+        **kwargs,
     ) -> None:
         super().__init__()
 
