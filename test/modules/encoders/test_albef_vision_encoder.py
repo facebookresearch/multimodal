@@ -15,6 +15,7 @@ from torchmultimodal.modules.encoders.albef_vision_encoder import (
     Block,
     Mlp,
     PatchEmbed,
+    VisionTransformer,
 )
 
 
@@ -50,6 +51,17 @@ class TestALBEFVisionEncoder:
         ]
         + [("attn." + key, val) for key, val in attention_state_dict.items()]
         + [("mlp." + key, val) for key, val in mlp_state_dict.items()]
+    )
+    vit_state_dict = OrderedDict(
+        [
+            ("cls_token", torch.randn(1, 1, 3)),
+            ("pos_embed", torch.randn(1, 2, 3)),
+            ("norm.weight", torch.randn(3)),
+            ("norm.bias", torch.randn(3)),
+        ]
+        + [("patch_embed." + key, val) for key, val in proj_state_dict.items()]
+        + [("blocks.0." + key, val) for key, val in encoder_block_state_dict.items()]
+        + [("blocks.1." + key, val) for key, val in encoder_block_state_dict.items()]
     )
 
     def test_conv_proj(self):
@@ -93,4 +105,25 @@ class TestALBEFVisionEncoder:
         encoder_block.load_state_dict(self.encoder_block_state_dict)
         output = encoder_block(self.proj_input)
         expected = Tensor([41.667698, 15.369812, 1.672322]).reshape(1, 1, 3)
+        assert_expected(output, expected, rtol=0, atol=1e-4)
+
+    def test_vision_transformer(self):
+        vit = VisionTransformer(
+            img_size=4,
+            patch_size=4,
+            embed_dim=3,
+            depth=2,
+            num_heads=1,
+            mlp_ratio=2,
+            qkv_bias=True,
+            norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        )
+        vit.load_state_dict(self.vit_state_dict)
+        output = vit(self.input)
+        expected = Tensor(
+            [
+                [-2.992489e-02, -3.361803e-01, 2.282364e00],
+                [-1.769625e-03, -3.862467e-01, 2.380805e00],
+            ]
+        ).unsqueeze(0)
         assert_expected(output, expected, rtol=0, atol=1e-4)
