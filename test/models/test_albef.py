@@ -26,15 +26,17 @@ class TestALBEFModel:
         self.albef._copy_params_momentum_models()
         for model, model_m in zip(self.albef.models, self.albef.models_m):
             for param, param_m in zip(model.parameters(), model_m.parameters()):
-                assert_expected(param, param_m)
+                assert_expected(param, param_m, rtol=0, atol=1e-4)
                 assert not param_m.requires_grad
 
     def test_dequeue_and_enqueue(self):
         image_feat_m = torch.randn(2, 2)
         text_feat_m = torch.randn(2, 2)
         self.albef._dequeue_and_enqueue(image_feat_m, text_feat_m)
-        assert_expected(self.albef.image_queue[:, 0:2], image_feat_m.T)
-        assert_expected(self.albef.text_queue[:, 0:2], text_feat_m.T)
+        assert_expected(
+            self.albef.image_queue[:, 0:2], image_feat_m.T, rtol=0, atol=1e-4
+        )
+        assert_expected(self.albef.text_queue[:, 0:2], text_feat_m.T, rtol=0, atol=1e-4)
 
     def test_momentum_update(self):
         init_weight = Tensor([[1, 2, 3], [4, 5, 6]])
@@ -43,8 +45,10 @@ class TestALBEFModel:
         self.albef.models_m[0].weight = nn.Parameter(init_weight_m)
         self.albef._momentum_update()
         expected_weight_m = Tensor([[5.9750, 4.9850, 3.9950], [3.0050, 2.0150, 1.0250]])
-        assert_expected(self.albef.models[0].weight, init_weight)
-        assert_expected(self.albef.models_m[0].weight, expected_weight_m)
+        assert_expected(self.albef.models[0].weight, init_weight, rtol=0, atol=1e-4)
+        assert_expected(
+            self.albef.models_m[0].weight, expected_weight_m, rtol=0, atol=1e-4
+        )
 
     def test_similarity(self):
         set_rng_seed(0)
@@ -81,10 +85,10 @@ class TestALBEFModel:
                 [-22.274969, 5.272466, 31.752522, 24.050060, -23.705740, -11.501695],
             ]
         )
-        assert_expected(output.sim_i2t, expected_sim_i2t)
-        assert_expected(output.sim_t2i, expected_sim_t2i)
-        assert_expected(output.sim_i2t_m, expected_sim_i2t_m)
-        assert_expected(output.sim_t2i_m, expected_sim_t2i_m)
+        assert_expected(output.sim_i2t, expected_sim_i2t, rtol=0, atol=1e-4)
+        assert_expected(output.sim_t2i, expected_sim_t2i, rtol=0, atol=1e-4)
+        assert_expected(output.sim_i2t_m, expected_sim_i2t_m, rtol=0, atol=1e-4)
+        assert_expected(output.sim_t2i_m, expected_sim_t2i_m, rtol=0, atol=1e-4)
 
     def test_neg_embeddings(self):
         set_rng_seed(0)
@@ -107,6 +111,6 @@ class TestALBEFModel:
             [[-0.403344, -0.596635, 0.182036], [0.403347, 0.838026, -0.719258]]
         ).unsqueeze(1)
         expected_text_atts_neg = Tensor([1.100604, -0.856675]).unsqueeze(1)
-        assert_expected(image_embeds_neg, expected_image_embeds_neg)
-        assert_expected(text_embeds_neg, expected_text_embeds_neg)
-        assert_expected(text_atts_neg, expected_text_atts_neg)
+        assert_expected(image_embeds_neg, expected_image_embeds_neg, rtol=0, atol=1e-4)
+        assert_expected(text_embeds_neg, expected_text_embeds_neg, rtol=0, atol=1e-4)
+        assert_expected(text_atts_neg, expected_text_atts_neg, rtol=0, atol=1e-4)
