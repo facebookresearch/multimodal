@@ -26,6 +26,10 @@ class CLIPArchitecture(nn.Module):
                 E.g. {"vision": ResNetForCLIP(), "text": CLIPTextEncoder()}
 
     Inputs: modalities (Dict[str, Tensor]): Dict of Tensor features, keyed by modality.
+                Must contain one entry for every modality in ``encoders``.
+
+    Output: CLIPOutput object with fields ``{modality}_embeddings`` for every modality
+                in ``encoders``.
     """
 
     def __init__(
