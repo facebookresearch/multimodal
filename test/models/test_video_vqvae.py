@@ -78,15 +78,16 @@ class TestVideoEncoder:
             kernel_sizes=[2, 2],
             strides=[1, 1],
             n_res_layers=1,
+            embedding_dim=2,
         )
 
     def test_invalid_arg_length(self, in_channels, out_channels):
         with pytest.raises(ValueError):
-            _ = VideoEncoder(in_channels[:2], out_channels, [2, 2], [1, 1], 1)
+            _ = VideoEncoder(in_channels[:2], out_channels, [2, 2], [1, 1], 1, 1)
 
     def test_invalid_in_out_channels(self, in_channels, out_channels):
         with pytest.raises(ValueError):
-            _ = VideoEncoder(in_channels, out_channels, [2, 2, 2], [1, 1, 1], 1)
+            _ = VideoEncoder(in_channels, out_channels, [2, 2, 2], [1, 1, 1], 1, 1)
 
     def test_forward(self, input_tensor, encoder):
         actual = encoder(input_tensor)
@@ -94,12 +95,12 @@ class TestVideoEncoder:
             [
                 [
                     [
-                        [[0.0000, 0.3529], [0.3530, 0.3885]],
-                        [[0.0000, 1.3704], [0.0000, 0.8605]],
+                        [[0.7367, 0.3994], [0.3994, 0.3890]],
+                        [[0.5026, 0.1018], [1.1798, 1.2604]],
                     ],
                     [
-                        [[0.4022, 0.0000], [0.0000, 0.0000]],
-                        [[0.0000, 0.0000], [1.1636, 1.7347]],
+                        [[0.4504, 0.2898], [0.2898, 0.2811]],
+                        [[0.3761, 0.0409], [0.5910, 0.4858]],
                     ],
                 ]
             ]
@@ -127,15 +128,16 @@ class TestVideoDecoder:
             kernel_sizes=[2, 2],
             strides=[1, 1],
             n_res_layers=1,
+            embedding_dim=3,
         )
 
     def test_invalid_arg_length(self, in_channels, out_channels):
         with pytest.raises(ValueError):
-            _ = VideoDecoder(in_channels[:2], out_channels, [2, 2], [1, 1], 1)
+            _ = VideoDecoder(in_channels[:2], out_channels, [2, 2], [1, 1], 1, 1)
 
     def test_invalid_in_out_channels(self, in_channels, out_channels):
         with pytest.raises(ValueError):
-            _ = VideoDecoder(in_channels, out_channels, [2, 2, 2], [1, 1, 1], 1)
+            _ = VideoDecoder(in_channels, out_channels, [2, 2, 2], [1, 1, 1], 1, 1)
 
     def test_forward(self, input_tensor, decoder):
         actual = decoder(input_tensor)
@@ -143,12 +145,12 @@ class TestVideoDecoder:
             [
                 [
                     [
-                        [[-0.0279, 0.0193], [-0.0379, -0.0398]],
-                        [[-0.0080, 0.0026], [-0.0063, 0.0058]],
+                        [[-0.2382, -0.2388], [-0.2311, -0.2184]],
+                        [[-0.2304, -0.2518], [-0.1024, -0.1248]],
                     ],
                     [
-                        [[-0.0893, -0.1093], [-0.0916, -0.1208]],
-                        [[-0.0858, -0.1119], [-0.0372, -0.0419]],
+                        [[0.1624, 0.1575], [0.1722, 0.1427]],
+                        [[0.1081, 0.0946], [0.1608, 0.0770]],
                     ],
                 ]
             ]

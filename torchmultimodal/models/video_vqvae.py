@@ -15,9 +15,10 @@ from torchmultimodal.modules.layers.conv import SamePadConv3d, SamePadConvTransp
 
 class VideoEncoder(nn.Module):
     """Encoder for Video VQVAE. Stacks specified number of ``SamePadConv3d`` layers
-    followed by a stack of ``AttentionResidualBlocks``. The residual blocks use Axial
-    Attention to enhance representations of video data without significantly
-    increasing computational cost. Follows VideoGPT's implementation:
+    followed by a stack of ``AttentionResidualBlocks`` and a final ``SamePadConv3d``
+    layer before the codebook. The residual blocks use Axial Attention to enhance
+    representations of video data without significantly increasing computational
+    cost. Follows VideoGPT's implementation:
     https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
 
     Args:
@@ -26,6 +27,7 @@ class VideoEncoder(nn.Module):
         kernel_sizes (List[int or Tuple[int]]): list of kernel sizes for each conv layer
         strides (List[int or Tuple[int]]): list of strides for each conv layer
         n_res_layers (int): number of ``AttentionResidualBlocks`` to include
+        embedding_dim (int): size of hidden dimension of final output
         **kwargs (dict): keyword arguments to be passed into ``SamePadConv3d`` and used by ``nn.Conv3d``
 
     Raises:
@@ -44,7 +46,8 @@ class VideoEncoder(nn.Module):
         kernel_sizes: List[Union[int, Tuple[int, int, int]]],
         strides: List[Union[int, Tuple[int, int, int]]],
         n_res_layers: int,
-        **kwargs: Dict[str, Any]
+        embedding_dim: int,
+        **kwargs: Dict[str, Any],
     ):
         super().__init__()
         if not (
@@ -66,8 +69,10 @@ class VideoEncoder(nn.Module):
         self.res_stack = nn.Sequential(
             *[AttentionResidualBlock(attn_hidden_dim) for _ in range(n_res_layers)],
             nn.BatchNorm3d(attn_hidden_dim),
-            nn.ReLU()
+            nn.ReLU(),
         )
+
+        self.conv_out = SamePadConv3d(attn_hidden_dim, embedding_dim, 1)
 
     def forward(self, x: Tensor) -> Tensor:
         h = x
@@ -76,14 +81,16 @@ class VideoEncoder(nn.Module):
         # Do not apply relu to last conv layer before res stack
         h = self.convs[-1](h)
         h = self.res_stack(h)
+        h = self.conv_out(h)
         return h
 
 
 class VideoDecoder(nn.Module):
-    """Decoder for Video VQVAE. Takes quantized output from codebook and applies stack of
-    ``AttentionResidualBlocks``, followed by specified number of ``SamePadConvTranspose3d``
-    layers. The residual blocks use Axial Attention to enhance representations of video
-    data without significantly increasing computational cost. Follows VideoGPT's implementation:
+    """Decoder for Video VQVAE. Takes quantized output from codebook and applies a
+    ``SamePadConv3d`` layer, a stack of ``AttentionResidualBlocks``, followed by a
+    specified number of ``SamePadConvTranspose3d`` layers. The residual
+    blocks use Axial Attention to enhance representations of video data without
+    significantly increasing computational cost. Follows VideoGPT's implementation:
     https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
 
     Args:
@@ -92,6 +99,7 @@ class VideoDecoder(nn.Module):
         kernel_sizes (List[int or Tuple[int]]): list of kernel sizes for each conv layer
         strides (List[int or Tuple[int]]): list of strides for each conv layer
         n_res_layers (int): number of ``AttentionResidualBlocks`` to include
+        embedding_dim (int): size of hidden dimension of input
         **kwargs (dict): keyword arguments to be passed into ``SamePadConvTranspose3d``
                          and used by ``nn.ConvTranspose3d``
 
@@ -99,6 +107,7 @@ class VideoDecoder(nn.Module):
         ValueError: if the lengths of ``in_channels``, ``out_channels``, ``kernel_sizes``,
                     and ``strides`` are not all equivalent
         ValueError: if ``in_channels`` is not identical to ``out_channels`` offset by one
+        ValueError: if input Tensor channel dim does not match ``embedding_dim``
 
     Inputs:
         x (Tensor): input tokenized data with shape (b x c x d1 x d2 x d3)
@@ -111,7 +120,8 @@ class VideoDecoder(nn.Module):
         kernel_sizes: List[Union[int, Tuple[int, int, int]]],
         strides: List[Union[int, Tuple[int, int, int]]],
         n_res_layers: int,
-        **kwargs: Dict[str, Any]
+        embedding_dim: int,
+        **kwargs: Dict[str, Any],
     ):
         super().__init__()
         if not (
@@ -124,10 +134,11 @@ class VideoDecoder(nn.Module):
             raise ValueError("out_channels should match in_channels offset by one")
 
         attn_hidden_dim = in_channels[0]
+        self.conv_in = SamePadConv3d(embedding_dim, attn_hidden_dim, 1)
         self.res_stack = nn.Sequential(
             *[AttentionResidualBlock(attn_hidden_dim) for _ in range(n_res_layers)],
             nn.BatchNorm3d(attn_hidden_dim),
-            nn.ReLU()
+            nn.ReLU(),
         )
         self.convts = nn.ModuleList(
             [
@@ -137,7 +148,13 @@ class VideoDecoder(nn.Module):
         )
 
     def forward(self, x: Tensor):
-        h = self.res_stack(x)
+        in_channel = x.shape[1]
+        if in_channel != self.conv_in.conv.in_channels:
+            raise ValueError(
+                f"expected input channel dim to be {self.conv_in.conv.in_channels}, but got {in_channel}"
+            )
+        h = self.conv_in(x)
+        h = self.res_stack(h)
         for convt in self.convts[:-1]:
             h = F.relu(convt(h))
         # Do not apply relu to output convt layer
