@@ -11,7 +11,6 @@ from torchmultimodal.models.albef import ALBEFModel, ALBEFSimilarity
 
 
 class TestALBEFModel:
-    set_rng_seed(0)
     albef = ALBEFModel(
         nn.Linear(3, 2),
         nn.Linear(3, 2),
@@ -48,6 +47,7 @@ class TestALBEFModel:
         assert_expected(self.albef.models_m[0].weight, expected_weight_m)
 
     def test_similarity(self):
+        set_rng_seed(0)
         self.albef.image_queue = torch.randn(2, 4)
         self.albef.text_queue = torch.randn(2, 4)
         image_feat = torch.randn(2, 2)
@@ -59,26 +59,26 @@ class TestALBEFModel:
         )
         expected_sim_i2t = Tensor(
             [
-                [-1.447699, -9.017220, 0.746556, 9.711679, -6.985742, 0.365735],
-                [-2.416966, -2.708404, 9.974752, -2.098411, -8.639756, -0.250136],
+                [-3.660729, -11.191917, 1.252719, 9.129601, -0.882724, -0.818697],
+                [15.755546, 21.687363, 27.634123, -18.587852, 30.696188, -4.964930],
             ]
         )
         expected_sim_t2i = Tensor(
             [
-                [7.392047, 33.410320, 20.561050, 16.583294, 26.293110, -34.790211],
-                [8.461701, 11.472798, -7.857050, -7.127809, 13.020058, 2.605398],
+                [27.311251, -23.288742, -14.411922, -30.653456, -3.136197, 20.444725],
+                [16.565296, -26.082125, 8.684321, -19.420963, -24.787359, 16.908016],
             ]
         )
         expected_sim_i2t_m = Tensor(
             [
-                [-1.972124, 3.002172, 11.823727, -9.443038, -5.773357, -0.567474],
-                [-7.837631, -2.679799, 36.660282, -15.856747, -26.522240, -1.236609],
+                [-13.028821, -22.274969, -17.438065, 18.764980, -20.974815, 2.714235],
+                [8.504787, 5.272466, 22.941040, -5.002890, 23.104834, -4.742508],
             ]
         )
         expected_sim_t2i_m = Tensor(
             [
-                [-1.972124, -7.837631, -4.223857, -3.374927, -6.328424, 7.576523],
-                [3.002172, -2.679799, -10.703135, -9.112455, 0.313488, 11.622608],
+                [-13.028821, 8.504787, 10.671893, 14.442708, -3.490067, -8.771053],
+                [-22.274969, 5.272466, 31.752522, 24.050060, -23.705740, -11.501695],
             ]
         )
         assert_expected(output.sim_i2t, expected_sim_i2t)
@@ -87,6 +87,7 @@ class TestALBEFModel:
         assert_expected(output.sim_t2i_m, expected_sim_t2i_m)
 
     def test_neg_embeddings(self):
+        set_rng_seed(0)
         image_embeds = torch.randn(2, 1, 3)
         text_embeds = torch.randn(2, 1, 3)
         text_atts = torch.randn(2, 1)
@@ -100,12 +101,12 @@ class TestALBEFModel:
             image_embeds, text_embeds, text_atts, similarity
         )
         expected_image_embeds_neg = Tensor(
-            [[-1.209532, 1.344070, 2.383219], [0.273870, 0.567926, -0.673102]]
+            [[0.568431, -1.084522, -1.398595], [1.540996, -0.293429, -2.178789]]
         ).unsqueeze(1)
         expected_text_embeds_neg = Tensor(
-            [[0.875558, -2.672565, -0.031333], [-0.566464, -1.153617, -2.502301]]
+            [[-0.403344, -0.596635, 0.182036], [0.403347, 0.838026, -0.719258]]
         ).unsqueeze(1)
-        expected_text_atts_neg = Tensor([-0.523323, 0.498786]).unsqueeze(1)
+        expected_text_atts_neg = Tensor([1.100604, -0.856675]).unsqueeze(1)
         assert_expected(image_embeds_neg, expected_image_embeds_neg)
         assert_expected(text_embeds_neg, expected_text_embeds_neg)
         assert_expected(text_atts_neg, expected_text_atts_neg)
