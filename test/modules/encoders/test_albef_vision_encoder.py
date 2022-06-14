@@ -8,8 +8,12 @@ from typing import OrderedDict
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
-from torch import Tensor
-from torchmultimodal.modules.encoders.albef_vision_encoder import Attention, PatchEmbed
+from torch import nn, Tensor
+from torchmultimodal.modules.encoders.albef_vision_encoder import (
+    Attention,
+    Mlp,
+    PatchEmbed,
+)
 
 
 class TestALBEFVisionEncoder:
@@ -49,4 +53,21 @@ class TestALBEFVisionEncoder:
         attention.load_state_dict(state_dict)
         output = attention(input)
         expected = Tensor([-12.703959, -9.637766, 7.394966]).reshape(1, 1, 3)
+        assert_expected(output, expected, rtol=0, atol=1e-4)
+
+    def test_mlp_block(self):
+        set_rng_seed(0)
+        input = torch.randn(1, 1, 3)
+        state_dict = OrderedDict(
+            [
+                ("fc1.weight", torch.randn(6, 3)),
+                ("fc1.bias", torch.randn(6)),
+                ("fc2.weight", torch.randn(3, 6)),
+                ("fc2.bias", torch.randn(3)),
+            ]
+        )
+        mlp = Mlp(3, hidden_features=6, act_layer=nn.GELU)
+        mlp.load_state_dict(state_dict)
+        output = mlp(input)
+        expected = Tensor([4.896436, -0.737119, 1.037403]).reshape(1, 1, 3)
         assert_expected(output, expected, rtol=0, atol=1e-4)
