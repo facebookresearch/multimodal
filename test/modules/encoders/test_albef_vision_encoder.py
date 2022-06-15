@@ -84,7 +84,9 @@ class TestALBEFVisionEncoder:
     def test_attention(self):
         attention = self.vision_encoder.encoder.layers[0].self_attention
         attention.load_state_dict(self.attention_state_dict)
-        output = attention(self.proj_input)
+        output, _ = attention(
+            query=self.proj_input, key=self.proj_input, value=self.proj_input
+        )
         expected = Tensor([0.799757, 0.632195, 2.890842]).reshape(1, 1, 3)
         assert_expected(output, expected, rtol=0, atol=1e-4)
 
