@@ -49,7 +49,7 @@ class RoundRobinIterationStrategy(IterationStrategy):
         self, config: DictConfig, dataloaders: Dict[str, DataLoader], *args, **kwargs
     ):
         super().__init__(config, dataloaders, *args, **kwargs)
-        self._current_idx = self.config.start_idx if "start_idx" in self.config else 0
+        self._current_idx = self.config.start_idx if "start_idx" in self.config else -1
 
     def __call__(self, *args, **kwargs):
         nxt = self._current_idx
@@ -153,4 +153,6 @@ def iteration_strategy_factory(config: DictConfig) -> IterationStrategyFactory:
     return _iteration_strategy_factory_registry[config.type](config)
 
 
-DEFAULT_ITERATION_STRATEGY_FACTORY = _iteration_strategy_factory_registry["random"]
+DEFAULT_ITERATION_STRATEGY_FACTORY = _iteration_strategy_factory_registry[
+    "round_robin"
+](DictConfig(content={}))

@@ -165,7 +165,6 @@ class MultiDataModule(LightningDataModule):
             datamodule.prepare_data()
 
     def train_dataloader(self) -> MultiDataLoader:
-        # TODO: Fix assign inconsistency
         return self._build_multi_dataloader("train")
 
     def val_dataloader(self) -> MultiDataLoader:
