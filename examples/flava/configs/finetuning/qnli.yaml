@@ -8,6 +8,15 @@ training:
     progress_bar_refresh_rate: 50
     val_check_interval: 1000
     num_sanity_val_steps: 0
+    strategy: ddp
+  lightning_checkpoint:
+    dirpath: "."
+    filename: flava-{epoch:02d}-{step}
+    save_last: true
+    every_n_train_steps: 1000
+    save_on_train_epoch_end: true
+    verbose: true
+  lightning_load_from_checkpoint: null
   seed: -1
   batch_size: 32
   num_workers: 4
@@ -34,3 +43,5 @@ datasets:
         rename_columns:
           - ["question", "sentence1"]
           - ["sentence", "sentence2"]
+    datamodule_extra_kwargs:
+      text_columns: ["sentence1", "sentence2"]

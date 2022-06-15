@@ -5,17 +5,12 @@
 # LICENSE file in the root directory of this source tree.
 
 from callbacks.multimodal_eval import MultimodalEvalCallback
-from data import (
-    ImageDataModule,
-    MLMDataModule,
-    MultiDataModule,
-    VLDataModule,
-)
+from data import ImageDataModule, MLMDataModule, MultiDataModule, VLDataModule
 from definitions import FLAVAArguments
 from model import FLAVAPreTrainingLightningModule
 from omegaconf import OmegaConf
-from pytorch_lightning import Trainer, seed_everything
-from pytorch_lightning.callbacks import LearningRateMonitor
+from pytorch_lightning import seed_everything, Trainer
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from utils import build_config, build_datamodule_kwargs
 
 
@@ -25,6 +20,8 @@ def main():
         seed_everything(config.training.seed, workers=True)
 
     datamodules = []
+
+    # also needed for the imagenet eval callback
     imagenet_datamodule = ImageDataModule(
         **build_datamodule_kwargs(config.datasets.image, config.training)
     )
@@ -56,15 +53,25 @@ def main():
         **config.model,
     )
 
+    callbacks = [
+        LearningRateMonitor(logging_interval="step"),
+        MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule),
+    ]
+
+    if config.training.lightning_checkpoint is not None:
+        callbacks.append(
+            ModelCheckpoint(
+                **OmegaConf.to_container(config.training.lightning_checkpoint)
+            )
+        )
+
     trainer = Trainer(
         **OmegaConf.to_container(config.training.lightning),
-        callbacks=[
-            LearningRateMonitor(logging_interval="step"),
-            MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule),
-        ],
-        strategy="ddp",
+        callbacks=callbacks,
     )
-    trainer.fit(model, datamodule=datamodule)
+    ckpt_path = config.training.lightning_load_from_checkpoint
+
+    trainer.fit(model, datamodule=datamodule, ckpt_path=ckpt_path)
     trainer.validate(model, datamodule=datamodule)
 
 

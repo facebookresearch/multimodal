@@ -8,9 +8,10 @@ import hashlib
 import os
 from collections import OrderedDict
 from dataclasses import fields
-from typing import Optional
+from typing import List, Optional
 
 import torch
+from torch import Tensor
 
 
 def get_current_device():
@@ -18,6 +19,80 @@ def get_current_device():
         return f"cuda:{torch.cuda.current_device()}"
     else:
         return torch.device("cpu")
+
+
+def shift_dim(
+    x: Tensor, src_dim: int = -1, dest_dim: int = -1, make_contiguous: bool = True
+):
+    """Permutes tensor x by moving src_dim to dest_dim.
+    i.e. shift_dim(x, 1, -1) would be (b, c, t, h, w) -> (b, t, h, w, c)
+
+    Code taken from VideoGPT
+    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/utils.py
+
+    Args:
+        x (Tensor): input Tensor you want to permute
+        src_dim (int, optional): the axis you want to move. Negative indexing supported. Defaults to -1.
+        dest_dim (int, optional): the axis you want to move to. Negative indexing supported. Defaults to -1.
+        make_contiguous (bool, optional): if you want the output tensor to be contiguous in memory. Defaults to True.
+
+    Returns:
+        Tensor: permuted Tensor
+    """
+    n_dims = len(x.shape)
+    # Remap negative dim
+    if src_dim < 0:
+        src_dim = n_dims + src_dim
+    if dest_dim < 0:
+        dest_dim = n_dims + dest_dim
+
+    assert 0 <= src_dim < n_dims and 0 <= dest_dim < n_dims
+
+    dims = list(range(n_dims))
+    del dims[src_dim]
+
+    permutation = []
+    ctr = 0
+    for i in range(n_dims):
+        if i == dest_dim:
+            permutation.append(src_dim)
+        else:
+            permutation.append(dims[ctr])
+            ctr += 1
+    x = x.permute(permutation)
+    if make_contiguous:
+        x = x.contiguous()
+    return x
+
+
+def tensor_slice(x: Tensor, begin: List[int], size: List[int]) -> Tensor:
+    """Slices a tensor dimension-wise.
+
+    The input tensor is sliced along each dimension by specifying the starts and
+    the increments.
+
+    Args:
+        x (Tensor): tensor to be sliced.
+        begin (List[int]): list of starts corresponding to each dimension.
+        size (List[int]): list of increments with respect to the starts along each dimension. Specifically,
+                        ``-1`` means slicing from begin to the last element (inclusive) of that dimension.
+
+    Returns:
+        The sliced tensor.
+
+    Raises:
+        ValueError: if any of ``begin`` indices is negative
+        ValueError: if any of ``size`` is less than ``-1``
+    """
+    if not all([b >= 0 for b in begin]):
+        raise ValueError("All starting indices must be non-negative.")
+    if not all([s >= -1 for s in size]):
+        raise ValueError("All sizes must be either non-negative or -1.")
+
+    size = [l - b if s == -1 else s for s, b, l in zip(size, begin, x.shape)]
+
+    slices = [slice(b, b + s) for b, s in zip(begin, size)]
+    return x[slices]
 
 
 class PretrainedMixin:

@@ -7,7 +7,7 @@
 import unittest
 
 import torch
-from test.test_utils import get_asset_path, set_rng_seed, assert_expected
+from test.test_utils import assert_expected, get_asset_path, set_rng_seed
 from torchmultimodal.transforms.clip_transform import CLIPTransform
 from torchvision.transforms import ToPILImage
 

@@ -12,7 +12,7 @@ from torch.nn import functional as F
 
 class CommitmentLoss(nn.Module):
     """Commitment loss calculates the mean Euclidean distance between pairs of encoder output vectors
-    and their corresponding quantised vectors. It encourages an encoder to generate outputs closer to an embedding.
+    and their corresponding quantized vectors. It encourages an encoder to generate outputs closer to an embedding.
     This is the beta in Eq. 3 of Oord et al. 2017 (https://arxiv.org/pdf/1711.00937.pdf)
 
     Args:
@@ -23,8 +23,8 @@ class CommitmentLoss(nn.Module):
         super().__init__()
         self.commitment_cost = commitment_cost
 
-    def forward(self, quantised: Tensor, encoded: Tensor):
-        # Quantised vectors must be detached because commitment loss only lets gradient flow through encoder output
-        loss = F.mse_loss(quantised.detach(), encoded) * self.commitment_cost
+    def forward(self, quantized: Tensor, encoded: Tensor):
+        # Quantized vectors must be detached because commitment loss only lets gradient flow through encoder output
+        loss = F.mse_loss(quantized.detach(), encoded) * self.commitment_cost
 
         return loss

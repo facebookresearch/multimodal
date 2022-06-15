@@ -13,8 +13,8 @@ import torch
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
-    ContrastiveLossOutput,
     contrastive_loss_with_temperature,
+    ContrastiveLossOutput,
 )
 from torchmultimodal.utils.common import ModelOutput
 

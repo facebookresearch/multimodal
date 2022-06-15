@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from omegaconf import MISSING
 
@@ -50,6 +50,7 @@ class TrainingSingleDatasetInfo:
     batch_size: Optional[int] = None
     num_workers: Optional[int] = None
     allow_uneven_batches: bool = False
+    datamodule_extra_kwargs: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -65,13 +66,15 @@ class TrainingDatasetsInfo:
 class TrainingArguments:
     # Any lightning args to be pushed here
     lightning: Dict[str, Any] = field(default=dict)
+    lightning_checkpoint: Optional[Dict[str, Any]] = None
+    lightning_load_from_checkpoint: Optional[str] = None
     seed: int = -1
     batch_size: int = 8
     num_workers: int = 4
     learning_rate: float = 0.0002
     adam_eps: float = 1e-08
     adam_weight_decay: float = 0.01
-    adam_betas: Tuple[int, int] = field(default_factory=lambda: (0.9, 0.999))
+    adam_betas: Tuple[float, float] = field(default_factory=lambda: (0.9, 0.999))
     warmup_steps: int = 2000
 
 
