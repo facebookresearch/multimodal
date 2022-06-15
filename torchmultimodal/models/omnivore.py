@@ -82,7 +82,7 @@ class PatchEmbedOmnivore(nn.Module):
         return x
 
 
-def _omnivore_swin_t_encoder() -> nn.Module:
+def _omnivore_swin_t_encoder() -> SwinTransformer3d:
     encoder = SwinTransformer3d(
         patch_size=[2, 4, 4],
         embed_dim=96,
