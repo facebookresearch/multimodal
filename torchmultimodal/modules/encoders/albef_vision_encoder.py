@@ -45,8 +45,8 @@ class ALBEFVisionEncoder(nn.Module):
         mlp_dim: int = 3072,
         dropout: float = 0.0,
         attention_dropout: float = 0.0,
-        norm_layer: Callable[..., torch.nn.Module] = partial(nn.LayerNorm, eps=1e-6),
-    ):
+        norm_layer: Callable[..., nn.Module] = partial(nn.LayerNorm, eps=1e-6),
+    ) -> None:
         super().__init__()
         torch._assert(
             image_size % patch_size == 0, "Input shape indivisible by patch size!"
