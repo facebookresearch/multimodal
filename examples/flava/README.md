@@ -21,7 +21,7 @@ First, clone the repo, install `multimodal` and then install requirements for th
 git clone https://github.com/facebookresearch/multimodal.git
 cd multimodal
 pip install -e .
-cd examples/flava
+cd examples
 pip install -r requirements.txt
 ```
 
@@ -34,7 +34,7 @@ Get the ImageNet dataset's tar file by following the steps [here](https://huggin
 Launch your FLAVA debug pretraining job after making sure `IMAGENET_TAR` variable has been exported by running the following command:
 
 ```
-python train.py config=configs/pretraining/debug.yaml
+python -m flava.train config=flava/configs/pretraining/debug.yaml
 ```
 
 Note that:
@@ -46,13 +46,13 @@ Note that:
 You can update the configuration by changing the config specified by `config` parameter or you can specify the parameters to be overridden by using a dotlist. For example, if you want to run the model with different numbers of training steps, you can do:
 
 ```
-python train.py config=configs/pretraining/debug.yaml training.lightning.max_steps=1000
+python train.py config=flava/configs/pretraining/debug.yaml training.lightning.max_steps=1000
 ```
 
 Similarly, let's say you want to use a pretrained model for your pretraining/finetuning.
 
 ```
-python train.py config=configs/pretraining/debug.yaml model.pretrained_model_key=flava_full
+python -m flava.train config=configs/pretraining/debug.yaml model.pretrained_model_key=flava_full
 ```
 
 ### Full Pretraining
