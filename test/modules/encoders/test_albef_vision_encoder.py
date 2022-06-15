@@ -26,6 +26,7 @@ class TestALBEFVisionEncoder:
     )
 
     def test_conv_proj(self):
+        # test the conv_proj of the ALBEFVisionEncoder
         set_rng_seed(0)
         conv_proj = self.vision_encoder.conv_proj
         input = torch.randn(1, 3, 4, 4)
@@ -34,6 +35,7 @@ class TestALBEFVisionEncoder:
         assert_expected(output, expected, rtol=0, atol=1e-4)
 
     def test_attention(self):
+        # test the attention in an encoder layer
         set_rng_seed(0)
         attention = self.vision_encoder.encoder.layers[0].self_attention
         input = torch.randn(1, 1, 3)
@@ -42,6 +44,7 @@ class TestALBEFVisionEncoder:
         assert_expected(output, expected, rtol=0, atol=1e-4)
 
     def test_mlp_block(self):
+        # test the MLP block in an encoder layer
         set_rng_seed(0)
         mlp = self.vision_encoder.encoder.layers[0].mlp
         input = torch.randn(1, 1, 3)
@@ -50,6 +53,7 @@ class TestALBEFVisionEncoder:
         assert_expected(output, expected, rtol=0, atol=1e-4)
 
     def test_encoder_block(self):
+        # test an encoder layer of ALBEFVisionEncoder
         set_rng_seed(0)
         encoder_block = self.vision_encoder.encoder.layers[0]
         input = torch.randn(1, 1, 3)
