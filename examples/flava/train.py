@@ -23,11 +23,11 @@ def main():
     datamodules = {}
 
     # also needed for the imagenet eval callback
-    # imagenet_datamodule = ImageDataModule(
-    #    **build_datamodule_kwargs(config.datasets.image, config.training)
-    # )
-    # if "image" in config.datasets.selected:
-    #    datamodules["image"] = imagenet_datamodule
+    imagenet_datamodule = ImageDataModule(
+       **build_datamodule_kwargs(config.datasets.image, config.training)
+    )
+    if "image" in config.datasets.selected:
+       datamodules["image"] = imagenet_datamodule
 
     if "text" in config.datasets.selected:
         mlm_datamodule = MLMDataModule(
@@ -60,7 +60,7 @@ def main():
         **OmegaConf.to_container(config.training.lightning),
         callbacks=[
             LearningRateMonitor(logging_interval="step"),
-            # MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule),
+            MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule),
         ],
         strategy="ddp",
     )
