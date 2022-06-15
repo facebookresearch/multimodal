@@ -149,10 +149,6 @@ class TestAttention(unittest.TestCase):
         )
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
-    def test_axial_block_mha_length(self):
-        """Test AxialAttentionBlock number of MHAs"""
-        assert len(self.block.mha_attns) == 3, "incorrect number of MHAs"
-
     def test_axial_block_forward(self):
         """Test AxialAttentionBlock with sub-components"""
         x = 2 * torch.ones(1, self.hidden_dim, *self.input_shape)
