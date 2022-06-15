@@ -6,6 +6,7 @@
 
 from functools import partial
 
+import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn, Tensor
@@ -68,3 +69,23 @@ class TestALBEFVisionEncoder:
             ]
         ).unsqueeze(0)
         assert_expected(output, expected, rtol=0, atol=1e-4)
+
+    def test_invalid_input_length(self):
+        input = torch.randn(3, 4, 4)
+        with pytest.raises(ValueError, match="not enough values to unpack"):
+            self.vision_encoder(input)
+
+    def test_invalid_image_channel_dim(self):
+        input = torch.rand(1, 1, 4, 4)
+        with pytest.raises(RuntimeError, match="channels"):
+            self.vision_encoder(input)
+
+    def test_invalid_image_height(self):
+        input = torch.rand(1, 3, 5, 4)
+        with pytest.raises(AssertionError, match="Wrong image height!"):
+            self.vision_encoder(input)
+
+    def test_invalid_image_width(self):
+        input = torch.rand(1, 3, 4, 3)
+        with pytest.raises(AssertionError, match="Wrong image width!"):
+            self.vision_encoder(input)
