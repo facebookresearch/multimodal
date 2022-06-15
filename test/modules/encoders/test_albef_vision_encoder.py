@@ -71,7 +71,6 @@ class TestALBEFVisionEncoder:
         hidden_dim=3,
         mlp_dim=6,
         norm_layer=partial(nn.LayerNorm, eps=1e-6),
-        num_classes=3,
     )
 
     def test_conv_proj(self):

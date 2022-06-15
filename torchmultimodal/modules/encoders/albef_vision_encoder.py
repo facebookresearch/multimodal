@@ -29,7 +29,6 @@ class ALBEFVisionEncoder(nn.Module):
         mlp_dim (int): Dimensionality of the MLP Block in the encoder layers
         dropout (float): The dropout ratio for the encoder probabilities
         attention_dropout (float): The dropout ratio for the attention probabilities
-        num_classes (int) The number of output classes
         norm_layer (Callable[..., torch.nn.Module]): The normalization layer in the encoder layers
 
     Inputs:
@@ -46,7 +45,6 @@ class ALBEFVisionEncoder(nn.Module):
         mlp_dim: int = 3072,
         dropout: float = 0.0,
         attention_dropout: float = 0.0,
-        num_classes: int = 768,
         norm_layer: Callable[..., torch.nn.Module] = partial(nn.LayerNorm, eps=1e-6),
     ):
         super().__init__()
@@ -59,7 +57,6 @@ class ALBEFVisionEncoder(nn.Module):
         self.mlp_dim = mlp_dim
         self.attention_dropout = attention_dropout
         self.dropout = dropout
-        self.num_classes = num_classes
         self.norm_layer = norm_layer
         self.conv_proj = nn.Conv2d(
             in_channels=3,
