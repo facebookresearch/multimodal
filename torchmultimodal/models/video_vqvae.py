@@ -7,7 +7,6 @@
 from typing import Any, Dict, List, Tuple, Union
 
 from torch import nn, Tensor
-from torch.nn import functional as F
 from torchmultimodal.modules.layers.attention import AxialAttentionBlock
 
 from torchmultimodal.modules.layers.conv import SamePadConv3d, SamePadConvTranspose3d
@@ -22,10 +21,10 @@ class VideoEncoder(nn.Module):
     https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
 
     Args:
-        in_channels (List[int]): list of input channel dimension for each conv layer
-        out_channels (List[int]): list of output channel dimension for each conv layer
-        kernel_sizes (List[int or Tuple[int]]): list of kernel sizes for each conv layer
-        strides (List[int or Tuple[int]]): list of strides for each conv layer
+        in_channels (Tuple[int]): tuple of input channel dimension for each conv layer
+        out_channels (Tuple[int]): tuple of output channel dimension for each conv layer
+        kernel_sizes (Tuple[int or Tuple[int]]): tuple of kernel sizes for each conv layer
+        strides (Tuple[int or Tuple[int]]): tuple of strides for each conv layer
         n_res_layers (int): number of ``AttentionResidualBlocks`` to include
         embedding_dim (int): size of hidden dimension of final output
         **kwargs (dict): keyword arguments to be passed into ``SamePadConv3d`` and used by ``nn.Conv3d``
@@ -41,10 +40,10 @@ class VideoEncoder(nn.Module):
 
     def __init__(
         self,
-        in_channels: List[int],
-        out_channels: List[int],
-        kernel_sizes: List[Union[int, Tuple[int, int, int]]],
-        strides: List[Union[int, Tuple[int, int, int]]],
+        in_channels: Tuple[int, ...],
+        out_channels: Tuple[int, ...],
+        kernel_sizes: Tuple[Union[int, Tuple[int, int, int]], ...],
+        strides: Tuple[Union[int, Tuple[int, int, int]], ...],
         n_res_layers: int,
         embedding_dim: int,
         **kwargs: Dict[str, Any],
@@ -59,12 +58,16 @@ class VideoEncoder(nn.Module):
         if in_channels[1:] != out_channels[:-1]:
             raise ValueError("out_channels should match in_channels offset by one")
 
-        self.convs = nn.ModuleList(
-            [
-                SamePadConv3d(i, o, k, s, bias=True, **kwargs)
-                for i, o, k, s in zip(in_channels, out_channels, kernel_sizes, strides)
-            ]
-        )
+        convs: List[nn.Module] = []
+        for idx, (i, o, k, s) in enumerate(
+            zip(in_channels, out_channels, kernel_sizes, strides)
+        ):
+            convs.append(SamePadConv3d(i, o, k, s, bias=True, **kwargs))
+            # Do not apply relu to last conv layer before res stack
+            if idx < len(strides) - 1:
+                convs.append(nn.ReLU())
+        self.convs = nn.Sequential(*convs)
+
         attn_hidden_dim = out_channels[-1]
         self.res_stack = nn.Sequential(
             *[AttentionResidualBlock(attn_hidden_dim) for _ in range(n_res_layers)],
@@ -75,11 +78,7 @@ class VideoEncoder(nn.Module):
         self.conv_out = SamePadConv3d(attn_hidden_dim, embedding_dim, 1)
 
     def forward(self, x: Tensor) -> Tensor:
-        h = x
-        for conv in self.convs[:-1]:
-            h = F.relu(conv(h))
-        # Do not apply relu to last conv layer before res stack
-        h = self.convs[-1](h)
+        h = self.convs(x)
         h = self.res_stack(h)
         h = self.conv_out(h)
         return h
@@ -94,10 +93,10 @@ class VideoDecoder(nn.Module):
     https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
 
     Args:
-        in_channels (List[int]): list of input channel dimension for each conv layer
-        out_channels (List[int]): list of output channel dimension for each conv layer
-        kernel_sizes (List[int or Tuple[int]]): list of kernel sizes for each conv layer
-        strides (List[int or Tuple[int]]): list of strides for each conv layer
+        in_channels (Tuple[int]): tuple of input channel dimension for each conv layer
+        out_channels (Tuple[int]): tuple of output channel dimension for each conv layer
+        kernel_sizes (Tuple[int or Tuple[int]]): tuple of kernel sizes for each conv layer
+        strides (Tuple[int or Tuple[int]]): tuple of strides for each conv layer
         n_res_layers (int): number of ``AttentionResidualBlocks`` to include
         embedding_dim (int): size of hidden dimension of input
         **kwargs (dict): keyword arguments to be passed into ``SamePadConvTranspose3d``
@@ -115,10 +114,10 @@ class VideoDecoder(nn.Module):
 
     def __init__(
         self,
-        in_channels: List[int],
-        out_channels: List[int],
-        kernel_sizes: List[Union[int, Tuple[int, int, int]]],
-        strides: List[Union[int, Tuple[int, int, int]]],
+        in_channels: Tuple[int, ...],
+        out_channels: Tuple[int, ...],
+        kernel_sizes: Tuple[Union[int, Tuple[int, int, int]], ...],
+        strides: Tuple[Union[int, Tuple[int, int, int]], ...],
         n_res_layers: int,
         embedding_dim: int,
         **kwargs: Dict[str, Any],
@@ -140,14 +139,17 @@ class VideoDecoder(nn.Module):
             nn.BatchNorm3d(attn_hidden_dim),
             nn.ReLU(),
         )
-        self.convts = nn.ModuleList(
-            [
-                SamePadConvTranspose3d(i, o, k, s, bias=True, **kwargs)
-                for i, o, k, s in zip(in_channels, out_channels, kernel_sizes, strides)
-            ]
-        )
+        convts: List[nn.Module] = []
+        for idx, (i, o, k, s) in enumerate(
+            zip(in_channels, out_channels, kernel_sizes, strides)
+        ):
+            convts.append(SamePadConvTranspose3d(i, o, k, s, bias=True, **kwargs))
+            # Do not apply relu to output convt layer
+            if idx < len(strides) - 1:
+                convts.append(nn.ReLU())
+        self.convts = nn.Sequential(*convts)
 
-    def forward(self, x: Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         in_channel = x.shape[1]
         if in_channel != self.conv_in.conv.in_channels:
             raise ValueError(
@@ -155,10 +157,7 @@ class VideoDecoder(nn.Module):
             )
         h = self.conv_in(x)
         h = self.res_stack(h)
-        for convt in self.convts[:-1]:
-            h = F.relu(convt(h))
-        # Do not apply relu to output convt layer
-        h = self.convts[-1](h)
+        h = self.convts(h)
         return h
 
 

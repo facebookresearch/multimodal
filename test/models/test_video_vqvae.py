@@ -116,7 +116,8 @@ class TestVideoEncoder:
         assert len(encoder.res_stack) == 3, "res stack incorrect size"
 
     def test_num_convs(self, encoder):
-        assert len(encoder.convs) == 2, "incorrect number of conv layers"
+        # Account for ReLU layers minus the last one which is removed
+        assert len(encoder.convs) == 2 * 2 - 1, "incorrect number of conv layers"
 
 
 class TestVideoDecoder:
@@ -166,4 +167,5 @@ class TestVideoDecoder:
         assert len(decoder.res_stack) == 3, "res stack incorrect size"
 
     def test_num_convs(self, decoder):
-        assert len(decoder.convts) == 2, "incorrect number of conv layers"
+        # Account for ReLU layers minus the last one which is removed
+        assert len(decoder.convts) == 2 * 2 - 1, "incorrect number of conv layers"
