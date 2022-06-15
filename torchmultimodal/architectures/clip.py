@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import warnings
-from dataclasses import make_dataclass
+from collections import namedtuple
 from typing import Dict
 
 import torch
@@ -28,8 +28,7 @@ class CLIPArchitecture(nn.Module):
     Inputs: modalities (Dict[str, Tensor]): Dict of Tensor features, keyed by modality.
                 Must contain one entry for every modality in ``encoders``.
 
-    Output: CLIPOutput object with fields ``{modality}_embeddings`` for every modality
-                in ``encoders``.
+    Output: CLIPOutput namedtuple with a field for every modality in ``encoders``.
     """
 
     def __init__(
@@ -37,7 +36,8 @@ class CLIPArchitecture(nn.Module):
         encoders: nn.ModuleDict,
     ):
         super().__init__()
-        self.encoders = nn.ModuleDict({k: encoders[k] for k in sorted(encoders.keys())})
+        self.encoders = encoders
+        self.clip_output = namedtuple("CLIPOutput", encoders.keys())
 
     def forward(
         self,
@@ -45,15 +45,11 @@ class CLIPArchitecture(nn.Module):
     ) -> Dict[str, torch.Tensor]:
         embeddings = {}
         for key, encoder in self.encoders.items():
-            assert key in modalities, f"{key} missing in input"
-            embeddings[f"{key}_embeddings"] = F.normalize(encoder(modalities[key]))
+            if key not in modalities:
+                raise ValueError(f"{key} missing in input")
+            embeddings[key] = F.normalize(encoder(modalities[key]))
         for key in modalities.keys():
             if key not in self.encoders:
                 warnings.warn(f"Missing encoder for extra input {key}")
 
-        # Return a dataclass object instead of a dictionary
-        clip_output = make_dataclass(
-            "CLIPOutput",
-            [(f"{k}_embeddings", torch.Tensor) for k in self.encoders.keys()],
-        )
-        return clip_output(**embeddings)
+        return self.clip_output(**embeddings)
