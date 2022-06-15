@@ -65,13 +65,13 @@ class AxialAttentionBlock(nn.Module):
                 f"Input channel dimension is {n_channel}, expected {self.qkv_dim}"
             )
 
-        x = shift_dim(x, 1, -1)  # (b, c, d1, ..., dn) -> (b, d1, ..., dn, c)
-        attn_out = torch.zeros_like(x)
+        h = shift_dim(x, 1, -1)  # (b, c, d1, ..., dn) -> (b, d1, ..., dn, c)
+        attn_out = torch.zeros_like(h)
         for mha_attn in self.mha_attns:
-            attn_out += mha_attn(x, x, x)
-        x = attn_out
-        x = shift_dim(x, -1, 1)  # (b, d1, ..., dn, c) -> (b, c, d1, ..., dn)
-        return x
+            attn_out += mha_attn(h, h, h)
+        h = attn_out
+        h = shift_dim(h, -1, 1)  # (b, d1, ..., dn, c) -> (b, c, d1, ..., dn)
+        return h
 
 
 class MultiHeadAttention(nn.Module):
