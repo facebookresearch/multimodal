@@ -34,6 +34,7 @@ class ALBEFVisionEncoder(VisionTransformer):
             num_classes=num_classes,
             norm_layer=norm_layer,
         )
+        self.heads = None
 
 
 def interpolate_pos_embed(pos_embed_checkpoint, visual_encoder):

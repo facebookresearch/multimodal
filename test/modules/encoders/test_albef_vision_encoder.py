@@ -18,44 +18,50 @@ class TestALBEFVisionEncoder:
     input = torch.randn(1, 3, 4, 4)
     proj_input = torch.randn(1, 1, 3)
     proj_state_dict = OrderedDict(
-        [("proj.weight", torch.randn(3, 3, 4, 4)), ("proj.bias", torch.randn(3))]
+        [("weight", torch.randn(3, 3, 4, 4)), ("bias", torch.randn(3))]
     )
     attention_state_dict = OrderedDict(
         [
-            ("qkv.weight", torch.randn(9, 3)),
-            ("qkv.bias", torch.randn(9)),
-            ("proj.weight", torch.randn(3, 3)),
-            ("proj.bias", torch.randn(3)),
+            ("in_proj_weight", torch.randn(9, 3)),
+            ("in_proj_bias", torch.randn(9)),
+            ("out_proj.weight", torch.randn(3, 3)),
+            ("out_proj.bias", torch.randn(3)),
         ]
     )
     mlp_state_dict = OrderedDict(
         [
-            ("fc1.weight", torch.randn(6, 3)),
-            ("fc1.bias", torch.randn(6)),
-            ("fc2.weight", torch.randn(3, 6)),
-            ("fc2.bias", torch.randn(3)),
+            ("0.weight", torch.randn(6, 3)),
+            ("0.bias", torch.randn(6)),
+            ("3.weight", torch.randn(3, 6)),
+            ("3.bias", torch.randn(3)),
         ]
     )
     encoder_block_state_dict = OrderedDict(
         [
-            ("norm1.weight", torch.randn(3)),
-            ("norm1.bias", torch.randn(3)),
-            ("norm2.weight", torch.randn(3)),
-            ("norm2.bias", torch.randn(3)),
+            ("ln_1.weight", torch.randn(3)),
+            ("ln_1.bias", torch.randn(3)),
+            ("ln_2.weight", torch.randn(3)),
+            ("ln_2.bias", torch.randn(3)),
         ]
-        + [("attn." + key, val) for key, val in attention_state_dict.items()]
+        + [("self_attention." + key, val) for key, val in attention_state_dict.items()]
         + [("mlp." + key, val) for key, val in mlp_state_dict.items()]
     )
     vit_state_dict = OrderedDict(
         [
-            ("cls_token", torch.randn(1, 1, 3)),
-            ("pos_embed", torch.randn(1, 2, 3)),
-            ("norm.weight", torch.randn(3)),
-            ("norm.bias", torch.randn(3)),
+            ("class_token", torch.randn(1, 1, 3)),
+            ("encoder.pos_embedding", torch.randn(1, 2, 3)),
+            ("encoder.ln.weight", torch.randn(3)),
+            ("encoder.ln.bias", torch.randn(3)),
         ]
-        + [("patch_embed." + key, val) for key, val in proj_state_dict.items()]
-        + [("blocks.0." + key, val) for key, val in encoder_block_state_dict.items()]
-        + [("blocks.1." + key, val) for key, val in encoder_block_state_dict.items()]
+        + [("conv_proj." + key, val) for key, val in proj_state_dict.items()]
+        + [
+            ("encoder.layers.encoder_layer_0." + key, val)
+            for key, val in encoder_block_state_dict.items()
+        ]
+        + [
+            ("encoder.layers.encoder_layer_1." + key, val)
+            for key, val in encoder_block_state_dict.items()
+        ]
     )
     vision_encoder = ALBEFVisionEncoder(
         image_size=4,
