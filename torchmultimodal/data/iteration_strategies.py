@@ -83,21 +83,22 @@ class SizeProportionalIterationStrategy(IterationStrategy):
         self, config: DictConfig, dataloaders: Dict[str, DataLoader], *args, **kwargs
     ):
         super().__init__(config, dataloaders, *args, **kwargs)
-        self._per_dataset_lengths = []
+        self._per_dataloader_lengths = []
         self._total_length = 0
 
-        for loader in self.dataloaders.values():
-            self._per_dataset_lengths.append(len(loader))
-            self._total_length += dataset_instance_length
+        for key, loader in self.dataloaders.items():
+            n = len(loader)
+            self._per_dataloader_lengths.append(n)
+            self._total_length += n
 
-        self._dataset_probabilities = self._per_dataset_lengths[:]
-        self._dataset_probabilities = [
-            prob / self._total_length for prob in self._dataset_probabilities
+        self._dataloader_probabilities = self._per_dataloader_lengths[:]
+        self._dataloader_probabilities = [
+            prob / self._total_length for prob in self._dataloader_probabilities
         ]
 
     def __call__(self, *args, **kwargs):
         choice = np.random.choice(
-            len(self.dataloaders), 1, p=self._dataset_probabilities
+            len(self.dataloaders), 1, p=self._dataloader_probabilities
         )[0]
         return choice
 
