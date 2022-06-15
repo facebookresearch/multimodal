@@ -9,7 +9,7 @@ from functools import partial
 from typing import Callable
 
 import torch
-from torch import nn
+from torch import nn, Tensor
 from torchvision.models.vision_transformer import Encoder
 
 
@@ -74,7 +74,7 @@ class ALBEFVisionEncoder(nn.Module):
         if self.conv_proj.bias is not None:
             nn.init.zeros_(self.conv_proj.bias)
 
-    def _process_input(self, x: torch.Tensor) -> torch.Tensor:
+    def _process_input(self, x: Tensor) -> Tensor:
         n, c, h, w = x.shape
         p = self.patch_size
         torch._assert(h == self.image_size, "Wrong image height!")
@@ -95,7 +95,7 @@ class ALBEFVisionEncoder(nn.Module):
 
         return x
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         # Reshape and permute the input tensor
         x = self._process_input(x)
         n = x.shape[0]
