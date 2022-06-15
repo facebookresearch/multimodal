@@ -49,7 +49,7 @@ class RoundRobinIterationStrategy(IterationStrategy):
         self, config: DictConfig, dataloaders: Dict[str, DataLoader], *args, **kwargs
     ):
         super().__init__(config, dataloaders, *args, **kwargs)
-        self._current_idx = self.config.start_idx if "start_idx" in self.config else -1
+        self._current_idx = self.config.start_idx if "start_idx" in self.config else 0
 
     def __call__(self, *args, **kwargs):
         nxt = self._current_idx

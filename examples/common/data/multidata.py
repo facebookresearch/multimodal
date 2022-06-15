@@ -10,7 +10,7 @@ from typing import List
 
 import torch
 from pytorch_lightning import LightningDataModule
-from torchmultimodal.data.iteration_strategies import (
+from common.data.iteration_strategies import (
     IterationStrategy,
     IterationStrategyFactory,
     DEFAULT_ITERATION_STRATEGY_FACTORY,

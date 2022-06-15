@@ -12,7 +12,7 @@ from typing import Dict, List, Optional
 import numpy
 import torch
 from omegaconf import DictConfig
-from torchmultimodal.data import iteration_strategy_factory
+from common.data import iteration_strategy_factory
 
 
 class EmptyTensorDataset(torch.utils.data.Dataset):

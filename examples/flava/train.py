@@ -4,15 +4,15 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from callbacks.multimodal_eval import MultimodalEvalCallback
-from data import ImageDataModule, MLMDataModule, VLDataModule
-from definitions import FLAVAArguments
-from model import FLAVAPreTrainingLightningModule
+from common.data import MultiDataModule, iteration_strategy_factory
+from flava.callbacks.multimodal_eval import MultimodalEvalCallback
+from flava.data import ImageDataModule, MLMDataModule, VLDataModule
+from flava.definitions import FLAVAArguments
+from flava.model import FLAVAPreTrainingLightningModule
+from flava.utils import build_config, build_datamodule_kwargs
 from omegaconf import OmegaConf
 from pytorch_lightning import seed_everything, Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor
-from torchmultimodal.data import MultiDataModule, iteration_strategy_factory
-from utils import build_config, build_datamodule_kwargs
 
 
 def main():
@@ -23,11 +23,11 @@ def main():
     datamodules = {}
 
     # also needed for the imagenet eval callback
-    imagenet_datamodule = ImageDataModule(
-        **build_datamodule_kwargs(config.datasets.image, config.training)
-    )
-    if "image" in config.datasets.selected:
-        datamodules["image"] = imagenet_datamodule
+    # imagenet_datamodule = ImageDataModule(
+    #    **build_datamodule_kwargs(config.datasets.image, config.training)
+    # )
+    # if "image" in config.datasets.selected:
+    #    datamodules["image"] = imagenet_datamodule
 
     if "text" in config.datasets.selected:
         mlm_datamodule = MLMDataModule(
@@ -60,7 +60,7 @@ def main():
         **OmegaConf.to_container(config.training.lightning),
         callbacks=[
             LearningRateMonitor(logging_interval="step"),
-            MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule),
+            # MultimodalEvalCallback(imagenet_datamodule=imagenet_datamodule),
         ],
         strategy="ddp",
     )

@@ -8,16 +8,13 @@ import unittest
 
 from omegaconf import DictConfig
 from pytorch_lightning import LightningDataModule
-from torchmultimodal.data import (
+from common.data import (
     MultiDataLoader,
     MultiDataModule,
     iteration_strategy_factory,
 )
 
-from .test_iteration_strategies import (
-    EmptyTensorDataset,
-    _dataloader_empty_tensor_dataset,
-)
+from .test_iteration_strategies import _dataloader_empty_tensor_dataset
 
 
 class TestDataModule(LightningDataModule):

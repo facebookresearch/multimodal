@@ -7,8 +7,8 @@
 import logging
 
 import torch
-from data import default_text_transform, VL_MAX_LENGTH_DEFAULT
-from data.imagenet_zeroshot_data import (
+from flava.data import default_text_transform, VL_MAX_LENGTH_DEFAULT
+from flava.data.imagenet_zeroshot_data import (
     imagenet_classnames,
     openai_imagenet_template,
 )
