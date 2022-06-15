@@ -21,6 +21,8 @@ datasets:
   - image
   - vl
   - text
+  iteration_strategy:
+    type: round_robin
   image:
     _target_: flava.definitions.TrainingSingleDatasetInfo
     train:
