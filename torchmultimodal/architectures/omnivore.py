@@ -28,12 +28,11 @@ class OmnivoreArchitecture(nn.Module):
         super().__init__()
         self.encoder = encoder
         self.heads = heads
-        self.input_types = set(heads.keys())
 
     def forward(self, x: torch.Tensor, input_type: str):
         x = self.encoder(x)
         assert (
-            input_type in self.input_types
-        ), f"Unsupported input_type: {input_type}, please use one of {self.input_types}"
+            input_type in self.heads
+        ), f"Unsupported input_type: {input_type}, please use one of {list(self.heads.keys())}"
         x = self.heads[input_type](x)
         return x
