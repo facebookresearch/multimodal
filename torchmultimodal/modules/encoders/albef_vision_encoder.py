@@ -36,6 +36,18 @@ class ALBEFVisionEncoder(VisionTransformer):
         )
         self.heads = None
 
+    def forward(self, x: torch.Tensor):
+        # Reshape and permute the input tensor
+        x = self._process_input(x)
+        n = x.shape[0]
+
+        # Expand the class token to the full batch
+        batch_class_token = self.class_token.expand(n, -1, -1)
+        x = torch.cat([batch_class_token, x], dim=1)
+
+        x = self.encoder(x)
+        return x
+
 
 def interpolate_pos_embed(pos_embed_checkpoint, visual_encoder):
     # interpolate position embedding
