@@ -5,4 +5,3 @@
 # LICENSE file in the root directory of this source tree.
 
 from .multidata import *  # noqa F401
-from .iteration_strategies import *  # noqa F401
