@@ -4,6 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import torch
 from torchmultimodal.architectures.clip import CLIPArchitecture
 from torchmultimodal.modules.encoders.clip_resnet_encoder import ResNetForCLIP
 from torchmultimodal.modules.encoders.clip_text_encoder import CLIPTextEncoder
@@ -22,7 +23,9 @@ def clip_vit_b16():
         num_classes=512,
     )
     text_encoder = CLIPTextEncoder(embedding_dim=512)
-    return CLIPArchitecture(vision_encoder, text_encoder)
+    return CLIPArchitecture(
+        encoders=torch.nn.ModuleDict({"vision": vision_encoder, "text": text_encoder})
+    )
 
 
 def clip_vit_b32():
@@ -36,7 +39,9 @@ def clip_vit_b32():
         num_classes=512,
     )
     text_encoder = CLIPTextEncoder(embedding_dim=512)
-    return CLIPArchitecture(vision_encoder, text_encoder)
+    return CLIPArchitecture(
+        encoders=torch.nn.ModuleDict({"vision": vision_encoder, "text": text_encoder})
+    )
 
 
 def clip_vit_l14():
@@ -50,7 +55,9 @@ def clip_vit_l14():
         num_classes=768,
     )
     text_encoder = CLIPTextEncoder(embedding_dim=768, width=768, heads=12)
-    return CLIPArchitecture(vision_encoder, text_encoder)
+    return CLIPArchitecture(
+        encoders=torch.nn.ModuleDict({"vision": vision_encoder, "text": text_encoder})
+    )
 
 
 def clip_rn50():
@@ -61,7 +68,9 @@ def clip_rn50():
         width=2048,
     )
     text_encoder = CLIPTextEncoder(embedding_dim=1024)
-    return CLIPArchitecture(vision_encoder, text_encoder)
+    return CLIPArchitecture(
+        encoders=torch.nn.ModuleDict({"vision": vision_encoder, "text": text_encoder})
+    )
 
 
 def clip_rn101():
@@ -72,7 +81,9 @@ def clip_rn101():
         width=2048,
     )
     text_encoder = CLIPTextEncoder(embedding_dim=1024)
-    return CLIPArchitecture(vision_encoder, text_encoder)
+    return CLIPArchitecture(
+        encoders=torch.nn.ModuleDict({"vision": vision_encoder, "text": text_encoder})
+    )
 
 
 # Note: these models require larger image sizes
@@ -85,7 +96,9 @@ def clip_rn50x4():
         width=2560,
     )
     text_encoder = CLIPTextEncoder(embedding_dim=1024, width=640, heads=12)
-    return CLIPArchitecture(vision_encoder, text_encoder)
+    return CLIPArchitecture(
+        encoders=torch.nn.ModuleDict({"vision": vision_encoder, "text": text_encoder})
+    )
 
 
 def clip_rn50x16():
@@ -97,7 +110,9 @@ def clip_rn50x16():
         width=3072,
     )
     text_encoder = CLIPTextEncoder(embedding_dim=768, width=768, heads=12)
-    return CLIPArchitecture(vision_encoder, text_encoder)
+    return CLIPArchitecture(
+        encoders=torch.nn.ModuleDict({"vision": vision_encoder, "text": text_encoder})
+    )
 
 
 def clip_rn50x64():
@@ -109,7 +124,9 @@ def clip_rn50x64():
         width=4096,
     )
     text_encoder = CLIPTextEncoder(embedding_dim=1024, width=1024, heads=16)
-    return CLIPArchitecture(vision_encoder, text_encoder)
+    return CLIPArchitecture(
+        encoders=torch.nn.ModuleDict({"vision": vision_encoder, "text": text_encoder})
+    )
 
 
 # Note: these models use torchvision's ResNet
@@ -120,7 +137,9 @@ def clip_rn50_tv():
         num_classes=1024,
     )
     text_encoder = CLIPTextEncoder()
-    return CLIPArchitecture(vision_encoder, text_encoder)
+    return CLIPArchitecture(
+        encoders=torch.nn.ModuleDict({"vision": vision_encoder, "text": text_encoder})
+    )
 
 
 def clip_rn101_tv():
@@ -130,4 +149,6 @@ def clip_rn101_tv():
         num_classes=512,
     )
     text_encoder = CLIPTextEncoder()
-    return CLIPArchitecture(vision_encoder, text_encoder)
+    return CLIPArchitecture(
+        encoders=torch.nn.ModuleDict({"vision": vision_encoder, "text": text_encoder})
+    )

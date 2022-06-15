@@ -5,8 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import warnings
-from collections import namedtuple
-from typing import Dict
+from typing import Dict, NamedTuple
 
 import torch
 import torch.nn.functional as F
@@ -37,12 +36,11 @@ class CLIPArchitecture(nn.Module):
     ):
         super().__init__()
         self.encoders = encoders
-        self.clip_output = namedtuple("CLIPOutput", encoders.keys())
 
     def forward(
         self,
         modalities: Dict[str, torch.Tensor],
-    ) -> Dict[str, torch.Tensor]:
+    ) -> NamedTuple:
         embeddings = {}
         for key, encoder in self.encoders.items():
             if key not in modalities:
@@ -52,4 +50,5 @@ class CLIPArchitecture(nn.Module):
             if key not in self.encoders:
                 warnings.warn(f"Missing encoder for extra input {key}")
 
-        return self.clip_output(**embeddings)
+        clip_output = NamedTuple("CLIPOutput", **{k: torch.Tensor for k in self.encoders.keys()})  # type: ignore
+        return clip_output(**embeddings)
