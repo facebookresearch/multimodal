@@ -8,15 +8,34 @@ import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import Tensor
 from torchmultimodal.modules.encoders.albef_text_encoder import (
+    ALBEFAttention,
     ALBEFOutputLayer,
     ALBEFSelfAttention,
     ALBEFTextEmbeddings,
 )
 
 
-class TestALBEFVisionEncoder:
+class TestALBEFTextEncoder:
+    def test_attention(self):
+        set_rng_seed(0)
+        attention = ALBEFAttention(
+            hidden_size=3,
+            num_attention_heads=1,
+        )
+        input = torch.randn(1, 3, 3)
+        hidden_states = torch.randn(3, 3)
+        (output,) = attention(input, hidden_states)
+        expected = Tensor(
+            [
+                [-0.559244, 1.404537, -0.845293],
+                [-1.367553, 0.995783, 0.371770],
+                [0.154898, -1.294825, 1.139927],
+            ]
+        ).unsqueeze(0)
+        assert_expected(output, expected, rtol=0, atol=1e-4)
+
     def test_self_attention(self):
-        # test the self attention in encoder layers
+        # test the output layer of ALBEFTextEncoder
         set_rng_seed(0)
         self_attention = ALBEFSelfAttention(hidden_size=3, num_attention_heads=1)
         input = torch.randn(1, 2, 3)
