@@ -8,7 +8,7 @@ from typing import Any, Tuple
 
 import torch
 from pytorch_lightning import LightningModule
-from torchmultimodal.models.flava import (
+from torchmultimodal.models.flava.flava_model import (
     flava_model_for_classification,
     flava_model_for_pretraining,
 )
