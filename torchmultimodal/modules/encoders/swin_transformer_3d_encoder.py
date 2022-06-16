@@ -13,8 +13,7 @@ from typing import Callable, List, Optional, Tuple
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
-from torchvision.models.vision_transformer import MLPBlock
-from torchvision.ops.stochastic_depth import StochasticDepth
+from torchvision.models.swin_transformer import PatchMerging, SwinTransformerBlock
 
 
 def _compute_pad_size_3d(
@@ -73,40 +72,6 @@ def _compute_attention_mask_3d(
         attn_mask == 0, float(0.0)
     )
     return attn_mask
-
-
-class PatchMerging(nn.Module):
-    """Patch Merging Layer.
-    Args:
-        dim (int): Number of input channels.
-        norm_layer (nn.Module): Normalization layer. Default: nn.LayerNorm.
-    """
-
-    def __init__(self, dim: int, norm_layer: Callable[..., nn.Module] = nn.LayerNorm):
-        super().__init__()
-        self.dim = dim
-        self.reduction = nn.Linear(4 * dim, 2 * dim, bias=False)
-        self.norm = norm_layer(4 * dim)
-
-    def forward(self, x: Tensor):
-        """
-        Args:
-            x (Tensor): input tensor with expected layout of [..., H, W, C]
-        Returns:
-            Tensor with layout of [..., H/2, W/2, 2*C]
-        """
-        H, W, _ = x.shape[-3:]
-        x = F.pad(x, (0, 0, 0, W % 2, 0, H % 2))
-
-        x0 = x[..., 0::2, 0::2, :]  # ... H/2 W/2 C
-        x1 = x[..., 1::2, 0::2, :]  # ... H/2 W/2 C
-        x2 = x[..., 0::2, 1::2, :]  # ... H/2 W/2 C
-        x3 = x[..., 1::2, 1::2, :]  # ... H/2 W/2 C
-        x = torch.cat([x0, x1, x2, x3], -1)  # ... H/2 W/2 4*C
-
-        x = self.norm(x)
-        x = self.reduction(x)  # ... H/2 W/2 2*C
-        return x
 
 
 def shifted_window_attention_3d(
@@ -325,55 +290,6 @@ class ShiftedWindowAttention3d(nn.Module):
         )
 
 
-class SwinTransformerBlock(nn.Module):
-    """
-    Swin Transformer Block.
-    Args:
-        dim (int): Number of input channels.
-        num_heads (int): Number of attention heads.
-        window_size (List[int]): Window size.
-        shift_size (List[int]): Shift size for shifted window attention.
-        mlp_ratio (float): Ratio of mlp hidden dim to embedding dim. Default: 4.0.
-        dropout (float): Dropout rate. Default: 0.0.
-        attention_dropout (float): Attention dropout rate. Default: 0.0.
-        stochastic_depth_prob: (float): Stochastic depth rate. Default: 0.0.
-        norm_layer (nn.Module): Normalization layer.  Default: nn.LayerNorm.
-        attn_layer (nn.Module): Attention layer. Default: ShiftedWindowAttention3d
-    """
-
-    def __init__(
-        self,
-        dim: int,
-        num_heads: int,
-        window_size: List[int],
-        shift_size: List[int],
-        mlp_ratio: float = 4.0,
-        dropout: float = 0.0,
-        attention_dropout: float = 0.0,
-        stochastic_depth_prob: float = 0.0,
-        norm_layer: Callable[..., nn.Module] = nn.LayerNorm,
-        attn_layer: Callable[..., nn.Module] = ShiftedWindowAttention3d,
-    ):
-        super().__init__()
-        self.norm1 = norm_layer(dim)
-        self.attn = attn_layer(
-            dim,
-            window_size,
-            shift_size,
-            num_heads,
-            attention_dropout=attention_dropout,
-            dropout=dropout,
-        )
-        self.stochastic_depth = StochasticDepth(stochastic_depth_prob, "row")
-        self.norm2 = norm_layer(dim)
-        self.mlp = MLPBlock(dim, int(dim * mlp_ratio), dropout)
-
-    def forward(self, x: Tensor):
-        x = x + self.stochastic_depth(self.attn(self.norm1(x)))
-        x = x + self.stochastic_depth(self.mlp(self.norm2(x)))
-        return x
-
-
 # Modified from https://github.com/SwinTransformer/Video-Swin-Transformer/blob/master/mmaction/models/backbones/swin_transformer.py#L416
 class PatchEmbed3d(nn.Module):
     """Video to Patch Embedding.
@@ -459,7 +375,7 @@ class SwinTransformer3d(nn.Module):
         self.num_classes = num_classes
 
         if block is None:
-            block = SwinTransformerBlock
+            block = partial(SwinTransformerBlock, attn_layer=ShiftedWindowAttention3d)
 
         if norm_layer is None:
             norm_layer = partial(nn.LayerNorm, eps=1e-5)
