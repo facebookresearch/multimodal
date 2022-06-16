@@ -58,15 +58,15 @@ class VideoEncoder(nn.Module):
         if in_channels[1:] != out_channels[:-1]:
             raise ValueError("out_channels should match in_channels offset by one")
 
-        convs: List[nn.Module] = []
+        convolutions: List[nn.Module] = []
         for idx, (i, o, k, s) in enumerate(
             zip(in_channels, out_channels, kernel_sizes, strides)
         ):
-            convs.append(SamePadConv3d(i, o, k, s, bias=True, **kwargs))
+            convolutions.append(SamePadConv3d(i, o, k, s, bias=True, **kwargs))
             # Do not apply relu to last conv layer before res stack
             if idx < len(strides) - 1:
-                convs.append(nn.ReLU())
-        self.convs = nn.Sequential(*convs)
+                convolutions.append(nn.ReLU())
+        self.convs = nn.Sequential(*convolutions)
 
         attn_hidden_dim = out_channels[-1]
         self.res_stack = nn.Sequential(
@@ -139,15 +139,17 @@ class VideoDecoder(nn.Module):
             nn.BatchNorm3d(attn_hidden_dim),
             nn.ReLU(),
         )
-        convts: List[nn.Module] = []
+        transpose_convolutions: List[nn.Module] = []
         for idx, (i, o, k, s) in enumerate(
             zip(in_channels, out_channels, kernel_sizes, strides)
         ):
-            convts.append(SamePadConvTranspose3d(i, o, k, s, bias=True, **kwargs))
+            transpose_convolutions.append(
+                SamePadConvTranspose3d(i, o, k, s, bias=True, **kwargs)
+            )
             # Do not apply relu to output convt layer
             if idx < len(strides) - 1:
-                convts.append(nn.ReLU())
-        self.convts = nn.Sequential(*convts)
+                transpose_convolutions.append(nn.ReLU())
+        self.convts = nn.Sequential(*transpose_convolutions)
 
     def forward(self, x: Tensor) -> Tensor:
         in_channel = x.shape[1]
