@@ -16,8 +16,7 @@ class ALBEFVisionEncoder(nn.Module):
     """
     Modified VisionTransformer used by ALBEF.
 
-    Based on https://github.com/pytorch/vision/blob/main/torchvision/models/vision_transformer.py#L160.
-    This class removes the heads from VisionTransformer.
+    This class returns the output of the encoder ('encoder.ln'), without passing it to the heads.
 
     Args:
         image_size (int): The size (resolution) of each image
@@ -58,7 +57,10 @@ class ALBEFVisionEncoder(nn.Module):
             attention_dropout,
             norm_layer=norm_layer,
         )
-        self.encoder = create_feature_extractor(vision_transformer, ["encoder.ln"])
+        self.encoder_layer_name = "encoder.ln"
+        self.encoder = create_feature_extractor(
+            vision_transformer, [self.encoder_layer_name]
+        )
 
     def forward(self, x: Tensor) -> Tensor:
-        return self.encoder(x)["encoder.ln"]
+        return self.encoder(x)[self.encoder_layer_name]
