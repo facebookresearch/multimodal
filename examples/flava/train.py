@@ -5,14 +5,14 @@
 # LICENSE file in the root directory of this source tree.
 
 from callbacks.multimodal_eval import MultimodalEvalCallback
-from data import ImageDataModule, MLMDataModule, MultiDataModule, VLDataModule, MultiDataPipeModule, MLMDataPipeModule
+from data import ImageDataModule, MLMDataModule, MultiDataModule, VLDataModule, MultiDataPipeModule, MLMDataPipeModule, TextDataPipeModule, VLDataPipeModule
 from definitions import FLAVAArguments
 from model import FLAVAPreTrainingLightningModule
 from omegaconf import OmegaConf
 from pytorch_lightning import seed_everything, Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from utils import build_config, build_datamodule_kwargs
-
+import torch
 
 def main():
     config: FLAVAArguments = build_config()
@@ -29,16 +29,19 @@ def main():
         datamodules.append(imagenet_datamodule)
 
     if "text" in config.datasets.selected:
-        mlm_datamodule = MLMDataModule(
-            **build_datamodule_kwargs(config.datasets.text, config.training)
-        )
+        # mlm_datamodule = MLMDataModule(
+        #     **build_datamodule_kwargs(config.datasets.text, config.training)
+        # )
         mlm_datamodule = MLMDataPipeModule(
             **build_datamodule_kwargs(config.datasets.text, config.training)
         )
-        # datamodules.append(mlm_datamodule)
+        datamodules.append(mlm_datamodule)
 
     if "vl" in config.datasets.selected:
-        vl_datamodule = VLDataModule(
+        # vl_datamodule = VLDataModule(
+        #     **build_datamodule_kwargs(config.datasets.vl, config.training)
+        # )
+        vl_datamodule = VLDataPipeModule(
             **build_datamodule_kwargs(config.datasets.vl, config.training)
         )
         datamodules.append(vl_datamodule)
@@ -76,7 +79,7 @@ def main():
     ckpt_path = config.training.lightning_load_from_checkpoint
 
     trainer.fit(model, datamodule=datamodule, ckpt_path=ckpt_path)
-    trainer.validate(model, datamodule=datamodule)
+    # trainer.validate(model, datamodule=datamodule)
 
 
 if __name__ == "__main__":

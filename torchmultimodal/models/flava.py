@@ -871,11 +871,8 @@ class TextEmbeddings(nn.Module):
     ):
         if input_ids is not None:
             input_shape = input_ids.size()
-            print(f"input_ids={input_ids}")
         else:
             input_shape = inputs_embeds.size()[:-1]
-            print(f"input_embeds={inputs_embeds}")
-        print(f"input_shape={input_shape}")
 
         seq_length = input_shape[1]
 
@@ -883,7 +880,6 @@ class TextEmbeddings(nn.Module):
             position_ids = self.position_ids[
                 :, past_key_values_length : seq_length + past_key_values_length
             ]
-        print(f"position_ids={position_ids}")
         # Setting the token_type_ids to the registered buffer in constructor where it is all zeros, which usually occurs
         # when its auto-generated, registered buffer helps users when tracing the model without passing token_type_ids, solves
         # issue #5664
@@ -904,9 +900,7 @@ class TextEmbeddings(nn.Module):
         token_type_embeddings = self.token_type_embeddings(token_type_ids)
 
         embeddings = inputs_embeds + token_type_embeddings
-        print(f"embeddings = {embeddings.size()}")
         position_embeddings = self.position_embeddings(position_ids)
-        print(f"position_embeddings = {position_embeddings.size()}")
         embeddings += position_embeddings
 
         embeddings = self.LayerNorm(embeddings)

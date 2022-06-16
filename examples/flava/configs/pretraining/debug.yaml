@@ -28,7 +28,7 @@ datasets:
   _target_: definitions.TrainingDatasetsInfo
   selected:
   # - image
-  # - vl
+  - vl
   - text
   # image:
   #   _target_: definitions.TrainingSingleDatasetInfo
