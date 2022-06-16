@@ -8,7 +8,7 @@ import hashlib
 import os
 from collections import OrderedDict
 from dataclasses import fields
-from typing import Optional
+from typing import List, Optional
 
 import torch
 from torch import Tensor
@@ -63,6 +63,36 @@ def shift_dim(
     if make_contiguous:
         x = x.contiguous()
     return x
+
+
+def tensor_slice(x: Tensor, begin: List[int], size: List[int]) -> Tensor:
+    """Slices a tensor dimension-wise.
+
+    The input tensor is sliced along each dimension by specifying the starts and
+    the increments.
+
+    Args:
+        x (Tensor): tensor to be sliced.
+        begin (List[int]): list of starts corresponding to each dimension.
+        size (List[int]): list of increments with respect to the starts along each dimension. Specifically,
+                        ``-1`` means slicing from begin to the last element (inclusive) of that dimension.
+
+    Returns:
+        The sliced tensor.
+
+    Raises:
+        ValueError: if any of ``begin`` indices is negative
+        ValueError: if any of ``size`` is less than ``-1``
+    """
+    if not all([b >= 0 for b in begin]):
+        raise ValueError("All starting indices must be non-negative.")
+    if not all([s >= -1 for s in size]):
+        raise ValueError("All sizes must be either non-negative or -1.")
+
+    size = [l - b if s == -1 else s for s, b, l in zip(size, begin, x.shape)]
+
+    slices = [slice(b, b + s) for b, s in zip(begin, size)]
+    return x[slices]
 
 
 class PretrainedMixin:

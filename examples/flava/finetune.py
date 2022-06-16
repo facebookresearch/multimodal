@@ -60,7 +60,6 @@ def main():
         callbacks=[
             LearningRateMonitor(logging_interval="step"),
         ],
-        strategy="ddp",
     )
     trainer.fit(model, datamodule=datamodule)
     trainer.validate(model, datamodule=datamodule)

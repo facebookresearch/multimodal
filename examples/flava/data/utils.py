@@ -26,6 +26,7 @@ def build_datasets_from_info(dataset_infos: List[HFDatasetInfo], split: str = "t
             dataset_info.key,
             dataset_info.subset,
             split=dataset_info.split_key_mapping[split],
+            use_auth_token=True,
             **dataset_info.extra_kwargs,
         )
         if dataset_info.remove_columns is not None:
