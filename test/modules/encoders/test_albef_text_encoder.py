@@ -10,6 +10,7 @@ from torch import Tensor
 from torchmultimodal.modules.encoders.albef_text_encoder import (
     ALBEFAttention,
     ALBEFIntermediate,
+    ALBEFLayer,
     ALBEFOutputLayer,
     ALBEFSelfAttention,
     ALBEFTextEmbeddings,
@@ -17,6 +18,23 @@ from torchmultimodal.modules.encoders.albef_text_encoder import (
 
 
 class TestALBEFTextEncoder:
+    def test_layer(self):
+        set_rng_seed(0)
+        layer = ALBEFLayer(
+            hidden_size=3,
+            num_attention_heads=1,
+        )
+        input = torch.randn(1, 3, 3)
+        (output,) = layer(input)
+        expected = Tensor(
+            [
+                [-1.002000, -0.363290, 1.365290],
+                [-1.288092, 0.138463, 1.149629],
+                [1.380833, -0.425887, -0.954945],
+            ]
+        ).unsqueeze(0)
+        assert_expected(output, expected, rtol=0, atol=1e-4)
+
     def test_intermediate(self):
         set_rng_seed(0)
         intermediate = ALBEFIntermediate(hidden_size=3)
