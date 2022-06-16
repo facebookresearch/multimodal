@@ -4,16 +4,20 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import warnings
-from typing import Dict, NamedTuple
+from typing import NamedTuple
 
 import torch
 import torch.nn.functional as F
 from torch import nn
 
 
+class CLIPOutput(NamedTuple):
+    embeddings_a: torch.Tensor
+    embeddings_b: torch.Tensor
+
+
 class CLIPArchitecture(nn.Module):
-    """CLIP is a model for contrastive image and text pretraining.
+    """CLIP is a model for contrastive pretraining between two modalities.
 
     CLIP (https://arxiv.org/pdf/2103.00020.pdf) jointly trains an image encoder
     (either ResNet or ViT) and a text encoder (Transformer) to predict correct
@@ -21,34 +25,32 @@ class CLIPArchitecture(nn.Module):
     encoders, while the loss is implemented in ContrastiveLossWithTemperature.
 
 
-    Args:   encoders (nn.ModuleDict): Dict of instantiated encoders, keyed by modality.
-                E.g. {"vision": ResNetForCLIP(), "text": CLIPTextEncoder()}
+    Args:   encoder_a (nn.Module): Instantiated encoder for modality A.
+                See e.g. ResNetForCLIP class.
+            encoder_b (nn.Module): Instantiated encoder for modality B.
+                See e.g. CLIPTextEncoder class.
 
-    Inputs: modalities (Dict[str, Tensor]): Dict of Tensor features, keyed by modality.
-                Must contain one entry for every modality in ``encoders``.
-
-    Output: CLIPOutput namedtuple with a field for every modality in ``encoders``.
+    Inputs: features_a (Tensor): Tensor containing features of modality A.
+            features_b (Tensor): Tensor containing features of modality B.
     """
 
     def __init__(
         self,
-        encoders: nn.ModuleDict,
+        encoder_a: nn.Module,
+        encoder_b: nn.Module,
     ):
         super().__init__()
-        self.encoders = encoders
+        self.encoder_a = encoder_a
+        self.encoder_b = encoder_b
 
     def forward(
         self,
-        modalities: Dict[str, torch.Tensor],
-    ) -> NamedTuple:
-        embeddings = {}
-        for key, encoder in self.encoders.items():
-            if key not in modalities:
-                raise ValueError(f"{key} missing in input")
-            embeddings[key] = F.normalize(encoder(modalities[key]))
-        for key in modalities.keys():
-            if key not in self.encoders:
-                warnings.warn(f"Missing encoder for extra input {key}")
+        features_a: torch.Tensor,
+        features_b: torch.Tensor,
+    ) -> CLIPOutput:
 
-        clip_output = NamedTuple("CLIPOutput", **{k: torch.Tensor for k in self.encoders.keys()})  # type: ignore
-        return clip_output(**embeddings)
+        embeddings_a = self.encoder_a(features_a)
+        embeddings_b = self.encoder_b(features_b)
+        embeddings_a = F.normalize(embeddings_a)
+        embeddings_b = F.normalize(embeddings_b)
+        return CLIPOutput(embeddings_a=embeddings_a, embeddings_b=embeddings_b)

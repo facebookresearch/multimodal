@@ -18,10 +18,7 @@ class TestCLIPArchitecture:
 
         encoder_a = torch.nn.Linear(5, 3)
         encoder_b = torch.nn.Linear(4, 3)
-        encoders = torch.nn.ModuleDict(
-            {"modality_a": encoder_a, "modality_b": encoder_b}
-        )
-        clip = CLIPArchitecture(encoders=encoders)
+        clip = CLIPArchitecture(encoder_a, encoder_b)
 
         input_a = torch.randint(1, 8, (2, 5), dtype=torch.float)
         input_b = torch.randint(1, 8, (2, 4), dtype=torch.float)
@@ -32,13 +29,15 @@ class TestCLIPArchitecture:
         clip, input_a, input_b = start
         assert isinstance(clip, torch.nn.Module)
 
-        out = clip(modalities={"modality_a": input_a, "modality_b": input_b})
+        out = clip(input_a, input_b)
         assert (
-            hasattr(out, "modality_a") and hasattr(out, "modality_b") and len(out) == 2
+            hasattr(out, "embeddings_a")
+            and hasattr(out, "embeddings_b")
+            and len(out) == 2
         )
 
-        actual_a_embedding = out.modality_a
-        actual_b_embedding = out.modality_b
+        actual_a_embedding = out.embeddings_a
+        actual_b_embedding = out.embeddings_b
         expected_a_embedding = torch.Tensor(
             [[-0.8066, -0.1749, 0.5647], [-0.7709, -0.1118, 0.6271]]
         )
@@ -50,26 +49,4 @@ class TestCLIPArchitecture:
         )
         assert_expected(
             actual=actual_b_embedding, expected=expected_b_embedding, rtol=0, atol=1e-4
-        )
-
-    def test_forward_missing_input(self, start):
-        clip, input_a, _ = start
-
-        with pytest.raises(ValueError):
-            clip(modalities={"modality_a": input_a})
-
-    def test_forward_extra_input(self, start):
-        clip, input_a, input_b = start
-
-        with pytest.warns(UserWarning):
-            out = clip(
-                modalities={
-                    "modality_a": input_a,
-                    "modality_b": input_b,
-                    "extra": torch.Tensor([1]).to(dtype=float),
-                }
-            )
-
-        assert (
-            hasattr(out, "modality_a") and hasattr(out, "modality_b") and len(out) == 2
         )

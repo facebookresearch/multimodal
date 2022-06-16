@@ -36,9 +36,8 @@ class TestCLIPModule(unittest.TestCase):
             layers=12,
         )
         clip_resnet = CLIPArchitecture(
-            encoders=torch.nn.ModuleDict(
-                {"text": text_encoder, "image": resnet_encoder}
-            )
+            encoder_a=resnet_encoder,
+            encoder_b=text_encoder,
         )
         clip_resnet = clip_resnet.to(self.device)
         self.assertTrue(isinstance(clip_resnet, torch.nn.Module))
@@ -48,9 +47,9 @@ class TestCLIPModule(unittest.TestCase):
         )
         image = torch.randn(3, 224, 224).unsqueeze(0)
 
-        clip_resnet_scores = clip_resnet(modalities={"image": image, "text": text})
-        self.assertEqual(clip_resnet_scores.image.size(), torch.Size((1, 12)))
-        self.assertEqual(clip_resnet_scores.text.size(), torch.Size((1, 12)))
+        clip_resnet_scores = clip_resnet(features_a=image, features_b=text)
+        self.assertEqual(clip_resnet_scores.embeddings_a.size(), torch.Size((1, 12)))
+        self.assertEqual(clip_resnet_scores.embeddings_b.size(), torch.Size((1, 12)))
 
     def test_clip_vit_forward(self):
         vit_encoder = VisionTransformer(
@@ -75,12 +74,10 @@ class TestCLIPModule(unittest.TestCase):
             0
         )
         image = torch.randn(3, 224, 224).unsqueeze(0)
-        clip_vit = CLIPArchitecture(
-            encoders={"image": vit_encoder, "text": text_encoder}
-        )
+        clip_vit = CLIPArchitecture(encoder_a=vit_encoder, encoder_b=text_encoder)
         clip_vit = clip_vit.to(self.device)
         self.assertTrue(isinstance(clip_vit, torch.nn.Module))
 
-        clip_vit_scores = clip_vit(modalities={"image": image, "text": text})
-        self.assertEqual(clip_vit_scores.image.size(), torch.Size((1, 12)))
-        self.assertEqual(clip_vit_scores.text.size(), torch.Size((1, 12)))
+        clip_vit_scores = clip_vit(features_a=image, features_b=text)
+        self.assertEqual(clip_vit_scores.embeddings_a.size(), torch.Size((1, 12)))
+        self.assertEqual(clip_vit_scores.embeddings_b.size(), torch.Size((1, 12)))
