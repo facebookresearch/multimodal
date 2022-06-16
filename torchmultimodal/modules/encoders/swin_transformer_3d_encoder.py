@@ -105,14 +105,14 @@ def shifted_window_attention_3d(
     Returns:
         Tensor[B, D, H, W, C]: The output tensor after shifted window attention.
     """
-    B, D, H, W, C = input.shape
+    b, d, h, w, c = input.shape
     # pad feature maps to multiples of window size
     pad_size = _compute_pad_size_3d(
-        (D, H, W), (window_size[0], window_size[1], window_size[2])
+        (d, h, w), (window_size[0], window_size[1], window_size[2])
     )
     x = F.pad(input, (0, 0, 0, pad_size[2], 0, pad_size[1], 0, pad_size[0]))
-    _, Dp, Hp, Wp, _ = x.shape
-    padded_size = (Dp, Hp, Wp)
+    _, dp, hp, wp, _ = x.shape
+    padded_size = (dp, hp, wp)
 
     # cyclic shift
     if sum(shift_size) > 0:
@@ -127,26 +127,26 @@ def shifted_window_attention_3d(
         * (padded_size[2] // window_size[2])
     )
     x = x.view(
-        B,
+        b,
         padded_size[0] // window_size[0],
         window_size[0],
         padded_size[1] // window_size[1],
         window_size[1],
         padded_size[2] // window_size[2],
         window_size[2],
-        C,
+        c,
     )
     x = x.permute(0, 1, 3, 5, 2, 4, 6, 7).reshape(
-        B * num_windows, window_size[0] * window_size[1] * window_size[2], C
+        b * num_windows, window_size[0] * window_size[1] * window_size[2], c
     )  # B*nW, Wd*Wh*Ww, C
 
     # multi-head attention
     qkv = F.linear(x, qkv_weight, qkv_bias)
-    qkv = qkv.reshape(x.size(0), x.size(1), 3, num_heads, C // num_heads).permute(
+    qkv = qkv.reshape(x.size(0), x.size(1), 3, num_heads, c // num_heads).permute(
         2, 0, 3, 1, 4
     )
     q, k, v = qkv[0], qkv[1], qkv[2]
-    q = q * (C // num_heads) ** -0.5
+    q = q * (c // num_heads) ** -0.5
     attn = q.matmul(k.transpose(-2, -1))
     # add relative position bias
     attn = attn + relative_position_bias
@@ -168,22 +168,22 @@ def shifted_window_attention_3d(
     attn = F.softmax(attn, dim=-1)
     attn = F.dropout(attn, p=attention_dropout)
 
-    x = attn.matmul(v).transpose(1, 2).reshape(x.size(0), x.size(1), C)
+    x = attn.matmul(v).transpose(1, 2).reshape(x.size(0), x.size(1), c)
     x = F.linear(x, proj_weight, proj_bias)
     x = F.dropout(x, p=dropout)
 
     # reverse windows
     x = x.view(
-        B,
+        b,
         padded_size[0] // window_size[0],
         padded_size[1] // window_size[1],
         padded_size[2] // window_size[2],
         window_size[0],
         window_size[1],
         window_size[2],
-        C,
+        c,
     )
-    x = x.permute(0, 1, 4, 2, 5, 3, 6, 7).reshape(B, Dp, Hp, Wp, C)
+    x = x.permute(0, 1, 4, 2, 5, 3, 6, 7).reshape(b, dp, hp, wp, c)
 
     # reverse cyclic shift
     if sum(shift_size) > 0:
@@ -192,7 +192,7 @@ def shifted_window_attention_3d(
         )
 
     # unpad features
-    x = x[:, :D, :H, :W, :].contiguous()
+    x = x[:, :d, :h, :w, :].contiguous()
     return x
 
 
@@ -258,8 +258,8 @@ class ShiftedWindowAttention3d(nn.Module):
         nn.init.trunc_normal_(self.relative_position_bias_table, std=0.02)
 
     def forward(self, x: Tensor):
-        _, D, H, W, _ = x.shape
-        size_dhw = (D, H, W)
+        _, d, h, w, _ = x.shape
+        size_dhw = (d, h, w)
         window_size, shift_size = self.window_size.copy(), self.shift_size.copy()
         # Handle case where window_size is larger than the input tensor
         for i in range(3):
@@ -268,9 +268,11 @@ class ShiftedWindowAttention3d(nn.Module):
                 window_size[i] = size_dhw[i]
                 shift_size[i] = 0
 
-        N = window_size[0] * window_size[1] * window_size[2]
-        relative_position_bias = self.relative_position_bias_table[self.relative_position_index[:N, :N].reshape(-1)]  # type: ignore[index]
-        relative_position_bias = relative_position_bias.view(N, N, -1)
+        window_vol = window_size[0] * window_size[1] * window_size[2]
+        relative_position_bias = self.relative_position_bias_table[
+            self.relative_position_index[:window_vol, :window_vol].reshape(-1)  # type: ignore[index]
+        ]
+        relative_position_bias = relative_position_bias.view(window_vol, window_vol, -1)
         relative_position_bias = (
             relative_position_bias.permute(2, 0, 1).contiguous().unsqueeze(0)
         )
@@ -325,8 +327,8 @@ class PatchEmbed3d(nn.Module):
     def forward(self, x):
         """Forward function."""
         # padding
-        _, _, D, H, W = x.size()
-        pad_size = _compute_pad_size_3d((D, H, W), self.tuple_patch_size)
+        _, _, d, h, w = x.size()
+        pad_size = _compute_pad_size_3d((d, h, w), self.tuple_patch_size)
         x = F.pad(x, (0, pad_size[2], 0, pad_size[1], 0, pad_size[0]))
         x = self.proj(x)  # B C D Wh Ww
         x = x.permute(0, 2, 3, 4, 1)  # B D Wh Ww C
