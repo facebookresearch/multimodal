@@ -13,7 +13,6 @@ from flava.utils import build_config, build_datamodule_kwargs
 from omegaconf import OmegaConf
 from pytorch_lightning import seed_everything, Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-from utils import build_config, build_datamodule_kwargs
 
 
 def main():
