@@ -4,9 +4,6 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-# This code is based on https://github.com/openai/CLIP/blob/main/clip/model.py
-
-
 import math
 
 import torch
@@ -101,7 +98,7 @@ class ALBEFSelfAttention(nn.Module):
         return outputs
 
 
-class ALBEFSelfOutput(nn.Module):
+class ALBEFOutputLayer(nn.Module):
     def __init__(
         self,
         hidden_size: int = 768,
