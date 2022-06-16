@@ -10,6 +10,24 @@ import torch
 from torch import nn, Tensor
 
 
+class ALBEFIntermediate(nn.Module):
+    def __init__(
+        self,
+        hidden_size: int = 768,
+    ) -> None:
+        super().__init__()
+        self.dense = nn.Linear(hidden_size, hidden_size)
+        self.transform_act_fn = nn.GELU()
+
+    def forward(
+        self,
+        hidden_states: Tensor,
+    ) -> Tensor:
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.transform_act_fn(hidden_states)
+        return hidden_states
+
+
 class ALBEFAttention(nn.Module):
     def __init__(
         self,
