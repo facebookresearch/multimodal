@@ -101,6 +101,25 @@ class ALBEFSelfAttention(nn.Module):
         return outputs
 
 
+class ALBEFSelfOutput(nn.Module):
+    def __init__(
+        self,
+        hidden_size: int = 768,
+        layer_norm_eps: float = 1e-12,
+        hidden_dropout_prob: float = 0.0,
+    ) -> None:
+        super().__init__()
+        self.dense = nn.Linear(hidden_size, hidden_size)
+        self.LayerNorm = torch.nn.LayerNorm(hidden_size, eps=layer_norm_eps)
+        self.dropout = nn.Dropout(hidden_dropout_prob)
+
+    def forward(self, hidden_states, input_tensor):
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.dropout(hidden_states)
+        hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        return hidden_states
+
+
 class ALBEFTextEmbeddings(nn.Module):
     def __init__(
         self,
