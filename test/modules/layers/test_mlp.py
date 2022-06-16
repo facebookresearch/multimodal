@@ -9,6 +9,7 @@ from functools import partial
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
+from torch import nn
 from torchmultimodal.modules.layers.mlp import MLP
 
 
@@ -73,6 +74,23 @@ class TestMLP(unittest.TestCase):
             ]
         )
         assert_expected(actual, expected)
+
+    def test_dropout_default(self):
+        mlp = MLP(
+            in_dim=self.in_dim,
+            out_dim=self.out_dim,
+            hidden_dims=self.hidden_dims,
+        )
+        assert any(isinstance(layer, nn.Dropout) for layer in mlp.model.children())
+
+    def test_no_dropout(self):
+        mlp = MLP(
+            in_dim=self.in_dim,
+            out_dim=self.out_dim,
+            hidden_dims=self.hidden_dims,
+            dropout=0.0,
+        )
+        assert not all(isinstance(layer, nn.Dropout) for layer in mlp.model.children())
 
     def test_torchscript(self):
         mlp = MLP(in_dim=self.in_dim, out_dim=self.out_dim)
