@@ -11,6 +11,106 @@ import torch
 from torch import nn, Tensor
 
 
+class ALBEFTextEncoder(nn.Module):
+    """
+    Construct word embeddings from input_ids and attention_mask.
+
+    Based on https://github.com/huggingface/transformers/blob/main/src/transformers/models/bert/modeling_bert.py#L870
+
+    Args:
+        vocab_size (int): Vocabulary size of the model. Defines the different tokens that can be represented by the inputs_ids.
+        hidden_size (int): Dimensionality of the encoder layers.
+        num_hidden_layers (int): Number of hidden layers in the Transformer encoder.
+        num_attention_heads (int): Number of attention heads for each attention layer in the Transformer encoder.
+        intermediate_size (int): Dimensionality of the “intermediate” (i.e., feed-forward) layer in the Transformer encoder.
+        max_position_embeddings (int): The maximum sequence length that this model might ever be used with.
+        type_vocab_size (int): The vocabulary size of the token_type_ids.
+        pad_token_id (int): The embedding for pad_token_id is not updated during training.
+        layer_norm_eps (float): The epsilon used by the layer normalization layers.
+    Inputs:
+        input_ids (Tensor of size (batch_size, sequence_length)): Indices of input sequence tokens in the vocabulary.
+        attention_mask (Tensor of shape (batch_size, sequence_length)): Mask to avoid performing attention on padding token indices.
+            Mask values selected in [0, 1]: 1 for tokens that are NOT MASKED, 0 for MASKED tokens.
+    """
+
+    def __init__(
+        self,
+        vocab_size: int = 30522,
+        hidden_size: int = 768,
+        num_hidden_layers: int = 6,
+        num_attention_heads: int = 12,
+        intermediate_size: int = 3072,
+        max_position_embeddings: int = 512,
+        type_vocab_size: int = 2,
+        pad_token_id: int = 0,
+        layer_norm_eps: float = 1e-12,
+    ) -> None:
+        super().__init__()
+
+        self.embeddings = ALBEFTextEmbeddings(
+            vocab_size,
+            hidden_size,
+            pad_token_id,
+            max_position_embeddings,
+            type_vocab_size,
+            layer_norm_eps,
+        )
+        self.encoder = ALBEFEncoder(
+            hidden_size,
+            intermediate_size,
+            num_attention_heads,
+            num_hidden_layers,
+            layer_norm_eps,
+        )
+
+    def get_extended_attention_mask(self, attention_mask: Tensor) -> Tensor:
+        """
+        Makes broadcastable attention and causal masks so that future and masked tokens are ignored.
+
+        Args:
+            attention_mask (Tensor): Mask with ones indicating tokens to attend to, zeros for tokens to ignore.
+        Returns:
+            extended_attention_mask (Tensor): extended attention mask with the same dtype as attention_mask.dtype.
+        """
+
+        if attention_mask.dim() == 3:
+            extended_attention_mask = attention_mask[:, None, :, :]
+        elif attention_mask.dim() == 2:
+            extended_attention_mask = attention_mask[:, None, None, :]
+        else:
+            raise ValueError(
+                "Wrong shape for attention_mask (shape {})".format(attention_mask.shape)
+            )
+
+        # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
+        # masked positions, this operation will create a tensor which is 0.0 for
+        # positions we want to attend and -10000.0 for masked positions.
+        # Since we are adding it to the raw scores before the softmax, this is
+        # effectively the same as removing these entirely.
+        extended_attention_mask = extended_attention_mask.to(
+            dtype=attention_mask.dtype
+        )  # fp16 compatibility
+        extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
+        return extended_attention_mask
+
+    def forward(
+        self,
+        input_ids: Tensor = None,
+        attention_mask: Optional[Tensor] = None,
+    ) -> Tensor:
+        input_shape = input_ids.size()
+        device = input_ids.device
+        if attention_mask is None:
+            attention_mask = torch.ones(input_shape, device=device)
+
+        extended_attention_mask = self.get_extended_attention_mask(attention_mask)
+
+        embedding_output = self.embeddings(input_ids)
+        encoder_outputs = self.encoder(embedding_output, extended_attention_mask)
+
+        return encoder_outputs
+
+
 class ALBEFTextEmbeddings(nn.Module):
     def __init__(
         self,
