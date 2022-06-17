@@ -67,7 +67,6 @@ class FLAVAPreTrainingLightningModule(LightningModule):
             if losses[key] is not None:
                 total_loss += losses[key]
                 self.log(f"train/losses/{key}", losses[key], prog_bar=True, logger=True)
-
         return total_loss
 
     def validation_step(self, batch, batch_idx):
@@ -143,7 +142,6 @@ class FLAVAClassificationLightningModule(LightningModule):
     def training_step(self, batch, batch_idx):
         output = self._step(batch, batch_idx)
         self.log("train/losses/classification", output.loss, prog_bar=True, logger=True)
-
         return output.loss
 
     def validation_step(self, batch, batch_idx):
