@@ -45,6 +45,38 @@ class ALBEFTextEmbeddings(nn.Module):
         return embeddings
 
 
+class ALBEFEncoder(nn.Module):
+    def __init__(
+        self,
+        hidden_size: int,
+        intermediate_size: int,
+        num_attention_heads: int,
+        num_hidden_layers: int,
+        layer_norm_eps: float,
+    ) -> None:
+        super().__init__()
+        self.layer = nn.ModuleList(
+            [
+                ALBEFLayer(
+                    hidden_size,
+                    intermediate_size,
+                    num_attention_heads,
+                    layer_norm_eps,
+                )
+                for _ in range(num_hidden_layers)
+            ]
+        )
+
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        attention_mask: Optional[torch.FloatTensor] = None,
+    ) -> Tensor:
+        for _, layer_module in enumerate(self.layer):
+            hidden_states = layer_module(hidden_states, attention_mask)
+        return hidden_states
+
+
 class ALBEFLayer(nn.Module):
     def __init__(
         self,
