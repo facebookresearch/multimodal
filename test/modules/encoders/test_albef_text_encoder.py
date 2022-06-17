@@ -26,3 +26,15 @@ class TestALBEFTextEncoder:
             ]
         )
         assert_expected(output, expected, rtol=0, atol=1e-4)
+
+    def test_text_encoder_without_attention_mask(self):
+        set_rng_seed(0)
+        input_ids = torch.randint(10, (2, 2))
+        output = self.text_encoder(input_ids)
+        expected = Tensor(
+            [
+                [[-0.814115, -0.594398, 1.408513], [-0.712880, 1.414198, -0.701317]],
+                [[-0.888834, -0.508200, 1.397035], [1.195881, 0.055820, -1.251700]],
+            ]
+        )
+        assert_expected(output, expected, rtol=0, atol=1e-4)
