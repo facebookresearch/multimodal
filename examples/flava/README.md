@@ -22,7 +22,7 @@ git clone https://github.com/facebookresearch/multimodal.git
 cd multimodal
 pip install -e .
 cd examples
-pip install -r requirements.txt
+pip install -r flava/requirements.txt
 ```
 
 ### Get ImageNet
