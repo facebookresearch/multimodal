@@ -23,3 +23,4 @@ exclude =
     .pre-commit-config.yaml
     *.md
     .flake8
+    *__init__.py  # added to ignore F401 to have cleaner imports

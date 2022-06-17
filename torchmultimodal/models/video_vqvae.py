@@ -7,9 +7,93 @@
 from typing import Any, Dict, List, Tuple, Union
 
 from torch import nn, Tensor
-from torchmultimodal.modules.layers.attention import AxialAttentionBlock
 
+from torchmultimodal.models import VQVAE
+from torchmultimodal.modules.layers.attention import AxialAttentionBlock
 from torchmultimodal.modules.layers.conv import SamePadConv3d, SamePadConvTranspose3d
+
+
+def video_vqvae(
+    encoder_in_channels: Tuple[int, ...] = (3, 240, 240, 240, 240, 240),
+    encoder_out_channels: Tuple[int, ...] = (240, 240, 240, 240, 240, 240),
+    encoder_kernel_sizes: Tuple[Union[int, Tuple[int, int, int]], ...] = (
+        3,
+        3,
+        3,
+        3,
+        3,
+        3,
+    ),
+    encoder_strides: Tuple[Union[int, Tuple[int, int, int]], ...] = (
+        (2, 2, 2),
+        (2, 2, 2),
+        (1, 2, 2),
+        (1, 2, 2),
+        (1, 2, 2),
+        (1, 1, 1),
+    ),
+    encoder_res_layers: int = 4,
+    num_embeddings: int = 2048,
+    embedding_dim: int = 256,
+    decoder_in_channels: Tuple[int, ...] = (240, 240, 240, 240, 240),
+    decoder_out_channels: Tuple[int, ...] = (240, 240, 240, 240, 3),
+    decoder_kernel_sizes: Tuple[Union[int, Tuple[int, int, int]], ...] = (
+        3,
+        3,
+        3,
+        3,
+        3,
+    ),
+    decoder_strides: Tuple[Union[int, Tuple[int, int, int]], ...] = (
+        (2, 2, 2),
+        (2, 2, 2),
+        (1, 2, 2),
+        (1, 2, 2),
+        (1, 2, 2),
+    ),
+    decoder_res_layers: int = 4,
+) -> VQVAE:
+    """Construct Video VQVAE with default parameters used in MUGEN (Hayes et al. 2022). Code ref:
+    https://github.com/mugen-org/MUGEN_baseline/blob/main/generation/experiments/vqvae/VideoVQVAE_L8.sh
+
+    Args:
+        encoder_in_channels (Tuple[int, ...], optional): See ``VideoEncoder``. Defaults to (3, 240, 240, 240, 240, 240).
+        encoder_out_channels (Tuple[int, ...], optional): See ``VideoEncoder``. Defaults to (240, 240, 240, 240, 240, 240).
+        encoder_kernel_sizes (Tuple[Union[int, Tuple[int, int, int]], ...], optional): See ``VideoEncoder``.
+                                                                                       Defaults to (3, 3, 3, 3, 3, 3).
+        encoder_strides (Tuple[Union[int, Tuple[int, int, int]], ...], optional): See ``VideoEncoder``.
+            Defaults to ( (2, 2, 2), (2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2), (1, 1, 1), ).
+        encoder_res_layers (int, optional): See ``VideoEncoder``. Defaults to 4.
+        num_embeddings (int, optional): Number of embedding vectors used in ``Codebook``. Defaults to 2048.
+        embedding_dim (int, optional): Dimensionality of embedding vectors in ``Codebook``. Defaults to 256.
+        decoder_in_channels (Tuple[int, ...], optional): See ``VideoDecoder``. Defaults to (240, 240, 240, 240, 240).
+        decoder_out_channels (Tuple[int, ...], optional): See ``VideoDecoder``. Defaults to (240, 240, 240, 240, 3).
+        decoder_kernel_sizes (Tuple[Union[int, Tuple[int, int, int]], ...], optional): See ``VideoDecoder``.
+            Defaults to (3, 3, 3, 3, 3).
+        decoder_strides (Tuple[Union[int, Tuple[int, int, int]], ...], optional): See ``VideoDecoder``.
+            Defaults to ( (2, 2, 2), (2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2), ).
+        decoder_res_layers (int, optional): See ``VideoDecoder``. Defaults to 4.
+
+    Returns:
+        VQVAE: constructed ``VQVAE`` model using ``VideoEncoder``, ``Codebook``, and ``VideoDecoder``
+    """
+    encoder = VideoEncoder(
+        encoder_in_channels,
+        encoder_out_channels,
+        encoder_kernel_sizes,
+        encoder_strides,
+        encoder_res_layers,
+        embedding_dim,
+    )
+    decoder = VideoDecoder(
+        decoder_in_channels,
+        decoder_out_channels,
+        decoder_kernel_sizes,
+        decoder_strides,
+        decoder_res_layers,
+        embedding_dim,
+    )
+    return VQVAE(encoder, decoder, num_embeddings, embedding_dim)
 
 
 class VideoEncoder(nn.Module):
