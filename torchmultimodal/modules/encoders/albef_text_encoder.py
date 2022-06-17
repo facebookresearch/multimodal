@@ -54,24 +54,6 @@ class ALBEFLayer(nn.Module):
         return outputs
 
 
-class ALBEFIntermediate(nn.Module):
-    def __init__(
-        self,
-        hidden_size: int = 768,
-    ) -> None:
-        super().__init__()
-        self.dense = nn.Linear(hidden_size, hidden_size)
-        self.transform_act_fn = nn.GELU()
-
-    def forward(
-        self,
-        hidden_states: Tensor,
-    ) -> Tensor:
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.transform_act_fn(hidden_states)
-        return hidden_states
-
-
 class ALBEFTextEmbeddings(nn.Module):
     def __init__(
         self,
@@ -205,4 +187,23 @@ class ALBEFOutput(nn.Module):
     ) -> Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
+        return hidden_states
+
+
+class ALBEFIntermediate(nn.Module):
+    def __init__(
+        self,
+        hidden_size: int,
+        intermediate_size: int,
+    ) -> None:
+        super().__init__()
+        self.dense = nn.Linear(hidden_size, intermediate_size)
+        self.transform_act_fn = nn.GELU()
+
+    def forward(
+        self,
+        hidden_states: Tensor,
+    ) -> Tensor:
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.transform_act_fn(hidden_states)
         return hidden_states
