@@ -11,49 +11,6 @@ import torch
 from torch import nn, Tensor
 
 
-class ALBEFLayer(nn.Module):
-    def __init__(
-        self,
-        hidden_size: int = 768,
-        num_attention_heads: int = 12,
-        attention_probs_dropout_prob: float = 0.0,
-        layer_norm_eps: float = 1e-12,
-        hidden_dropout_prob: float = 0.0,
-    ) -> None:
-        super().__init__()
-        self.attention = ALBEFAttention(
-            hidden_size,
-            num_attention_heads,
-            attention_probs_dropout_prob,
-            layer_norm_eps,
-            hidden_dropout_prob,
-        )
-        self.intermediate = ALBEFIntermediate(hidden_size)
-        self.output = ALBEFOutputLayer(hidden_size, layer_norm_eps, hidden_dropout_prob)
-
-    def forward(
-        self,
-        hidden_states,
-        attention_mask=None,
-        head_mask=None,
-        output_attentions=False,
-    ):
-        self_attention_outputs = self.attention(
-            hidden_states,
-            attention_mask,
-            head_mask,
-            output_attentions=output_attentions,
-        )
-        attention_output = self_attention_outputs[0]
-        outputs = self_attention_outputs[
-            1:
-        ]  # add self attentions if we output attention weights
-        intermediate_output = self.intermediate(attention_output)
-        layer_output = self.output(intermediate_output, attention_output)
-        outputs = (layer_output,) + outputs
-        return outputs
-
-
 class ALBEFTextEmbeddings(nn.Module):
     def __init__(
         self,
@@ -86,6 +43,32 @@ class ALBEFTextEmbeddings(nn.Module):
         embeddings = inputs_embeds + position_embeddings + token_type_embeddings
         embeddings = self.LayerNorm(embeddings)
         return embeddings
+
+
+class ALBEFLayer(nn.Module):
+    def __init__(
+        self,
+        hidden_size: int,
+        intermediate_size: int,
+        num_attention_heads: int,
+        layer_norm_eps: float,
+    ) -> None:
+        super().__init__()
+        self.attention = ALBEFAttention(
+            hidden_size, num_attention_heads, layer_norm_eps
+        )
+        self.intermediate = ALBEFIntermediate(hidden_size, intermediate_size)
+        self.output = ALBEFOutput(hidden_size, intermediate_size, layer_norm_eps)
+
+    def forward(
+        self,
+        hidden_states: Tensor,
+        attention_mask: Optional[Tensor] = None,
+    ) -> Tensor:
+        attention_output = self.attention(hidden_states, attention_mask)
+        intermediate_output = self.intermediate(attention_output)
+        layer_output = self.output(intermediate_output, attention_output)
+        return layer_output
 
 
 class ALBEFAttention(nn.Module):
