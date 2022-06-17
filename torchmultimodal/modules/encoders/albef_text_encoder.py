@@ -72,45 +72,6 @@ class ALBEFIntermediate(nn.Module):
         return hidden_states
 
 
-class ALBEFAttention(nn.Module):
-    def __init__(
-        self,
-        hidden_size: int = 768,
-        num_attention_heads: int = 12,
-        attention_probs_dropout_prob: float = 0.0,
-        layer_norm_eps: float = 1e-12,
-        hidden_dropout_prob: float = 0.0,
-    ) -> None:
-        super().__init__()
-        self.self = ALBEFSelfAttention(
-            hidden_size, num_attention_heads, attention_probs_dropout_prob
-        )
-        self.output = ALBEFOutputLayer(hidden_size, layer_norm_eps, hidden_dropout_prob)
-
-    def forward(
-        self,
-        hidden_states,
-        attention_mask=None,
-        head_mask=None,
-        encoder_hidden_states=None,
-        encoder_attention_mask=None,
-        output_attentions=False,
-    ):
-        self_outputs = self.self(
-            hidden_states,
-            attention_mask,
-            head_mask,
-            encoder_hidden_states,
-            encoder_attention_mask,
-            output_attentions,
-        )
-        attention_output = self.output(self_outputs[0], hidden_states)
-        outputs = (attention_output,) + self_outputs[
-            1:
-        ]  # add attentions if we output them
-        return outputs
-
-
 class ALBEFTextEmbeddings(nn.Module):
     def __init__(
         self,
@@ -143,6 +104,27 @@ class ALBEFTextEmbeddings(nn.Module):
         embeddings = inputs_embeds + position_embeddings + token_type_embeddings
         embeddings = self.LayerNorm(embeddings)
         return embeddings
+
+
+class ALBEFAttention(nn.Module):
+    def __init__(
+        self,
+        hidden_size: int,
+        num_attention_heads: int,
+        layer_norm_eps: float,
+    ) -> None:
+        super().__init__()
+        self.self_attention = ALBEFSelfAttention(hidden_size, num_attention_heads)
+        self.output = ALBEFOutput(hidden_size, hidden_size, layer_norm_eps)
+
+    def forward(
+        self,
+        hidden_states: Tensor,
+        attention_mask: Optional[Tensor] = None,
+    ) -> Tensor:
+        self_output = self.self_attention(hidden_states, attention_mask)
+        attention_output = self.output(self_output, hidden_states)
+        return attention_output
 
 
 class ALBEFSelfAttention(nn.Module):
