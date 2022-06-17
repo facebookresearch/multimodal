@@ -4,6 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import Tensor
@@ -38,3 +39,15 @@ class TestALBEFTextEncoder:
             ]
         )
         assert_expected(output, expected, rtol=0, atol=1e-4)
+
+    def test_invalid_input_length(self):
+        input_ids = torch.randint(10, (2, 2, 3))
+        text_atts = torch.randn(2, 2, 3)
+        with pytest.raises(RuntimeError):
+            self.text_encoder(input_ids, text_atts)
+
+    def test_not_matching_attenntion_mask_shape(self):
+        input_ids = torch.randint(10, (2, 2))
+        text_atts = torch.randn(2, 3)
+        with pytest.raises(RuntimeError):
+            self.text_encoder(input_ids, text_atts)
