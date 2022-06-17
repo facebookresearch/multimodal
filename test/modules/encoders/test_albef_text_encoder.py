@@ -46,7 +46,7 @@ class TestALBEFTextEncoder:
         with pytest.raises(RuntimeError):
             self.text_encoder(input_ids, text_atts)
 
-    def test_not_matching_attenntion_mask_shape(self):
+    def test_not_matching_attention_mask_shape(self):
         input_ids = torch.randint(10, (2, 2))
         text_atts = torch.randn(2, 3)
         with pytest.raises(RuntimeError):
