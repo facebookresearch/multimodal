@@ -4,8 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from itertools import repeat
-from typing import Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import torch
 from torch import nn, Tensor
@@ -44,9 +43,6 @@ class AxialAttentionBlock(nn.Module):
         self.mha_attns = nn.ModuleList(
             [
                 MultiHeadAttention(
-                    shape=tuple(
-                        repeat(0, n_dims)
-                    ),  # dummy value for shape since we are not using causal
                     dim_q=qkv_dim,
                     dim_kv=qkv_dim,
                     n_head=n_head,
@@ -84,13 +80,15 @@ class MultiHeadAttention(nn.Module):
     as described in Attention Is All You Need (Vaswani et al. 2017).
 
     Args:
-        shape (Tuple[int]): shape of input data (d1, ..., dn)
         dim_q (int): dimensionality of query
         dim_kv (int): dimensionality of key/value
         n_head (int): number of attention heads
         n_layer (int): number of attention layers being used in higher level stack
-        causal (bool): use causal attention or not
-        attn_module (nn.Module): module of attention mechanism to use
+        causal (bool): use causal attention or not. shape must be defined if causal is true.
+        attn_module (nn.Module): module of attention mechanism to use. ``forward()`` must
+            follow signature (q: Tensor, k: Tensor, v: Tensor, decode_step: int, decode_idx: List[int]).
+            See ``AxialAttention`` and ``FullAttention`` for examples.
+        shape (Tuple[int], optional): shape of input data (d1, ..., dn)
 
     Inputs:
         q, k, v (Tensor): a [b, d1, ..., dn, c] tensor or
@@ -102,15 +100,18 @@ class MultiHeadAttention(nn.Module):
 
     def __init__(
         self,
-        shape: Tuple[int, ...],
         dim_q: int,
         dim_kv: int,
         n_head: int,
         n_layer: int,
         causal: bool,
         attn_module: nn.Module,
+        shape: Optional[Tuple[int]] = None,
     ) -> None:
         super().__init__()
+        if causal and shape is None:
+            raise ValueError("shape must be defined if causal is true")
+
         self.causal = causal
         self.shape = shape
 
@@ -147,7 +148,12 @@ class MultiHeadAttention(nn.Module):
         return shift_dim(x, 1, -2).flatten(start_dim=-2)
 
     def forward(
-        self, q: Tensor, k: Tensor, v: Tensor, decode_step=None, decode_idx=None
+        self,
+        q: Tensor,
+        k: Tensor,
+        v: Tensor,
+        decode_step: Optional[int] = None,
+        decode_idx: Optional[List[int]] = None,
     ) -> Tensor:
         # compute k, q, v
         q = self._split_multihead(self.w_qs(q))
@@ -193,9 +199,9 @@ class FullAttention(nn.Module):
     """Computes attention over the entire flattened input.
 
     Args:
-        shape (Tuple[int]): shape of input data (d1, ..., dn)
-        causal (bool): use causal attention or not
+        causal (bool): use causal attention or not. shape must be defined if causal is true.
         attn_dropout (float): probability of dropout after softmax
+        shape (Tuple[int], optional): shape of input data (d1, ..., dn)
 
     Inputs:
         q, k, v (Tensor): a [b, d1, ..., dn, c] tensor or
@@ -204,9 +210,14 @@ class FullAttention(nn.Module):
     """
 
     def __init__(
-        self, shape: Tuple[int, ...], causal: bool = False, attn_dropout: float = 0.0
+        self,
+        causal: bool = False,
+        attn_dropout: float = 0.0,
+        shape: Optional[Tuple[int, ...]] = None,
     ) -> None:
         super().__init__()
+        if causal and shape is None:
+            raise ValueError("shape must be defined if causal is true")
         self.causal = causal
         self.attn_dropout = attn_dropout
 
@@ -215,7 +226,12 @@ class FullAttention(nn.Module):
             self.register_buffer("mask", torch.tril(torch.ones(seq_len, seq_len)))
 
     def forward(
-        self, q: Tensor, k: Tensor, v: Tensor, decode_step=None, decode_idx=None
+        self,
+        q: Tensor,
+        k: Tensor,
+        v: Tensor,
+        decode_step: Optional[int] = None,
+        decode_idx: Optional[List[int]] = None,
     ) -> Tensor:
         mask = torch.Tensor(self.mask) if self.causal else None
         if decode_step is not None and mask is not None:
@@ -256,7 +272,12 @@ class AxialAttention(nn.Module):
         self.axial_dim = axial_dim + 2  # account for batch, head
 
     def forward(
-        self, q: Tensor, k: Tensor, v: Tensor, decode_step=None, decode_idx=None
+        self,
+        q: Tensor,
+        k: Tensor,
+        v: Tensor,
+        decode_step: Optional[int] = None,
+        decode_idx: Optional[List[int]] = None,
     ) -> Tensor:
         # Ensure axial dim is within right dimensions, should be between head dim and embedding dim
         if self.axial_dim >= len(q.shape) - 1:

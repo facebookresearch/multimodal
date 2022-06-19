@@ -36,10 +36,9 @@ class TestAttention(unittest.TestCase):
         self.v = torch.randn(
             1, self.n_heads, *self.input_shape, self.hidden_dim // self.n_heads
         )
-        self.full = FullAttention(self.input_shape, causal=False, attn_dropout=0.0)
+        self.full = FullAttention(causal=False, attn_dropout=0.0)
         self.ax = AxialAttention(1)  # only on second axis of input
         self.mha = MultiHeadAttention(
-            self.input_shape,
             self.hidden_dim,
             self.hidden_dim,
             self.n_heads,
