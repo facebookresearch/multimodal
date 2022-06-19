@@ -1,5 +1,6 @@
 name: Test build workflow
 on:
+  pull_request:
   workflow_dispatch:
 jobs:
   build_wheel:
@@ -22,3 +23,6 @@ jobs:
       - name: Install wheel
         run: |
           pip3 install dist/torchmultimodal*.whl
+      - name: Test import
+        run: |
+          python -c "import torchmultimodal"
