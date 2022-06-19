@@ -32,4 +32,4 @@ jobs:
       - name: Run unit tests for sanity
         run: |
           pip3 install pytest
-          pytest torchmultimodal
+          pytest -vv
