@@ -26,3 +26,6 @@ jobs:
       - name: Test import
         run: |
           python -c "import torchmultimodal"
+      - name: Install pytorch dependencies
+        run: |
+          pip3 install --pre torch torchvision torchtext --extra-index-url https://download.pytorch.org/whl/nightly/cpu
