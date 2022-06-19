@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Tuple, Union
 
 from torch import nn, Tensor
 
-from torchmultimodal.models import VQVAE
+from torchmultimodal.models.vqvae import VQVAE
 from torchmultimodal.modules.layers.attention import AxialAttentionBlock
 from torchmultimodal.modules.layers.conv import SamePadConv3d, SamePadConvTranspose3d
 

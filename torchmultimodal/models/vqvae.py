@@ -64,7 +64,7 @@ class VQVAE(nn.Module):
         quantized = self.encode(x)
         return quantized.quantized_flat
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor) -> VQVAEOutput:
         quantized = self.encode(x)
         decoded = self.decode(quantized.quantized)
         return VQVAEOutput(decoded, quantized)
