@@ -143,7 +143,7 @@ class ALBEFEncoder(nn.Module):
         hidden_states: torch.Tensor,
         attention_mask: Optional[torch.FloatTensor] = None,
     ) -> Tensor:
-        for _, layer_module in enumerate(self.layer):
+        for layer_module in self.layer:
             hidden_states = layer_module(hidden_states, attention_mask)
         return hidden_states
 
