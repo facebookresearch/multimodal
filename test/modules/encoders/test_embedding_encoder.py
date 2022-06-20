@@ -23,36 +23,28 @@ class TestEmbeddingEncoder(unittest.TestCase):
 
     def test_embedding_encoder_sum(self):
         encoder = EmbeddingEncoder(self.embedding, "sum")
-        embedding = encoder(self.data)
-        self.assertEqual(embedding.size(), (self.batch_size, self.embedding_dim))
-        self.assertTrue(
-            torch.equal(embedding, torch.FloatTensor([[3, 7, 6, 8], [6, 8, 8, 12]]))
-        )
+        actual = encoder(self.data)
+        expected = torch.FloatTensor([[3, 7, 6, 8], [6, 8, 8, 12]])
+        assert_expected(actual, expected)
 
     def test_embedding_encoder_mean(self):
         encoder = EmbeddingEncoder(self.embedding, "mean")
-        embedding = encoder(self.data)
-        self.assertEqual(embedding.size(), (self.batch_size, self.embedding_dim))
-        self.assertTrue(
-            torch.equal(embedding, torch.FloatTensor([[1.5, 3.5, 3, 4], [3, 4, 4, 6]]))
-        )
+        actual = encoder(self.data)
+        expected = torch.FloatTensor([[1.5, 3.5, 3, 4], [3, 4, 4, 6]])
+        assert_expected(actual, expected)
 
     def test_embedding_encoder_max(self):
         encoder = EmbeddingEncoder(self.embedding, "max")
-        embedding = encoder(self.data)
-        self.assertEqual(embedding.size(), (self.batch_size, self.embedding_dim))
-        self.assertTrue(
-            torch.equal(embedding, torch.FloatTensor([[2, 5, 6, 7], [4, 5, 6, 7]]))
-        )
+        actual = encoder(self.data)
+        expected = torch.FloatTensor([[2, 5, 6, 7], [4, 5, 6, 7]])
+        assert_expected(actual, expected)
 
     def test_embedding_encoder_hash(self):
         encoder = EmbeddingEncoder(self.embedding, "sum", use_hash=True)
         data = torch.LongTensor([[1, 2], [7, 9]])
-        embedding = encoder(data)
-        self.assertEqual(embedding.size(), (self.batch_size, self.embedding_dim))
-        self.assertTrue(
-            torch.equal(embedding, torch.FloatTensor([[3, 7, 6, 8], [2, 4, 0, 2]]))
-        )
+        actual = encoder(data)
+        expected = torch.FloatTensor([[3, 7, 6, 8], [2, 4, 0, 2]])
+        assert_expected(actual, expected)
 
     def test_embedding_encoder_invalid_pooling(self):
         with self.assertRaises(ValueError):
