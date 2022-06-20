@@ -9,6 +9,7 @@ from typing import Optional
 
 import torch
 from torch import nn, Tensor
+from torchmultimodal.utils.common import get_extended_attention_mask
 
 
 class ALBEFTextEncoder(nn.Module):
@@ -63,36 +64,6 @@ class ALBEFTextEncoder(nn.Module):
             layer_norm_eps,
         )
 
-    def get_extended_attention_mask(self, attention_mask: Tensor) -> Tensor:
-        """
-        Makes broadcastable attention and causal masks so that future and masked tokens are ignored.
-
-        Args:
-            attention_mask (Tensor): Mask with ones indicating tokens to attend to, zeros for tokens to ignore.
-        Returns:
-            extended_attention_mask (Tensor): extended attention mask with the same dtype as attention_mask.dtype.
-        """
-
-        if attention_mask.dim() == 3:
-            extended_attention_mask = attention_mask[:, None, :, :]
-        elif attention_mask.dim() == 2:
-            extended_attention_mask = attention_mask[:, None, None, :]
-        else:
-            raise ValueError(
-                "Wrong shape for attention_mask (shape {})".format(attention_mask.shape)
-            )
-
-        # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
-        # masked positions, this operation will create a tensor which is 0.0 for
-        # positions we want to attend and -10000.0 for masked positions.
-        # Since we are adding it to the raw scores before the softmax, this is
-        # effectively the same as removing these entirely.
-        extended_attention_mask = extended_attention_mask.to(
-            dtype=attention_mask.dtype
-        )  # fp16 compatibility
-        extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
-        return extended_attention_mask
-
     def forward(
         self,
         input_ids: Tensor = None,
@@ -103,7 +74,7 @@ class ALBEFTextEncoder(nn.Module):
         if attention_mask is None:
             attention_mask = torch.ones(input_shape, device=device)
 
-        extended_attention_mask = self.get_extended_attention_mask(attention_mask)
+        extended_attention_mask = get_extended_attention_mask(attention_mask)
 
         embedding_output = self.embeddings(input_ids)
         encoder_outputs = self.encoder(embedding_output, extended_attention_mask)
