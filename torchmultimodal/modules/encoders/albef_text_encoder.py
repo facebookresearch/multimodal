@@ -160,7 +160,8 @@ class ALBEFLayer(nn.Module):
         self.attention = ALBEFAttention(
             hidden_size, num_attention_heads, layer_norm_eps
         )
-        self.intermediate = ALBEFIntermediate(hidden_size, intermediate_size)
+        self.dense = nn.Linear(hidden_size, intermediate_size)
+        self.transform_act_fn = nn.GELU()
         self.output = ALBEFOutput(hidden_size, intermediate_size, layer_norm_eps)
 
     def forward(
@@ -169,7 +170,8 @@ class ALBEFLayer(nn.Module):
         attention_mask: Optional[Tensor] = None,
     ) -> Tensor:
         attention_output = self.attention(hidden_states, attention_mask)
-        intermediate_output = self.intermediate(attention_output)
+        intermediate_output = self.dense(attention_output)
+        intermediate_output = self.transform_act_fn(intermediate_output)
         layer_output = self.output(intermediate_output, attention_output)
         return layer_output
 
@@ -273,23 +275,4 @@ class ALBEFOutput(nn.Module):
     ) -> Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.LayerNorm(hidden_states + input_tensor)
-        return hidden_states
-
-
-class ALBEFIntermediate(nn.Module):
-    def __init__(
-        self,
-        hidden_size: int,
-        intermediate_size: int,
-    ) -> None:
-        super().__init__()
-        self.dense = nn.Linear(hidden_size, intermediate_size)
-        self.transform_act_fn = nn.GELU()
-
-    def forward(
-        self,
-        hidden_states: Tensor,
-    ) -> Tensor:
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.transform_act_fn(hidden_states)
         return hidden_states
