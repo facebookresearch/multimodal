@@ -292,7 +292,8 @@ class ShiftedWindowAttention3d(nn.Module):
         )
 
 
-# Modified from https://github.com/SwinTransformer/Video-Swin-Transformer/blob/master/mmaction/models/backbones/swin_transformer.py#L416
+# Modified from:
+# https://github.com/SwinTransformer/Video-Swin-Transformer/blob/master/mmaction/models/backbones/swin_transformer.py
 class PatchEmbed3d(nn.Module):
     """Video to Patch Embedding.
 
