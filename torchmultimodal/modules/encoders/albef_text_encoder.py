@@ -56,7 +56,7 @@ class ALBEFTextEncoder(nn.Module):
             type_vocab_size,
             layer_norm_eps,
         )
-        self.encoder = ALBEFEncoder(
+        self.encoder = ALBEFTransformerEncoder(
             hidden_size,
             intermediate_size,
             num_attention_heads,
@@ -116,7 +116,7 @@ class ALBEFTextEmbeddings(nn.Module):
         return embeddings
 
 
-class ALBEFEncoder(nn.Module):
+class ALBEFTransformerEncoder(nn.Module):
     def __init__(
         self,
         hidden_size: int,
@@ -128,7 +128,7 @@ class ALBEFEncoder(nn.Module):
         super().__init__()
         self.layer = nn.ModuleList(
             [
-                ALBEFLayer(
+                ALBEFTransformerLayer(
                     hidden_size,
                     intermediate_size,
                     num_attention_heads,
@@ -148,7 +148,7 @@ class ALBEFEncoder(nn.Module):
         return hidden_states
 
 
-class ALBEFLayer(nn.Module):
+class ALBEFTransformerLayer(nn.Module):
     def __init__(
         self,
         hidden_size: int,
@@ -157,7 +157,7 @@ class ALBEFLayer(nn.Module):
         layer_norm_eps: float,
     ) -> None:
         super().__init__()
-        self.attention = ALBEFAttention(
+        self.attention = ALBEFTransformerAttention(
             hidden_size, num_attention_heads, layer_norm_eps
         )
         self.dense1 = nn.Linear(hidden_size, intermediate_size)
@@ -178,7 +178,7 @@ class ALBEFLayer(nn.Module):
         return norm_output
 
 
-class ALBEFAttention(nn.Module):
+class ALBEFTransformerAttention(nn.Module):
     def __init__(
         self,
         hidden_size: int,
@@ -186,7 +186,9 @@ class ALBEFAttention(nn.Module):
         layer_norm_eps: float,
     ) -> None:
         super().__init__()
-        self.self_attention = ALBEFSelfAttention(hidden_size, num_attention_heads)
+        self.self_attention = ALBEFTransformerSelfAttention(
+            hidden_size, num_attention_heads
+        )
         self.dense = nn.Linear(hidden_size, hidden_size)
         self.LayerNorm = torch.nn.LayerNorm(hidden_size, eps=layer_norm_eps)
 
@@ -201,7 +203,7 @@ class ALBEFAttention(nn.Module):
         return attention_output
 
 
-class ALBEFSelfAttention(nn.Module):
+class ALBEFTransformerSelfAttention(nn.Module):
     def __init__(
         self,
         hidden_size: int,
