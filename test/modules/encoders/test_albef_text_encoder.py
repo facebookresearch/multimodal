@@ -16,14 +16,14 @@ class TestALBEFTextEncoder:
     text_encoder = ALBEFTextEncoder(hidden_size=3, num_attention_heads=1)
 
     def test_text_encoder(self):
-        set_rng_seed(0)
+        set_rng_seed(42)
         input_ids = torch.randint(10, (2, 2))
-        text_atts = torch.randn(2, 2)
+        text_atts = torch.randint(2, (2, 2))
         output = self.text_encoder(input_ids, text_atts)
         expected = Tensor(
             [
-                [[-0.668618, -0.744909, 1.413527], [-0.643172, 1.412341, -0.769169]],
-                [[-1.052131, -0.292326, 1.344457], [0.986411, 0.384430, -1.370841]],
+                [[-0.341512, -1.017742, 1.359254], [-1.302851, 0.175050, 1.127802]],
+                [[-0.381597, -0.988518, 1.370115], [-0.026872, 1.237960, -1.211088]],
             ]
         )
         assert_expected(output, expected, rtol=0, atol=1e-4)
@@ -42,12 +42,12 @@ class TestALBEFTextEncoder:
 
     def test_invalid_input_length(self):
         input_ids = torch.randint(10, (2, 2, 3))
-        text_atts = torch.randn(2, 2, 3)
+        text_atts = torch.randint(2, (2, 2, 3))
         with pytest.raises(RuntimeError):
             self.text_encoder(input_ids, text_atts)
 
     def test_not_matching_attention_mask_shape(self):
         input_ids = torch.randint(10, (2, 2))
-        text_atts = torch.randn(2, 3)
+        text_atts = torch.randint(2, (2, 3))
         with pytest.raises(RuntimeError):
             self.text_encoder(input_ids, text_atts)
