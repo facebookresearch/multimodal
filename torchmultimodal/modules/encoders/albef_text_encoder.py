@@ -160,9 +160,10 @@ class ALBEFLayer(nn.Module):
         self.attention = ALBEFAttention(
             hidden_size, num_attention_heads, layer_norm_eps
         )
-        self.dense = nn.Linear(hidden_size, intermediate_size)
+        self.dense1 = nn.Linear(hidden_size, intermediate_size)
         self.transform_act_fn = nn.GELU()
-        self.output = ALBEFOutput(hidden_size, intermediate_size, layer_norm_eps)
+        self.dense2 = nn.Linear(intermediate_size, hidden_size)
+        self.LayerNorm = torch.nn.LayerNorm(hidden_size, eps=layer_norm_eps)
 
     def forward(
         self,
@@ -170,10 +171,11 @@ class ALBEFLayer(nn.Module):
         attention_mask: Optional[Tensor] = None,
     ) -> Tensor:
         attention_output = self.attention(hidden_states, attention_mask)
-        intermediate_output = self.dense(attention_output)
-        intermediate_output = self.transform_act_fn(intermediate_output)
-        layer_output = self.output(intermediate_output, attention_output)
-        return layer_output
+        dense1_output = self.dense1(attention_output)
+        act_output = self.transform_act_fn(dense1_output)
+        dense2_output = self.dense2(act_output)
+        norm_output = self.LayerNorm(dense2_output + attention_output)
+        return norm_output
 
 
 class ALBEFAttention(nn.Module):
@@ -185,7 +187,8 @@ class ALBEFAttention(nn.Module):
     ) -> None:
         super().__init__()
         self.self_attention = ALBEFSelfAttention(hidden_size, num_attention_heads)
-        self.output = ALBEFOutput(hidden_size, hidden_size, layer_norm_eps)
+        self.dense = nn.Linear(hidden_size, hidden_size)
+        self.LayerNorm = torch.nn.LayerNorm(hidden_size, eps=layer_norm_eps)
 
     def forward(
         self,
@@ -193,7 +196,8 @@ class ALBEFAttention(nn.Module):
         attention_mask: Optional[Tensor] = None,
     ) -> Tensor:
         self_output = self.self_attention(hidden_states, attention_mask)
-        attention_output = self.output(self_output, hidden_states)
+        dense_output = self.dense(self_output)
+        attention_output = self.LayerNorm(dense_output + hidden_states)
         return attention_output
 
 
@@ -255,24 +259,3 @@ class ALBEFSelfAttention(nn.Module):
         context_layer = context_layer.view(*new_context_layer_shape)
 
         return context_layer
-
-
-class ALBEFOutput(nn.Module):
-    def __init__(
-        self,
-        hidden_size: int,
-        intermediate_size: int,
-        layer_norm_eps: float,
-    ) -> None:
-        super().__init__()
-        self.dense = nn.Linear(intermediate_size, hidden_size)
-        self.LayerNorm = torch.nn.LayerNorm(hidden_size, eps=layer_norm_eps)
-
-    def forward(
-        self,
-        hidden_states: Tensor,
-        input_tensor: Tensor,
-    ) -> Tensor:
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.LayerNorm(hidden_states + input_tensor)
-        return hidden_states
