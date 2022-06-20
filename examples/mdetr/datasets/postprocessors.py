@@ -9,17 +9,10 @@ from typing import Any, List
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch import Tensor
+from examples.mdetr.utils.box_ops import box_cxcywh_to_xyxy
 
 
-def box_cxcywh_to_xyxy(x: Tensor) -> Tensor:
-    """Utility to convert from center, width, height coordinates to box corners"""
-    x_c, y_c, w, h = x.unbind(-1)
-    b = [(x_c - 0.5 * w), (y_c - 0.5 * h), (x_c + 0.5 * w), (y_c + 0.5 * h)]
-    return torch.stack(b, dim=-1)
-
-
-class FlickrPostProcessTransform:
+class PostProcessFlickr:
     """This module converts the model's output for Flickr30k entities evaluation.
 
     This processor is intended for recall@k evaluation with respect to each phrase in the sentence.
@@ -46,7 +39,6 @@ class FlickrPostProcessTransform:
         assert target_sizes.shape[1] == 2
 
         batch_size = target_sizes.shape[0]
-
         prob = F.softmax(out_logits, -1)
 
         # convert to [x0, y0, x1, y1] format

@@ -198,10 +198,6 @@ class MDETRTextEncoder(nn.Module):
         token_type_ids: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.Tensor] = None,
     ):
-        # Cast mask to bool and invert it
-        # In PyTorch attention masks, True means the position is masked,
-        # while in Hugging Face transformers the masks are inverted.
-        attention_mask = ~attention_mask.bool()
 
         embedding_output = self.embeddings(
             input_ids=input_ids,

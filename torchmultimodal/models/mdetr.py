@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from copy import deepcopy
-from typing import Callable, Optional
+from typing import Callable, List, Optional, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -53,11 +53,20 @@ class MDETR(nn.Module):
         self.bbox_embed = bbox_embed
         self.query_embed = query_embed
 
-    def forward(self, images: NestedTensor, text: Tensor, text_attention_mask: Tensor):
+    def _pad_text(
+        self, text: List[Tensor], padding_idx: int = 1
+    ) -> Tuple[Tensor, Tensor]:
+        padded_text = nn.utils.rnn.pad_sequence(
+            text, batch_first=True, padding_value=padding_idx
+        )
+        mask = padded_text == padding_idx
+        return padded_text, mask
+
+    def forward(self, images: NestedTensor, text: List[Tensor]):
         """The forward expects a NestedTensor of images, which consists of:
            - images.tensor: batched images, of shape [batch_size x 3 x H x W]
            - images.mask: a binary mask of shape [batch_size x H x W], containing 1 on padded pixels
-        It also expects a tensor of texts and a tensor of text attention masks.
+        It also expects a list of tensors containing tokenized texts.
 
         It returns a dict with the following elements:
            - "pred_logits": the classification logits (including no-object) for all queries.
@@ -68,13 +77,11 @@ class MDETR(nn.Module):
                            See PostProcess for information on how to retrieve the unnormalized bounding box.
         """
 
+        text, text_attention_mask = self._pad_text(text)
         encoded_text = self.text_encoder(text, text_attention_mask)
 
         # Transpose memory because pytorch's attention expects sequence first
         text_memory = encoded_text.transpose(0, 1)
-
-        # Invert attention mask that we get from huggingface because its the opposite in pytorch transformer
-        text_attention_mask = text_attention_mask.ne(1).bool()
 
         features = self.image_backbone(images)
         pos = [self.pos_embed(x).to(x.tensors.dtype) for x in features]

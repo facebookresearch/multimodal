@@ -8,8 +8,11 @@ from copy import deepcopy
 
 import pytest
 import torch
-from examples.mdetr.transforms import box_cxcywh_to_xyxy, FlickrPostProcessTransform
+from examples.mdetr.datasets.postprocessors import PostProcessFlickr
+from examples.mdetr.utils.box_ops import box_cxcywh_to_xyxy
 from test.test_utils import assert_expected, set_rng_seed
+
+# TODO: separate tests for postprocessors, transforms, utils
 
 
 @pytest.fixture(scope="class")
@@ -120,7 +123,7 @@ class TestFlickPostProcessTransform:
 
     @pytest.fixture(scope="class")
     def transform(self):
-        transform = FlickrPostProcessTransform()
+        transform = PostProcessFlickr()
         return transform
 
     def test_invalid_inputs(

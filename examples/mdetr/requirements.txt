@@ -1,0 +1,3 @@
+prettytable
+pycocotools
+transformers
