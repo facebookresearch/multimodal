@@ -380,6 +380,21 @@ class FLAVAPretrainingLoss(nn.Module):
         outputs = FLAVAPretrainingLossOutput()
         pos_mask = None
 
+        if (
+            image_sequence is not None
+            and text_sequence is not None
+            and self.contrastive_loss_weight > 0
+        ):
+            outputs.global_contrastive_output = self.contrastive_loss(
+                image_sequence,
+                text_sequence,
+                pos_mask,
+            )
+            outputs.global_contrastive_output.loss *= self.contrastive_loss_weight
+            outputs.losses.global_contrastive_loss = (
+                outputs.global_contrastive_output.loss
+            )
+
         # Check multimodal_masked_sequence to make sure this is unimodal case
         # This specific case can though be backpropagated directly as MIM is independent of
         # text, but that is a research question :)
@@ -460,20 +475,5 @@ class FLAVAPretrainingLoss(nn.Module):
             )
             outputs.mmm_image_output.loss *= self.mmm_image_loss_weight
             outputs.losses.mmm_image_loss = outputs.mmm_image_output.loss
-
-        if (
-            image_sequence is not None
-            and text_sequence is not None
-            and self.contrastive_loss_weight > 0
-        ):
-            outputs.global_contrastive_output = self.contrastive_loss(
-                image_sequence,
-                text_sequence,
-                pos_mask,
-            )
-            outputs.global_contrastive_output.loss *= self.contrastive_loss_weight
-            outputs.losses.global_contrastive_loss = (
-                outputs.global_contrastive_output.loss
-            )
 
         return outputs

@@ -185,9 +185,8 @@ def flava_model_for_pretraining(
     # TODO: Add parameters for loss here
 ):
     model = flava_model(**flava_model_kwargs)
-
-    codebook = DalleVAEEncoder(image_size=codebook_image_size)
     losses = FLAVAPretrainingLoss()
+    codebook = DalleVAEEncoder(image_size=codebook_image_size)
 
     flava = FLAVAForPreTraining(
         model=model,
