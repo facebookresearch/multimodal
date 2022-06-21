@@ -1,6 +1,5 @@
 name: Test build workflow
 on:
-  pull_request:
   workflow_dispatch:
 jobs:
   build_wheel:
