@@ -12,9 +12,8 @@ from test.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.modules.encoders.mdetr_text_encoder import (
     MDETRTextEmbeddings,
     MDETRTextEncoder,
-    WrappedTransformerEncoder,
+    ModifiedTransformerEncoder,
 )
-from torchmultimodal.utils.common import filter_dict
 from torchtext.models.roberta.bundler import ROBERTA_BASE_ENCODER
 
 
@@ -36,11 +35,13 @@ class TestMDETRTextEncoder(unittest.TestCase):
 
         self.roberta_encoder = ROBERTA_BASE_ENCODER.get_model()
         # Remove extra args due to TorchText RoBERTa encoder's forward taking in tokens instead of embeddings
-        wrapped_args = filter_dict(
-            lambda x: x not in ["vocab_size", "padding_idx", "max_seq_len", "scaling"],
-            ROBERTA_BASE_ENCODER.encoderConf.__dict__,
-        )
-        self.wrapped_transformer_encoder = WrappedTransformerEncoder(**wrapped_args)
+
+        wrapped_args = {
+            k: v
+            for k, v in ROBERTA_BASE_ENCODER.encoderConf.__dict__.items()
+            if k not in ["vocab_size", "padding_idx", "max_seq_len", "scaling"]
+        }
+        self.wrapped_transformer_encoder = ModifiedTransformerEncoder(**wrapped_args)
         self._populate_wrapped_transformer_weights()
 
         self.text_encoder = MDETRTextEncoder(
@@ -189,7 +190,9 @@ class TestMDETRTextEncoder(unittest.TestCase):
             self.roberta_encoder.encoder.transformer.state_dict()
         )
         # Remove embedding weights, but keep final layer norm weights
-        wrapped_state_dict = filter_dict(
-            lambda x: "embedding" not in x or "layer_norm" in x, transformer_state_dict
-        )
+        wrapped_state_dict = {
+            k: v
+            for k, v in transformer_state_dict.items()
+            if "embedding" not in k or "layer_norm" in k
+        }
         self.wrapped_transformer_encoder.load_state_dict(wrapped_state_dict)
