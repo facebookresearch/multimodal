@@ -11,15 +11,13 @@ from test.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.modules.encoders.mdetr_image_encoder import (
     mdetr_resnet101_backbone,
 )
-from torchmultimodal.utils.common import NestedTensor
 
 
 class TestMDETRImageEncoder(unittest.TestCase):
     def setUp(self):
         set_rng_seed(0)
-        test_tensor = torch.rand(4, 3, 64, 64)
-        mask = torch.zeros(4, 64, 64)
-        self.test_data = NestedTensor(test_tensor, mask)
+        self.test_tensor = torch.rand(4, 3, 64, 64)
+        self.mask = torch.zeros(4, 64, 64)
         self.resnet101_encoder = mdetr_resnet101_backbone()
         self.resnet101_encoder.eval()
 
@@ -35,7 +33,7 @@ class TestMDETRImageEncoder(unittest.TestCase):
             ]
         )
         # Get corresponding slice from last layer of outputs
-        out = self.resnet101_encoder(self.test_data)[0].tensors
+        out, _ = self.resnet101_encoder(self.test_tensor, self.mask)
         actual = out[:, 2, :, :]
         self.assertEqual(out.size(), (4, 2048, 2, 2))
         assert_expected(actual, expected, rtol=0.0, atol=1e-4)

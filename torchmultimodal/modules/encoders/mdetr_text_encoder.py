@@ -8,7 +8,6 @@ from typing import List, Optional, Union
 
 import torch
 from torch import nn, Tensor
-from torchmultimodal.utils.common import filter_dict
 from torchtext.models import ROBERTA_BASE_ENCODER
 
 
@@ -22,13 +21,11 @@ def create_position_ids_from_input_ids(input_ids, padding_idx):
 
     Returns: torch.Tensor
     """
-    # The series of casts and type-conversions here are carefully balanced to both work with ONNX export and XLA.
     mask = input_ids.ne(padding_idx).int()
     incremental_indices = torch.cumsum(mask, dim=1).type_as(mask) * mask
     return incremental_indices.long() + padding_idx
 
 
-# TODO (later): Possibly refactor into a common class with FLAVA text embeddings class
 class MDETRTextEmbeddings(nn.Module):
     """This class is identical to FLAVA's TextEmbeddings class except for its handling of position IDs."""
 
@@ -111,7 +108,7 @@ class MDETRTextEmbeddings(nn.Module):
 
 
 # Wrap TorchText's TransformerEncoder to take in embeddings instead of tokens
-class WrappedTransformerEncoder(nn.Module):
+class ModifiedTransformerEncoder(nn.Module):
     def __init__(
         self,
         embedding_dim: int,
@@ -188,9 +185,6 @@ class MDETRTextEncoder(nn.Module):
         self.embeddings = embeddings
         self.encoder = encoder
 
-    # Note: MDETR's RoBERTa encoder also returns pooler outputs in forward, but
-    # these are only used for contrastive loss. Since contrastive loss is not used anywhere,
-    # we omit the pooler for the time being.
     def forward(
         self,
         input_ids: Optional[torch.Tensor] = None,
@@ -198,17 +192,13 @@ class MDETRTextEncoder(nn.Module):
         token_type_ids: Optional[torch.Tensor] = None,
         position_ids: Optional[torch.Tensor] = None,
     ):
-        # Cast mask to bool and invert it
-        # In PyTorch attention masks, True means the position is masked,
-        # while in Hugging Face transformers the masks are inverted.
-        attention_mask = ~attention_mask.bool()
 
         embedding_output = self.embeddings(
             input_ids=input_ids,
             position_ids=position_ids,
             token_type_ids=token_type_ids,
         )
-
+        self.attention_mask = attention_mask
         out = self.encoder(
             embedding_output,
             attn_mask=attention_mask,
@@ -217,7 +207,7 @@ class MDETRTextEncoder(nn.Module):
         return out
 
 
-def mdetr_text_encoder():
+def mdetr_roberta_text_encoder():
     embeddings = MDETRTextEmbeddings(
         hidden_size=768,
         vocab_size=50265,
@@ -228,13 +218,15 @@ def mdetr_text_encoder():
         hidden_dropout_prob=0.1,
     )
 
-    wrapped_args = filter_dict(
-        lambda x: x not in ["vocab_size", "padding_idx", "max_seq_len", "scaling"],
-        ROBERTA_BASE_ENCODER.encoderConf.__dict__,
-    )
-    wrapped_transformer_encoder = WrappedTransformerEncoder(**wrapped_args)
+    wrapped_args = {
+        k: v
+        for k, v in ROBERTA_BASE_ENCODER.encoderConf.__dict__.items()
+        if k not in ["vocab_size", "padding_idx", "max_seq_len", "scaling"]
+    }
+    wrapped_transformer_encoder = ModifiedTransformerEncoder(**wrapped_args)
 
     text_encoder = MDETRTextEncoder(
         embeddings=embeddings, encoder=wrapped_transformer_encoder
     )
+    text_encoder.embedding_dim = wrapped_args["embedding_dim"]
     return text_encoder
