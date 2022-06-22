@@ -41,7 +41,7 @@ class TestSwinTransformer3d(unittest.TestCase):
 
         scores = self.encoder(image)
         self.assertEqual(scores.size(), torch.Size([1, 768]))
-        self.assertAlmostEqual(scores.abs().sum().item(), 257.66665, 3)
+        self.assertAlmostEqual(scores.abs().sum().item(), 277.63833, 3)
 
     def test_swin_transformer_3d_scripting(self):
         torch.jit.script(self.encoder)
