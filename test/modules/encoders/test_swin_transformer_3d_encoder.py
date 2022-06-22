@@ -41,7 +41,7 @@ class TestSwinTransformer3d(unittest.TestCase):
 
         scores = self.encoder(image)
         self.assertEqual(scores.size(), torch.Size([1, 768]))
-        self.assertAlmostEqual(scores.abs().sum().item(), 277.63833, 3)
+        self.assertAlmostEqual(scores.abs().sum().item(), 277.63833, 2)
 
     def test_swin_transformer_3d_scripting(self):
         torch.jit.script(self.encoder)
@@ -58,7 +58,7 @@ class TestSwinTransformer3dComponents(unittest.TestCase):
         x_out = module(x_in)
 
         self.assertEqual(x_out.size(), torch.Size([1, 1, 28, 28, 24]))
-        self.assertAlmostEqual(x_out.abs().sum().item(), 8705.25390, 3)
+        self.assertAlmostEqual(x_out.abs().sum().item(), 8705.25390, 1)
 
     def test_shifted_window_attention_3d(self):
         module = ShiftedWindowAttention3d(
@@ -68,7 +68,7 @@ class TestSwinTransformer3dComponents(unittest.TestCase):
         x_out = module(x_in)
 
         self.assertEqual(x_out.size(), torch.Size([1, 1, 56, 56, 12]))
-        self.assertAlmostEqual(x_out.abs().sum().item(), 6189.71777, 3)
+        self.assertAlmostEqual(x_out.abs().sum().item(), 6189.71777, 1)
 
     def test_shifted_window_attention_3d_zero_shift(self):
         module = ShiftedWindowAttention3d(
@@ -78,4 +78,4 @@ class TestSwinTransformer3dComponents(unittest.TestCase):
         x_out = module(x_in)
 
         self.assertEqual(x_out.size(), torch.Size([1, 1, 56, 56, 12]))
-        self.assertAlmostEqual(x_out.abs().sum().item(), 6131.83691, 3)
+        self.assertAlmostEqual(x_out.abs().sum().item(), 6131.83691, 1)

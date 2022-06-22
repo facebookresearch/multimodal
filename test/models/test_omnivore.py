@@ -25,7 +25,7 @@ class TestOmnivoreModel(unittest.TestCase):
         image = torch.randn(1, 3, 1, 112, 112)  # B C D H W
         image_score = model(image, input_type="image")
         self.assertEqual(image_score.size(), torch.Size((1, 1000)))
-        self.assertAlmostEqual(image_score.abs().sum().item(), 200.27572, 3)
+        self.assertAlmostEqual(image_score.abs().sum().item(), 200.27572, 2)
 
         rgbd = torch.randn(1, 4, 1, 112, 112)
         rgbd_score = model(rgbd, input_type="rgbd")
@@ -35,7 +35,7 @@ class TestOmnivoreModel(unittest.TestCase):
         video = torch.randn(1, 3, 4, 112, 112)
         video_score = model(video, input_type="video")
         self.assertEqual(video_score.size(), torch.Size((1, 400)))
-        self.assertAlmostEqual(video_score.abs().sum().item(), 97.57287, 3)
+        self.assertAlmostEqual(video_score.abs().sum().item(), 97.57287, 2)
 
     def test_omnivore_forward_wrong_input_type(self):
         model = omnivore.omnivore_swin_t().to(self.device)
