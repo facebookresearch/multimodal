@@ -7,60 +7,19 @@
 import torch
 import torch.nn.functional as F
 from torch import nn
-from torchmultimodal.utils.common import shift_dim
-from torchvision.transforms.functional import normalize, resize
-
-
-class S3DEncoder(nn.Module):
-    """
-    Encode videos to a fixed size vector
-
-    Args:
-        trainable (bool): true if model weights should be trained
-        preprocess_mean (sequence): sequence of means to normalize each channel to
-        preprocess_std (sequence): sequence of standard deviations to normalize each channel to
-    """
-
-    def __init__(
-        self,
-        trainable,
-        preprocess_mean=(0.43216, 0.394666, 0.37645),
-        preprocess_std=(0.22803, 0.22145, 0.216989),
-    ):
-        super().__init__()
-        self.preprocess_mean = preprocess_mean
-        self.preprocess_std = preprocess_std
-        self.model = S3D(400)
-        self.embedding_dim = list(self.model.fc.children())[0].in_channels
-        self.model.fc = nn.Identity()
-        for p in self.model.parameters():
-            p.requires_grad = trainable
-
-    def preprocess(self, x, time_samples=32):
-        b, t, h, w, c = x.shape
-        if t != time_samples:
-            x = F.interpolate(
-                shift_dim(x, -1, 1), size=[time_samples, h, w]
-            )  # "b t h w c -> b c t h w"
-            x = shift_dim(x, 1, -1)  # "b c t h w -> b t h w c"
-        assert c == 3
-        x = x.flatten(start_dim=0, end_dim=1)  # "b t h w c -> (b t) h w c"
-        x = shift_dim(x, -1, 1)  # "(b t) h w c -> (b t) c h w"
-        x = resize(x, (224, 224)) if h != 224 and w != 224 else x
-        # this is a rgb video, just normalize
-        x = x.float() / 255.0
-        # convert to BCTHW
-        x = normalize(x, mean=self.preprocess_mean, std=self.preprocess_std)
-        x = x.unflatten(dim=0, sizes=(b, time_samples))  # "(b t) c h w -> b t c h w"
-        x = shift_dim(x, 2, 1)  # "b t c h w -> b c t h w"
-        return x
-
-    def forward(self, x):
-        x = self.preprocess(x)
-        return self.model(x)
 
 
 class S3D(nn.Module):
+    """S3D is a video classification model that improves over I3D in speed.
+        Paper: https://arxiv.org/abs/1712.04851
+
+    Args:
+        num_class (int): number of classes for the classification task
+
+    Inputs:
+        x (Tensor): batch of videos with dimensions (batch, channel, time, height, width)
+    """
+
     def __init__(self, num_class):
         super(S3D, self).__init__()
         self.base = nn.Sequential(

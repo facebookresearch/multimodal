@@ -8,7 +8,7 @@ import importlib
 
 import pytest
 import torch
-from examples.s3d.s3d import BasicConv3d, S3D, S3DEncoder, SepConv3d
+from examples.mugen.retrieval.s3d import BasicConv3d, S3D, SepConv3d
 from test.test_utils import assert_expected, set_rng_seed
 
 
@@ -26,18 +26,6 @@ class TestS3D:
             return make_input_video_from_shape(input_shape)
 
         return make_input_video, make_input_video_from_shape
-
-    def test_s3d_encoder(self, start):
-        make_input_video, _ = start
-        input_video = make_input_video(c_dim=-1)
-        s3d_e = S3DEncoder(trainable=True)
-        out = s3d_e(input_video)
-        expected_sum = 809.0687
-        assert_expected(
-            actual=out.shape, expected=torch.Size([2, 1024])
-        )  # batch x embedding
-        if abs(out.sum() - expected_sum) > 5e-4:
-            raise AssertionError(f"Expected: {expected_sum}, Actual: {out.sum()}")
 
     def test_s3d_base(self, start):
         _, make_input_video_from_shape = start
@@ -79,7 +67,7 @@ class TestS3D:
     def test_mixed(self, start, model_name, in_channels, out_channels):
         make_input_video, _ = start
         input_video = make_input_video(num_channels=in_channels)
-        module = importlib.import_module("examples.s3d.s3d")
+        module = importlib.import_module("examples.mugen.retrieval.s3d")
         class_ = getattr(module, model_name)
         model = class_().float()
         out = model(input_video)
