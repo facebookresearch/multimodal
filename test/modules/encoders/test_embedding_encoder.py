@@ -7,6 +7,7 @@
 import unittest
 
 import torch
+from test.test_utils import assert_expected
 from torch import nn
 from torchmultimodal.modules.encoders.embedding_encoder import EmbeddingEncoder
 
