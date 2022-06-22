@@ -5,15 +5,66 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
-from typing import Dict
+from typing import Any, Dict, Tuple
 
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
-from torchmultimodal.modules.layers.normalizations import FrozenBatchNorm2d
-from torchmultimodal.utils.common import NestedTensor
 from torchvision.models._utils import IntermediateLayerGetter
 from torchvision.models.resnet import resnet101, ResNet101_Weights
+
+
+class FrozenBatchNorm2d(nn.Module):
+    """
+    BatchNorm2d where the batch statistics and the affine parameters are fixed.
+
+    Copy-paste from torchvision.misc.ops with added eps before rqsrt,
+    without which any other models than torchvision.models.resnet[18,34,50,101]
+    produce nans.
+    """
+
+    def __init__(self, n):
+        super().__init__()
+        self.register_buffer("weight", torch.ones(n))
+        self.register_buffer("bias", torch.zeros(n))
+        self.register_buffer("running_mean", torch.zeros(n))
+        self.register_buffer("running_var", torch.ones(n))
+
+    def _load_from_state_dict(
+        self,
+        state_dict,
+        prefix,
+        local_metadata,
+        strict,
+        missing_keys,
+        unexpected_keys,
+        error_msgs,
+    ):
+        num_batches_tracked_key = prefix + "num_batches_tracked"
+        if num_batches_tracked_key in state_dict:
+            del state_dict[num_batches_tracked_key]
+
+        super()._load_from_state_dict(
+            state_dict,
+            prefix,
+            local_metadata,
+            strict,
+            missing_keys,
+            unexpected_keys,
+            error_msgs,
+        )
+
+    def forward(self, x: torch.Tensor):
+        # move reshapes to the beginning to make it fuser-friendly
+        # ignore mypy errors because fixing them would break checkpoint loading
+        w = self.weight.reshape(1, -1, 1, 1)  # type: ignore
+        b = self.bias.reshape(1, -1, 1, 1)  # type: ignore
+        rv = self.running_var.reshape(1, -1, 1, 1)  # type: ignore
+        rm = self.running_mean.reshape(1, -1, 1, 1)  # type: ignore
+        eps = 1e-5
+        scale = w * (rv + eps).rsqrt()
+        bias = b - rm * scale
+        return x * scale + bias
 
 
 class PositionEmbeddingSine(nn.Module):
@@ -39,9 +90,7 @@ class PositionEmbeddingSine(nn.Module):
             scale = 2 * math.pi
         self.scale = scale
 
-    def forward(self, tensor_list: NestedTensor) -> Tensor:
-        x = tensor_list.tensors
-        mask = tensor_list.mask
+    def forward(self, x: Tensor, mask: Tensor) -> Tensor:
         not_mask = ~mask
         y_embed = not_mask.cumsum(1, dtype=torch.float32)
         x_embed = not_mask.cumsum(2, dtype=torch.float32)
@@ -65,34 +114,33 @@ class PositionEmbeddingSine(nn.Module):
         return pos
 
 
-# At this point this class is basically just a wrapper
-# around the backbone to support tensor list and IntermediateLayerGetter.
-# We can refactor to pass tensor and mask separately
-class MDETRBackbone(nn.Module):
-    def __init__(self, body: nn.Module, intermediate_layers: Dict[str, int]):
+class MaskedIntermediateLayer(nn.Module):
+    def __init__(self, body: nn.Module, intermediate_layers: Dict[str, Any]):
         super().__init__()
         # Note that we need this to skip pooler, flatten, and FC layers in
         # the standard ResNet implementation.
+        assert (
+            len(intermediate_layers.keys()) == 1
+        ), "IntermediateLayerGetter for multiple layers is not supported"
         self.body = IntermediateLayerGetter(body, return_layers=intermediate_layers)
 
-    def forward(self, tensor_list: NestedTensor):
-        xs = self.body(tensor_list.tensors)
-        out = []
-        for name, x in xs.items():
-            mask = F.interpolate(
-                tensor_list.mask[None].float(), size=x.shape[-2:]
-            ).bool()[0]
-            out.append(NestedTensor(x, mask))
-        return out
+    def forward(
+        self, images: torch.Tensor, image_masks: torch.Tensor
+    ) -> Tuple[Tensor, Tensor]:
+        out = self.body(images)
+        tensor = out[next(reversed(out))]
+        mask = F.interpolate(image_masks[None].float(), size=tensor.shape[-2:]).bool()[
+            0
+        ]
+        return tensor, mask
 
 
-def mdetr_resnet101_backbone() -> MDETRBackbone:
-    # TODO: maybe support passing arg for last dilation operation as in MDETR repo
+def mdetr_resnet101_backbone() -> MaskedIntermediateLayer:
     body = resnet101(
         replace_stride_with_dilation=[False, False, False],
         weights=ResNet101_Weights.IMAGENET1K_V1,
         norm_layer=FrozenBatchNorm2d,
     )
 
-    backbone = MDETRBackbone(body, intermediate_layers={"layer4": 0})
+    backbone = MaskedIntermediateLayer(body, intermediate_layers={"layer4": 0})
     return backbone

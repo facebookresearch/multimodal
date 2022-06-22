@@ -5,17 +5,18 @@
 # LICENSE file in the root directory of this source tree.
 
 from copy import deepcopy
-from typing import Callable, Optional
+from typing import Callable, List, Optional, Tuple
 
 import torch
-import torch.nn.functional as F
 from torch import nn, Tensor
 from torchmultimodal.modules.encoders.mdetr_image_encoder import (
     mdetr_resnet101_backbone,
     PositionEmbeddingSine,
 )
-from torchmultimodal.modules.encoders.mdetr_text_encoder import mdetr_text_encoder
-from torchmultimodal.utils.common import NestedTensor
+from torchmultimodal.modules.encoders.mdetr_text_encoder import (
+    mdetr_roberta_text_encoder,
+)
+from torchmultimodal.modules.layers.mlp import MLP
 from torchvision.models import resnet101
 
 # TODO: add support for freezing text encoder in this class (?)
@@ -53,11 +54,31 @@ class MDETR(nn.Module):
         self.bbox_embed = bbox_embed
         self.query_embed = query_embed
 
-    def forward(self, images: NestedTensor, text: Tensor, text_attention_mask: Tensor):
-        """The forward expects a NestedTensor of images, which consists of:
-           - images.tensor: batched images, of shape [batch_size x 3 x H x W]
-           - images.mask: a binary mask of shape [batch_size x H x W], containing 1 on padded pixels
-        It also expects a tensor of texts and a tensor of text attention masks.
+    def _pad_images(self, images: List[Tensor]) -> Tuple[Tensor, Tensor]:
+        max_size = tuple(max(s) for s in zip(*[img.shape for img in images]))
+        batch_shape = (len(images),) + max_size
+        b, _, h, w = batch_shape
+
+        dtype = images[0].dtype
+        device = images[0].device
+        padded_images = torch.zeros(batch_shape, dtype=dtype, device=device)
+        mask = torch.ones((b, h, w), dtype=torch.bool, device=device)
+        for img, pad_img, m in zip(images, padded_images, mask):
+            pad_img[: img.shape[0], : img.shape[1], : img.shape[2]].copy_(img)
+            m[: img.shape[1], : img.shape[2]] = False
+        return padded_images, mask
+
+    def _pad_text(
+        self, text: List[Tensor], padding_idx: int = 1
+    ) -> Tuple[Tensor, Tensor]:
+        padded_text = nn.utils.rnn.pad_sequence(
+            text, batch_first=True, padding_value=padding_idx
+        )
+        mask = padded_text == padding_idx
+        return padded_text, mask
+
+    def forward(self, images: List[Tensor], text: List[Tensor]):
+        """The forward expects a list of image tensors and a list of tensors containing tokenized texts.
 
         It returns a dict with the following elements:
            - "pred_logits": the classification logits (including no-object) for all queries.
@@ -68,18 +89,15 @@ class MDETR(nn.Module):
                            See PostProcess for information on how to retrieve the unnormalized bounding box.
         """
 
+        images, image_mask = self._pad_images(images)
+        text, text_attention_mask = self._pad_text(text)
         encoded_text = self.text_encoder(text, text_attention_mask)
 
         # Transpose memory because pytorch's attention expects sequence first
         text_memory = encoded_text.transpose(0, 1)
 
-        # Invert attention mask that we get from huggingface because its the opposite in pytorch transformer
-        text_attention_mask = text_attention_mask.ne(1).bool()
-
-        features = self.image_backbone(images)
-        pos = [self.pos_embed(x).to(x.tensors.dtype) for x in features]
-
-        src, mask = features[-1].decompose()
+        src, mask = self.image_backbone(images, image_mask)
+        pos = self.pos_embed(src, mask).to(src.dtype)
         query_embed = self.query_embed.weight
 
         text_memory_resized = self.resizer(text_memory)
@@ -88,21 +106,18 @@ class MDETR(nn.Module):
             self.input_proj(src),
             mask,
             query_embed,
-            pos[-1],
+            pos,
             text_memory=text_memory_resized,
             img_memory=None,
             text_attention_mask=text_attention_mask,
         )
-        out = {}
         outputs_class = self.class_embed(hs)
         outputs_coord = self.bbox_embed(hs).sigmoid()
 
-        out.update(
-            {
-                "pred_logits": outputs_class[-1],
-                "pred_boxes": outputs_coord[-1],
-            }
-        )
+        out = {
+            "pred_logits": outputs_class[-1],
+            "pred_boxes": outputs_coord[-1],
+        }
 
         return out
 
@@ -181,9 +196,9 @@ class Transformer(nn.Module):
         src = torch.cat([src, text_memory], dim=0)
         # For mask, sequence dimension is second
         mask = torch.cat([mask, text_attention_mask], dim=1)
+
         # Pad the pos_embed with 0 so that the addition will be a no-op for the text tokens
         pos_embed = torch.cat([pos_embed, torch.zeros_like(text_memory)], dim=0)
-
         img_memory = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed)
 
         text_memory = img_memory[-len(text_memory) :]
@@ -471,50 +486,63 @@ def _get_clones(module, N):
     return nn.ModuleList([deepcopy(module) for i in range(N)])
 
 
-# TODO: replace with TorchMultimodal MLP
-class MLP(nn.Module):
-    """Very simple multi-layer perceptron (also called FFN)"""
-
-    def __init__(self, input_dim, hidden_dim, output_dim, num_layers):
-        super().__init__()
-        self.num_layers = num_layers
-        h = [hidden_dim] * (num_layers - 1)
-        self.layers = nn.ModuleList(
-            nn.Linear(n, k) for n, k in zip([input_dim] + h, h + [output_dim])
-        )
-
-    def forward(self, x):
-        for i, layer in enumerate(self.layers):
-            x = F.relu(layer(x)) if i < self.num_layers - 1 else layer(x)
-        return x
-
-
-def mdetr_transformer() -> Transformer:
+def mdetr_transformer(
+    d_model: int = 256,
+    nhead: int = 8,
+    num_encoder_layers: int = 6,
+    num_decoder_layers: int = 6,
+    dim_feedforward: int = 2048,
+    dropout: float = 0.1,
+    return_intermediate_dec: bool = True,
+    pass_pos_and_query: bool = True,
+) -> Transformer:
     return Transformer(
-        d_model=256,
-        nhead=8,
-        num_encoder_layers=6,
-        num_decoder_layers=6,
-        dim_feedforward=2048,
-        dropout=0.1,
-        return_intermediate_dec=True,
-        pass_pos_and_query=True,
+        d_model=d_model,
+        nhead=nhead,
+        num_encoder_layers=num_encoder_layers,
+        num_decoder_layers=num_decoder_layers,
+        dim_feedforward=dim_feedforward,
+        dropout=dropout,
+        return_intermediate_dec=return_intermediate_dec,
+        pass_pos_and_query=pass_pos_and_query,
     )
 
 
-def mdetr_resnet101(num_queries: int = 100, num_classes: int = 255) -> MDETR:
+def mdetr_resnet101(
+    num_queries: int = 100,
+    num_classes: int = 255,
+    embedding_dim: int = 768,
+    transformer_d_model: int = 256,
+    transformer_nhead: int = 8,
+    transformer_encoder_layers: int = 6,
+    transformer_decoder_layers: int = 6,
+    transformer_dim_feedforward: int = 2048,
+    transformer_dropout: float = 0.1,
+    return_intermediate_dec: bool = True,
+    transformer_pass_pos_and_query: bool = True,
+) -> MDETR:
     image_backbone = resnet101()
     image_backbone = mdetr_resnet101_backbone()
     pos_embed = PositionEmbeddingSine(128, normalize=True)
     image_backbone.num_channels = 2048
-    text_encoder = mdetr_text_encoder()
-    transformer = mdetr_transformer()
-    embedding_dim = text_encoder.encoder.embedding_dim
-    hidden_dim = transformer.d_model
+    text_encoder = mdetr_roberta_text_encoder()
+    if embedding_dim is None:
+        embedding_dim = text_encoder.embedding_dim
+    transformer = mdetr_transformer(
+        transformer_d_model,
+        transformer_nhead,
+        transformer_encoder_layers,
+        transformer_decoder_layers,
+        transformer_dim_feedforward,
+        transformer_dropout,
+        return_intermediate_dec,
+        transformer_pass_pos_and_query,
+    )
+    hidden_dim = transformer_d_model
     resizer = FeatureResizer(embedding_dim, hidden_dim)
     input_proj = nn.Conv2d(image_backbone.num_channels, hidden_dim, kernel_size=1)
     query_embed = nn.Embedding(num_queries, hidden_dim)
-    bbox_embed = MLP(hidden_dim, hidden_dim, 4, 3)
+    bbox_embed = MLP(hidden_dim, 4, [hidden_dim] * 2, dropout=0.0)
     class_embed = nn.Linear(hidden_dim, num_classes + 1)
     mdetr = MDETR(
         image_backbone,
