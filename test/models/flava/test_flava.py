@@ -57,6 +57,7 @@ class TestFLAVA(unittest.TestCase):
         mlm_labels[:, :] = -1
         mlm_labels[:, 1:3] = text[:, 1:3]
         itm_labels = torch.tensor((0, 1), dtype=torch.long)
+
         flava = flava_model_for_pretraining()
 
         output = flava(

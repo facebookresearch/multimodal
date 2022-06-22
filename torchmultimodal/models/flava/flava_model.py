@@ -210,6 +210,7 @@ def flava_model_for_classification(
     loss_fn: Optional[Callable[..., Tensor]] = None,
     **flava_model_kwargs: Any,
 ):
+
     classifier = MLP(
         in_dim=classifier_in_dim,
         out_dim=num_classes,
