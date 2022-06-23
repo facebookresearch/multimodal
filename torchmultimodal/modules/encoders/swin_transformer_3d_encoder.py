@@ -8,7 +8,7 @@
 # https://github.com/pytorch/vision/blob/main/torchvision/models/swin_transformer.py
 
 
-from functools import lru_cache, partial
+from functools import partial
 from typing import Callable, List, Optional, Tuple
 
 import torch
@@ -26,8 +26,6 @@ def _compute_pad_size_3d(
     return (pad_size[0], pad_size[1], pad_size[2])
 
 
-# Cache the attention mask for performance
-@lru_cache
 def _compute_attention_mask_3d(
     x: Tensor,
     size_dhw: Tuple[int, int, int],
