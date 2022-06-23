@@ -7,6 +7,8 @@
 import unittest
 
 import torch
+
+from test.test_utils import set_rng_seed
 from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
     PatchEmbed3d,
     PatchMerging,
@@ -14,8 +16,6 @@ from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
     SwinTransformer3d,
 )
 from torchmultimodal.utils.common import get_current_device
-
-from test.test_utils import set_rng_seed
 
 
 class TestSwinTransformer3d(unittest.TestCase):

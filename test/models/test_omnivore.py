@@ -8,9 +8,9 @@ import unittest
 
 import torch
 import torchmultimodal.models.omnivore as omnivore
-from torchmultimodal.utils.common import get_current_device
 
 from test.test_utils import set_rng_seed
+from torchmultimodal.utils.common import get_current_device
 
 
 class TestOmnivoreModel(unittest.TestCase):
