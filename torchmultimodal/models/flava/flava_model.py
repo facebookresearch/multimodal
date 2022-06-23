@@ -210,7 +210,7 @@ def flava_model_for_classification(
     loss_fn: Optional[Callable[..., Tensor]] = None,
     **flava_model_kwargs: Any,
 ):
-    model = flava_model(**flava_model_kwargs)
+
     classifier = MLP(
         in_dim=classifier_in_dim,
         out_dim=num_classes,
@@ -219,6 +219,7 @@ def flava_model_for_classification(
         activation=classifier_activation,
         normalization=classifier_normalization,
     )
+    model = flava_model(**flava_model_kwargs)
 
     if loss_fn is None:
         loss_fn = nn.CrossEntropyLoss()
