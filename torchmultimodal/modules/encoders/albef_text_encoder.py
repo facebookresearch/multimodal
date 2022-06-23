@@ -8,7 +8,10 @@ import math
 
 import torch
 from torch import nn, Tensor
-from torchmultimodal.utils.common import get_extended_attention_mask
+from torchmultimodal.utils.common import (
+    get_extended_attention_mask,
+    transpose_for_scores,
+)
 
 
 class ALBEFTextEncoder(nn.Module):
@@ -217,14 +220,6 @@ class ALBEFTransformerSelfAttention(nn.Module):
         self.key = nn.Linear(hidden_size, self.all_head_size)
         self.value = nn.Linear(hidden_size, self.all_head_size)
 
-    def transpose_for_scores(self, x: Tensor) -> Tensor:
-        new_x_shape = x.size()[:-1] + (
-            self.num_attention_heads,
-            self.attention_head_size,
-        )
-        x = x.view(*new_x_shape)
-        return x.permute(0, 2, 1, 3)
-
     def forward(
         self,
         hidden_states: Tensor,
@@ -234,9 +229,15 @@ class ALBEFTransformerSelfAttention(nn.Module):
         mixed_key_layer = self.key(hidden_states)
         mixed_value_layer = self.value(hidden_states)
 
-        query_layer = self.transpose_for_scores(mixed_query_layer)
-        key_layer = self.transpose_for_scores(mixed_key_layer)
-        value_layer = self.transpose_for_scores(mixed_value_layer)
+        query_layer = transpose_for_scores(
+            self.num_attention_heads, self.attention_head_size, mixed_query_layer
+        )
+        key_layer = transpose_for_scores(
+            self.num_attention_heads, self.attention_head_size, mixed_key_layer
+        )
+        value_layer = transpose_for_scores(
+            self.num_attention_heads, self.attention_head_size, mixed_value_layer
+        )
 
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))

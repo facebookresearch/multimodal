@@ -126,6 +126,17 @@ def tensor_slice(x: Tensor, begin: List[int], size: List[int]) -> Tensor:
     return x[slices]
 
 
+def transpose_for_scores(
+    num_attention_heads: int, attention_head_size: int, x: Tensor
+) -> Tensor:
+    new_x_shape = x.size()[:-1] + (
+        num_attention_heads,
+        attention_head_size,
+    )
+    x = x.view(*new_x_shape)
+    return x.permute(0, 2, 1, 3)
+
+
 class PretrainedMixin:
     def get_model_dir(self, url):
         return os.path.join(
