@@ -19,12 +19,10 @@ class WeightedEmbeddingEncoder(nn.Module):
         pooling_function (Callable[[Tensor, int], Union[Tensor, Tuple]]): pooling function to combine the weighted embeddings,\
         example: torch.sum function should return a tensor or namedtuple containing the tensor in the values field like torch.max
         pooling_dim (int) : dimension along which the pooling function is applied
-        use_hash (bool): if hashing based on embedding vocab size if applied to input
-        before embedding layer
 
     Inputs:
-        x (Tensor): Tensor bsz x len where first half (0 : len/2) of tensor are embedding indices
-        and the second half are corresponding weights for the embedding indices
+        weights (Tensor): A float tensor of shape [batch_size x num_categories] containing the weights of a categorical feature.\
+            The weights represent multiplier factors for the corresponding category embedding vectors.
 
     """
 
@@ -33,40 +31,16 @@ class WeightedEmbeddingEncoder(nn.Module):
         embedding: nn.Embedding,
         pooling_function: Callable[[Tensor, int], Union[Tensor, Tuple]],
         pooling_dim: int = 1,
-        use_hash: bool = False,
     ) -> None:
         super().__init__()
-        if (
-            use_hash
-            and embedding.padding_idx is not None
-            and embedding.padding_idx != 0
-        ):
-            raise ValueError("embedding padding should be None or 0 if hashing is used")
         self.embedding = embedding
         self.pooling_function = pooling_function
         self.pooling_dim = pooling_dim
-        self.use_hash = use_hash
 
-    def forward(self, x: Tensor) -> Tensor:
-        index, weights = torch.split(
-            x,
-            int(x.size()[1] / 2),
-            dim=1,
-        )
-        index = index.long()
-        if self.use_hash:
-            # TODO: pull this out into a common function T111523602
-            if self.embedding.padding_idx is None:
-                index = index % self.embedding.num_embeddings
-            else:
-                mask = ~index.eq(self.embedding.padding_idx)
-                non_zero_index = torch.masked_select(index, mask)
-                index[mask] = (non_zero_index - 1) % (
-                    self.embedding.num_embeddings - 1
-                ) + 1
-
+    def forward(self, weights: Tensor) -> Tensor:
+        index = torch.arange(0, weights.size(1), dtype=torch.int)
+        index = index.to(weights.device)
         weighted_embeddings = self.embedding(index) * weights.unsqueeze(-1)
-
         pooled_embeddings = self.pooling_function(weighted_embeddings, self.pooling_dim)
         if isinstance(pooled_embeddings, Tensor):
             output: Tensor = pooled_embeddings

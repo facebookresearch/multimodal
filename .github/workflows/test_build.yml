@@ -1,0 +1,24 @@
+name: Test build workflow
+on:
+  workflow_dispatch:
+jobs:
+  build_wheel:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: [3.8, 3.9]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Check out repository
+        uses: actions/checkout@v2
+      - name: Build wheel
+        run: |
+          pip3 install wheel
+          python setup.py bdist_wheel
+      - name: Install wheel
+        run: |
+          pip3 install dist/torchmultimodal*.whl

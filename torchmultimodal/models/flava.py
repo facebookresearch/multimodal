@@ -359,7 +359,7 @@ class FLAVAModel(nn.Module, PretrainedMixin):
         skip_unmasked_mm_encoder: bool = True,
     ) -> FLAVAOutput:
         if required_embedding is None:
-            if image is not None and text is None:
+            if image is not None and text is not None:
                 required_embedding = "mm"
             elif image is not None:
                 required_embedding = "image"
