@@ -34,3 +34,5 @@ datasets:
         rename_columns:
           - ["question", "sentence1"]
           - ["sentence", "sentence2"]
+    datamodule_extra_kwargs:
+      text_columns: ["sentence1", "sentence2"]
