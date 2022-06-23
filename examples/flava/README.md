@@ -52,7 +52,7 @@ python train.py config=configs/pretraining/debug.yaml training.lightning.max_ste
 Similarly, let's say you want to use a pretrained model for your pretraining/finetuning.
 
 ```
-python train.py configs=configs/pretraining/debug.yaml model.pretrained_model_key=flava_full
+python train.py config=configs/pretraining/debug.yaml model.pretrained_model_key=flava_full
 ```
 
 ### Full Pretraining
@@ -64,7 +64,7 @@ python train.py configs=configs/pretraining/debug.yaml model.pretrained_model_ke
 Similarly to pretraining, finetuning can be launched by following command:
 
 ```
-python finetune.py configs=configs/finetuning/qnli.yaml model.pretrained_model_key=flava_full
+python finetune.py config=configs/finetuning/qnli.yaml model.pretrained_model_key=flava_full
 ```
 
 ### Linear Probe
