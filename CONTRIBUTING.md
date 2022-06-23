@@ -89,8 +89,12 @@ mypy `git diff main --name-only`
 
 
 ### Unit Tests
-Please add unit tests for adding a new feature or a bug-fix. To run a specific test:
+Please add unit tests for adding a new feature or a bug-fix.
 
+*Note: we are migrating from `unitest` to [`pytest`](https://docs.pytest.org/en/7.1.x/).
+Please write your tests in pytest to help us with the transition.*
+
+To run a specific test:
 ```
 pytest test/<test-module.py> -vv -k <test_myfunc>
 # e.g. pytest test/models/test_cnn_lstm.py -vv -k TestCNNLSTMModule
