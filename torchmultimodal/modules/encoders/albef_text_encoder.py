@@ -22,14 +22,16 @@ class ALBEFTextEncoder(nn.Module):
 
     Args:
         vocab_size (int): Vocabulary size of the model. Defines the different tokens that can be represented by the inputs_ids.
-        hidden_size (int): Dimensionality of the encoder layers.
-        num_hidden_layers (int): Number of hidden layers in the Transformer encoder.
-        num_attention_heads (int): Number of attention heads for each attention layer in the Transformer encoder.
+            Default is 30522.
+        hidden_size (int): Dimensionality of the encoder layers. Default is 768.
+        num_hidden_layers (int): Number of hidden layers in the Transformer encoder. Default is 6.
+        num_attention_heads (int): Number of attention heads for each attention layer in the Transformer encoder. Default is 12.
         intermediate_size (int): Dimensionality of the “intermediate” (i.e., feed-forward) layer in the Transformer encoder.
-        max_position_embeddings (int): The maximum sequence length that this model might ever be used with.
-        type_vocab_size (int): The vocabulary size of the token_type_ids.
-        pad_token_id (int): The embedding for pad_token_id is not updated during training.
-        layer_norm_eps (float): The epsilon used by the layer normalization layers.
+            Default is 3072.
+        max_position_embeddings (int): The maximum sequence length that this model might ever be used with. Default is 512.
+        type_vocab_size (int): The vocabulary size of the token_type_ids. Default is 2.
+        pad_token_id (int): The embedding for pad_token_id is not updated during training. Default is 0.
+        layer_norm_eps (float): The epsilon used by the layer normalization layers. Default is 1e-12.
     Inputs:
         input_ids (Tensor of size (batch_size, sequence_length)): Indices of input sequence tokens in the vocabulary.
         attention_mask (Tensor of shape (batch_size, sequence_length)): Mask to avoid performing attention on padding token indices.
