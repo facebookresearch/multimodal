@@ -36,6 +36,9 @@ class CNNEncoder(nn.Module):
         assert len(input_dims) == len(output_dims) and len(output_dims) == len(
             kernel_sizes
         ), "input_dims, output_dims, and kernel_sizes should all have the same length"
+        assert (
+            input_dims[1:] == output_dims[:-1]
+        ), "output_dims should match input_dims offset by one"
         for in_channels, out_channels, kernel_size in zip(
             input_dims,
             output_dims,
