@@ -34,18 +34,6 @@ def test_text_encoder(text_encoder):
     assert_expected(output, expected, rtol=0, atol=1e-4)
 
 
-def test_text_encoder_without_attention_mask(text_encoder):
-    input_ids = torch.randint(10, (2, 2))
-    output = text_encoder(input_ids)
-    expected = Tensor(
-        [
-            [[-0.846098, -0.558322, 1.404420], [-0.337862, 1.358211, -1.020349]],
-            [[-0.852249, -0.551247, 1.403495], [-0.715966, 1.414176, -0.698211]],
-        ]
-    )
-    assert_expected(output, expected, rtol=0, atol=1e-4)
-
-
 def test_invalid_input_length(text_encoder):
     input_ids = torch.randint(10, (2, 2, 3))
     text_atts = torch.randint(2, (2, 2, 3))

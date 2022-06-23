@@ -5,7 +5,6 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
-from typing import Optional
 
 import torch
 from torch import nn, Tensor
@@ -66,16 +65,10 @@ class ALBEFTextEncoder(nn.Module):
 
     def forward(
         self,
-        input_ids: Tensor = None,
-        attention_mask: Optional[Tensor] = None,
+        input_ids: Tensor,
+        attention_mask: Tensor,
     ) -> Tensor:
-        input_shape = input_ids.size()
-        device = input_ids.device
-        if attention_mask is None:
-            attention_mask = torch.ones(input_shape, device=device)
-
         extended_attention_mask = get_extended_attention_mask(attention_mask)
-
         embedding_output = self.embeddings(input_ids)
         encoder_outputs = self.encoder(embedding_output, extended_attention_mask)
 
@@ -140,8 +133,8 @@ class ALBEFTransformerEncoder(nn.Module):
 
     def forward(
         self,
-        hidden_states: torch.Tensor,
-        attention_mask: Optional[torch.FloatTensor] = None,
+        hidden_states: Tensor,
+        attention_mask: Tensor,
     ) -> Tensor:
         for layer_module in self.layer:
             hidden_states = layer_module(hidden_states, attention_mask)
@@ -168,7 +161,7 @@ class ALBEFTransformerLayer(nn.Module):
     def forward(
         self,
         hidden_states: Tensor,
-        attention_mask: Optional[Tensor] = None,
+        attention_mask: Tensor,
     ) -> Tensor:
         attention_output = self.attention(hidden_states, attention_mask)
         dense1_output = self.dense1(attention_output)
@@ -195,7 +188,7 @@ class ALBEFTransformerAttention(nn.Module):
     def forward(
         self,
         hidden_states: Tensor,
-        attention_mask: Optional[Tensor] = None,
+        attention_mask: Tensor,
     ) -> Tensor:
         self_output = self.self_attention(hidden_states, attention_mask)
         dense_output = self.dense(self_output)
@@ -235,7 +228,7 @@ class ALBEFTransformerSelfAttention(nn.Module):
     def forward(
         self,
         hidden_states: Tensor,
-        attention_mask: Optional[Tensor] = None,
+        attention_mask: Tensor,
     ) -> Tensor:
         mixed_query_layer = self.query(hidden_states)
         mixed_key_layer = self.key(hidden_states)
