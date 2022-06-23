@@ -13,10 +13,12 @@ from test.test_utils import assert_expected, set_rng_seed
 
 
 class TestS3D:
-    @pytest.fixture
-    def start(self):
+    @pytest.fixture(autouse=True)
+    def set_seed(self):
         set_rng_seed(1234)
 
+    @pytest.fixture
+    def utils(self, set_seed):
         def make_input_video_from_shape(shape):
             return torch.randint(10, shape).float()
 
@@ -27,8 +29,8 @@ class TestS3D:
 
         return make_input_video, make_input_video_from_shape
 
-    def test_s3d_base(self, start):
-        _, make_input_video_from_shape = start
+    def test_s3d_base(self, utils):
+        _, make_input_video_from_shape = utils
         input_video = make_input_video_from_shape((2, 3, 32, 32, 32))
         s3d = S3D(num_class=3)
         out = s3d(input_video)
@@ -36,15 +38,15 @@ class TestS3D:
             actual=out.shape, expected=torch.Size([2, 3])
         )  # batch x num_class
 
-    def test_basicconv3d(self, start):
-        make_input_video, _ = start
+    def test_basicconv3d(self, utils):
+        make_input_video, _ = utils
         input_video = make_input_video(num_channels=4)
         bc3 = BasicConv3d(4, 4, kernel_size=1, stride=1).float()
         out = bc3(input_video)
         assert_expected(actual=out.shape, expected=torch.Size([2, 4, 1, 5, 3]))
 
-    def test_sepconv3d(self, start):
-        make_input_video, _ = start
+    def test_sepconv3d(self, utils):
+        make_input_video, _ = utils
         input_video = make_input_video(num_channels=4)
         sc3 = SepConv3d(4, 8, kernel_size=3, stride=2, padding=1)
         out = sc3(input_video)
@@ -64,8 +66,8 @@ class TestS3D:
             ("Mixed5c", 832, 1024),
         ],
     )
-    def test_mixed(self, start, model_name, in_channels, out_channels):
-        make_input_video, _ = start
+    def test_mixed(self, utils, model_name, in_channels, out_channels):
+        make_input_video, _ = utils
         input_video = make_input_video(num_channels=in_channels)
         module = importlib.import_module("examples.mugen.retrieval.s3d")
         class_ = getattr(module, model_name)

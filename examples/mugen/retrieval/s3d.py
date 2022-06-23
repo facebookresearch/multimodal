@@ -40,9 +40,7 @@ class S3D(nn.Module):
             Mixed5b(),
             Mixed5c(),
         )
-        self.fc = nn.Sequential(
-            nn.Conv3d(1024, num_class, kernel_size=1, stride=1, bias=True),
-        )
+        self.fc = nn.Conv3d(1024, num_class, kernel_size=1, stride=1, bias=True)
 
     def forward(self, x):
         y = self.base(x)
