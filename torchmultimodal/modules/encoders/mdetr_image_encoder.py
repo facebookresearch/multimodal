@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
-from typing import Any, Dict, List, Tuple
+from typing import Tuple
 
 import torch
 import torch.nn.functional as F
@@ -39,31 +39,6 @@ class FrozenBatchNorm2d(nn.Module):
         self.register_buffer("bias", torch.zeros(n))
         self.register_buffer("running_mean", torch.zeros(n))
         self.register_buffer("running_var", torch.ones(n))
-
-    def _load_from_state_dict(
-        self,
-        state_dict: Dict[str, Any],
-        prefix: str,
-        local_metadata: Dict[str, Any],
-        strict: bool,
-        missing_keys: List[str],
-        unexpected_keys: List[str],
-        error_msgs: List[str],
-    ):
-        # This allows us to also load this module from checkpoint with BatchNorm2d
-        num_batches_tracked_key = prefix + "num_batches_tracked"
-        if num_batches_tracked_key in state_dict:
-            del state_dict[num_batches_tracked_key]
-
-        super()._load_from_state_dict(
-            state_dict,
-            prefix,
-            local_metadata,
-            strict,
-            missing_keys,
-            unexpected_keys,
-            error_msgs,
-        )
 
     def forward(self, x: Tensor) -> Tensor:
         # move reshapes to the beginning to make it fuser-friendly
@@ -161,7 +136,7 @@ class MaskedIntermediateLayer(nn.Module):
         self, images: torch.Tensor, image_masks: torch.Tensor
     ) -> Tuple[Tensor, Tensor]:
         out = self.body(images)
-        tensor = out[next(reversed(out))]
+        tensor = out[next(iter(out))]
         mask = F.interpolate(image_masks[None].float(), size=tensor.shape[-2:]).bool()[
             0
         ]
