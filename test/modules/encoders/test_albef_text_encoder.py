@@ -16,7 +16,7 @@ def set_seed():
     set_rng_seed(0)
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def text_encoder():
     return ALBEFTextEncoder(hidden_size=3, num_attention_heads=1)
 
