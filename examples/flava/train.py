@@ -20,6 +20,8 @@ def main():
         seed_everything(config.training.seed, workers=True)
 
     datamodules = []
+
+    # also needed for the imagenet eval callback
     imagenet_datamodule = ImageDataModule(
         **build_datamodule_kwargs(config.datasets.image, config.training)
     )
