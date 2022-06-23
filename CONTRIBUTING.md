@@ -63,6 +63,7 @@ Ideally, flake and ufmt should be run via pre-commit hooks.
 But if for some reason you want to run them separately follow this:
 
 ```
+pip install -r dev-requirements.txt
 flake8 (examples|test|torchmultimodal)
 ufmt format (examples|test|torchmultimodal)
 ```
@@ -70,7 +71,6 @@ ufmt format (examples|test|torchmultimodal)
 Alternatively, you can run on only those files you have modified, e.g.
 
 ```
-pip install flake8==4.0.1 ufmt==1.3.0 black==21.4b2 usort==1.0.2
 flake8 `git diff main --name-only`
 ufmt format `git diff main --name-only`
 ```
