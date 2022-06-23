@@ -103,7 +103,7 @@ class TestMDETRTextEncoder(unittest.TestCase):
                 0.71950,
             ]
         )
-        out = self.embeddings(self.input_ids, self.attention_mask)
+        out = self.embeddings(self.input_ids)
         actual = out[1, :, 1]
         self.assertEqual(
             out.size(), (self.batch_size, self.input_length, self.hidden_size)

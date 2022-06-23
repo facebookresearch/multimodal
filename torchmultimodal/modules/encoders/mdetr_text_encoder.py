@@ -11,15 +11,15 @@ from torch import nn, Tensor
 from torchtext.models import ROBERTA_BASE_ENCODER
 
 
-def create_position_ids_from_input_ids(input_ids, padding_idx):
+def create_position_ids_from_input_ids(input_ids: Tensor, padding_idx: int):
     """
-    Replace non-padding symbols with their position numbers. Position numbers begin at padding_idx+1. Padding symbols
+    Replace non-padding symbols with their position numbers.
+    Position numbers begin at padding_idx+1. Padding symbols
     are ignored. This is modified from fairseq's `utils.make_positions`.
 
-    Args:
-        x: torch.Tensor x:
-
-    Returns: torch.Tensor
+    Inputs:   input_ids (torch.Tensor): Tensor from which to create position IDs.
+              padding_idx (int): Padding index
+                (determines starting point of position IDs).
     """
     mask = input_ids.ne(padding_idx).int()
     incremental_indices = torch.cumsum(mask, dim=1).type_as(mask) * mask
@@ -27,7 +27,27 @@ def create_position_ids_from_input_ids(input_ids, padding_idx):
 
 
 class MDETRTextEmbeddings(nn.Module):
-    """This class is identical to FLAVA's TextEmbeddings class except for its handling of position IDs."""
+    """
+    Class for RoBERTa embeddings as used in MDETR. This is very similar to the FLAVA
+    text embeddings class (which uses BERT) except for its handling of position IDs.
+
+    Args:   hidden_size (int): Embedding dimension. Default: 768
+            vocab_size (int): Number of tokens in the vocabulary. Default: 30522
+            pad_token_id (int): Index of padded tokens. Default: 0
+            type_vocab_size (int): Number of token types. Default: 2
+            max_position_embeddings (int): Max number of positions. Default: 512
+            layer_norm_eps (float): Regularization value in layer norm. Default: 1e-12
+            hidden_dropout_prob (float): Dropout probability on final embeddings.
+                Default: 0.1
+
+    Inputs: input_ids (Tensor): Tensor of input IDs to calculate embeddings for.
+            token_type_ids (Optional[Tensor]): Optional tensor of token type IDs to use
+                in token type embedding. Default: None
+            position_ids (Optional[Tensor]): Optional tensor of position IDs to use in
+                position embedding. Default: None
+            inputs_embeds (Optional[Tensor]): Embeddings of input IDs (useful if
+                already computed elsewhere). Default: None
+    """
 
     def __init__(
         self,
@@ -62,7 +82,6 @@ class MDETRTextEmbeddings(nn.Module):
     def forward(
         self,
         input_ids: Tensor,
-        attention_mask: Optional[Tensor] = None,
         token_type_ids: Optional[Tensor] = None,
         position_ids: Optional[Tensor] = None,
         inputs_embeds: Optional[Tensor] = None,
@@ -75,9 +94,6 @@ class MDETRTextEmbeddings(nn.Module):
             position_ids = create_position_ids_from_input_ids(
                 input_ids, self.padding_idx
             )
-
-        if attention_mask is None:
-            attention_mask = torch.ones(((batch_size, seq_length)), device=device)
 
         if token_type_ids is None:
             if hasattr(self, "token_type_ids"):
@@ -93,7 +109,6 @@ class MDETRTextEmbeddings(nn.Module):
                     dtype=torch.long,
                     device=device,
                 )
-
         if inputs_embeds is None:
             inputs_embeds = self.word_embeddings(input_ids)
         token_type_embeddings = self.token_type_embeddings(token_type_ids)
@@ -107,8 +122,28 @@ class MDETRTextEmbeddings(nn.Module):
         return embeddings
 
 
-# Wrap TorchText's TransformerEncoder to take in embeddings instead of tokens
 class ModifiedTransformerEncoder(nn.Module):
+    """
+    Modified version of TorchText's RoBERTa transformer encoder
+    taking in embeddings instead of input IDs.
+
+    Args:   embedding_dim (int): Number of features in the input.
+            num_encoder_layers  (int): Number of layers in the encoder.
+            num_attention_heads (int): Number of heads in multi-head attention.
+            ffn_dimension (Optional[int]): Dimension of feedforward network inside
+                attention layers. Defaults to 4 * embedding_dim
+            dropout (float): dropout value in each layer. Default: 0.1.
+            normalize_before (bool): Whether to do PreNorm in encoder layers.
+                Default: False
+            return_all_layers (bool) Whether to return all layers (or just the last
+                one). Default: False
+
+    Inputs: embeddings (Tensor): Tensor of embeddings of a batch of input IDs.
+            attention_mask (Optional[Tensor]) Batch attention mask returned from
+                tokenizer (applied as padding mask inside self-attention).
+                Default: None
+    """ ""
+
     def __init__(
         self,
         embedding_dim: int,
@@ -140,13 +175,13 @@ class ModifiedTransformerEncoder(nn.Module):
 
     def _forward_return_all_layers(
         self,
-        embeddings: torch.Tensor,
-        attn_mask: Optional[torch.Tensor] = None,
+        embeddings: Tensor,
+        attention_mask: Optional[Tensor] = None,
     ) -> List[torch.Tensor]:
         encoded = embeddings
         states = [encoded]
         for layer in self.layers.layers:
-            encoded = layer(encoded, src_key_padding_mask=attn_mask)
+            encoded = layer(encoded, src_key_padding_mask=attention_mask)
             states.append(encoded)
         if self.normalize_before:
             for i, state in enumerate(states):
@@ -156,11 +191,11 @@ class ModifiedTransformerEncoder(nn.Module):
     def _forward_return_last_layer(
         self,
         embeddings: torch.Tensor,
-        attn_mask: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         encoded = embeddings
         for layer in self.layers.layers:
-            encoded = layer(encoded, src_key_padding_mask=attn_mask)
+            encoded = layer(encoded, src_key_padding_mask=attention_mask)
         if self.normalize_before:
             encoded = self.embedding_layer_norm(encoded)
         return encoded
@@ -168,18 +203,36 @@ class ModifiedTransformerEncoder(nn.Module):
     def forward(
         self,
         embeddings: torch.Tensor,
-        attn_mask: Optional[torch.Tensor] = None,
+        attention_mask: Optional[torch.Tensor] = None,
     ) -> Union[torch.Tensor, List[torch.Tensor]]:
         out: Union[torch.Tensor, List[torch.Tensor]]
         if self.return_all_layers:
-            out = self._forward_return_all_layers(embeddings, attn_mask)
+            out = self._forward_return_all_layers(embeddings, attention_mask)
         else:
-            out = self._forward_return_last_layer(embeddings, attn_mask)
+            out = self._forward_return_last_layer(embeddings, attention_mask)
 
         return out
 
 
 class MDETRTextEncoder(nn.Module):
+    """
+    Text encoder for MDETR. Combines an embedding module with a transformer encoder.
+
+    Args:   embeddings (nn.Module): Embedding module (input IDs -> embeddings).
+            encoder (nn.Module): Transformer encoder module
+                (embeddings -> encoder outputs).
+
+    Inputs: input_ids (Tensor): Tensor of input IDs to encode.
+            token_type_ids (Optional[Tensor]): Optional tensor of token type IDs to use
+                in token type embedding. Default: None
+            attention_mask (Optional[Tensor]): Attention mask for batch. Should equal 1
+                on masked tokens on 0 on non-masked tokens. Default: None (no masking)
+            position_ids (Optional[Tensor]): Optional tensor of position IDs to use in
+                embeddings. Default: None
+            inputs_embeds (Optional[Tensor]): Embeddings of input IDs (useful if
+                already computed elsewhere). Default: None
+    """ ""
+
     def __init__(self, embeddings: nn.Module, encoder: nn.Module):
         super().__init__()
         self.embeddings = embeddings
@@ -198,10 +251,9 @@ class MDETRTextEncoder(nn.Module):
             position_ids=position_ids,
             token_type_ids=token_type_ids,
         )
-        self.attention_mask = attention_mask
         out = self.encoder(
             embedding_output,
-            attn_mask=attention_mask,
+            attention_mask=attention_mask,
         )
 
         return out
