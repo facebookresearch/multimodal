@@ -15,7 +15,7 @@ from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
 )
 from torchmultimodal.utils.common import get_current_device
 
-from ...test_utils import set_rng_seed
+from test.test_utils import set_rng_seed
 
 
 class TestSwinTransformer3d(unittest.TestCase):
