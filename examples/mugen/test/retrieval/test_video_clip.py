@@ -11,7 +11,7 @@ from examples.mugen.retrieval.video_clip import VideoEncoder
 from test.test_utils import assert_expected, set_rng_seed
 
 
-class TestVideoCLIP:
+class TestVideoEncoder:
     @pytest.fixture
     def start(self):
         set_rng_seed(1234)
@@ -23,7 +23,7 @@ class TestVideoCLIP:
 
         return make_input_video
 
-    def test_video_encoder(self, start):
+    def test_forward(self, start):
         make_input_video = start
         input_video = make_input_video()
         encoder = VideoEncoder()
