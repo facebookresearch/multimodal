@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Tuple
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
+from torchvision.models._api import Weights
 from torchvision.models._utils import IntermediateLayerGetter
 from torchvision.models.resnet import resnet101, ResNet101_Weights
 
@@ -49,6 +50,7 @@ class FrozenBatchNorm2d(nn.Module):
         unexpected_keys: List[str],
         error_msgs: List[str],
     ):
+        # This allows us to also load this module from checkpoint with BatchNorm2d
         num_batches_tracked_key = prefix + "num_batches_tracked"
         if num_batches_tracked_key in state_dict:
             del state_dict[num_batches_tracked_key]
@@ -166,11 +168,14 @@ class MaskedIntermediateLayer(nn.Module):
         return tensor, mask
 
 
-def mdetr_resnet101_backbone() -> MaskedIntermediateLayer:
+def mdetr_resnet101_backbone(
+    weights: Weights = ResNet101_Weights.IMAGENET1K_V1,
+    norm_layer: nn.Module = FrozenBatchNorm2d,
+) -> MaskedIntermediateLayer:
     body = resnet101(
         replace_stride_with_dilation=[False, False, False],
-        weights=ResNet101_Weights.IMAGENET1K_V1,
-        norm_layer=FrozenBatchNorm2d,
+        weights=weights,
+        norm_layer=norm_layer,
     )
 
     backbone = MaskedIntermediateLayer(body, intermediate_layer="layer4")
