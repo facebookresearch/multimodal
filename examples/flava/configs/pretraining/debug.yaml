@@ -25,7 +25,7 @@ datasets:
     _target_: definitions.TrainingSingleDatasetInfo
     train:
       - _target_: definitions.HFDatasetInfo
-        key: aps/imagenet2012
+        key: imagenet-1k
         subset: default
         extra_kwargs:
           data_dir: ${oc.env:IMAGENET_TAR}
@@ -35,6 +35,8 @@ datasets:
       - _target_: definitions.HFDatasetInfo
         key: wikitext
         subset: wikitext-103-raw-v1
+    datamodule_extra_kwargs:
+      text_columns: ["text"]
   vl:
     _target_: definitions.TrainingSingleDatasetInfo
     train:
