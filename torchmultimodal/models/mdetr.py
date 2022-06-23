@@ -4,6 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import math
 from copy import deepcopy
 from typing import Callable, List, Optional, Tuple
 
@@ -11,7 +12,7 @@ import torch
 from torch import nn, Tensor
 from torchmultimodal.modules.encoders.mdetr_image_encoder import (
     mdetr_resnet101_backbone,
-    PositionEmbeddingSine,
+    PositionEmbedding2D,
 )
 from torchmultimodal.modules.encoders.mdetr_text_encoder import (
     mdetr_roberta_text_encoder,
@@ -662,7 +663,7 @@ def mdetr_resnet101(
 ) -> MDETR:
     image_backbone = resnet101()
     image_backbone = mdetr_resnet101_backbone()
-    pos_embed = PositionEmbeddingSine(128, normalize=True)
+    pos_embed = PositionEmbedding2D(128, scale=2 * math.pi)
     image_backbone.num_channels = 2048
     text_encoder = mdetr_roberta_text_encoder()
     if embedding_dim is None:
