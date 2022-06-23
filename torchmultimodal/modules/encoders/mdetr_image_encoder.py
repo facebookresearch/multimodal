@@ -4,8 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import math
-from typing import Tuple
+from typing import Callable, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -52,7 +51,7 @@ class FrozenBatchNorm2d(nn.Module):
         return x * scale + bias
 
 
-class PositionEmbeddingSine(nn.Module):
+class PositionEmbedding2D(nn.Module):
     """
     This is a more standard version of the position embedding, very similar to the one
     used by the Attention Is All You Need paper (https://arxiv.org/abs/1706.03762),
@@ -61,35 +60,32 @@ class PositionEmbeddingSine(nn.Module):
     Args:   num_pos_feats (int): Number of positional features
                 (should be half the output embedding size). Default = 64
             temperature (int): Base for generating frequency mesh. Default = 10000
-            normalize (bool): Whether to normalize the image grid to values in [0,1].
-                Default = False
-            scale (float): Scaling factor when performing normalization. Default = None
+            scale (float): Scaling factor when performing normalization. Setting
+                scale = s will rescale values to fall in [0, s].
+                Default = None (no normalization)
 
-    Inputs: mask (Tensor): Padding mask (used to determine size of each image in batch).
+    Inputs: mask (Tensor): Padding mask (used to infer size of each image in batch).
+                Input size: (batch_size, height, width)
+
+    Returns: Tensor of size (batch_size, 2 * num_pos_feats, height, width)
     """
 
     def __init__(
         self,
         num_pos_feats: int = 64,
         temperature: int = 10000,
-        normalize: bool = False,
         scale: float = None,
     ):
         super().__init__()
         self.num_pos_feats = num_pos_feats
         self.temperature = temperature
-        self.normalize = normalize
-        if scale is not None and normalize is False:
-            raise ValueError("normalize should be True if scale is passed")
-        if scale is None:
-            scale = 2 * math.pi
         self.scale = scale
 
     def forward(self, mask: Tensor) -> Tensor:
         not_mask = ~mask
         y_embed = not_mask.cumsum(1, dtype=torch.float32)
         x_embed = not_mask.cumsum(2, dtype=torch.float32)
-        if self.normalize:
+        if self.scale is not None:
             eps = 1e-6
             y_embed = y_embed / (y_embed[:, -1:, :] + eps) * self.scale
             x_embed = x_embed / (x_embed[:, :, -1:] + eps) * self.scale
@@ -145,7 +141,7 @@ class MaskedIntermediateLayer(nn.Module):
 
 def mdetr_resnet101_backbone(
     weights: Weights = ResNet101_Weights.IMAGENET1K_V1,
-    norm_layer: nn.Module = FrozenBatchNorm2d,
+    norm_layer: Callable[..., nn.Module] = FrozenBatchNorm2d,
 ) -> MaskedIntermediateLayer:
     body = resnet101(
         replace_stride_with_dilation=[False, False, False],
