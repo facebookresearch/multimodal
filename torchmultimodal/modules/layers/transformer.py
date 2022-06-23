@@ -18,8 +18,14 @@ from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 
 FLAVATransformerOutput = namedtuple(
     "FLAVATransformerOutput",
-    ["last_hidden_state", "pooler_output", "hidden_states", "attentions"],
-    defaults=(None, None, None, None),
+    [
+        "last_hidden_state",
+        "pooler_output",
+        "hidden_states",
+        "attentions",
+        "image_labels",
+    ],
+    defaults=(None, None, None, None, None),
 )
 
 

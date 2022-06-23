@@ -19,11 +19,11 @@ class CommitmentLoss(nn.Module):
         commitment_cost (float): multiplicative weight for the commitment loss value
     """
 
-    def __init__(self, commitment_cost: float = 1.0, **kwargs: Any):
+    def __init__(self, commitment_cost: float = 1.0, **kwargs: Any) -> None:
         super().__init__()
         self.commitment_cost = commitment_cost
 
-    def forward(self, quantized: Tensor, encoded: Tensor):
+    def forward(self, quantized: Tensor, encoded: Tensor) -> Tensor:
         # Quantized vectors must be detached because commitment loss only lets gradient flow through encoder output
         loss = F.mse_loss(quantized.detach(), encoded) * self.commitment_cost
 
