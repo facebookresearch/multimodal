@@ -27,9 +27,11 @@ jobs:
           conda activate test
           conda install pytorch torchvision torchtext cpuonly -c pytorch-nightly
           pip install -e ".[dev]"
-      - name: Run unit tests
+      - name: Run unit tests with coverage
         shell: bash -l {0}
         run: |
           set -eux
           conda activate test
-          pytest test -vv
+          pytest --cov=. --cov-report xml test -vv
+      - name: Upload Coverage to Codecov
+        uses: codecov/codecov-action@v2
