@@ -4,15 +4,20 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Dict
+from typing import NamedTuple
 
 import torch
 import torch.nn.functional as F
 from torch import nn
 
 
+class CLIPOutput(NamedTuple):
+    embeddings_a: torch.Tensor
+    embeddings_b: torch.Tensor
+
+
 class CLIPArchitecture(nn.Module):
-    """CLIP is a model for contrastive image and text pretraining.
+    """CLIP is a model for contrastive pretraining between two modalities.
 
     CLIP (https://arxiv.org/pdf/2103.00020.pdf) jointly trains an image encoder
     (either ResNet or ViT) and a text encoder (Transformer) to predict correct
@@ -20,32 +25,32 @@ class CLIPArchitecture(nn.Module):
     encoders, while the loss is implemented in ContrastiveLossWithTemperature.
 
 
-    Args:   vision_encoder (nn.Module): Instantiated vision encoder.
+    Args:   encoder_a (nn.Module): Instantiated encoder for modality A.
                 See e.g. ResNetForCLIP class.
-            text_encoder (nn.Module): Instantiated text encoder.
-                See CLIPTextEncoder class.
+            encoder_b (nn.Module): Instantiated encoder for modality B.
+                See e.g. CLIPTextEncoder class.
 
-    Inputs: image (Tensor): Tensor containing image features.
-            text (Tensor): Tensor containing text features.
+    Inputs: features_a (Tensor): Tensor containing features of modality A.
+            features_b (Tensor): Tensor containing features of modality B.
     """
 
     def __init__(
         self,
-        vision_encoder: nn.Module,
-        text_encoder: nn.Module,
+        encoder_a: nn.Module,
+        encoder_b: nn.Module,
     ):
         super().__init__()
-        self.vision_encoder = vision_encoder
-        self.text_encoder = text_encoder
+        self.encoder_a = encoder_a
+        self.encoder_b = encoder_b
 
     def forward(
         self,
-        image: torch.Tensor,
-        text: torch.Tensor,
-    ) -> Dict[str, torch.Tensor]:
+        features_a: torch.Tensor,
+        features_b: torch.Tensor,
+    ) -> CLIPOutput:
 
-        img_embeddings = self.vision_encoder(image)
-        text_embeddings = self.text_encoder(text)
-        img_embeddings = F.normalize(img_embeddings)
-        text_embeddings = F.normalize(text_embeddings)
-        return {"image": img_embeddings, "text": text_embeddings}
+        embeddings_a = self.encoder_a(features_a)
+        embeddings_b = self.encoder_b(features_b)
+        embeddings_a = F.normalize(embeddings_a)
+        embeddings_b = F.normalize(embeddings_b)
+        return CLIPOutput(embeddings_a=embeddings_a, embeddings_b=embeddings_b)
