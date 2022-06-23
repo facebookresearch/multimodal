@@ -1,12 +1,21 @@
-_target_: definitions.FLAVAArguments
+_target_: flava.definitions.FLAVAArguments
 training:
-  _target_: definitions.TrainingArguments
+  _target_: flava.definitions.TrainingArguments
   lightning:
     max_steps: 450000
     gpus: -1
     progress_bar_refresh_rate: 50
     val_check_interval: 10000
     num_sanity_val_steps: 0
+    strategy: ddp
+  lightning_checkpoint:
+    dirpath: "."
+    filename: flava-{epoch:02d}-{step}
+    save_last: true
+    every_n_train_steps: 1000
+    save_on_train_epoch_end: true
+    verbose: true
+  lightning_load_from_checkpoint: null
   seed: -1
   batch_size: 8
   num_workers: 4
@@ -16,37 +25,37 @@ training:
   warmup_steps: 2000
 
 datasets:
-  _target_: definitions.TrainingDatasetsInfo
+  _target_: flava.definitions.TrainingDatasetsInfo
   selected:
   - image
   - vl
   - text
   image:
-    _target_: definitions.TrainingSingleDatasetInfo
+    _target_: flava.definitions.TrainingSingleDatasetInfo
     train:
-      - _target_: definitions.HFDatasetInfo
+      - _target_: flava.definitions.HFDatasetInfo
         key: imagenet-1k
         subset: default
         extra_kwargs:
           data_dir: ${oc.env:IMAGENET_TAR}
   text:
-    _target_: definitions.TrainingSingleDatasetInfo
+    _target_: flava.definitions.TrainingSingleDatasetInfo
     train:
-      - _target_: definitions.HFDatasetInfo
+      - _target_: flava.definitions.HFDatasetInfo
         key: wikitext
         subset: wikitext-103-raw-v1
     datamodule_extra_kwargs:
       text_columns: ["text"]
   vl:
-    _target_: definitions.TrainingSingleDatasetInfo
+    _target_: flava.definitions.TrainingSingleDatasetInfo
     train:
-      - _target_: definitions.HFDatasetInfo
+      - _target_: flava.definitions.HFDatasetInfo
         key: red_caps
         subset: jellyfish
         rename_columns:
           - ["caption", "text"]
     val:
-      - _target_: definitions.HFDatasetInfo
+      - _target_: flava.definitions.HFDatasetInfo
         key: red_caps
         subset: jellyfish
         rename_columns:
