@@ -94,7 +94,7 @@ class ALBEFTextEmbeddings(nn.Module):
         self.word_embeddings = nn.Embedding(vocab_size, hidden_size, padding_idx)
         self.position_embeddings = nn.Embedding(max_position_embeddings, hidden_size)
         self.token_type_embeddings = nn.Embedding(type_vocab_size, hidden_size)
-        self.Layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
+        self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
 
     def forward(self, input_ids: Tensor) -> Tensor:
         input_shape = input_ids.size()
@@ -110,7 +110,7 @@ class ALBEFTextEmbeddings(nn.Module):
         token_type_embeddings = self.token_type_embeddings(token_type_ids)
 
         embeddings = inputs_embeds + position_embeddings + token_type_embeddings
-        embeddings = self.Layer_norm(embeddings)
+        embeddings = self.layer_norm(embeddings)
         return embeddings
 
 
@@ -161,7 +161,7 @@ class ALBEFTransformerLayer(nn.Module):
         self.dense1 = nn.Linear(hidden_size, intermediate_size)
         self.transform_act_fn = nn.GELU()
         self.dense2 = nn.Linear(intermediate_size, hidden_size)
-        self.Layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
+        self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
 
     def forward(
         self,
@@ -172,7 +172,7 @@ class ALBEFTransformerLayer(nn.Module):
         dense1_output = self.dense1(attention_output)
         act_output = self.transform_act_fn(dense1_output)
         dense2_output = self.dense2(act_output)
-        norm_output = self.Layer_norm(dense2_output + attention_output)
+        norm_output = self.layer_norm(dense2_output + attention_output)
         return norm_output
 
 
@@ -188,7 +188,7 @@ class ALBEFTransformerAttention(nn.Module):
             hidden_size, num_attention_heads
         )
         self.dense = nn.Linear(hidden_size, hidden_size)
-        self.Layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
+        self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
 
     def forward(
         self,
@@ -197,7 +197,7 @@ class ALBEFTransformerAttention(nn.Module):
     ) -> Tensor:
         self_output = self.self_attention(hidden_states, attention_mask)
         dense_output = self.dense(self_output)
-        attention_output = self.Layer_norm(dense_output + hidden_states)
+        attention_output = self.layer_norm(dense_output + hidden_states)
         return attention_output
 
 
