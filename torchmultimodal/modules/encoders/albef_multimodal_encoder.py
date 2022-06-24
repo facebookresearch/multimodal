@@ -5,6 +5,8 @@
 # LICENSE file in the root directory of this source tree.
 
 
+from typing import Callable
+
 from torch import nn, Tensor
 from torchmultimodal.modules.encoders.albef_text_encoder import (
     ALBEFTransformerAttention,
@@ -23,6 +25,7 @@ class ALBEFMultimodalEncoder(nn.Module):
         intermediate_size (int): Dimensionality of the “intermediate” (i.e., feed-forward) layer in the Transformer encoder.
             Default is 3072.
         layer_norm_eps (float): The epsilon used by the layer normalization layers. Default is 1e-12.
+        transform_act_fn (Callable[[Tensor], Tensor]): The activation function for the Transformer encoder layer. Defualt is GELU.
 
     Inputs:
         image_embeds (Tensor of size (batch_size, image_seq_length, hidden_size)): Image embeddings from a vision encoder.
@@ -38,6 +41,7 @@ class ALBEFMultimodalEncoder(nn.Module):
         num_attention_heads: int = 12,
         intermediate_size: int = 3072,
         layer_norm_eps: float = 1e-12,
+        transform_act_fn: Callable[[Tensor], Tensor] = nn.functional.gelu,
     ) -> None:
         super().__init__()
         self.layer = nn.ModuleList(
@@ -47,6 +51,7 @@ class ALBEFMultimodalEncoder(nn.Module):
                     intermediate_size,
                     num_attention_heads,
                     layer_norm_eps,
+                    transform_act_fn,
                 )
                 for _ in range(num_hidden_layers)
             ]
@@ -76,6 +81,7 @@ class ALBEFTransformerLayerWithCrossAttention(nn.Module):
         intermediate_size: int,
         num_attention_heads: int,
         layer_norm_eps: float,
+        transform_act_fn: Callable[[Tensor], Tensor],
     ) -> None:
         super().__init__()
         self.attention = ALBEFTransformerAttention(
@@ -85,7 +91,7 @@ class ALBEFTransformerLayerWithCrossAttention(nn.Module):
             hidden_size, num_attention_heads, layer_norm_eps
         )
         self.dense1 = nn.Linear(hidden_size, intermediate_size)
-        self.transform_act_fn = nn.GELU()
+        self.transform_act_fn = transform_act_fn
         self.dense2 = nn.Linear(intermediate_size, hidden_size)
         self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
 
