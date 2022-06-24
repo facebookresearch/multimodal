@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
+from typing import Optional
 
 import torch
 from torch import nn, Tensor
@@ -194,8 +195,11 @@ class ALBEFTransformerAttention(nn.Module):
         self,
         hidden_states: Tensor,
         attention_mask: Tensor,
+        encoder_hidden_states: Optional[Tensor] = None,
     ) -> Tensor:
-        self_output = self.self_attention(hidden_states, attention_mask)
+        self_output = self.self_attention(
+            hidden_states, attention_mask, encoder_hidden_states
+        )
         dense_output = self.dense(self_output)
         attention_output = self.layer_norm(dense_output + hidden_states)
         return attention_output
@@ -226,10 +230,17 @@ class ALBEFTransformerSelfAttention(nn.Module):
         self,
         hidden_states: Tensor,
         attention_mask: Tensor,
+        encoder_hidden_states: Optional[Tensor] = None,
     ) -> Tensor:
         mixed_query_layer = self.query(hidden_states)
-        mixed_key_layer = self.key(hidden_states)
-        mixed_value_layer = self.value(hidden_states)
+
+        if encoder_hidden_states is None:
+            mixed_key_layer = self.key(hidden_states)
+            mixed_value_layer = self.value(hidden_states)
+        else:
+            mixed_key_layer = self.key(encoder_hidden_states)
+            mixed_value_layer = self.value(encoder_hidden_states)
+            attention_mask = None
 
         query_layer = transpose_for_scores(
             self.num_attention_heads, self.attention_head_size, mixed_query_layer
