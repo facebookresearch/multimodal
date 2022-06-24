@@ -52,6 +52,7 @@ def dummy_albef_model():
         nn.Linear(3, 2),
         embed_dim=2,
         queue_size=4,
+        momentum=0.75,
     )
 
 
@@ -147,7 +148,7 @@ def test_momentum_update(dummy_albef_model):
     dummy_albef_model.models[0].weight = nn.Parameter(init_weight)
     dummy_albef_model.models_m[0].weight = nn.Parameter(init_weight_m)
     dummy_albef_model._momentum_update()
-    expected_weight_m = Tensor([[5.9750, 4.9850, 3.9950], [3.0050, 2.0150, 1.0250]])
+    expected_weight_m = Tensor([[4.75, 4.25, 3.75], [3.25, 2.75, 2.25]])
     assert_expected(dummy_albef_model.models[0].weight, init_weight, rtol=0, atol=1e-4)
     assert_expected(
         dummy_albef_model.models_m[0].weight, expected_weight_m, rtol=0, atol=1e-4
