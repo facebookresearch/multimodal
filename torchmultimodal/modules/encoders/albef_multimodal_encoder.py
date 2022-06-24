@@ -58,9 +58,7 @@ class ALBEFMultimodalEncoder(nn.Module):
         text_embeds: Tensor,
         text_atts: Tensor,
     ) -> Tensor:
-        if text_atts.size() == text_embeds.size()[:-1]:
-            text_atts = get_extended_attention_mask(text_atts)
-
+        text_atts = get_extended_attention_mask(text_atts)
         hidden_states = text_embeds
         for layer_module in self.layer:
             hidden_states = layer_module(
