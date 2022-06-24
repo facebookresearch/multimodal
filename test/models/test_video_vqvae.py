@@ -15,34 +15,23 @@ from torchmultimodal.models.video_vqvae import (
 )
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(autouse=True)
 def random():
     set_rng_seed(4)
 
 
 @pytest.fixture(scope="module")
-def in_channels():
-    return (2, 2, 1)
-
-
-@pytest.fixture(scope="module")
-def out_channels():
-    return (2, 2, 2)
-
-
-@pytest.fixture(scope="module")
-def kernel_sizes():
-    return (2, 2, 2)
-
-
-@pytest.fixture(scope="module")
-def strides():
-    return (1, 1, 1)
+def params():
+    in_channel_dims = (2, 2)
+    out_channel_dims = (2, 2)
+    kernel_sizes = (2, 2, 2)
+    strides = (1, 1, 1)
+    return in_channel_dims, out_channel_dims, kernel_sizes, strides
 
 
 @pytest.fixture(scope="module")
 def input_tensor():
-    return 2 * torch.ones(1, 2, 2, 2, 2)
+    return torch.ones(1, 2, 2, 2, 2)
 
 
 class TestAttentionResidualBlock:
@@ -50,7 +39,7 @@ class TestAttentionResidualBlock:
         with pytest.raises(ValueError):
             _ = AttentionResidualBlock(1)
 
-    def test_forward(self, random):
+    def test_forward(self):
         block = AttentionResidualBlock(4)
         x = 2 * torch.ones(1, 4, 2, 2, 2)
         actual = block(x)
@@ -80,28 +69,17 @@ class TestAttentionResidualBlock:
 
 
 class TestVideoEncoder:
-    @pytest.fixture(scope="function")
-    def encoder(self, random, in_channels, out_channels, kernel_sizes, strides):
+    @pytest.fixture
+    def encoder(self, params):
+        in_channel_dims, _, kernel_sizes, strides = params
         return VideoEncoder(
-            in_channels=in_channels[:2],
-            out_channels=out_channels[:2],
-            kernel_sizes=kernel_sizes[:2],
-            strides=strides[:2],
+            in_channel_dims=in_channel_dims,
+            kernel_sizes=kernel_sizes,
+            strides=strides,
             n_res_layers=1,
+            attn_hidden_dim=2,
             embedding_dim=2,
         )
-
-    def test_invalid_arg_length(self, in_channels, out_channels, kernel_sizes, strides):
-        with pytest.raises(ValueError):
-            _ = VideoEncoder(
-                in_channels[:2], out_channels, kernel_sizes[:2], strides[:2], 1, 1
-            )
-
-    def test_invalid_in_out_channels(
-        self, in_channels, out_channels, kernel_sizes, strides
-    ):
-        with pytest.raises(ValueError):
-            _ = VideoEncoder(in_channels, out_channels, kernel_sizes, strides, 1, 1)
 
     def test_forward(self, input_tensor, encoder):
         actual = encoder(input_tensor)
@@ -109,49 +87,31 @@ class TestVideoEncoder:
             [
                 [
                     [
-                        [[0.1621, 0.3358], [0.2430, 0.3202]],
-                        [[0.2081, 0.3358], [0.2254, 0.2343]],
+                        [[0.1565, 0.3358], [0.2368, 0.3180]],
+                        [[0.2150, 0.3358], [0.2223, 0.2448]],
                     ],
                     [
-                        [[0.9593, 0.6932], [0.8883, 0.7170]],
-                        [[1.0707, 0.6932], [1.0197, 0.9931]],
+                        [[0.9679, 0.6932], [0.9255, 0.7203]],
+                        [[1.0502, 0.6932], [1.0287, 0.9623]],
                     ],
                 ]
             ]
         )
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
-    def test_res_stack_length(self, encoder):
-        assert len(encoder.res_stack) == 3, "res stack incorrect size"
-
-    def test_num_convs(self, encoder):
-        # Account for ReLU layers minus the last one which is removed
-        assert len(encoder.convs) == 2 * 2 - 1, "incorrect number of conv layers"
-
 
 class TestVideoDecoder:
-    @pytest.fixture(scope="function")
-    def decoder(self, random, in_channels, out_channels, kernel_sizes, strides):
+    @pytest.fixture
+    def decoder(self, params):
+        _, out_channel_dims, kernel_sizes, strides = params
         return VideoDecoder(
-            in_channels=in_channels[:2],
-            out_channels=out_channels[:2],
-            kernel_sizes=kernel_sizes[:2],
-            strides=strides[:2],
+            out_channel_dims=out_channel_dims,
+            kernel_sizes=kernel_sizes,
+            strides=strides,
             n_res_layers=1,
+            attn_hidden_dim=2,
             embedding_dim=2,
         )
-
-    def test_invalid_arg_length(self, in_channels, out_channels, kernel_sizes, strides):
-        with pytest.raises(ValueError):
-            _ = VideoDecoder(
-                in_channels[:2], out_channels, kernel_sizes[:2], strides[:2], 1, 1
-            )
-
-    def test_invalid_in_out_channels(
-        self, in_channels, out_channels, kernel_sizes, strides
-    ):
-        with pytest.raises(ValueError):
-            _ = VideoDecoder(in_channels, out_channels, kernel_sizes, strides, 1, 1)
 
     def test_forward(self, input_tensor, decoder):
         actual = decoder(input_tensor)
@@ -159,21 +119,14 @@ class TestVideoDecoder:
             [
                 [
                     [
-                        [[0.1365, 0.1426], [0.2040, 0.0228]],
-                        [[0.1400, 0.0682], [0.0854, -0.0561]],
+                        [[0.1138, 0.1543], [0.1376, 0.1744]],
+                        [[0.1230, 0.1658], [0.0899, 0.1514]],
                     ],
                     [
-                        [[0.2297, 0.1594], [0.2598, 0.2370]],
-                        [[0.1883, 0.0922], [0.2612, 0.1610]],
+                        [[0.2163, 0.1884], [0.2364, 0.2448]],
+                        [[0.1997, 0.1545], [0.2628, 0.2646]],
                     ],
                 ]
             ]
         )
         assert_expected(actual, expected, rtol=0, atol=1e-4)
-
-    def test_res_stack_length(self, decoder):
-        assert len(decoder.res_stack) == 3, "res stack incorrect size"
-
-    def test_num_convs(self, decoder):
-        # Account for ReLU layers minus the last one which is removed
-        assert len(decoder.convts) == 2 * 2 - 1, "incorrect number of conv layers"

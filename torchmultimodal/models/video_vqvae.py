@@ -10,6 +10,7 @@ from torch import nn, Tensor
 from torchmultimodal.modules.layers.attention import AxialAttentionBlock
 
 from torchmultimodal.modules.layers.conv import SamePadConv3d, SamePadConvTranspose3d
+from torchmultimodal.utils.common import format_convnet_params
 
 
 class VideoEncoder(nn.Module):
@@ -21,18 +22,17 @@ class VideoEncoder(nn.Module):
     https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
 
     Args:
-        in_channels (Tuple[int]): tuple of input channel dimension for each conv layer
-        out_channels (Tuple[int]): tuple of output channel dimension for each conv layer
-        kernel_sizes (Tuple[int or Tuple[int]]): tuple of kernel sizes for each conv layer
-        strides (Tuple[int or Tuple[int]]): tuple of strides for each conv layer
+        in_channel_dims (Tuple[int, ...]): input channel dimension for each conv layer
+        kernel_sizes (int or Tuple[int, int, int] or Tuple[Tuple[int, int, int], ...]): kernel sizes for each conv layer
+        strides (int or Tuple[int, int, int] or Tuple[Tuple[int, int, int], ...]): strides for each conv layer
         n_res_layers (int): number of ``AttentionResidualBlocks`` to include
+        attn_hidden_dim (int): size of hidden dimension in attention block
         embedding_dim (int): size of hidden dimension of final output
         **kwargs (dict): keyword arguments to be passed into ``SamePadConv3d`` and used by ``nn.Conv3d``
 
     Raises:
-        ValueError: if the lengths of ``in_channels``, ``out_channels``, ``kernel_sizes``,
+        ValueError: if the lengths of ``in_channel_dims``, ``kernel_sizes``,
                     and ``strides`` are not all equivalent
-        ValueError: if ``in_channels`` is not identical to ``out_channels`` offset by one
 
     Inputs:
         x (Tensor): input video data with shape (b x c x d1 x d2 x d3)
@@ -40,42 +40,47 @@ class VideoEncoder(nn.Module):
 
     def __init__(
         self,
-        in_channels: Tuple[int, ...],
-        out_channels: Tuple[int, ...],
-        kernel_sizes: Tuple[Union[int, Tuple[int, int, int]], ...],
-        strides: Tuple[Union[int, Tuple[int, int, int]], ...],
+        in_channel_dims: Tuple[int, ...],
+        kernel_sizes: Union[int, Tuple[int, ...], Tuple[Tuple[int, ...], ...]],
+        strides: Union[int, Tuple[int, ...], Tuple[Tuple[int, ...], ...]],
         n_res_layers: int,
+        attn_hidden_dim: int,
         embedding_dim: int,
         **kwargs: Dict[str, Any],
     ):
         super().__init__()
-        if not (
-            len(in_channels) == len(out_channels) == len(kernel_sizes) == len(strides)
-        ):
-            raise ValueError(
-                "in_channels, out_channels, kernel_sizes, strides should all have the same length"
-            )
-        if in_channels[1:] != out_channels[:-1]:
-            raise ValueError("out_channels should match in_channels offset by one")
+        in_channel_dims, kernel_sizes, strides = format_convnet_params(
+            in_channel_dims, kernel_sizes, strides
+        )
 
         convolutions: List[nn.Module] = []
-        for idx, (i, o, k, s) in enumerate(
-            zip(in_channels, out_channels, kernel_sizes, strides)
-        ):
-            convolutions.append(SamePadConv3d(i, o, k, s, bias=True, **kwargs))
+        n_conv_layers = len(in_channel_dims)
+        for i in range(n_conv_layers):
+            in_channel = in_channel_dims[i]
+            out_channel = (
+                in_channel_dims[i + 1] if i < n_conv_layers - 1 else attn_hidden_dim
+            )
+            kernel = kernel_sizes[i]
+            stride = strides[i]
+            convolutions.append(
+                SamePadConv3d(
+                    in_channel, out_channel, kernel, stride, bias=True, **kwargs
+                )
+            )
             # Do not apply relu to last conv layer before res stack
-            if idx < len(strides) - 1:
+            if i < n_conv_layers - 1:
                 convolutions.append(nn.ReLU())
         self.convs = nn.Sequential(*convolutions)
 
-        attn_hidden_dim = out_channels[-1]
         self.res_stack = nn.Sequential(
             *[AttentionResidualBlock(attn_hidden_dim) for _ in range(n_res_layers)],
             nn.BatchNorm3d(attn_hidden_dim),
             nn.ReLU(),
         )
 
-        self.conv_out = SamePadConv3d(attn_hidden_dim, embedding_dim, 1)
+        self.conv_out = SamePadConv3d(
+            attn_hidden_dim, embedding_dim, kernel_size=1, stride=1
+        )
 
     def forward(self, x: Tensor) -> Tensor:
         h = self.convs(x)
@@ -93,19 +98,18 @@ class VideoDecoder(nn.Module):
     https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
 
     Args:
-        in_channels (Tuple[int]): tuple of input channel dimension for each conv layer
-        out_channels (Tuple[int]): tuple of output channel dimension for each conv layer
-        kernel_sizes (Tuple[int or Tuple[int]]): tuple of kernel sizes for each conv layer
-        strides (Tuple[int or Tuple[int]]): tuple of strides for each conv layer
+        out_channel_dims (Tuple[int, ...]): output channel dimension for each conv layer
+        kernel_sizes (int or Tuple[int, int, int] or Tuple[Tuple[int, int, int], ...]): kernel sizes for each conv layer
+        strides (int or Tuple[int, int, int] or Tuple[Tuple[int, int, int], ...]): strides for each conv layer
         n_res_layers (int): number of ``AttentionResidualBlocks`` to include
+        attn_hidden_dim (int): size of hidden dimension in attention block
         embedding_dim (int): size of hidden dimension of input
         **kwargs (dict): keyword arguments to be passed into ``SamePadConvTranspose3d``
                          and used by ``nn.ConvTranspose3d``
 
     Raises:
-        ValueError: if the lengths of ``in_channels``, ``out_channels``, ``kernel_sizes``,
+        ValueError: if the lengths of ``out_channel_dims``, ``kernel_sizes``,
                     and ``strides`` are not all equivalent
-        ValueError: if ``in_channels`` is not identical to ``out_channels`` offset by one
         ValueError: if input Tensor channel dim does not match ``embedding_dim``
 
     Inputs:
@@ -114,40 +118,43 @@ class VideoDecoder(nn.Module):
 
     def __init__(
         self,
-        in_channels: Tuple[int, ...],
-        out_channels: Tuple[int, ...],
-        kernel_sizes: Tuple[Union[int, Tuple[int, int, int]], ...],
-        strides: Tuple[Union[int, Tuple[int, int, int]], ...],
+        out_channel_dims: Tuple[int, ...],
+        kernel_sizes: Union[int, Tuple[int, ...], Tuple[Tuple[int, ...], ...]],
+        strides: Union[int, Tuple[int, ...], Tuple[Tuple[int, ...], ...]],
         n_res_layers: int,
+        attn_hidden_dim: int,
         embedding_dim: int,
         **kwargs: Dict[str, Any],
     ):
         super().__init__()
-        if not (
-            len(in_channels) == len(out_channels) == len(kernel_sizes) == len(strides)
-        ):
-            raise ValueError(
-                "in_channels, out_channels, kernel_sizes, strides should all have the same length"
-            )
-        if in_channels[1:] != out_channels[:-1]:
-            raise ValueError("out_channels should match in_channels offset by one")
+        out_channel_dims, kernel_sizes, strides = format_convnet_params(
+            out_channel_dims, kernel_sizes, strides
+        )
 
-        attn_hidden_dim = in_channels[0]
-        self.conv_in = SamePadConv3d(embedding_dim, attn_hidden_dim, 1)
+        self.conv_in = SamePadConv3d(
+            embedding_dim, attn_hidden_dim, kernel_size=1, stride=1
+        )
+
         self.res_stack = nn.Sequential(
             *[AttentionResidualBlock(attn_hidden_dim) for _ in range(n_res_layers)],
             nn.BatchNorm3d(attn_hidden_dim),
             nn.ReLU(),
         )
+
         transpose_convolutions: List[nn.Module] = []
-        for idx, (i, o, k, s) in enumerate(
-            zip(in_channels, out_channels, kernel_sizes, strides)
-        ):
+        n_conv_layers = len(out_channel_dims)
+        for i in range(n_conv_layers):
+            in_channel = out_channel_dims[i - 1] if i > 0 else attn_hidden_dim
+            out_channel = out_channel_dims[i]
+            kernel = kernel_sizes[i]
+            stride = strides[i]
             transpose_convolutions.append(
-                SamePadConvTranspose3d(i, o, k, s, bias=True, **kwargs)
+                SamePadConvTranspose3d(
+                    in_channel, out_channel, kernel, stride, bias=True, **kwargs
+                )
             )
             # Do not apply relu to output convt layer
-            if idx < len(strides) - 1:
+            if i < n_conv_layers - 1:
                 transpose_convolutions.append(nn.ReLU())
         self.convts = nn.Sequential(*transpose_convolutions)
 
