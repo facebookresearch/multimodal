@@ -8,7 +8,8 @@ import hashlib
 import os
 from collections import OrderedDict
 from dataclasses import fields
-from typing import List, Optional
+from itertools import repeat
+from typing import List, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -144,3 +145,30 @@ class ModelOutput(OrderedDict):
     def items(self):
         for field in fields(self):
             yield field.name, getattr(self, field.name)
+
+
+def format_convnet_params(
+    channel_dims: Tuple[int, ...],
+    kernel_sizes: Union[int, Tuple[int, ...], Tuple[Tuple[int, ...], ...]],
+    strides: Union[int, Tuple[int, ...], Tuple[Tuple[int, ...], ...]],
+) -> Tuple:
+
+    n_conv_layers = len(channel_dims)
+
+    if isinstance(kernel_sizes, int):
+        kernel_sizes = tuple(
+            repeat((kernel_sizes, kernel_sizes, kernel_sizes), n_conv_layers)
+        )
+    # For single tuple case, repeat n_conv_layers times
+    if isinstance(kernel_sizes, tuple) and isinstance(kernel_sizes[0], int):
+        kernel_sizes = tuple(repeat(kernel_sizes, n_conv_layers))
+    if isinstance(strides, int):
+        strides = tuple(repeat((strides, strides, strides), n_conv_layers))
+    # For single tuple case, repeat n_conv_layers times
+    if isinstance(strides, tuple) and isinstance(strides[0], int):
+        strides = tuple(repeat(strides, n_conv_layers))
+
+    if not (len(channel_dims) == len(kernel_sizes) == len(strides)):
+        raise ValueError("channel_dims, kernel_sizes, strides should have same length")
+
+    return channel_dims, kernel_sizes, strides
