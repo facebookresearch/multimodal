@@ -24,7 +24,7 @@ class VideoEncoder(nn.Module):
     def __init__(self):
         super().__init__()
         self.model = S3D(400)
-        self.embedding_dim = list(self.model.fc.children())[0].in_channels
+        self.embedding_dim = self.model.fc.in_channels
         self.model.fc = nn.Identity()
 
     def forward(self, x):
