@@ -126,7 +126,7 @@ class VideoEncoder(nn.Module):
     ):
         super().__init__()
         in_channel_dims, kernel_sizes, strides = format_convnet_params(
-            in_channel_dims, kernel_sizes, strides
+            in_channel_dims, kernel_sizes, strides, 3
         )
 
         convolutions: List[nn.Module] = []
@@ -204,7 +204,7 @@ class VideoDecoder(nn.Module):
     ):
         super().__init__()
         out_channel_dims, kernel_sizes, strides = format_convnet_params(
-            out_channel_dims, kernel_sizes, strides
+            out_channel_dims, kernel_sizes, strides, 3
         )
 
         self.conv_in = SamePadConv3d(
