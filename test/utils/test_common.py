@@ -9,7 +9,7 @@ import pytest
 import torch
 from test.test_utils import assert_expected
 
-from torchmultimodal.utils.common import shift_dim, tensor_slice
+from torchmultimodal.utils.common import format_convnet_params, shift_dim, tensor_slice
 
 
 def test_shift_dim():
@@ -56,3 +56,78 @@ class TestTensorSlice:
     @pytest.mark.xfail(raises=ValueError, reason="Invalid size")
     def test_invalid_size(self, test_input):
         tensor_slice(test_input, [0, 1, 0], [-2, 1, 2])
+
+
+class TestFormatConvnetParams:
+    @pytest.fixture(scope="class")
+    def params(self):
+        channels = (2, 2, 2)
+        kernel = (2, 2, 2)
+        strides = (1, 1, 1)
+        n_dims = 3
+        return channels, kernel, strides, n_dims
+
+    def test_int_params(self, params):
+        channels, kernel, strides, n_dims = params
+        _, actual_kernel, actual_strides = format_convnet_params(
+            channels, kernel[0], strides[0], n_dims
+        )
+        expected_kernel = kernel
+        assert (
+            actual_kernel == expected_kernel
+        ), "kernel int -> tuple[tuple] is incorrect"
+        expected_strides = strides
+        assert (
+            actual_strides == expected_strides
+        ), "strides int -> tuple[tuple] is incorrect"
+
+    def test_single_tuple_params(self, params):
+        channels, kernel, strides, n_dims = params
+        # Test length == dimensionality
+        _, actual_kernel, actual_strides = format_convnet_params(
+            channels, kernel, strides, n_dims
+        )
+        expected_kernel = (kernel,) * n_dims
+        assert (
+            actual_kernel == expected_kernel
+        ), "kernel tuple -> tuple[tuple] is incorrect"
+        expected_strides = (strides,) * n_dims
+        assert (
+            actual_strides == expected_strides
+        ), "strides tuple -> tuple[tuple] is incorrect"
+        # Test length == number of layers, should be untouched
+        channels += (2,)
+        kernel += (2,)
+        strides += (1,)
+        _, actual_kernel, actual_strides = format_convnet_params(
+            channels, kernel, strides, n_dims
+        )
+        expected_kernel = kernel
+        assert actual_kernel == expected_kernel, "kernel tuple -> tuple is incorrect"
+        expected_strides = strides
+        assert actual_strides == expected_strides, "strides tuple -> tuple is incorrect"
+
+    def test_tuple_tuple_params(self, params):
+        channels, kernel, strides, n_dims = params
+        kernel = (kernel,) * n_dims
+        strides = (strides,) * n_dims
+        _, actual_kernel, actual_strides = format_convnet_params(
+            channels, kernel, strides, n_dims
+        )
+        expected_kernel = kernel
+        assert (
+            actual_kernel == expected_kernel
+        ), "kernel tuple[tuple] -> tuple[tuple] is incorrect"
+        expected_strides = strides
+        assert (
+            actual_strides == expected_strides
+        ), "strides tuple[tuple] -> tuple[tuple] is incorrect"
+
+    def test_invalid_lengths(self, params):
+        channels, kernel, strides, n_dims = params
+        with pytest.raises(ValueError):
+            _ = format_convnet_params(channels, kernel[:2], strides, n_dims)
+        with pytest.raises(ValueError):
+            _ = format_convnet_params(channels, kernel, strides[:2], n_dims)
+        with pytest.raises(ValueError):
+            _ = format_convnet_params(channels[:2], kernel, strides, n_dims - 1)
