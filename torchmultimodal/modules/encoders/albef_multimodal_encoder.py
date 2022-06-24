@@ -18,6 +18,8 @@ class ALBEFMultimodalEncoder(nn.Module):
     """
     Construct multimodal embeddings from image embeddings, text embeddings, and text attention mask.
 
+    The ALBEFMultimodalEncoder is similar to ALBEFTextEncoder, with the addition of image-text cross attention in encoder layers.
+
     Args:
         hidden_size (int): Dimensionality of the encoder layers. Default is 768.
         num_hidden_layers (int): Number of hidden layers in the Transformer encoder. Default is 6.
@@ -84,9 +86,11 @@ class ALBEFTransformerLayerWithCrossAttention(nn.Module):
         transform_act_fn: Callable[[Tensor], Tensor],
     ) -> None:
         super().__init__()
+        # the attention block computes the self attention on text embeddings
         self.attention = ALBEFTransformerAttention(
             hidden_size, num_attention_heads, layer_norm_eps
         )
+        # the cross_attention block computes the cross attention on image and text embeddings
         self.cross_attention = ALBEFTransformerAttention(
             hidden_size, num_attention_heads, layer_norm_eps
         )

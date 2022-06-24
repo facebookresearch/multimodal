@@ -240,6 +240,8 @@ class ALBEFTransformerSelfAttention(nn.Module):
     ) -> Tensor:
         mixed_query_layer = self.query(hidden_states)
 
+        # If encoder_hidden_states is not passed, then compute the self attention on hidden_states
+        # Otherwise, compute the cross attention on hidden_states and encoder_hidden_states
         if encoder_hidden_states is None:
             mixed_key_layer = self.key(hidden_states)
             mixed_value_layer = self.value(hidden_states)
