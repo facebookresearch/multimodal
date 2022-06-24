@@ -17,34 +17,23 @@ from torchmultimodal.models.video_vqvae import (
 from torchmultimodal.modules.layers.codebook import CodebookOutput
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(autouse=True)
 def random():
     set_rng_seed(4)
 
 
 @pytest.fixture(scope="module")
-def in_channels():
-    return (2, 2, 1)
-
-
-@pytest.fixture(scope="module")
-def out_channels():
-    return (2, 2, 2)
-
-
-@pytest.fixture(scope="module")
-def kernel_sizes():
-    return (2, 2, 2)
-
-
-@pytest.fixture(scope="module")
-def strides():
-    return (1, 1, 1)
+def params():
+    in_channel_dims = (2, 2)
+    out_channel_dims = (2, 2)
+    kernel_sizes = (2, 2, 2)
+    strides = (1, 1, 1)
+    return in_channel_dims, out_channel_dims, kernel_sizes, strides
 
 
 @pytest.fixture(scope="module")
 def input_tensor():
-    return 2 * torch.ones(1, 2, 2, 2, 2)
+    return torch.ones(1, 2, 2, 2, 2)
 
 
 class TestAttentionResidualBlock:
@@ -52,7 +41,7 @@ class TestAttentionResidualBlock:
         with pytest.raises(ValueError):
             _ = AttentionResidualBlock(1)
 
-    def test_forward(self, random):
+    def test_forward(self):
         block = AttentionResidualBlock(4)
         x = 2 * torch.ones(1, 4, 2, 2, 2)
         actual = block(x)
@@ -82,28 +71,17 @@ class TestAttentionResidualBlock:
 
 
 class TestVideoEncoder:
-    @pytest.fixture(scope="function")
-    def encoder(self, random, in_channels, out_channels, kernel_sizes, strides):
+    @pytest.fixture
+    def encoder(self, params):
+        in_channel_dims, _, kernel_sizes, strides = params
         return VideoEncoder(
-            in_channels=in_channels[:2],
-            out_channels=out_channels[:2],
-            kernel_sizes=kernel_sizes[:2],
-            strides=strides[:2],
+            in_channel_dims=in_channel_dims,
+            kernel_sizes=kernel_sizes,
+            strides=strides,
             n_res_layers=1,
+            attn_hidden_dim=2,
             embedding_dim=2,
         )
-
-    def test_invalid_arg_length(self, in_channels, out_channels, kernel_sizes, strides):
-        with pytest.raises(ValueError):
-            _ = VideoEncoder(
-                in_channels[:2], out_channels, kernel_sizes[:2], strides[:2], 1, 1
-            )
-
-    def test_invalid_in_out_channels(
-        self, in_channels, out_channels, kernel_sizes, strides
-    ):
-        with pytest.raises(ValueError):
-            _ = VideoEncoder(in_channels, out_channels, kernel_sizes, strides, 1, 1)
 
     def test_forward(self, input_tensor, encoder):
         actual = encoder(input_tensor)
@@ -111,49 +89,31 @@ class TestVideoEncoder:
             [
                 [
                     [
-                        [[0.1621, 0.3358], [0.2430, 0.3202]],
-                        [[0.2081, 0.3358], [0.2254, 0.2343]],
+                        [[0.1565, 0.3358], [0.2368, 0.3180]],
+                        [[0.2150, 0.3358], [0.2223, 0.2448]],
                     ],
                     [
-                        [[0.9593, 0.6932], [0.8883, 0.7170]],
-                        [[1.0707, 0.6932], [1.0197, 0.9931]],
+                        [[0.9679, 0.6932], [0.9255, 0.7203]],
+                        [[1.0502, 0.6932], [1.0287, 0.9623]],
                     ],
                 ]
             ]
         )
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
-    def test_res_stack_length(self, encoder):
-        assert len(encoder.res_stack) == 3, "res stack incorrect size"
-
-    def test_num_convs(self, encoder):
-        # Account for ReLU layers minus the last one which is removed
-        assert len(encoder.convs) == 2 * 2 - 1, "incorrect number of conv layers"
-
 
 class TestVideoDecoder:
-    @pytest.fixture(scope="function")
-    def decoder(self, random, in_channels, out_channels, kernel_sizes, strides):
+    @pytest.fixture
+    def decoder(self, params):
+        _, out_channel_dims, kernel_sizes, strides = params
         return VideoDecoder(
-            in_channels=in_channels[:2],
-            out_channels=out_channels[:2],
-            kernel_sizes=kernel_sizes[:2],
-            strides=strides[:2],
+            out_channel_dims=out_channel_dims,
+            kernel_sizes=kernel_sizes,
+            strides=strides,
             n_res_layers=1,
+            attn_hidden_dim=2,
             embedding_dim=2,
         )
-
-    def test_invalid_arg_length(self, in_channels, out_channels, kernel_sizes, strides):
-        with pytest.raises(ValueError):
-            _ = VideoDecoder(
-                in_channels[:2], out_channels, kernel_sizes[:2], strides[:2], 1, 1
-            )
-
-    def test_invalid_in_out_channels(
-        self, in_channels, out_channels, kernel_sizes, strides
-    ):
-        with pytest.raises(ValueError):
-            _ = VideoDecoder(in_channels, out_channels, kernel_sizes, strides, 1, 1)
 
     def test_forward(self, input_tensor, decoder):
         actual = decoder(input_tensor)
@@ -161,42 +121,34 @@ class TestVideoDecoder:
             [
                 [
                     [
-                        [[0.1365, 0.1426], [0.2040, 0.0228]],
-                        [[0.1400, 0.0682], [0.0854, -0.0561]],
+                        [[0.1138, 0.1543], [0.1376, 0.1744]],
+                        [[0.1230, 0.1658], [0.0899, 0.1514]],
                     ],
                     [
-                        [[0.2297, 0.1594], [0.2598, 0.2370]],
-                        [[0.1883, 0.0922], [0.2612, 0.1610]],
+                        [[0.2163, 0.1884], [0.2364, 0.2448]],
+                        [[0.1997, 0.1545], [0.2628, 0.2646]],
                     ],
                 ]
             ]
         )
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
-    def test_res_stack_length(self, decoder):
-        assert len(decoder.res_stack) == 3, "res stack incorrect size"
-
-    def test_num_convs(self, decoder):
-        # Account for ReLU layers minus the last one which is removed
-        assert len(decoder.convts) == 2 * 2 - 1, "incorrect number of conv layers"
-
 
 class TestVideoVQVAE:
     @pytest.fixture(scope="function")
-    def vv(self, random, in_channels, out_channels):
+    def vv(self, params):
+        in_channel_dims, out_channel_dims, kernel_sizes, strides = params
         return video_vqvae(
-            encoder_in_channels=in_channels[:2],
-            encoder_out_channels=out_channels[:2],
-            encoder_kernel_sizes=(2, 2),
-            encoder_strides=(1, 1),
-            encoder_res_layers=1,
+            encoder_in_channel_dims=in_channel_dims,
+            encoder_kernel_sizes=kernel_sizes,
+            encoder_strides=strides,
+            n_res_layers=1,
+            attn_hidden_dim=2,
             num_embeddings=8,
             embedding_dim=2,
-            decoder_in_channels=out_channels[:2],
-            decoder_out_channels=out_channels[:2],
-            decoder_kernel_sizes=(2, 2),
-            decoder_strides=(1, 1),
-            decoder_res_layers=1,
+            decoder_out_channel_dims=out_channel_dims,
+            decoder_kernel_sizes=kernel_sizes,
+            decoder_strides=strides,
         )
 
     @pytest.fixture(scope="class")
@@ -205,12 +157,12 @@ class TestVideoVQVAE:
             [
                 [
                     [
-                        [[0.0694, 0.1285], [0.0272, 0.1901]],
-                        [[0.0321, 0.0348], [-0.0161, 0.2622]],
+                        [[0.0608, 0.1219], [0.0420, 0.1930]],
+                        [[0.0507, 0.0971], [0.0203, 0.2616]],
                     ],
                     [
-                        [[0.1638, 0.2076], [0.1496, 0.1325]],
-                        [[0.1346, 0.1173], [0.1110, 0.2117]],
+                        [[0.1319, 0.1547], [0.1375, 0.1287]],
+                        [[0.1141, 0.1053], [0.1308, 0.1655]],
                     ],
                 ]
             ]
@@ -218,26 +170,26 @@ class TestVideoVQVAE:
         out = CodebookOutput(
             encoded_flat=torch.tensor(
                 [
-                    [0.1621, 0.9593],
+                    [0.1565, 0.9679],
                     [0.3358, 0.6932],
-                    [0.2430, 0.8883],
-                    [0.3202, 0.7170],
-                    [0.2081, 1.0707],
+                    [0.2368, 0.9255],
+                    [0.3180, 0.7203],
+                    [0.2150, 1.0502],
                     [0.3358, 0.6932],
-                    [0.2254, 1.0197],
-                    [0.2343, 0.9931],
+                    [0.2223, 1.0287],
+                    [0.2448, 0.9623],
                 ]
             ),
             quantized_flat=torch.tensor(
                 [
-                    [0.1621, 0.9593],
+                    [0.1565, 0.9679],
                     [0.3358, 0.6932],
-                    [0.2430, 0.8883],
-                    [0.3202, 0.7170],
-                    [0.2081, 1.0707],
+                    [0.2368, 0.9255],
+                    [0.3180, 0.7203],
+                    [0.2150, 1.0502],
                     [0.3358, 0.6932],
-                    [0.2254, 1.0197],
-                    [0.2343, 0.9931],
+                    [0.2223, 1.0287],
+                    [0.2448, 0.9623],
                 ]
             ),
             codebook_indices=torch.tensor([0, 4, 5, 1, 3, 4, 7, 2]),
@@ -245,12 +197,12 @@ class TestVideoVQVAE:
                 [
                     [
                         [
-                            [[0.1621, 0.3358], [0.2430, 0.3202]],
-                            [[0.2081, 0.3358], [0.2254, 0.2343]],
+                            [[0.1565, 0.3358], [0.2368, 0.3180]],
+                            [[0.2150, 0.3358], [0.2223, 0.2448]],
                         ],
                         [
-                            [[0.9593, 0.6932], [0.8883, 0.7170]],
-                            [[1.0707, 0.6932], [1.0197, 0.9931]],
+                            [[0.9679, 0.6932], [0.9255, 0.7203]],
+                            [[1.0502, 0.6932], [1.0287, 0.9623]],
                         ],
                     ]
                 ]
@@ -279,12 +231,12 @@ class TestVideoVQVAE:
             [
                 [
                     [
-                        [[0.0651, 0.1365], [0.0474, 0.1900]],
-                        [[0.0576, 0.1335], [-0.0229, 0.2803]],
+                        [[0.0494, 0.1049], [0.0628, 0.1731]],
+                        [[0.0704, 0.1552], [0.0495, 0.2263]],
                     ],
                     [
-                        [[0.1421, 0.2081], [0.1698, 0.1660]],
-                        [[0.1269, 0.1780], [0.0889, 0.1745]],
+                        [[0.0897, 0.1084], [0.1269, 0.1131]],
+                        [[0.0886, 0.1265], [0.0855, 0.1139]],
                     ],
                 ]
             ]
