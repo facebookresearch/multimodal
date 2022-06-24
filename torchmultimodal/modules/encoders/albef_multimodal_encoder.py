@@ -13,12 +13,30 @@ from torchmultimodal.utils.common import get_extended_attention_mask
 
 
 class ALBEFMultimodalEncoder(nn.Module):
+    """
+    Construct multimodal embeddings from image embeddings, text embeddings, and text attention mask.
+
+    Args:
+        hidden_size (int): Dimensionality of the encoder layers. Default is 768.
+        num_hidden_layers (int): Number of hidden layers in the Transformer encoder. Default is 6.
+        num_attention_heads (int): Number of attention heads for each attention layer in the Transformer encoder. Default is 12.
+        intermediate_size (int): Dimensionality of the “intermediate” (i.e., feed-forward) layer in the Transformer encoder.
+            Default is 3072.
+        layer_norm_eps (float): The epsilon used by the layer normalization layers. Default is 1e-12.
+
+    Inputs:
+        image_embeds (Tensor of size (batch_size, image_seq_length, hidden_size)): Image embeddings from a vision encoder.
+        text_embeds (Tensor of size (batch_size, text_seq_length, hidden_size)): Text embeddings from a text encoder.
+        text_atts (Tensor of size (batch_size, text_seq_length)): Mask to avoid performing attention on padding token indices.
+            Mask values selected in [0, 1]: 1 for tokens that are NOT MASKED, 0 for MASKED tokens.
+    """
+
     def __init__(
         self,
         hidden_size: int = 768,
-        intermediate_size: int = 3072,
-        num_attention_heads: int = 12,
         num_hidden_layers: int = 6,
+        num_attention_heads: int = 12,
+        intermediate_size: int = 3072,
         layer_norm_eps: float = 1e-12,
     ) -> None:
         super().__init__()
