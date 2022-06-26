@@ -19,7 +19,6 @@ from torchmultimodal.modules.layers.transformer import FLAVATransformerEncoder
 class TestFlavaImageEncoder(unittest.TestCase):
     def setUp(self):
         set_rng_seed(0)
-        torch.manual_seed(0)
         self.image_embedding = ImageEmbeddings(
             image_size=2, patch_size=1, hidden_size=2
         )

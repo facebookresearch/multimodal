@@ -208,9 +208,10 @@ def flava_model_for_classification(
     classifier_activation: Callable[..., nn.Module] = nn.ReLU,
     classifier_normalization: Optional[Callable[..., nn.Module]] = None,
     loss_fn: Optional[Callable[..., Tensor]] = None,
+    pretrained_model_key: Optional[str] = "flava_full",
     **flava_model_kwargs: Any,
 ):
-
+    model = flava_model(**flava_model_kwargs)
     classifier = MLP(
         in_dim=classifier_in_dim,
         out_dim=num_classes,
@@ -219,12 +220,18 @@ def flava_model_for_classification(
         activation=classifier_activation,
         normalization=classifier_normalization,
     )
-    model = flava_model(**flava_model_kwargs)
 
     if loss_fn is None:
         loss_fn = nn.CrossEntropyLoss()
 
-    return FLAVAForClassification(model=model, classifier=classifier, loss=loss_fn)
+    classification_model = FLAVAForClassification(
+        model=model, classifier=classifier, loss=loss_fn
+    )
+    if pretrained_model_key is not None:
+        classification_model.load_model(
+            FLAVA_FOR_PRETRAINED_MAPPING[pretrained_model_key], strict=False
+        )
+    return classification_model
 
 
 def to_2tuple(x):
