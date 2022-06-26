@@ -27,26 +27,27 @@ class TestFLAVA(unittest.TestCase):
 
     @torch.no_grad()
     def test_forward_classification(self):
+        flava = flava_model_for_classification(NUM_CLASSES)
         text = torch.randint(0, 30500, (2, 77), dtype=torch.long)
         image = torch.rand((2, 3, 224, 224))
+
         labels = torch.randint(0, 2, (2,), dtype=torch.long)
-        flava = flava_model_for_classification(NUM_CLASSES)
-        flava.eval()
 
         # Test multimodal scenario
         output = flava(image, text, "mm", labels)
-        self.assertAlmostEqual(output.loss.item(), 0.7180, places=4)
+        self.assertAlmostEqual(output.loss.item(), 0.9724, places=4)
 
         # Test unimodal image scenario
         output = flava(image, text, "image", labels)
-        self.assertAlmostEqual(output.loss.item(), 0.7020, places=4)
+        self.assertAlmostEqual(output.loss.item(), 0.5453, places=4)
 
         # Test unimodal text scenario
         output = flava(image, text, "text", labels)
-        self.assertAlmostEqual(output.loss.item(), 0.6663, places=4)
+        self.assertAlmostEqual(output.loss.item(), 0.7074, places=4)
 
     @torch.no_grad()
     def test_forward_pretraining(self):
+        flava = flava_model_for_pretraining()
         text = torch.randint(0, 30500, (2, 77), dtype=torch.long)
         image = torch.rand((2, 3, 224, 224))
         image_for_codebook = torch.rand(2, 3, 112, 112)
@@ -57,8 +58,6 @@ class TestFLAVA(unittest.TestCase):
         mlm_labels[:, :] = -1
         mlm_labels[:, 1:3] = text[:, 1:3]
         itm_labels = torch.tensor((0, 1), dtype=torch.long)
-
-        flava = flava_model_for_pretraining()
 
         output = flava(
             image=image,
@@ -80,7 +79,7 @@ class TestFLAVA(unittest.TestCase):
             sum(
                 value if value is not None else 0 for value in output.losses.values()
             ).item(),
-            21.4791,
+            21.0189,
             places=4,
         )
 
@@ -104,7 +103,7 @@ class TestFLAVA(unittest.TestCase):
             sum(
                 value if value is not None else 0 for value in output.losses.values()
             ).item(),
-            8.9674,
+            8.9271,
             places=4,
         )
 
@@ -129,7 +128,7 @@ class TestFLAVA(unittest.TestCase):
             sum(
                 value if value is not None else 0 for value in output.losses.values()
             ).item(),
-            10.0305,
+            10.1290,
             places=4,
         )
 

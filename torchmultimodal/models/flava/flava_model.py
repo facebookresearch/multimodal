@@ -60,7 +60,7 @@ FLAVAOutput.__annotations__ = {
 
 
 FLAVA_FOR_PRETRAINED_MAPPING = {
-    "flava_full": "https://huggingface.co/aps/flava_full_pretrained_encoders_torchmm/resolve/main/pytorch_model.bin",
+    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_for_pretraining.pt"
 }
 
 
@@ -224,9 +224,10 @@ def flava_model_for_classification(
     classifier_activation: Callable[..., nn.Module] = nn.ReLU,
     classifier_normalization: Optional[Callable[..., nn.Module]] = None,
     loss_fn: Optional[Callable[..., Tensor]] = None,
+    pretrained_model_key: Optional[str] = "flava_full",
     **flava_model_kwargs: Any,
 ):
-
+    model = flava_model(**flava_model_kwargs)
     classifier = MLP(
         in_dim=classifier_in_dim,
         out_dim=num_classes,
@@ -235,12 +236,18 @@ def flava_model_for_classification(
         activation=classifier_activation,
         normalization=classifier_normalization,
     )
-    model = flava_model(**flava_model_kwargs)
 
     if loss_fn is None:
         loss_fn = nn.CrossEntropyLoss()
 
-    return FLAVAForClassification(model=model, classifier=classifier, loss=loss_fn)
+    classification_model = FLAVAForClassification(
+        model=model, classifier=classifier, loss=loss_fn
+    )
+    if pretrained_model_key is not None:
+        classification_model.load_model(
+            FLAVA_FOR_PRETRAINED_MAPPING[pretrained_model_key], strict=False
+        )
+    return classification_model
 
 
 def to_2tuple(x):
@@ -443,9 +450,8 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
         image: Tensor,
         cls_index: int = 0,
     ):
-        transformer_output = self.model.encode_image(image)
-        embeddings = transformer_output.last_hidden_state
-        return self.loss.contrastive_loss.image_projection(embeddings[:, cls_index, :])
+        _, encoded_image = self.model.encode_image(image, projection=True)
+        return encoded_image
 
     def encode_text(
         self,
@@ -453,9 +459,8 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
         text_mask: Optional[Tensor] = None,
         cls_index: int = 0,
     ):
-        transformer_output = self.model.encode_text(text, text_mask)
-        embeddings = transformer_output.last_hidden_state
-        return self.loss.contrastive_loss.text_projection(embeddings[:, cls_index, :])
+        _, encoded_text = self.model.encode_text(text, text_mask, projection=True)
+        return encoded_text
 
     # TODO: Add options to enable losses selectively
     def forward(
