@@ -370,15 +370,15 @@ class FLAVAPretrainingLoss(nn.Module):
         itm_labels: Optional[Tensor] = None,
         mim_labels: Optional[Tensor] = None,
         mlm_labels: Optional[Tensor] = None,
-        projected_image_embeddings=None,
-        projected_text_embeddings=None,
+        projected_image_embeddings: Optional[Tensor] = None,
+        projected_text_embeddings: Optional[Tensor] = None,
     ) -> FLAVAPretrainingLossOutput:
         outputs = FLAVAPretrainingLossOutput()
         pos_mask = None
 
         if (
-            image_sequence is not None
-            and text_sequence is not None
+            projected_image_embeddings is not None
+            and projected_text_embeddings is not None
             and self.contrastive_loss_weight > 0
         ):
             outputs.global_contrastive_output = self.contrastive_loss(
