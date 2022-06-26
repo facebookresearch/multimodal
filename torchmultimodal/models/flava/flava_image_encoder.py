@@ -5,6 +5,8 @@
 # LICENSE file in the root directory of this source tree.
 
 import collections
+import math
+import warnings
 from functools import partial
 from typing import Any, Callable, Optional
 
@@ -107,16 +109,16 @@ class ImageEmbeddings(nn.Module):
         class_pos_embed = self.position_embeddings[:, 0]
         patch_pos_embed = self.position_embeddings[:, 1:]
         dim = embeddings.shape[-1]
-        h0 = height // self.config.patch_size
-        w0 = width // self.config.patch_size
+        h0 = height // self.patch_embeddings.patch_size
+        w0 = width // self.patch_embeddings.patch_size
         # we add a small number to avoid floating point error in the interpolation
         # see discussion at https://github.com/facebookresearch/dino/issues/8
         h0, w0 = h0 + 0.1, w0 + 0.1
         patch_pos_embed = nn.functional.interpolate(
             patch_pos_embed.reshape(
-                1, int(math.sqrt(N)), int(math.sqrt(N)), dim
+                1, int(math.sqrt(n)), int(math.sqrt(n)), dim
             ).permute(0, 3, 1, 2),
-            scale_factor=(h0 / math.sqrt(N), w0 / math.sqrt(N)),
+            scale_factor=(h0 / math.sqrt(n), w0 / math.sqrt(n)),
             mode="bicubic",
             align_corners=False,
         )
@@ -300,5 +302,4 @@ class ImageTransformerWithVAE(nn.Module):
             pooler_output=output.pooler_output,
             hidden_states=output.hidden_states,
             attentions=output.attentions,
-            image_labels=image_labels,
         )
