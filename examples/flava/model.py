@@ -180,15 +180,15 @@ class FLAVAClassificationLightningModule(LightningModule):
         else:
             raise RuntimeError("Batch needs to have either or both 'image' and 'text'.")
 
-        labels = batch.get("labels", None)
+        labels = batch["labels"]
         output = self.model(
             image=batch.get("image", None),
             text=batch.get("text", None),
             required_embedding=required_embedding,
             labels=labels,
         )
-        if labels is not None:
-            accuracy = self.metrics(output.logits, labels)
+
+        accuracy = self.metrics(output.logits, labels)
 
         return output, accuracy
 
