@@ -21,6 +21,37 @@ def get_current_device():
         return torch.device("cpu")
 
 
+def get_extended_attention_mask(attention_mask: Tensor) -> Tensor:
+    """
+    Makes broadcastable attention and causal masks so that future and masked tokens are ignored.
+
+    Args:
+        attention_mask (Tensor): Mask with ones indicating tokens to attend to, zeros for tokens to ignore.
+    Returns:
+        extended_attention_mask (Tensor): extended attention mask with the same dtype as attention_mask.dtype.
+    """
+
+    if attention_mask.dim() == 3:
+        extended_attention_mask = attention_mask[:, None, :, :]
+    elif attention_mask.dim() == 2:
+        extended_attention_mask = attention_mask[:, None, None, :]
+    else:
+        raise ValueError(
+            "Wrong shape for attention_mask (shape {})".format(attention_mask.shape)
+        )
+
+    # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
+    # masked positions, this operation will create a tensor which is 0.0 for
+    # positions we want to attend and -10000.0 for masked positions.
+    # Since we are adding it to the raw scores before the softmax, this is
+    # effectively the same as removing these entirely.
+    extended_attention_mask = extended_attention_mask.to(
+        dtype=attention_mask.dtype
+    )  # fp16 compatibility
+    extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
+    return extended_attention_mask
+
+
 def shift_dim(
     x: Tensor, src_dim: int = -1, dest_dim: int = -1, make_contiguous: bool = True
 ):
@@ -95,6 +126,13 @@ def tensor_slice(x: Tensor, begin: List[int], size: List[int]) -> Tensor:
     return x[slices]
 
 
+def transpose_for_scores(
+    num_attention_heads: int, attention_head_size: int, x: Tensor
+) -> Tensor:
+    x = x.unflatten(-1, (num_attention_heads, attention_head_size))
+    return x.permute(0, 2, 1, 3)
+
+
 class PretrainedMixin:
     def get_model_dir(self, url):
         return os.path.join(
@@ -108,6 +146,7 @@ class PretrainedMixin:
         pretrained_url: Optional[str],
         load_state_dict: bool = True,
         state_dict_key: Optional[str] = None,
+        strict: bool = True,
     ):
         assert isinstance(
             self, torch.nn.Module
@@ -122,7 +161,7 @@ class PretrainedMixin:
             state_dict = state_dict[state_dict_key]
 
         if load_state_dict:
-            self.load_state_dict(state_dict)
+            self.load_state_dict(state_dict, strict=strict)
         return state_dict
 
 
