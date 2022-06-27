@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import torch
+from examples.mugen.retrieval.s3d import S3D
 from torch import nn
 from transformers import DistilBertConfig, DistilBertModel
 
@@ -62,3 +63,20 @@ class TextEncoder(nn.Module):
         output = self.model(input_ids=input_ids, attention_mask=attention_mask)
         last_hidden_state = output.last_hidden_state
         return last_hidden_state[:, self.target_token_idx, :]
+
+
+class VideoEncoder(nn.Module):
+    """Encode videos to a fixed size vector. Adapted from VideoCLIP
+        (https://github.com/facebookresearch/fairseq/blob/main/examples/MMPT/mmpt/processors/models/s3dg.py)
+
+    Inputs:
+        x (Tensor): batch of videos with dimensions (batch, channel, time, height, width)
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.model = S3D(400)
+        self.model.fc = nn.Identity()
+
+    def forward(self, x):
+        return self.model(x)
