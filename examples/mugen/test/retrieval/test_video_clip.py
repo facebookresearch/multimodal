@@ -38,7 +38,7 @@ class TestTextEncoder:
 
     def test_forward_untrained(self, utils):
         input_ids = utils
-        encoder = TextEncoder(pretrained=False, model_config={})
+        encoder = TextEncoder(pretrained=False)
         out = encoder(input_ids)
         expected_sum = 7.1526e-07
         assert_expected(actual=out.shape, expected=torch.Size([2, 768]), rtol=0, atol=0)

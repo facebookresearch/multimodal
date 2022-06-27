@@ -10,31 +10,36 @@ from transformers import DistilBertConfig, DistilBertModel
 
 
 class TextEncoder(nn.Module):
-    """Encode tokenized text to a fixed-length vector
+    """Encode tokenized text to the last hidden state representation of the CLS token using
+        DistilBERT. DistilBERT prepends a CLS (classification) token to every text so the
+        token's hidden state represents the entire text.
 
     Adapted from MUGEN's text encoder
         (https://github.com/mugen-org/MUGEN_baseline/blob/main/lib/models/videoclip/modules.py)
 
     Args:
-        pretrained (bool): whether to use a pretrained model or not
-        model_name (str): name of pretrained model, used when pretrained is True
+        pretrained (bool): whether to use a pretrained model or not.
+            Defaults to True.
+        model_name (str): name of pretrained model, used when pretrained is True.
+            Defaults to "distilbert-base-uncased", Hugging Face's standard DistilBERT model.
         model_config (dict): model config for DistilBERT, used when pretrained is False
-        padding_value (int): value that was used to pad the input text
+            Defaults to None, indicating the default DistilBERT config.
+        padding_value (int): value that was used to pad the input text.
+            Defaults to 0, Hugging Face's BERT pad token.
 
     Inputs:
         input_ids (Tensor): tensor of (batch, text_length) tokenized text
 
     Returns:
-        Tensor: encoded text
-
+        Tensor: encoded text with dimensions (batch, 768)
     """
 
     def __init__(
         self,
-        pretrained=True,
-        model_name="distilbert-base-uncased",
-        model_config=None,
-        padding_value=0,
+        pretrained: bool = True,
+        model_name: str = "distilbert-base-uncased",
+        model_config: dict = None,
+        padding_value: int = 0,
     ):
         super().__init__()
         self.padding_value = padding_value
