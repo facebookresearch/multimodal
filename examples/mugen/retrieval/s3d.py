@@ -10,7 +10,8 @@ from torch import nn
 
 
 class S3D(nn.Module):
-    """S3D is a video classification model that improves over I3D in speed.
+    """S3D is a video classification model that improves over I3D in speed by replacing
+        3D convolutions with a spatial 2D convolution followed by a temporal 1D convolution.
         Paper: https://arxiv.org/abs/1712.04851
         Code: https://github.com/kylemin/S3D
 
