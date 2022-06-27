@@ -33,5 +33,5 @@ class TestVideoEncoder:
             actual=out.shape, expected=torch.Size([2, 1024])
         )  # batch x embedding
         assert_expected(
-            actual=out.sum(), expected=torch.as_tensor(expected_sum), rtol=0, atol=5e-4
+            actual=out.sum(), expected=torch.as_tensor(expected_sum), rtol=0, atol=1e-3
         )

@@ -12,6 +12,7 @@ from torch import nn
 class S3D(nn.Module):
     """S3D is a video classification model that improves over I3D in speed.
         Paper: https://arxiv.org/abs/1712.04851
+        Code: https://github.com/kylemin/S3D
 
     Args:
         num_class (int): number of classes for the classification task

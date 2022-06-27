@@ -12,11 +12,6 @@ class VideoEncoder(nn.Module):
     """Encode videos to a fixed size vector. Adapted from VideoCLIP
         (https://github.com/facebookresearch/fairseq/blob/main/examples/MMPT/mmpt/processors/models/s3dg.py)
 
-    Args:
-        trainable (bool): true if model weights should be trained
-        preprocess_mean (list): sequence of means to normalize each channel to
-        preprocess_std (list): sequence of standard deviations to normalize each channel to
-
     Inputs:
         x (Tensor): batch of videos with dimensions (batch, channel, time, height, width)
     """
@@ -24,7 +19,6 @@ class VideoEncoder(nn.Module):
     def __init__(self):
         super().__init__()
         self.model = S3D(400)
-        self.embedding_dim = self.model.fc.in_channels
         self.model.fc = nn.Identity()
 
     def forward(self, x):
