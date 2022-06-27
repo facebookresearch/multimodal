@@ -18,7 +18,7 @@ from torchtext.transforms import (
 class BertTextTransform:
     def __init__(
         self,
-        vocab_file: str = "https://huggingface.co/distilbert-base-uncased/resolve/main/vocab.txt",
+        vocab_file: str = "https://huggingface.co/bert-base-uncased/resolve/main/vocab.txt",
         do_lower_case: bool = True,
         start_token: int = 101,
         end_token: int = 102,
