@@ -9,7 +9,7 @@ import unittest
 import torch
 from test.test_utils import assert_expected
 from torch import nn
-from torchmultimodal.models.flava import (
+from torchmultimodal.models.flava.flava_model import (
     flava_image_encoder,
     flava_model_for_classification,
     flava_model_for_pretraining,
