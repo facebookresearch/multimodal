@@ -4,6 +4,8 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+from typing import Any, Dict, Optional
+
 import torch
 from examples.mugen.retrieval.s3d import S3D
 from torch import nn
@@ -23,7 +25,7 @@ class TextEncoder(nn.Module):
             Defaults to True.
         model_name (str): name of pretrained model, used when pretrained is True.
             Defaults to "distilbert-base-uncased", Hugging Face's standard DistilBERT model.
-        model_config (dict): model config for DistilBERT, used when pretrained is False
+        model_config (Optional[Dict[str, Any]]): model config for DistilBERT, used when pretrained is False
             Defaults to None, indicating the default DistilBERT config.
         padding_value (int): value that was used to pad the input text.
             Defaults to 0, Hugging Face's BERT pad token.
@@ -32,14 +34,15 @@ class TextEncoder(nn.Module):
         input_ids (Tensor): tensor of (batch, text_length) tokenized text
 
     Returns:
-        Tensor: encoded text with dimensions (batch, 768)
+        Tensor: encoded text with dimensions (batch, model_config.dim).
+            Default and pretrained model_config.dim is 768.
     """
 
     def __init__(
         self,
         pretrained: bool = True,
         model_name: str = "distilbert-base-uncased",
-        model_config: dict = None,
+        model_config: Optional[Dict[str, Any]] = None,
         padding_value: int = 0,
     ):
         super().__init__()
