@@ -180,8 +180,6 @@ class ModifiedTransformerEncoder(nn.Module):
         encoded = embeddings
         for layer in self.layers.layers:
             encoded = layer(encoded, src_key_padding_mask=attention_mask)
-        if self.normalize_before:
-            encoded = self.embedding_layer_norm(encoded)
         return encoded
 
 
@@ -266,5 +264,4 @@ def mdetr_roberta_text_encoder(
     text_encoder = MDETRTextEncoder(
         embeddings=embeddings, encoder=wrapped_transformer_encoder
     )
-    text_encoder.embedding_dim = embedding_dim
     return text_encoder
