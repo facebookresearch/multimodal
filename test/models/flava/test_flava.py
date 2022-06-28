@@ -38,15 +38,15 @@ class TestFLAVA(unittest.TestCase):
         # Test multimodal scenario
 
         output = flava(image, text, "mm", labels)
-        self.assertAlmostEqual(output.loss.item(), 0.6969, places=4)
+        self.assertAlmostEqual(output.loss.item(), 0.7180, places=4)
 
         # Test unimodal image scenario
         output = flava(image, text, "image", labels)
-        self.assertAlmostEqual(output.loss.item(), 0.6997, places=4)
+        self.assertAlmostEqual(output.loss.item(), 0.7020, places=4)
 
         # Test unimodal text scenario
         output = flava(image, text, "text", labels)
-        self.assertAlmostEqual(output.loss.item(), 0.7924, places=4)
+        self.assertAlmostEqual(output.loss.item(), 0.6663, places=4)
 
     @torch.no_grad()
     def test_forward_pretraining(self):
