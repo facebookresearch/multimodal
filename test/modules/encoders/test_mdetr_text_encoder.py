@@ -111,26 +111,26 @@ class TestMDETRTextEncoder(unittest.TestCase):
         assert_expected(actual, expected, rtol=0.0, atol=1e-4)
 
     def test_mdetr_wrapped_transformer(self):
-        set_rng_seed(0)
         inp = torch.rand((2, 16, 768))
+        self.inp = inp
         expected = torch.Tensor(
             [
-                0.10437,
-                0.10304,
-                0.10998,
-                0.10926,
-                0.10760,
-                0.10326,
-                0.10478,
-                0.10586,
-                0.10500,
-                0.11583,
-                0.10339,
-                0.10585,
-                0.10405,
-                0.10533,
-                0.11012,
-                0.11071,
+                -0.3351,
+                0.0728,
+                -0.2649,
+                -0.0369,
+                -0.2435,
+                -0.3580,
+                -0.1809,
+                -0.2042,
+                -0.0316,
+                -0.3408,
+                0.0784,
+                -0.1908,
+                -0.2906,
+                -0.0650,
+                -0.3023,
+                -0.1622,
             ]
         )
         out = self.wrapped_transformer_encoder(inp, self.attention_mask)
