@@ -33,7 +33,7 @@ class ALBEFTextEncoder(nn.Module):
         type_vocab_size (int): The vocabulary size of the token_type_ids. Default is 2.
         pad_token_id (int): The embedding for pad_token_id is not updated during training. Default is 0.
         layer_norm_eps (float): The epsilon used by the layer normalization layers. Default is 1e-12.
-        ransform_act_fn (Callable[[Tensor], Tensor]): The activation function for the Transformer encoder layer. Defualt is GELU.
+        transform_act_fn (Callable[[Tensor], Tensor]): The activation function for the Transformer encoder layer. Default is GELU.
     Inputs:
         input_ids (Tensor of size (batch_size, sequence_length)): Indices of input sequence tokens in the vocabulary.
         attention_mask (Tensor of shape (batch_size, sequence_length)): Mask to avoid performing attention on padding token indices.

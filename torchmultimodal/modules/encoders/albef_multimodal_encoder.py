@@ -27,7 +27,7 @@ class ALBEFMultimodalEncoder(nn.Module):
         intermediate_size (int): Dimensionality of the “intermediate” (i.e., feed-forward) layer in the Transformer encoder.
             Default is 3072.
         layer_norm_eps (float): The epsilon used by the layer normalization layers. Default is 1e-12.
-        transform_act_fn (Callable[[Tensor], Tensor]): The activation function for the Transformer encoder layer. Defualt is GELU.
+        transform_act_fn (Callable[[Tensor], Tensor]): The activation function for the Transformer encoder layer. Default is GELU.
 
     Inputs:
         image_embeds (Tensor of size (batch_size, image_seq_length, hidden_size)): Image embeddings from a vision encoder.
