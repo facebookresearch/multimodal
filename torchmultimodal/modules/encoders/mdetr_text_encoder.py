@@ -8,7 +8,6 @@ from typing import List, Optional, Union
 
 import torch
 from torch import nn, Tensor
-from torchtext.models import ROBERTA_BASE_ENCODER
 
 
 def create_position_ids_from_input_ids(input_ids: Tensor, padding_idx: int):
@@ -231,26 +230,41 @@ class MDETRTextEncoder(nn.Module):
         return out
 
 
-def mdetr_roberta_text_encoder():
+def mdetr_roberta_text_encoder(
+    embedding_dim: int = 768,
+    vocab_size: int = 50265,
+    pad_token_id: int = 1,
+    type_vocab_size: int = 1,
+    max_position_embeddings: int = 514,
+    layer_norm_eps: float = 1e-05,
+    embedding_dropout_prob: float = 0.1,
+    ffn_dimension: int = 3072,
+    num_attention_heads: int = 12,
+    num_encoder_layers: int = 12,
+    encoder_dropout_prob: float = 0.1,
+    normalize_before: bool = False,
+):
     embeddings = MDETRTextEmbeddings(
-        hidden_size=768,
-        vocab_size=50265,
-        pad_token_id=1,
-        type_vocab_size=1,
-        max_position_embeddings=514,
-        layer_norm_eps=1e-05,
-        hidden_dropout_prob=0.1,
+        hidden_size=embedding_dim,
+        vocab_size=vocab_size,
+        pad_token_id=pad_token_id,
+        type_vocab_size=type_vocab_size,
+        max_position_embeddings=max_position_embeddings,
+        layer_norm_eps=layer_norm_eps,
+        hidden_dropout_prob=embedding_dropout_prob,
     )
 
-    wrapped_args = {
-        k: v
-        for k, v in ROBERTA_BASE_ENCODER.encoderConf.__dict__.items()
-        if k not in ["vocab_size", "padding_idx", "max_seq_len", "scaling"]
-    }
-    wrapped_transformer_encoder = ModifiedTransformerEncoder(**wrapped_args)
+    wrapped_transformer_encoder = ModifiedTransformerEncoder(
+        embedding_dim=embedding_dim,
+        ffn_dimension=ffn_dimension,
+        num_attention_heads=num_attention_heads,
+        num_encoder_layers=num_encoder_layers,
+        dropout=encoder_dropout_prob,
+        normalize_before=normalize_before,
+    )
 
     text_encoder = MDETRTextEncoder(
         embeddings=embeddings, encoder=wrapped_transformer_encoder
     )
-    text_encoder.embedding_dim = wrapped_args["embedding_dim"]
+    text_encoder.embedding_dim = embedding_dim
     return text_encoder
