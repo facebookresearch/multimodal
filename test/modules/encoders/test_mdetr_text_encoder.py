@@ -191,8 +191,6 @@ class TestMDETRTextEncoder(unittest.TestCase):
         )
         # Remove embedding weights, but keep final layer norm weights
         wrapped_state_dict = {
-            k: v
-            for k, v in transformer_state_dict.items()
-            if "embedding" not in k or "layer_norm" in k
+            k: v for k, v in transformer_state_dict.items() if "embedding" not in k
         }
         self.wrapped_transformer_encoder.load_state_dict(wrapped_state_dict)
