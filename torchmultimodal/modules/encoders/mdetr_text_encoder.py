@@ -10,25 +10,10 @@ import torch
 from torch import nn, Tensor
 
 
-def create_position_ids_from_input_ids(input_ids: Tensor, padding_idx: int):
-    """
-    Replace non-padding symbols with their position numbers.
-    Position numbers begin at padding_idx+1. Padding symbols
-    are ignored. This is modified from fairseq's `utils.make_positions`.
-
-    Inputs:   input_ids (Tensor): Tensor from which to create position IDs.
-              padding_idx (int): Padding index
-                (determines starting point of position IDs).
-    """
-    mask = input_ids.ne(padding_idx).int()
-    incremental_indices = torch.cumsum(mask, dim=1).type_as(mask) * mask
-    return incremental_indices.long() + padding_idx
-
-
 class MDETRTextEmbeddings(nn.Module):
     """
     Class for RoBERTa embeddings as used in MDETR. This is very similar to the FLAVA
-    text embeddings class (which uses BERT) except for its handling of position IDs.
+    text embeddings class except for its handling of position IDs.
 
     Args:   hidden_size (int): Embedding dimension. Default: 768
             vocab_size (int): Number of tokens in the vocabulary. Default: 30522
@@ -68,7 +53,7 @@ class MDETRTextEmbeddings(nn.Module):
         )
         self.token_type_embeddings = nn.Embedding(type_vocab_size, hidden_size)
 
-        self.LayerNorm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
+        self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
         self.dropout = nn.Dropout(hidden_dropout_prob)
         position_ids_range = torch.arange(max_position_embeddings).expand((1, -1))
         self.register_buffer("position_ids", position_ids_range.clone())
@@ -78,19 +63,34 @@ class MDETRTextEmbeddings(nn.Module):
             persistent=False,
         )
 
+    def create_position_ids_from_input_ids(
+        self, input_ids: Tensor, padding_idx: int
+    ) -> Tensor:
+        """
+        Replace non-padding symbols with their position numbers.
+        Position numbers begin at padding_idx+1. Padding symbols
+        are ignored. This is modified from fairseq's `utils.make_positions`.
+
+        Inputs: input_ids (Tensor): Tensor from which to create position IDs.
+                padding_idx (int): Padding index
+                    (determines starting point of position IDs).
+        """
+        mask = input_ids.ne(padding_idx).int()
+        incremental_indices = torch.cumsum(mask, dim=1).type_as(mask) * mask
+        return incremental_indices.long() + padding_idx
+
     def forward(
         self,
         input_ids: Tensor,
         token_type_ids: Optional[Tensor] = None,
         position_ids: Optional[Tensor] = None,
-        inputs_embeds: Optional[Tensor] = None,
     ):
         batch_size, seq_length = input_ids.size()
         device = input_ids.device
 
         if position_ids is None:
             # Create the position ids from the input token ids. Any padded tokens remain padded.
-            position_ids = create_position_ids_from_input_ids(
+            position_ids = self.create_position_ids_from_input_ids(
                 input_ids, self.padding_idx
             )
 
@@ -108,15 +108,14 @@ class MDETRTextEmbeddings(nn.Module):
                     dtype=torch.long,
                     device=device,
                 )
-        if inputs_embeds is None:
-            inputs_embeds = self.word_embeddings(input_ids)
+        inputs_embeds = self.word_embeddings(input_ids)
         token_type_embeddings = self.token_type_embeddings(token_type_ids)
 
         embeddings = inputs_embeds + token_type_embeddings
         position_embeddings = self.position_embeddings(position_ids)
         embeddings += position_embeddings
 
-        embeddings = self.LayerNorm(embeddings)
+        embeddings = self.layer_norm(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings
 
@@ -129,8 +128,8 @@ class ModifiedTransformerEncoder(nn.Module):
     Args:   embedding_dim (int): Number of features in the input.
             num_encoder_layers  (int): Number of layers in the encoder.
             num_attention_heads (int): Number of heads in multi-head attention.
-            ffn_dimension (Optional[int]): Dimension of feedforward network inside
-                attention layers. Defaults to 4 * embedding_dim
+            ffn_dimension (int): Dimension of feedforward network inside
+                attention layers.
             dropout (float): dropout value in each layer. Default: 0.1.
             normalize_before (bool): Whether to do PreNorm in encoder layers.
                 Default: False
@@ -148,13 +147,11 @@ class ModifiedTransformerEncoder(nn.Module):
         embedding_dim: int,
         num_encoder_layers: int,
         num_attention_heads: int,
-        ffn_dimension: Optional[int] = None,
+        ffn_dimension: int,
         dropout: float = 0.1,
         normalize_before: bool = False,
-        return_all_layers: bool = False,
     ):
         super().__init__()
-        ffn_dimension = ffn_dimension or 4 * embedding_dim
         layer = torch.nn.TransformerEncoderLayer(
             d_model=embedding_dim,
             nhead=num_attention_heads,
@@ -167,9 +164,6 @@ class ModifiedTransformerEncoder(nn.Module):
         self.layers = torch.nn.TransformerEncoder(
             encoder_layer=layer, num_layers=num_encoder_layers
         )
-        self.normalize_before = normalize_before
-        self.embedding_layer_norm = nn.LayerNorm(embedding_dim)
-        self.return_all_layers = return_all_layers
         self.embedding_dim = embedding_dim
 
     def forward(
@@ -178,6 +172,7 @@ class ModifiedTransformerEncoder(nn.Module):
         attention_mask: Optional[Tensor] = None,
     ) -> Union[Tensor, List[Tensor]]:
         encoded = embeddings
+        # Do this in a loop because otherwise it can cause OOM
         for layer in self.layers.layers:
             encoded = layer(encoded, src_key_padding_mask=attention_mask)
         return encoded
