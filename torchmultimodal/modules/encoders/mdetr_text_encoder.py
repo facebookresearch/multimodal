@@ -17,7 +17,7 @@ def create_position_ids_from_input_ids(input_ids: Tensor, padding_idx: int):
     Position numbers begin at padding_idx+1. Padding symbols
     are ignored. This is modified from fairseq's `utils.make_positions`.
 
-    Inputs:   input_ids (torch.Tensor): Tensor from which to create position IDs.
+    Inputs:   input_ids (Tensor): Tensor from which to create position IDs.
               padding_idx (int): Padding index
                 (determines starting point of position IDs).
     """
@@ -173,45 +173,17 @@ class ModifiedTransformerEncoder(nn.Module):
         self.return_all_layers = return_all_layers
         self.embedding_dim = embedding_dim
 
-    def _forward_return_all_layers(
+    def forward(
         self,
         embeddings: Tensor,
         attention_mask: Optional[Tensor] = None,
-    ) -> List[torch.Tensor]:
-        encoded = embeddings
-        states = [encoded]
-        for layer in self.layers.layers:
-            encoded = layer(encoded, src_key_padding_mask=attention_mask)
-            states.append(encoded)
-        if self.normalize_before:
-            for i, state in enumerate(states):
-                states[i] = self.embedding_layer_norm(state)
-        return states
-
-    def _forward_return_last_layer(
-        self,
-        embeddings: torch.Tensor,
-        attention_mask: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
+    ) -> Union[Tensor, List[Tensor]]:
         encoded = embeddings
         for layer in self.layers.layers:
             encoded = layer(encoded, src_key_padding_mask=attention_mask)
         if self.normalize_before:
             encoded = self.embedding_layer_norm(encoded)
         return encoded
-
-    def forward(
-        self,
-        embeddings: torch.Tensor,
-        attention_mask: Optional[torch.Tensor] = None,
-    ) -> Union[torch.Tensor, List[torch.Tensor]]:
-        out: Union[torch.Tensor, List[torch.Tensor]]
-        if self.return_all_layers:
-            out = self._forward_return_all_layers(embeddings, attention_mask)
-        else:
-            out = self._forward_return_last_layer(embeddings, attention_mask)
-
-        return out
 
 
 class MDETRTextEncoder(nn.Module):
@@ -240,10 +212,10 @@ class MDETRTextEncoder(nn.Module):
 
     def forward(
         self,
-        input_ids: Optional[torch.Tensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        token_type_ids: Optional[torch.Tensor] = None,
-        position_ids: Optional[torch.Tensor] = None,
+        input_ids: Tensor = None,
+        attention_mask: Optional[Tensor] = None,
+        token_type_ids: Optional[Tensor] = None,
+        position_ids: Optional[Tensor] = None,
     ):
 
         embedding_output = self.embeddings(
