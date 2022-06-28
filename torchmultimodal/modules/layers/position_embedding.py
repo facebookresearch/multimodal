@@ -57,11 +57,6 @@ class BroadcastedPositionEmbedding(nn.Module):
         )
 
     @property
-    def seq_len(self) -> int:
-        """Dimension of flattened data, e.g., time * height * width"""
-        return int(torch.prod(torch.tensor(self.shape)).item())
-
-    @property
     def decode_idxs(self) -> List:
         """Indices along the dims of data, e.g., ``(time, height, width)``."""
         return list(itertools.product(*[range(s) for s in self.shape]))

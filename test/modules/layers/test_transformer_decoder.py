@@ -95,12 +95,6 @@ class TestRightShift:
         )
         assert_expected(actual, expected, rtol=1e-5, atol=1e-4)
 
-    @pytest.mark.parametrize("decode_step, expected", TEST_DATA_DECODE)
-    def test_right_shift_decode(self, right_shift, decode_step, expected):
-        x = torch.ones(1, 3, 4)  # (batch, seq_len, embedding_dim)
-        actual = right_shift(x, decode_step)
-        assert_expected(actual, expected, rtol=1e-5, atol=1e-4)
-
 
 class TestTransformerLayer:
     def test_forward_training(self):
