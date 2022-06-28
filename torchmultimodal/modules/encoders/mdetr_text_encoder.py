@@ -29,8 +29,6 @@ class MDETRTextEmbeddings(nn.Module):
                 in token type embedding. Default: None
             position_ids (Optional[Tensor]): Optional tensor of position IDs to use in
                 position embedding. Default: None
-            inputs_embeds (Optional[Tensor]): Embeddings of input IDs (useful if
-                already computed elsewhere). Default: None
     """
 
     def __init__(
@@ -187,14 +185,12 @@ class MDETRTextEncoder(nn.Module):
                 (embeddings -> encoder outputs).
 
     Inputs: input_ids (Tensor): Tensor of input IDs to encode.
-            token_type_ids (Optional[Tensor]): Optional tensor of token type IDs to use
-                in token type embedding. Default: None
             attention_mask (Optional[Tensor]): Attention mask for batch. Should equal 1
                 on masked tokens on 0 on non-masked tokens. Default: None (no masking)
+            token_type_ids (Optional[Tensor]): Optional tensor of token type IDs to use
+                in token type embedding. Default: None
             position_ids (Optional[Tensor]): Optional tensor of position IDs to use in
                 embeddings. Default: None
-            inputs_embeds (Optional[Tensor]): Embeddings of input IDs (useful if
-                already computed elsewhere). Default: None
     """ ""
 
     def __init__(self, embeddings: nn.Module, encoder: nn.Module):
