@@ -7,8 +7,10 @@
 from typing import Any, Dict, Optional
 
 import torch
+import torch.nn.functional as F
 from examples.mugen.retrieval.s3d import S3D
 from torch import nn
+from torchmultimodal.architectures.clip import CLIPArchitecture
 from transformers import DistilBertConfig, DistilBertModel
 
 
@@ -83,3 +85,55 @@ class VideoEncoder(nn.Module):
 
     def forward(self, x):
         return self.model(x)
+
+
+class Projection(nn.Module):
+    """Project embeddings to a fixed dimension.
+
+    Args:
+        dim_in (int): dimension of input
+        dim_out (int): dimension of output
+            Defaults to 256
+        dropout_prob (float): dropout probability
+            Defaults to 0.1
+
+    Inputs:
+        x (Tensor): embeddings (batch, dim_in)
+
+    Returns:
+        Tensor: projected embeddings (batch, dim_out)
+
+    """
+
+    def __init__(self, dim_in, dim_out=256, dropout_prob=0.1) -> None:
+        super().__init__()
+        self.linear1 = nn.Linear(dim_in, dim_out, bias=False)
+        self.linear2 = nn.Linear(dim_out, dim_out, bias=False)
+        self.drop = nn.Dropout(dropout_prob)
+        self.layer_norm = nn.LayerNorm(dim_out)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        embed1 = self.linear1(x)
+        embed2 = self.drop(self.linear2(F.gelu(embed1)))
+        embeds = self.layer_norm(embed1 + embed2)
+        return embeds
+
+
+def videoclip(dim_out: int = 256) -> CLIPArchitecture:
+    """Create MUGEN's video-text CLIP model with a S3D-backed video encoder and DistilBERT-backed text encoder.
+        MUGEN paper: https://arxiv.org/abs/2204.08058
+
+    Args:
+        dim_out (int): output dimension to project both encoders' outputs to.
+            Defaults to 256, the value used by MUGEN.
+
+    Returns:
+        CLIPArchitecture: CLIP model using MUGEN's video encoder and text encoder.
+
+    """
+    text_encoder = nn.Sequential(TextEncoder(), Projection(768, dim_out=dim_out))
+    video_encoder = nn.Sequential(
+        VideoEncoder(),
+        Projection(1024, dim_out=dim_out),
+    )
+    return CLIPArchitecture(encoder_a=text_encoder, encoder_b=video_encoder)

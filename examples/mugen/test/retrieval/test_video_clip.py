@@ -6,7 +6,12 @@
 
 import pytest
 import torch
-from examples.mugen.retrieval.video_clip import TextEncoder, VideoEncoder
+from examples.mugen.retrieval.video_clip import (
+    Projection,
+    TextEncoder,
+    videoclip,
+    VideoEncoder,
+)
 
 from test.test_utils import assert_expected, set_rng_seed
 
@@ -35,6 +40,7 @@ class TestTextEncoder:
         assert_expected(
             actual=out.sum(), expected=torch.as_tensor(expected_sum), rtol=0, atol=1e-4
         )
+        print(encoder.state_dict().keys())
 
     def test_forward_untrained(self, utils):
         input_ids = utils
@@ -81,4 +87,50 @@ class TestVideoEncoder:
         )  # batch x embedding
         assert_expected(
             actual=out.sum(), expected=torch.as_tensor(expected_sum), rtol=0, atol=1e-3
+        )
+
+
+class TestProjection:
+    @pytest.fixture(autouse=True)
+    def set_seed(self):
+        set_rng_seed(1234)
+
+    @pytest.fixture
+    def utils(self, set_seed):
+        input = torch.randint(10, (2, 7)).float()
+        proj = Projection(dim_in=7, dim_out=3)
+        return proj, input
+
+    def test_forward(self, utils):
+        proj, input = utils
+        out = proj(input)
+        expected = torch.Tensor([[-1.2214, -0.0066, 1.2280], [-1.3886, 0.4626, 0.9260]])
+        assert_expected(actual=out, expected=expected, rtol=0, atol=1e-4)
+
+
+class TestVideoCLIPModel:
+    @pytest.fixture(autouse=True)
+    def set_seed(self):
+        set_rng_seed(1234)
+
+    @pytest.fixture
+    def utils(self, set_seed):
+        input_text = torch.Tensor(
+            [
+                [101, 6315, 3793, 7099, 2005, 5604, 19204, 17629, 102],
+                [101, 2117, 7820, 3793, 102, 0, 0, 0, 0],
+            ]
+        ).to(dtype=int)
+        input_video = torch.randint(10, [2, 3, 32, 32, 32]).float()
+        clip = videoclip()
+        return clip, input_text, input_video
+
+    def test_forward(self, utils):
+        clip, input_text, input_video = utils
+        clip_output = clip(features_a=input_text, features_b=input_video)
+        assert_expected(
+            actual=clip_output.embeddings_a.shape, expected=torch.Size([2, 256])
+        )
+        assert_expected(
+            actual=clip_output.embeddings_b.shape, expected=torch.Size([2, 256])
         )
