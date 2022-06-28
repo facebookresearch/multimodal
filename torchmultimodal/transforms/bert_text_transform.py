@@ -48,7 +48,6 @@ class BertTextTransform:
         end_token: int = 102,
         padding_value: int = 0,
     ):
-        self.padding_value = padding_value
         self.tokenizer = Sequential(
             BERTTokenizer(
                 vocab_path=vocab_file, do_lower_case=do_lower_case, return_tokens=False
