@@ -27,25 +27,23 @@ class TestFLAVA(unittest.TestCase):
 
     @torch.no_grad()
     def test_forward_classification(self):
+        flava = flava_model_for_classification(NUM_CLASSES, pretrained_model_key=None)
         text = torch.randint(0, 30500, (2, 77), dtype=torch.long)
         image = torch.rand((2, 3, 224, 224))
 
         labels = torch.randint(0, 2, (2,), dtype=torch.long)
 
-        flava = flava_model_for_classification(NUM_CLASSES)
-        flava.eval()
-
         # Test multimodal scenario
         output = flava(image, text, "mm", labels)
-        self.assertAlmostEqual(output.loss.item(), 0.6930, places=4)
+        self.assertAlmostEqual(output.loss.item(), 0.9724, places=4)
 
         # Test unimodal image scenario
         output = flava(image, text, "image", labels)
-        self.assertAlmostEqual(output.loss.item(), 0.6923, places=4)
+        self.assertAlmostEqual(output.loss.item(), 0.5453, places=4)
 
         # Test unimodal text scenario
         output = flava(image, text, "text", labels)
-        self.assertAlmostEqual(output.loss.item(), 0.6998, places=4)
+        self.assertAlmostEqual(output.loss.item(), 0.7074, places=4)
 
     @torch.no_grad()
     def test_forward_pretraining(self):
