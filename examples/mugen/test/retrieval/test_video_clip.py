@@ -31,7 +31,7 @@ class TestTextEncoder:
         ).to(dtype=int)
         return input_ids
 
-    def test_forward_pretrained(self, utils):
+    def test_forward_pretrained_trainable(self, utils):
         input_ids = utils
         encoder = TextEncoder()
         out = encoder(input_ids)
@@ -40,8 +40,13 @@ class TestTextEncoder:
         assert_expected(
             actual=out.sum(), expected=torch.as_tensor(expected_sum), rtol=0, atol=1e-4
         )
+        assert next(encoder.parameters()).requires_grad
 
-    def test_forward_untrained(self, utils):
+    def test_pretrained_untrainable(self):
+        encoder = TextEncoder(trainable=False)
+        assert not next(encoder.parameters()).requires_grad
+
+    def test_forward_untrained_trainable(self, utils):
         input_ids = utils
         encoder = TextEncoder(pretrained=False)
         out = encoder(input_ids)
@@ -50,6 +55,12 @@ class TestTextEncoder:
         assert_expected(
             actual=out.sum(), expected=torch.as_tensor(expected_sum), rtol=0, atol=1e-4
         )
+        assert next(encoder.parameters()).requires_grad
+
+    def test_untrained_untrainable(self):
+        encoder = TextEncoder(pretrained=False, trainable=False)
+        # encoder should ignore ``trainable`` if ``pretrained`` is False
+        assert next(encoder.parameters()).requires_grad
 
     def test_attention_mask(self, utils):
         input_ids = utils
@@ -64,10 +75,12 @@ class TestTextEncoder:
 
 
 class TestVideoEncoder:
-    @pytest.fixture
-    def start(self):
+    @pytest.fixture(autouse=True)
+    def set_seed(self):
         set_rng_seed(1234)
 
+    @pytest.fixture
+    def utils(self):
         def make_input_video(c_dim=1):
             input_shape = [2, 3, 32, 32, 32]
             input_shape[c_dim] = 3
@@ -75,8 +88,8 @@ class TestVideoEncoder:
 
         return make_input_video
 
-    def test_forward(self, start):
-        make_input_video = start
+    def test_forward_trainable(self, utils):
+        make_input_video = utils
         input_video = make_input_video()
         encoder = VideoEncoder()
         out = encoder(input_video)
@@ -87,6 +100,11 @@ class TestVideoEncoder:
         assert_expected(
             actual=out.sum(), expected=torch.as_tensor(expected_sum), rtol=0, atol=1e-3
         )
+        assert next(encoder.parameters()).requires_grad
+
+    def test_untrainable(self):
+        encoder = VideoEncoder(trainable=False)
+        assert not next(encoder.parameters()).requires_grad
 
 
 class TestProjection:
@@ -97,7 +115,7 @@ class TestProjection:
     @pytest.fixture
     def utils(self, set_seed):
         input = torch.randint(10, (2, 7)).float()
-        proj = Projection(dim_in=7, dim_out=3)
+        proj = Projection(in_dim=7, out_dim=3)
         return proj, input
 
     def test_forward(self, utils):
@@ -121,15 +139,23 @@ class TestVideoCLIPModel:
             ]
         ).to(dtype=int)
         input_video = torch.randint(10, [2, 3, 32, 32, 32]).float()
-        clip = videoclip()
-        return clip, input_text, input_video
+        return input_text, input_video
 
     def test_forward(self, utils):
-        clip, input_text, input_video = utils
+        input_text, input_video = utils
+        clip = videoclip()
         clip_output = clip(features_a=input_text, features_b=input_video)
         assert_expected(
             actual=clip_output.embeddings_a.shape, expected=torch.Size([2, 256])
         )
         assert_expected(
             actual=clip_output.embeddings_b.shape, expected=torch.Size([2, 256])
+        )
+
+    def test_text_dim(self, utils):
+        input_text, input_video = utils
+        clip = videoclip(text_model_config={"dim": 6})
+        clip_output = clip(features_a=input_text, features_b=input_video)
+        assert_expected(
+            actual=clip_output.embeddings_a.shape, expected=torch.Size([2, 256])
         )
