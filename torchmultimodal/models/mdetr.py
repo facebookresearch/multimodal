@@ -153,10 +153,8 @@ class MDETRTransformer(nn.Module):
             activation (Callable[..., Tensor]): The activation function of the
                 intermediate layer. Default: relu
             normalize_before (bool): Whether to do PreNorm. Default: False
-            return_intermediate (bool): Whether to return intermediate decoder outputs.
+            return_intermediate_dec (bool): Whether to return intermediate decoder outputs.
                 Default: True
-
-
 
     Inputs: image_embeddings Tensor: The image input.
             image_mask (Tensor) The mask for the image sequence.
@@ -164,12 +162,8 @@ class MDETRTransformer(nn.Module):
                 cross-attention matrix in decoder.
             pos_embed (Tensor): Positional embeddings applied to Q and K
                 self-attention matrices in decoder.
-            query_pos (Tensor): Positional embeddings applied to Q
-                cross-attention matrix.
             text_memory (Tensor): Text input.
             text_attention_mask (Tensor): Attention mask for text input.
-
-
     """
 
     def __init__(
