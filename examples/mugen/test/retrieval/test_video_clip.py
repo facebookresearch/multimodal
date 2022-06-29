@@ -40,7 +40,6 @@ class TestTextEncoder:
         assert_expected(
             actual=out.sum(), expected=torch.as_tensor(expected_sum), rtol=0, atol=1e-4
         )
-        print(encoder.state_dict().keys())
 
     def test_forward_untrained(self, utils):
         input_ids = utils
