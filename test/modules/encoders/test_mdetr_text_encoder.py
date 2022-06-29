@@ -18,6 +18,7 @@ from torchmultimodal.modules.encoders.mdetr_text_encoder import (
 
 class TestMDETRTextEncoder(unittest.TestCase):
     def setUp(self):
+        set_rng_seed(0)
         self.max_position_embeddings = 514
         self.hidden_size = 768
         self.embeddings = MDETRTextEmbeddings(
@@ -29,7 +30,6 @@ class TestMDETRTextEncoder(unittest.TestCase):
             layer_norm_eps=1e-05,
             hidden_dropout_prob=0.1,
         )
-        set_rng_seed(0)
 
         self.modified_transformer_encoder = ModifiedTransformerEncoder(
             embedding_dim=self.hidden_size,
@@ -115,22 +115,22 @@ class TestMDETRTextEncoder(unittest.TestCase):
     def test_mdetr_text_embeddings(self):
         expected = torch.Tensor(
             [
-                -0.0304,
-                -0.3717,
-                0.5817,
-                -0.8700,
-                0.7169,
-                -0.4643,
-                0.8175,
-                -0.4136,
-                1.4704,
-                -1.0958,
-                1.4811,
-                1.6897,
-                0.8436,
-                0.2235,
-                1.5695,
-                -0.7361,
+                -1.0921,
+                2.2603,
+                -0.5833,
+                0.7053,
+                0.2295,
+                0.2110,
+                -0.7579,
+                -0.3196,
+                0.1942,
+                0.2076,
+                -0.9220,
+                0.0716,
+                0.2924,
+                0.2390,
+                0.2598,
+                1.3811,
             ]
         )
         out = self.embeddings(self.input_ids)
@@ -138,27 +138,28 @@ class TestMDETRTextEncoder(unittest.TestCase):
         self.assertEqual(
             out.size(), (self.batch_size, self.input_length, self.hidden_size)
         )
+        print(actual)
         assert_expected(actual, expected, rtol=0.0, atol=1e-4)
 
     def test_mdetr_modified_transformer(self):
         expected = torch.Tensor(
             [
-                0.8221,
-                0.8772,
-                0.8121,
-                0.9098,
-                0.7683,
-                1.1467,
-                0.8986,
-                0.9859,
-                1.0459,
-                0.8101,
-                1.0133,
-                0.8314,
-                1.0375,
-                0.9280,
-                0.9604,
-                0.8452,
+                1.2321,
+                0.9876,
+                0.8055,
+                0.9674,
+                1.1693,
+                1.0343,
+                1.0212,
+                1.0490,
+                0.9856,
+                1.1604,
+                1.0352,
+                0.9186,
+                0.9872,
+                1.0180,
+                1.0587,
+                1.0421,
             ]
         )
         out = self.modified_transformer_encoder(self.encoder_input, self.attention_mask)
@@ -171,22 +172,22 @@ class TestMDETRTextEncoder(unittest.TestCase):
     def test_mdetr_text_encoder(self):
         expected = torch.Tensor(
             [
-                -1.6693,
-                -1.5718,
-                -1.4614,
-                -1.6710,
-                -1.5591,
-                -1.5862,
-                -1.3247,
-                -1.6061,
-                -1.5178,
-                -1.6653,
-                -1.4223,
-                -1.4895,
-                -1.5872,
-                -1.4665,
-                -1.5310,
-                -1.7176,
+                2.4597,
+                2.6349,
+                2.5019,
+                2.3781,
+                2.7154,
+                2.5823,
+                2.4751,
+                2.5483,
+                2.5868,
+                2.5241,
+                2.5561,
+                2.6130,
+                2.6505,
+                2.3894,
+                2.4084,
+                2.7014,
             ]
         )
         out = self.text_encoder(self.input_ids, self.attention_mask)
