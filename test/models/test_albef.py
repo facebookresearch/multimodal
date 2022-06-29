@@ -145,13 +145,15 @@ def test_dequeue_and_enqueue(dummy_albef_model):
 def test_momentum_update(dummy_albef_model):
     init_weight = Tensor([[1, 2, 3], [4, 5, 6]])
     init_weight_m = Tensor([[6, 5, 4], [3, 2, 1]])
-    dummy_albef_model.models[0].weight = nn.Parameter(init_weight)
-    dummy_albef_model.models_m[0].weight = nn.Parameter(init_weight_m)
+    dummy_albef_model.vision_encoder.weight = nn.Parameter(init_weight)
+    dummy_albef_model.vision_encoder_m.weight = nn.Parameter(init_weight_m)
     dummy_albef_model._momentum_update()
     expected_weight_m = Tensor([[4.75, 4.25, 3.75], [3.25, 2.75, 2.25]])
-    assert_expected(dummy_albef_model.models[0].weight, init_weight, rtol=0, atol=1e-4)
     assert_expected(
-        dummy_albef_model.models_m[0].weight, expected_weight_m, rtol=0, atol=1e-4
+        dummy_albef_model.vision_encoder.weight, init_weight, rtol=0, atol=1e-4
+    )
+    assert_expected(
+        dummy_albef_model.vision_encoder_m.weight, expected_weight_m, rtol=0, atol=1e-4
     )
 
 
