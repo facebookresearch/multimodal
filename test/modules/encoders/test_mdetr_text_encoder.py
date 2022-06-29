@@ -5,16 +5,15 @@
 # LICENSE file in the root directory of this source tree.
 
 import unittest
-from copy import deepcopy
 
 import torch
+
 from test.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.modules.encoders.mdetr_text_encoder import (
     MDETRTextEmbeddings,
     MDETRTextEncoder,
     ModifiedTransformerEncoder,
 )
-from torchtext.models.roberta.bundler import ROBERTA_BASE_ENCODER
 
 
 class TestMDETRTextEncoder(unittest.TestCase):
@@ -31,10 +30,6 @@ class TestMDETRTextEncoder(unittest.TestCase):
             hidden_dropout_prob=0.1,
         )
         set_rng_seed(0)
-        self._populate_embedding_weights()
-
-        self.roberta_encoder = ROBERTA_BASE_ENCODER.get_model()
-        # Remove extra args due to TorchText RoBERTa encoder's forward taking in tokens instead of embeddings
 
         self.modified_transformer_encoder = ModifiedTransformerEncoder(
             embedding_dim=self.hidden_size,
@@ -44,7 +39,6 @@ class TestMDETRTextEncoder(unittest.TestCase):
             dropout=0.1,
             normalize_before=False,
         )
-        self._populate_modified_transformer_weights()
 
         self.text_encoder = MDETRTextEncoder(
             embeddings=self.embeddings, encoder=self.modified_transformer_encoder
@@ -77,32 +71,66 @@ class TestMDETRTextEncoder(unittest.TestCase):
         )
         self.attention_mask = torch.tensor(
             [
-                [1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            ],
-            dtype=torch.int,
+                [
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    True,
+                    True,
+                    True,
+                    True,
+                    True,
+                    True,
+                    True,
+                    True,
+                    True,
+                ],
+                [
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                    False,
+                ],
+            ]
         )
+        self.encoder_input = torch.rand((2, 16, 768))
         self.batch_size, self.input_length = self.input_ids.size()
 
     def test_mdetr_text_embeddings(self):
         expected = torch.Tensor(
             [
-                0.62926,
-                0.71966,
-                0.59531,
-                0.54416,
-                0.61227,
-                0.67181,
-                0.61707,
-                0.47298,
-                0.72058,
-                0.68760,
-                0.75449,
-                0.52463,
-                0.49111,
-                0.57840,
-                0.44969,
-                0.71950,
+                -0.0304,
+                -0.3717,
+                0.5817,
+                -0.8700,
+                0.7169,
+                -0.4643,
+                0.8175,
+                -0.4136,
+                1.4704,
+                -1.0958,
+                1.4811,
+                1.6897,
+                0.8436,
+                0.2235,
+                1.5695,
+                -0.7361,
             ]
         )
         out = self.embeddings(self.input_ids)
@@ -113,29 +141,27 @@ class TestMDETRTextEncoder(unittest.TestCase):
         assert_expected(actual, expected, rtol=0.0, atol=1e-4)
 
     def test_mdetr_modified_transformer(self):
-        inp = torch.rand((2, 16, 768))
-        self.inp = inp
         expected = torch.Tensor(
             [
-                -0.3351,
-                0.0728,
-                -0.2649,
-                -0.0369,
-                -0.2435,
-                -0.3580,
-                -0.1809,
-                -0.2042,
-                -0.0316,
-                -0.3408,
-                0.0784,
-                -0.1908,
-                -0.2906,
-                -0.0650,
-                -0.3023,
-                -0.1622,
+                0.8221,
+                0.8772,
+                0.8121,
+                0.9098,
+                0.7683,
+                1.1467,
+                0.8986,
+                0.9859,
+                1.0459,
+                0.8101,
+                1.0133,
+                0.8314,
+                1.0375,
+                0.9280,
+                0.9604,
+                0.8452,
             ]
         )
-        out = self.modified_transformer_encoder(inp, self.attention_mask)
+        out = self.modified_transformer_encoder(self.encoder_input, self.attention_mask)
         actual = out[1, :, 1]
         self.assertEqual(
             out.size(), (self.batch_size, self.input_length, self.hidden_size)
@@ -145,22 +171,22 @@ class TestMDETRTextEncoder(unittest.TestCase):
     def test_mdetr_text_encoder(self):
         expected = torch.Tensor(
             [
-                0.04690,
-                0.06246,
-                0.05839,
-                0.05727,
-                0.06413,
-                0.05640,
-                0.06599,
-                0.04888,
-                0.07137,
-                0.05381,
-                0.06141,
-                0.06225,
-                0.04788,
-                0.06256,
-                0.05058,
-                0.06433,
+                -1.6693,
+                -1.5718,
+                -1.4614,
+                -1.6710,
+                -1.5591,
+                -1.5862,
+                -1.3247,
+                -1.6061,
+                -1.5178,
+                -1.6653,
+                -1.4223,
+                -1.4895,
+                -1.5872,
+                -1.4665,
+                -1.5310,
+                -1.7176,
             ]
         )
         out = self.text_encoder(self.input_ids, self.attention_mask)
@@ -169,30 +195,3 @@ class TestMDETRTextEncoder(unittest.TestCase):
             out.size(), (self.batch_size, self.input_length, self.hidden_size)
         )
         assert_expected(actual, expected, rtol=0.0, atol=1e-4)
-
-    # Unlike with the encoder where all weights are already present in the TorchText checkpoint,
-    # for the embedding we need to construct our own weights since word_embeddings are not present
-    # in the TorchText model bundle.
-    def _populate_embedding_weights(self):
-        embeddings_state_dict = {}
-        for k, v in self.embeddings.state_dict().items():
-            # These have already been set on init and shouldn't be changed
-            if k == "position_ids":
-                embeddings_state_dict[k] = v
-            # Set these to match the HF RoBERTa weights
-            elif k == "token_type_embeddings.weight":
-                embeddings_state_dict[k] = torch.zeros(v.size())
-            # Set all other weights randomly
-            else:
-                embeddings_state_dict[k] = torch.rand(v.size())
-        self.embeddings.load_state_dict(embeddings_state_dict)
-
-    def _populate_modified_transformer_weights(self):
-        transformer_state_dict = deepcopy(
-            self.roberta_encoder.encoder.transformer.state_dict()
-        )
-        # Remove embedding weights, but keep final layer norm weights
-        state_dict = {
-            k: v for k, v in transformer_state_dict.items() if "embedding" not in k
-        }
-        self.modified_transformer_encoder.load_state_dict(state_dict)
