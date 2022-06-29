@@ -9,7 +9,7 @@ from typing import Any, List
 import numpy as np
 import torch
 import torch.nn.functional as F
-from examples.mdetr.utils.box_ops import box_cxcywh_to_xyxy
+from torchvision.ops.boxes import box_convert
 
 
 class PostProcessFlickr:
@@ -42,7 +42,7 @@ class PostProcessFlickr:
         prob = F.softmax(out_logits, -1)
 
         # convert to [x0, y0, x1, y1] format
-        boxes = box_cxcywh_to_xyxy(out_bbox)
+        boxes = box_convert(out_bbox, in_fmt="cxcywh", out_fmt="xyxy")
         img_h, img_w = target_sizes.unbind(1)
         scale_fct = torch.stack([img_w, img_h, img_w, img_h], dim=1)
         # and from relative [0, 1] to absolute [0, height] coordinates
