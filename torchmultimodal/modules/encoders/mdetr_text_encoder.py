@@ -243,7 +243,7 @@ def mdetr_roberta_text_encoder(
         hidden_dropout_prob=embedding_dropout_prob,
     )
 
-    wrapped_transformer_encoder = ModifiedTransformerEncoder(
+    modified_transformer_encoder = ModifiedTransformerEncoder(
         embedding_dim=embedding_dim,
         ffn_dimension=ffn_dimension,
         num_attention_heads=num_attention_heads,
@@ -253,6 +253,6 @@ def mdetr_roberta_text_encoder(
     )
 
     text_encoder = MDETRTextEncoder(
-        embeddings=embeddings, encoder=wrapped_transformer_encoder
+        embeddings=embeddings, encoder=modified_transformer_encoder
     )
     return text_encoder
