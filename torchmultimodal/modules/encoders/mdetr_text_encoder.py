@@ -172,7 +172,9 @@ class ModifiedTransformerEncoder(nn.Module):
         encoded = embeddings
         # Do this in a loop because otherwise it can cause OOM
         for layer in self.layers.layers:
-            encoded = layer(encoded, src_key_padding_mask=attention_mask)
+            encoded = layer(
+                encoded, src_key_padding_mask=attention_mask.to(dtype=torch.bool)
+            )
         return encoded
 
 
@@ -185,8 +187,8 @@ class MDETRTextEncoder(nn.Module):
                 (embeddings -> encoder outputs).
 
     Inputs: input_ids (Tensor): Tensor of input IDs to encode.
-            attention_mask (Optional[Tensor]): Attention mask for batch. Should equal 1
-                on masked tokens on 0 on non-masked tokens. Default: None (no masking)
+            attention_mask (Optional[Tensor]): Attention mask for batch. Should equal True
+                on masked tokens on False on non-masked tokens. Default: None (no masking)
             token_type_ids (Optional[Tensor]): Optional tensor of token type IDs to use
                 in token type embedding. Default: None
             position_ids (Optional[Tensor]): Optional tensor of position IDs to use in

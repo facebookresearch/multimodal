@@ -9,29 +9,12 @@ from copy import deepcopy
 import pytest
 import torch
 from examples.mdetr.data.postprocessors import PostProcessFlickr
-from examples.mdetr.utils.box_ops import box_cxcywh_to_xyxy
 from test.test_utils import assert_expected, set_rng_seed
 
 
 @pytest.fixture(scope="class")
 def random():
     set_rng_seed(0)
-
-
-class TestBoxTransformUtil:
-    @pytest.fixture(scope="class")
-    def coords(self):
-        return torch.Tensor([1.0, 2.0, 3.0, 4.0])
-
-    def test_invalid_inputs(self, coords):
-        invalid_coords = torch.concat([coords, torch.Tensor([1])])
-        with pytest.raises(ValueError):
-            box_cxcywh_to_xyxy(invalid_coords)
-
-    def test_valid_inputs(self, coords):
-        actual = box_cxcywh_to_xyxy(coords)
-        expected = torch.Tensor([-0.5, 0.0, 2.5, 4])
-        assert_expected(actual, expected)
 
 
 class TestFlickrPostProcessor:
