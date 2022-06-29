@@ -36,16 +36,18 @@ class TestMDETRTextEncoder(unittest.TestCase):
         self.roberta_encoder = ROBERTA_BASE_ENCODER.get_model()
         # Remove extra args due to TorchText RoBERTa encoder's forward taking in tokens instead of embeddings
 
-        wrapped_args = {
-            k: v
-            for k, v in ROBERTA_BASE_ENCODER.encoderConf.__dict__.items()
-            if k not in ["vocab_size", "padding_idx", "max_seq_len", "scaling"]
-        }
-        self.wrapped_transformer_encoder = ModifiedTransformerEncoder(**wrapped_args)
-        self._populate_wrapped_transformer_weights()
+        self.modified_transformer_encoder = ModifiedTransformerEncoder(
+            embedding_dim=self.hidden_size,
+            ffn_dimension=3072,
+            num_attention_heads=12,
+            num_encoder_layers=12,
+            dropout=0.1,
+            normalize_before=False,
+        )
+        self._populate_modified_transformer_weights()
 
         self.text_encoder = MDETRTextEncoder(
-            embeddings=self.embeddings, encoder=self.wrapped_transformer_encoder
+            embeddings=self.embeddings, encoder=self.modified_transformer_encoder
         )
         self.text_encoder.eval()
 
@@ -110,7 +112,7 @@ class TestMDETRTextEncoder(unittest.TestCase):
         )
         assert_expected(actual, expected, rtol=0.0, atol=1e-4)
 
-    def test_mdetr_wrapped_transformer(self):
+    def test_mdetr_modified_transformer(self):
         inp = torch.rand((2, 16, 768))
         self.inp = inp
         expected = torch.Tensor(
@@ -133,7 +135,7 @@ class TestMDETRTextEncoder(unittest.TestCase):
                 -0.1622,
             ]
         )
-        out = self.wrapped_transformer_encoder(inp, self.attention_mask)
+        out = self.modified_transformer_encoder(inp, self.attention_mask)
         actual = out[1, :, 1]
         self.assertEqual(
             out.size(), (self.batch_size, self.input_length, self.hidden_size)
@@ -185,12 +187,12 @@ class TestMDETRTextEncoder(unittest.TestCase):
                 embeddings_state_dict[k] = torch.rand(v.size())
         self.embeddings.load_state_dict(embeddings_state_dict)
 
-    def _populate_wrapped_transformer_weights(self):
+    def _populate_modified_transformer_weights(self):
         transformer_state_dict = deepcopy(
             self.roberta_encoder.encoder.transformer.state_dict()
         )
         # Remove embedding weights, but keep final layer norm weights
-        wrapped_state_dict = {
+        state_dict = {
             k: v for k, v in transformer_state_dict.items() if "embedding" not in k
         }
-        self.wrapped_transformer_encoder.load_state_dict(wrapped_state_dict)
+        self.modified_transformer_encoder.load_state_dict(state_dict)
