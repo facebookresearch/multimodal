@@ -4,11 +4,15 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import hashlib
+import os
 from typing import Any, Dict, Optional
 
 import torch
 from examples.mugen.retrieval.s3d import S3D
 from torch import nn
+
+from torchmultimodal.utils.common import get_current_device
 from transformers import DistilBertConfig, DistilBertModel
 
 
@@ -69,17 +73,66 @@ class TextEncoder(nn.Module):
 
 
 class VideoEncoder(nn.Module):
-    """Encode videos to a fixed size vector. Adapted from VideoCLIP
-        (https://github.com/facebookresearch/fairseq/blob/main/examples/MMPT/mmpt/processors/models/s3dg.py)
+    """Encode videos to a fixed size vector.
+
+    Adapted from MUGEN's video encoder
+        (https://github.com/mugen-org/MUGEN_baseline/blob/main/lib/models/videoclip/modules.py)
+
+    Args:
+        pretrained (bool): whether to use a pretrained model or not.
+            Defaults to True.
+        pretrain_file (Optional[Any]): a file-like object (has to implement read, readline, tell, and seek),
+            or a string or os.PathLike object containing a file name.
+            Defaults to None, which loads the weights MUGEN used from pretraining S3D on Kinetics 400.
+            Ignored if ``pretrained`` is False.
 
     Inputs:
         x (Tensor): batch of videos with dimensions (batch, channel, time, height, width)
     """
 
-    def __init__(self):
+    def __init__(self, pretrained: bool = True, pretrain_file: Optional[Any] = None):
         super().__init__()
         self.model = S3D(400)
         self.model.fc = nn.Identity()
+
+        if pretrained:
+            weight_dict = self.get_pretrained_weights(pretrain_file)
+            model_dict = self.model.state_dict()
+            for name, param in weight_dict.items():
+                if "fc.0" not in name:
+                    if "module" in name:
+                        name = ".".join(name.split(".")[1:])
+                    model_dict[name].copy_(param)
+
+    def get_model_dir(self, url):
+        return os.path.join(
+            torch.hub.get_dir(),
+            "multimodal",
+            hashlib.sha256(url.encode("utf-8")).hexdigest(),
+        )
+
+    def get_pretrained_weights(self, file: Optional[Any] = None) -> dict:
+        """Loads a pretrained weights dict for the S3D encoder.
+
+        Args:
+            file (Optional[Any]): a file-like object (has to implement read, readline, tell, and seek),
+                or a string or os.PathLike object containing a file name.
+                Defaults to None, which loads the weights MUGEN used from pretraining S3D on Kinetics 400.
+
+        Returns:
+            dict: dictionary of weights for loading into the VideoEncoder
+
+        """
+        if not file:
+            pretrained_url = "https://drive.google.com/uc?export=download&id=1HJVDBOQpnTMDVUM3SsXLy0HUkf_wryGO"
+            weight_dict = torch.hub.load_state_dict_from_url(
+                pretrained_url,
+                model_dir=self.get_model_dir(pretrained_url),
+                map_location=get_current_device(),
+            )
+        else:
+            weight_dict = torch.load(file, map_location=get_current_device())
+        return weight_dict
 
     def forward(self, x):
         return self.model(x)
