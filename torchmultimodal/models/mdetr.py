@@ -36,9 +36,9 @@ class MDETR(nn.Module):
             transformer (nn.Module): The multimodal transformer module. See the
                 Transformer class in this file.
             pos_embed (nn.Module): Module for positional embedding of images.
-            resizer (nn.Module): Module to resize text encoder outputs before feeding
+            text_projection (nn.Module): Module to resize text encoder outputs before feeding
                 them to the multimodal transformer.
-            input_proj (nn.Module): Projection module applied to image embeddings
+            image_projection (nn.Module): Projection module applied to image embeddings
                 prior to the multimodal transformer.
             query_embed (nn.Module): Learned object query embeddings (used in
                 transformer decoder).
@@ -66,8 +66,8 @@ class MDETR(nn.Module):
         text_encoder: nn.Module,
         transformer: nn.Module,
         pos_embed: nn.Module,
-        resizer: nn.Module,
-        input_proj: nn.Module,
+        text_projection: nn.Module,
+        image_projection: nn.Module,
         query_embed: nn.Module,
         bbox_embed: nn.Module,
         class_embed: nn.Module,
@@ -75,10 +75,10 @@ class MDETR(nn.Module):
         super().__init__()
         self.image_backbone = image_backbone
         self.text_encoder = text_encoder
-        self.resizer = resizer
+        self.text_projection = text_projection
         self.transformer = transformer
         self.pos_embed = pos_embed
-        self.input_proj = input_proj
+        self.image_projection = image_projection
         self.query_embed = query_embed
         self.bbox_embed = bbox_embed
         self.class_embed = class_embed
@@ -115,15 +115,15 @@ class MDETR(nn.Module):
         # Transpose memory because pytorch's attention expects sequence first
         text_memory = encoded_text.transpose(0, 1)
 
-        src, mask = self.image_backbone(images, image_mask)
-        pos = self.pos_embed(mask).to(src.dtype)
+        image_embeddings, image_mask = self.image_backbone(images, image_mask)
+        pos = self.pos_embed(image_mask).to(image_embeddings.dtype)
         query_embed = self.query_embed.weight
 
-        text_memory_resized = self.resizer(text_memory)
+        text_memory_resized = self.text_projection(text_memory)
 
         hs = self.transformer(
-            self.input_proj(src),
-            mask,
+            self.image_projection(image_embeddings),
+            image_mask,
             query_embed,
             pos,
             text_memory=text_memory_resized,
@@ -154,22 +154,21 @@ class MDETRTransformer(nn.Module):
                 intermediate layer. Default: relu
             normalize_before (bool): Whether to do PreNorm. Default: False
             return_intermediate (bool): Whether to return intermediate decoder outputs.
-                Default: False
-            pass_pos_and_query (bool): Whether to pass positional encodings to
-                attention layers. Default: True
+                Default: True
 
 
-    Inputs: src (Optional[Tensor]): The image input. Default: None
-            mask (Optional[Tensor]) The mask for the image sequence. Default: None
-            query_embed (Optional[Tensor]): Positional embeddings applied to Q
-                cross-attention matrix in decoder. Default: None
-            pos_embed (Optional[Tensor]): Positional embeddings applied to Q and K
-                self-attention matrices in decoder. Default: None
-            query_pos (Optional[Tensor]): Positional embeddings applied to Q
-                cross-attention matrix. Default: None
-            text_memory (Optional[Tensor]): Text input. Default: None
-            text_attention_mask (Optional[Tensor]): Attention mask for text input.
-                Default: None
+
+    Inputs: image_embeddings Tensor: The image input.
+            image_mask (Tensor) The mask for the image sequence.
+            query_embed (Tensor): Positional embeddings applied to Q
+                cross-attention matrix in decoder.
+            pos_embed (Tensor): Positional embeddings applied to Q and K
+                self-attention matrices in decoder.
+            query_pos (Tensor): Positional embeddings applied to Q
+                cross-attention matrix.
+            text_memory (Tensor): Text input.
+            text_attention_mask (Tensor): Attention mask for text input.
+
 
     """
 
@@ -183,12 +182,10 @@ class MDETRTransformer(nn.Module):
         dropout: float = 0.1,
         activation: Callable[..., Tensor] = nn.functional.relu,
         normalize_before: bool = False,
-        return_intermediate_dec: bool = False,
-        pass_pos_and_query: bool = True,
+        return_intermediate_dec: bool = True,
     ):
         super().__init__()
 
-        self.pass_pos_and_query = pass_pos_and_query
         encoder_layer = TransformerEncoderLayer(
             d_model, nhead, dim_feedforward, dropout, activation, normalize_before
         )
@@ -210,6 +207,8 @@ class MDETRTransformer(nn.Module):
         self.d_model = d_model
         self._reset_parameters()
 
+    # Reset all (non-normalization-layer) weights
+    # Biases will be unaffected
     def _reset_parameters(self):
         for p in self.parameters():
             if p.dim() > 1:
@@ -217,51 +216,41 @@ class MDETRTransformer(nn.Module):
 
     def forward(
         self,
-        src: Optional[Tensor] = None,
-        mask: Optional[Tensor] = None,
-        query_embed: Optional[Tensor] = None,
-        pos_embed: Optional[Tensor] = None,
-        text_memory: Optional[Tensor] = None,
-        text_attention_mask: Optional[Tensor] = None,
+        image_embeddings: Tensor,
+        image_mask: Tensor,
+        query_embed: Tensor,
+        pos_embed: Tensor,
+        text_memory: Tensor,
+        text_attention_mask: Tensor,
     ):
         # flatten NxCxHxW to HWxNxC
-        bs, _, _, _ = src.shape
-        src = src.flatten(2).permute(2, 0, 1)
+        bs, _, _, _ = image_embeddings.shape
+        image_embeddings = image_embeddings.flatten(2).permute(2, 0, 1)
         pos_embed = pos_embed.flatten(2).permute(2, 0, 1)
         query_embed = query_embed.unsqueeze(1).repeat(1, bs, 1)
-        mask = mask.flatten(1)
+        image_mask = image_mask.flatten(1)
 
-        if self.pass_pos_and_query:
-            tgt = torch.zeros_like(query_embed)
-        else:
-            src, tgt, query_embed, pos_embed = (
-                src + 0.1 * pos_embed,
-                query_embed,
-                None,
-                None,
-            )
+        tgt = torch.zeros_like(query_embed)
 
         # Concat on the sequence dimension
-        src = torch.cat([src, text_memory], dim=0)
+        image_embeddings = torch.cat([image_embeddings, text_memory], dim=0)
         # For mask, sequence dimension is second
-        mask = torch.cat([mask, text_attention_mask], dim=1)
+        image_mask = torch.cat([image_mask, text_attention_mask], dim=1)
 
         # Pad the pos_embed with 0 so that the addition will be a no-op for the text tokens
         pos_embed = torch.cat([pos_embed, torch.zeros_like(text_memory)], dim=0)
-        img_memory = self.encoder(src, src_key_padding_mask=mask, pos=pos_embed)
+        mm_memory = self.encoder(
+            image_embeddings, src_key_padding_mask=image_mask, pos=pos_embed
+        )
+        text_memory = mm_memory[-len(text_memory) :]
+        assert mm_memory.shape[1] == text_memory.shape[1] == tgt.shape[1]
 
-        text_memory = img_memory[-len(text_memory) :]
-        assert img_memory.shape[1] == text_memory.shape[1] == tgt.shape[1]
-
-        if not self.pass_pos_and_query:
-            pos_embed = None
-
-        assert img_memory.shape[1] == text_memory.shape[1] == tgt.shape[1]
+        assert mm_memory.shape[1] == text_memory.shape[1] == tgt.shape[1]
 
         hs = self.decoder(
             tgt,
-            img_memory,
-            memory_key_padding_mask=mask,
+            mm_memory,
+            memory_key_padding_mask=image_mask,
             pos=pos_embed,
             query_pos=query_embed,
         )
@@ -292,8 +281,7 @@ class TransformerEncoder(nn.Module):
         norm: Optional[nn.Module] = None,
     ):
         super().__init__()
-        self.layers = _get_clones(encoder_layer, num_layers)
-        self.num_layers = num_layers
+        self.layers = get_clones(encoder_layer, num_layers)
         self.norm = norm
 
     def forward(
@@ -329,7 +317,7 @@ class TransformerDecoder(nn.Module):
             norm (Optional[nn.Module]): Normalization applied after last decoder layer.
                 Default: None
             return_intermediate (bool): Whether to return intermediate decoder outputs.
-                Default: False
+                Default: True
 
     Inputs: tgt (Tensor): The sequence to the decoder layer.
             memory (Tensor): The sequence from the last layer of the decoder.
@@ -350,11 +338,10 @@ class TransformerDecoder(nn.Module):
         decoder_layer: nn.Module,
         num_layers: int,
         norm: Optional[nn.Module] = None,
-        return_intermediate: bool = False,
+        return_intermediate: bool = True,
     ):
         super().__init__()
-        self.layers = _get_clones(decoder_layer, num_layers)
-        self.num_layers = num_layers
+        self.layers = get_clones(decoder_layer, num_layers)
         self.norm = norm
         self.return_intermediate = return_intermediate
 
@@ -385,23 +372,23 @@ class TransformerDecoder(nn.Module):
                 query_pos=query_pos,
             )
             if self.return_intermediate:
-                intermediate.append(self.norm(output))
-
-        if self.norm is not None:
-            output = self.norm(output)
-            if self.return_intermediate:
-                intermediate.pop()
-                intermediate.append(output)
+                if self.norm is not None:
+                    intermediate.append(self.norm(output))
+                else:
+                    intermediate.append(output)
 
         if self.return_intermediate:
             return torch.stack(intermediate)
+
+        if self.norm is not None:
+            return self.norm(output)
 
         return output
 
 
 class TransformerEncoderLayer(nn.Module):
     """
-    A single layer from a transformer decoder.
+    A single layer from a transformer encoder.
 
     Args:   d_model (int): Number of features in the input.
             nhead (int): Number of heads in multi-head attention.
@@ -623,7 +610,7 @@ class FeatureResizer(nn.Module):
         return output
 
 
-def _get_clones(module: nn.Module, n: int) -> nn.ModuleList:
+def get_clones(module: nn.Module, n: int) -> nn.ModuleList:
     return nn.ModuleList([deepcopy(module) for i in range(n)])
 
 
@@ -635,7 +622,6 @@ def mdetr_transformer(
     dim_feedforward: int = 2048,
     dropout: float = 0.1,
     return_intermediate_dec: bool = True,
-    pass_pos_and_query: bool = True,
 ) -> MDETRTransformer:
     return MDETRTransformer(
         d_model=d_model,
@@ -645,7 +631,6 @@ def mdetr_transformer(
         dim_feedforward=dim_feedforward,
         dropout=dropout,
         return_intermediate_dec=return_intermediate_dec,
-        pass_pos_and_query=pass_pos_and_query,
     )
 
 
@@ -660,7 +645,6 @@ def mdetr_resnet101(
     transformer_dim_feedforward: int = 2048,
     transformer_dropout: float = 0.1,
     return_intermediate_dec: bool = True,
-    transformer_pass_pos_and_query: bool = True,
 ) -> MDETR:
     image_backbone = resnet101()
     image_backbone = mdetr_resnet101_backbone()
@@ -677,7 +661,6 @@ def mdetr_resnet101(
         transformer_dim_feedforward,
         transformer_dropout,
         return_intermediate_dec,
-        transformer_pass_pos_and_query,
     )
     hidden_dim = transformer_d_model
     resizer = FeatureResizer(embedding_dim, hidden_dim)
