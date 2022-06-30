@@ -8,7 +8,7 @@ import pytest
 import torch
 from examples.mugen.retrieval.video_clip import TextEncoder, VideoEncoder
 
-from test.test_utils import assert_expected, get_asset_path, set_rng_seed
+from test.test_utils import assert_expected, set_rng_seed
 
 
 class TestTextEncoder:
@@ -75,8 +75,7 @@ class TestVideoEncoder:
     def test_forward_pretrained(self, utils):
         make_input_video = utils
         input_video = make_input_video()
-        pretrain_weights_filename = "S3D_kinetics400.pt"
-        encoder = VideoEncoder(pretrain_file=get_asset_path(pretrain_weights_filename))
+        encoder = VideoEncoder()
 
         out = encoder(input_video)
         expected_sum = 1587.7263
