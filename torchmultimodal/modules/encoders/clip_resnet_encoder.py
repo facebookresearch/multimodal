@@ -189,7 +189,7 @@ class ResNetForCLIP(nn.Module):
         if use_clip_init:
             self.initialize_parameters()
 
-    def _make_layer(self, planes: int, blocks: int, stride=1) -> nn.Module:
+    def _make_layer(self, planes: int, blocks: int, stride: int = 1) -> nn.Module:
         layers = [ResNetForCLIPBottleneck(self._inplanes, planes, stride)]
 
         self._inplanes = planes * EXPANSION
@@ -198,7 +198,7 @@ class ResNetForCLIP(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def initialize_parameters(self):
+    def initialize_parameters(self) -> None:
         if self.attnpool is not None:
             std = self.attnpool.c_proj.in_features**-0.5
             nn.init.normal_(self.attnpool.q_proj.weight, std=std)
@@ -218,7 +218,7 @@ class ResNetForCLIP(nn.Module):
                     nn.init.zeros_(param)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        def stem(x):
+        def stem(x: torch.Tensor) -> torch.Tensor:
             x = self.relu1(self.bn1(self.conv1(x)))
             x = self.relu2(self.bn2(self.conv2(x)))
             x = self.relu3(self.bn3(self.conv3(x)))

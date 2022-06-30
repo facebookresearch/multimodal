@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, Iterable, Optional, Tuple
 
 import torch
 from torch import nn, Tensor
@@ -85,7 +85,12 @@ class MultiHeadAttention(nn.Module):
         return shift_dim(x, 1, -2).flatten(start_dim=-2)
 
     def forward(
-        self, q: Tensor, k: Tensor, v: Tensor, decode_step=None, decode_idx=None
+        self,
+        q: Tensor,
+        k: Tensor,
+        v: Tensor,
+        decode_step: int = None,
+        decode_idx: Iterable[int] = None,
     ) -> Tensor:
         # compute k, q, v
         d_k, d_v, n_head = self.d_k, self.d_v, self.n_head
@@ -154,7 +159,12 @@ class FullAttention(nn.Module):
             self.register_buffer("mask", torch.tril(torch.ones(seq_len, seq_len)))
 
     def forward(
-        self, q: Tensor, k: Tensor, v: Tensor, decode_step=None, decode_idx=None
+        self,
+        q: Tensor,
+        k: Tensor,
+        v: Tensor,
+        decode_step: int = None,
+        decode_idx: Iterable[int] = None,
     ) -> Tensor:
         mask = torch.Tensor(self.mask) if self.causal else None
         if decode_step is not None and mask is not None:
@@ -195,7 +205,12 @@ class AxialAttention(nn.Module):
         self.axial_dim = axial_dim + 2  # account for batch, head
 
     def forward(
-        self, q: Tensor, k: Tensor, v: Tensor, decode_step=None, decode_idx=None
+        self,
+        q: Tensor,
+        k: Tensor,
+        v: Tensor,
+        decode_step: int = None,
+        decode_idx: Iterable[int] = None,
     ) -> Tensor:
         # Ensure axial dim is within right dimensions, should be between head dim and embedding dim
         if self.axial_dim >= len(q.shape) - 1:

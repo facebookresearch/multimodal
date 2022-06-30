@@ -12,7 +12,7 @@ from torchmultimodal.transforms.text_transforms import PadTransform, StrToIntTra
 from torchtext import transforms as text_transforms
 from torchtext.transforms import CLIPTokenizer
 from torchvision import transforms
-
+from torchvision.transforms import InterpolationMode
 
 CLIP_DEFAULT_MEAN = (0.48145466, 0.4578275, 0.40821073)
 CLIP_DEFAULT_STD = (0.26862954, 0.26130258, 0.27577711)
@@ -57,7 +57,7 @@ class CLIPTransform:
     def __init__(
         self,
         image_size: Union[int, Tuple[int, int]] = (224, 224),
-        image_interpolation=transforms.InterpolationMode.BICUBIC,
+        image_interpolation: InterpolationMode = InterpolationMode.BICUBIC,
         image_mean: Tuple[float, float, float] = CLIP_DEFAULT_MEAN,
         image_std: Tuple[float, float, float] = CLIP_DEFAULT_STD,
         text_max_length: int = 77,

@@ -181,7 +181,7 @@ class ContrastiveLossWithTemperature(nn.Module):
         image_embeddings: torch.Tensor,
         text_embeddings: torch.Tensor,
         backprop_in_gather: bool = True,
-    ):
+    ) -> torch.Tensor:
 
         # Note: we clamp to 4.6052 = ln(100), as in the original paper.
         self.logit_scale.data.clamp_(0, 4.6052)

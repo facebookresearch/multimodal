@@ -131,7 +131,7 @@ class ModelOutput(OrderedDict):
         for field in fields(self):
             yield field.name
 
-    def __getitem__(self, key) -> Any:
+    def __getitem__(self, key: Any) -> Any:
         return getattr(self, key)
 
     def __iter__(self) -> Any:

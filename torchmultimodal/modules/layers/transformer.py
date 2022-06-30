@@ -10,7 +10,7 @@
 import math
 from collections import namedtuple
 from functools import partial
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Tuple
 
 import torch
 from torch import nn, Tensor
@@ -66,7 +66,7 @@ class FLAVASelfAttention(nn.Module):
         hidden_states: Tensor,
         attention_mask: Tensor = None,
         head_mask: Tensor = None,
-    ):
+    ) -> Tuple[Tensor, Tensor]:
         mixed_query_layer = self.query(hidden_states)
         key_layer = self.transpose_for_scores(self.key(hidden_states))
         value_layer = self.transpose_for_scores(self.value(hidden_states))
@@ -120,10 +120,10 @@ class FLAVAAttention(nn.Module):
 
     def forward(
         self,
-        hidden_states,
-        attention_mask=None,
-        head_mask=None,
-    ):
+        hidden_states: Tensor,
+        attention_mask: Tensor = None,
+        head_mask: Tensor = None,
+    ) -> Tuple[Tensor, Tensor]:
         self_outputs = self.attention(
             hidden_states,
             attention_mask=attention_mask,
@@ -165,10 +165,10 @@ class FLAVATransformerLayer(nn.Module):
 
     def forward(
         self,
-        hidden_states,
-        attention_mask=None,
-        head_mask=None,
-    ):
+        hidden_states: Tensor,
+        attention_mask: Tensor = None,
+        head_mask: Tensor = None,
+    ) -> Tuple[Tensor, Tensor]:
         # TODO(asg): Support postnorm transformer architecture
         # TODO(asg): After verification with this code, try replacing with
         # torchtext transformer implementation
@@ -237,7 +237,7 @@ class FLAVATransformerEncoder(nn.Module):
         hidden_states: Tensor,
         attention_mask: Optional[Tensor] = None,
         head_mask: Optional[Tensor] = None,
-    ):
+    ) -> FLAVATransformerOutput:
         all_hidden_states = []
         all_self_attentions = []
 
@@ -298,7 +298,7 @@ class FLAVATransformerWithoutEmbeddings(nn.Module):
         self,
         hidden_states: Optional[Tensor] = None,
         attention_mask: Optional[Tensor] = None,
-    ):
+    ) -> FLAVATransformerOutput:
         if hidden_states is None:
             raise ValueError("You have to specify hidden_states")
 
@@ -322,7 +322,7 @@ class FLAVATransformerWithoutEmbeddings(nn.Module):
         )
 
 
-def init_transformer_weights(module, initializer_range):
+def init_transformer_weights(module: nn.Module, initializer_range: float) -> None:
     """Initialize the weights"""
     if isinstance(module, (nn.Linear, nn.Conv2d)):
         # Slightly different from the TF version which uses truncated_normal for initialization
