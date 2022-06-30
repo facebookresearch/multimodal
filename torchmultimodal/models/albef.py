@@ -12,10 +12,6 @@ import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
 
-from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
-    _gather_embeddings_and_labels,
-)
-
 
 ALBEFOutput = namedtuple(
     "ALBEFOutput",
@@ -23,10 +19,11 @@ ALBEFOutput = namedtuple(
         "image_embeddings",
         "image_embeddings_m",
         "text_embeddings",
-        "vl_embeddings",
-        "similarity",
+        "text_embeddings_m",
+        "multimodal_embeddings",
+        "multimodal_embeddings_m",
     ],
-    defaults=(None, None, None, None, None),
+    defaults=(None, None, None, None, None, None),
 )
 
 ALBEFSimilarity = namedtuple(
@@ -40,6 +37,19 @@ ALBEFSimilarity = namedtuple(
     defaults=(None, None, None, None),
 )
 
+ALBEFWithSimilarityOutput = namedtuple(
+    "ALBEFWithSimilarityOutput",
+    [
+        "image_embeddings",
+        "text_embeddings",
+        "multimodal_embeddings",
+        "multimodal_embeddings_neg",
+        "similarity",
+        "sim_targets",
+    ],
+    defaults=(None, None, None, None, None, None),
+)
+
 
 class ALBEFModel(nn.Module):
     """
@@ -47,19 +57,14 @@ class ALBEFModel(nn.Module):
     (ALBEF) them through cross-modal attention, which enables more grounded vision
     and language representation learning. (https://arxiv.org/pdf/2107.07651.pdf)
 
-    Args:   vision_encoder (nn.Module): Instantiated vision encoder
-            text_encoder (nn.Module): instantiated text encoder
-            multimodal_encoder (nn.Module): Instantiated multimodal encoder
-            vision_proj (nn.Module): Instantiated vision projection layer
-            text_proj (nn.Module): Instantiated text projection layer
-            embed_dim (int): embedding size of the vision and text projection layers
-            queue_size (int): size of image and text queues for momentum distillation
-            temp (float): temperature parameter
-            momentum (float): momentum parameter
+    Args:   vision_encoder (nn.Module): Instantiated vision encoder.
+            text_encoder (nn.Module): Instantiated text encoder.
+            multimodal_encoder (nn.Module): Instantiated multimodal encoder.
+            momentum (float): Momentum parameter. Default is 0.995.
 
-    Inputs: image (Tensor): Tensor of shape (B, C, H, W) containing image features
-            text (Tensor): Tensor of shape (B, L) containing text features
-            text_atts (Tensor): Tensor of shape (B, L) containing text attention mask
+    Inputs: image (Tensor): Tensor of shape (B, C, H, W) containing image features.
+            text (Tensor): Tensor of shape (B, L) containing text features.
+            text_atts (Tensor): Tensor of shape (B, L) containing text attention mask.
     """
 
     def __init__(
@@ -67,54 +72,110 @@ class ALBEFModel(nn.Module):
         vision_encoder: nn.Module,
         text_encoder: nn.Module,
         multimodal_encoder: nn.Module,
-        vision_proj: nn.Module,
-        text_proj: nn.Module,
-        embed_dim: int = 256,
-        queue_size: int = 65536,
-        temp: float = 0.07,
         momentum: float = 0.995,
     ):
         super().__init__()
         self.vision_encoder = vision_encoder
         self.text_encoder = text_encoder
         self.multimodal_encoder = multimodal_encoder
-        self.vision_proj = vision_proj
-        self.text_proj = text_proj
         self.vision_encoder_m = copy.deepcopy(vision_encoder)
         self.text_encoder_m = copy.deepcopy(text_encoder)
         self.multimodal_encoder_m = copy.deepcopy(multimodal_encoder)
+
+        _copy_params_momentum_models(self.vision_encoder, self.vision_encoder_m)
+        _copy_params_momentum_models(self.text_encoder, self.text_encoder_m)
+        _copy_params_momentum_models(self.multimodal_encoder, self.multimodal_encoder_m)
+        self.momentum = momentum
+
+    def forward(
+        self,
+        image: Tensor,
+        text: Tensor,
+        text_atts: Tensor,
+    ) -> ALBEFOutput:
+        image_embeds = self.vision_encoder(image)
+        text_embeds = self.text_encoder(text, text_atts)
+        multimodal_embeddings = self.multimodal_encoder(
+            image_embeds, text_embeds, text_atts
+        )
+
+        with torch.no_grad():
+            _momentum_update(self.vision_encoder, self.vision_encoder_m, self.momentum)
+            _momentum_update(self.text_encoder, self.text_encoder_m, self.momentum)
+            _momentum_update(
+                self.multimodal_encoder, self.multimodal_encoder_m, self.momentum
+            )
+            image_embeds_m = self.vision_encoder_m(image)
+            text_embeds_m = self.text_encoder_m(text, text_atts)
+            multimodal_embeddings_m = self.multimodal_encoder_m(
+                image_embeds_m, text_embeds_m, text_atts
+            )
+
+        return ALBEFOutput(
+            image_embeddings=image_embeds,
+            image_embeddings_m=image_embeds_m,
+            text_embeddings=text_embeds,
+            text_embeddings_m=text_embeds_m,
+            multimodal_embeddings=multimodal_embeddings,
+            multimodal_embeddings_m=multimodal_embeddings_m,
+        )
+
+
+class ALBEFModelWithSimilarity(nn.Module):
+    """
+    ALBEFModelWithSimilarity outputs image embeddings, text embeddings, multimodal embeddings,
+    negative image-text pairs multimodal embeddings, and image-text similarity, as used in ITC
+    and ITM losses.
+
+    Args:   model (ALBEFModel): Instantiated ALBEF model.
+            vision_proj (nn.Module): Instantiated vision projection layer.
+            text_proj (nn.Module): Instantiated text projection layer.
+            embed_dim (int): Embedding size of the vision and text projection layers. Default is 256.
+            queue_size (int): Size of image and text queues for momentum distillation. Default is 65536.
+            masked_token_id (int): The token id indicating a masked token. Default is -100.
+            temp (float): Temperature parameter. Default is 0.07.
+
+    Inputs: image (Tensor): Tensor of shape (B, C, H, W) containing image features.
+            text (Tensor): Tensor of shape (B, L) containing text features.
+            text_atts (Tensor): Tensor of shape (B, L) containing text attention mask.
+            idx (Tensor): Tensor of shape (B) containing unique identifiers for each sample.
+    """
+
+    def __init__(
+        self,
+        model: ALBEFModel,
+        vision_proj: nn.Module,
+        text_proj: nn.Module,
+        embed_dim: int = 256,
+        queue_size: int = 65536,
+        mask_token_id: int = -100,
+        temp: float = 0.07,
+    ) -> None:
+        super().__init__()
+        self.model = model
+        self.vision_proj = vision_proj
+        self.text_proj = text_proj
         self.vision_proj_m = copy.deepcopy(vision_proj)
         self.text_proj_m = copy.deepcopy(text_proj)
 
-        self.models = [
-            self.vision_encoder,
-            self.text_encoder,
-            self.multimodal_encoder,
-            self.vision_proj,
-            self.text_proj,
-        ]
-        self.models_m = [
-            self.vision_encoder_m,
-            self.text_encoder_m,
-            self.multimodal_encoder_m,
-            self.vision_proj_m,
-            self.text_proj_m,
-        ]
-
-        self._copy_params_momentum_models()
+        _copy_params_momentum_models(self.vision_proj, self.vision_proj_m)
+        _copy_params_momentum_models(self.text_proj, self.text_proj_m)
 
         self.queue_size = queue_size
         self.temp = temp
-        self.momentum = momentum
 
         # queues keep track of the most recent M image and text representations for momentum distillation
         # queues decouple M from the batch size, allowing it to be big
         self.register_buffer("image_queue", torch.randn(embed_dim, queue_size))
         self.register_buffer("text_queue", torch.randn(embed_dim, queue_size))
+        self.register_buffer(
+            "idx_queue", torch.full((1, self.queue_size), mask_token_id)
+        )
         self.register_buffer("queue_ptr", torch.zeros(1, dtype=torch.long))
 
         self.image_queue: Tensor
         self.text_queue: Tensor
+        self.idx_queue: Tensor
         self.queue_ptr: Tensor
         self.image_queue = nn.functional.normalize(self.image_queue, dim=0)
         self.text_queue = nn.functional.normalize(self.text_queue, dim=0)
@@ -124,74 +185,47 @@ class ALBEFModel(nn.Module):
         image: Tensor,
         text: Tensor,
         text_atts: Tensor,
-    ) -> ALBEFOutput:
-        image_embeds, text_embeds, image_feat, text_feat = self._unimodal_embeddings(
-            image, text, text_atts
+        idx: Tensor,
+    ):
+        outputs = self.model(image, text, text_atts)
+
+        idx = idx.view(-1, 1)
+        idx_all = torch.cat([idx.t(), self.idx_queue.detach().clone()], dim=1)
+        pos_idx = torch.eq(idx, idx_all).float()
+        sim_targets = pos_idx / pos_idx.sum(1, keepdim=True)
+        similarity = self._similarity(
+            outputs.image_embeddings,
+            outputs.image_embeddings_m,
+            outputs.text_embeddings,
+            outputs.text_embeddings_m,
+            idx,
         )
-        image_embeds_m, image_feat_m, text_feat_m = self._momentum_embeddings(
-            image, text, text_atts
-        )
-        similarity = self._similarity(image_feat, text_feat, image_feat_m, text_feat_m)
         image_embeds_neg, text_embeds_neg, text_atts_neg = self._neg_embeddings(
-            image_embeds, text_embeds, text_atts, similarity
+            outputs.image_embeddings, outputs.text_embeddings, text_atts, similarity
         )
-        vl_embeds = self._multimodal_embeddings(
-            image_embeds,
-            text_embeds,
-            image_embeds_neg,
-            text_embeds_neg,
-            text_atts,
-            text_atts_neg,
+        multimodal_embeddings_neg = self.model.multimodal_encoder(
+            torch.cat([image_embeds_neg, outputs.image_embeddings], dim=0),
+            torch.cat([outputs.text_embeddings, text_embeds_neg], dim=0),
+            torch.cat([text_atts, text_atts_neg], dim=0),
         )
-        return ALBEFOutput(
-            image_embeddings=image_embeds,
-            image_embeddings_m=image_embeds_m,
-            text_embeddings=text_embeds,
-            vl_embeddings=vl_embeds,
+
+        return ALBEFWithSimilarityOutput(
+            image_embeddings=outputs.image_embeddings,
+            text_embeddings=outputs.text_embeddings,
+            multimodal_embeddings=outputs.multimodal_embeddings,
+            multimodal_embeddings_neg=multimodal_embeddings_neg,
             similarity=similarity,
+            sim_targets=sim_targets,
         )
 
     @torch.no_grad()
-    def _copy_params_momentum_models(self) -> None:
-        for model, model_m in zip(self.models, self.models_m):
-            for param, param_m in zip(model.parameters(), model_m.parameters()):
-                param_m.data.copy_(param.data)
-                param_m.requires_grad = False
-
-    def _unimodal_embeddings(
-        self, image: Tensor, text: Tensor, text_atts: Tensor
-    ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
-        image_embeds = self.vision_encoder(image)
-        text_embeds = self.text_encoder(text, attention_mask=text_atts)
-        image_feat = F.normalize(self.vision_proj(image_embeds[:, 0, :]), dim=-1)
-        text_feat = F.normalize(self.text_proj(text_embeds[:, 0, :]), dim=-1)
-        return image_embeds, text_embeds, image_feat, text_feat
-
-    @torch.no_grad()
-    def _momentum_embeddings(
-        self, image: Tensor, text: Tensor, text_atts: Tensor
-    ) -> Tuple[Tensor, Tensor, Tensor]:
-        self._momentum_update()
-        image_embeds_m = self.vision_encoder_m(image)
-        text_embeds_m = self.text_encoder_m(text, attention_mask=text_atts)
-        image_feat_m = F.normalize(self.vision_proj_m(image_embeds_m[:, 0, :]), dim=-1)
-        text_feat_m = F.normalize(self.text_proj_m(text_embeds_m[:, 0, :]), dim=-1)
-        return image_embeds_m, image_feat_m, text_feat_m
-
-    @torch.no_grad()
-    def _momentum_update(self) -> None:
-        for model, model_m in zip(self.models, self.models_m):
-            for param, param_m in zip(model.parameters(), model_m.parameters()):
-                param_m.data = param_m.data * self.momentum + param.data * (
-                    1 - self.momentum
-                )
-
-    @torch.no_grad()
-    def _dequeue_and_enqueue(self, image_feat_m: Tensor, text_feat_m: Tensor) -> None:
+    def _dequeue_and_enqueue(
+        self, image_feat_m: Tensor, text_feat_m: Tensor, idx: Tensor
+    ) -> None:
         # gather keys before updating queue
-        image_feats, text_feats, _ = _gather_embeddings_and_labels(
-            image_feat_m, text_feat_m
-        )
+        image_feats = _gather_embeddings(image_feat_m)
+        text_feats = _gather_embeddings(text_feat_m)
+        idxs = _gather_embeddings(idx)
         batch_size = image_feats.shape[0]
         ptr = int(self.queue_ptr)
 
@@ -202,17 +236,28 @@ class ALBEFModel(nn.Module):
         # replace the keys at ptr (dequeue and enqueue)
         self.image_queue[:, ptr : ptr + batch_size] = image_feats.T
         self.text_queue[:, ptr : ptr + batch_size] = text_feats.T
+        self.idx_queue[:, ptr : ptr + batch_size] = idxs.T
         ptr = (ptr + batch_size) % self.queue_size
         self.queue_ptr[0] = ptr
 
     def _similarity(
         self,
-        image_feat: Tensor,
-        text_feat: Tensor,
-        image_feat_m: Tensor,
-        text_feat_m: Tensor,
+        image_embeds: Tensor,
+        image_embeds_m: Tensor,
+        text_embeds: Tensor,
+        text_embeds_m: Tensor,
+        idx: Tensor,
     ) -> ALBEFSimilarity:
+        image_feat = F.normalize(self.vision_proj(image_embeds[:, 0, :]), dim=-1)
+        text_feat = F.normalize(self.text_proj(text_embeds[:, 0, :]), dim=-1)
+
         with torch.no_grad():
+            _momentum_update(self.vision_proj, self.vision_proj_m, self.model.momentum)
+            _momentum_update(self.text_proj, self.text_proj_m, self.model.momentum)
+            image_feat_m = F.normalize(
+                self.vision_proj_m(image_embeds_m[:, 0, :]), dim=-1
+            )
+            text_feat_m = F.normalize(self.text_proj_m(text_embeds_m[:, 0, :]), dim=-1)
             image_feat_all = torch.cat(
                 [image_feat_m.t(), self.image_queue.detach().clone()], dim=1
             )
@@ -225,7 +270,7 @@ class ALBEFModel(nn.Module):
         sim_i2t = image_feat @ text_feat_all / self.temp
         sim_t2i = text_feat @ image_feat_all / self.temp
 
-        self._dequeue_and_enqueue(image_feat_m, text_feat_m)
+        self._dequeue_and_enqueue(image_feat_m, text_feat_m, idx)
 
         return ALBEFSimilarity(
             sim_i2t=sim_i2t,
@@ -262,25 +307,27 @@ class ALBEFModel(nn.Module):
         text_atts_neg = torch.stack(text_atts_neg, dim=0)
         return image_embeds_neg, text_embeds_neg, text_atts_neg
 
-    def _multimodal_embeddings(
-        self,
-        image_embeds: Tensor,
-        text_embeds: Tensor,
-        image_embeds_neg: Tensor,
-        text_embeds_neg: Tensor,
-        text_atts: Tensor,
-        text_atts_neg: Tensor,
-    ) -> Tensor:
-        image_embeds_all = torch.cat([image_embeds_neg, image_embeds], dim=0)
-        text_embeds_all = torch.cat([text_embeds, text_embeds_neg], dim=0)
-        text_atts_all = torch.cat([text_atts, text_atts_neg], dim=0)
-        output_pos = self.multimodal_encoder(
-            image_embeds=image_embeds, text_embeds=text_embeds, text_atts=text_atts
-        )
-        output_neg = self.multimodal_encoder(
-            image_embeds=image_embeds_all,
-            text_embeds=text_embeds_all,
-            text_atts=text_atts_all,
-        )
-        vl_embeddings = torch.cat([output_pos[:, 0, :], output_neg[:, 0, :]], dim=0)
-        return vl_embeddings
+
+@torch.no_grad()
+def _copy_params_momentum_models(model, model_m) -> None:
+    for param, param_m in zip(model.parameters(), model_m.parameters()):
+        param_m.data.copy_(param.data)
+        param_m.requires_grad = False
+
+
+@torch.no_grad()
+def _momentum_update(model, model_m, momentum) -> None:
+    for param, param_m in zip(model.parameters(), model_m.parameters()):
+        param_m.data = param_m.data * momentum + param.data * (1 - momentum)
+
+
+def _gather_embeddings(embeddings: torch.Tensor) -> torch.Tensor:
+    if not torch.distributed.is_available() or not torch.distributed.is_initialized():
+        return embeddings
+
+    embeddings_all_gpus = [
+        torch.zeros_like(embeddings) for _ in range(torch.distributed.get_world_size())
+    ]
+    torch.distributed.all_gather(embeddings_all_gpus, embeddings, async_op=False)
+
+    return torch.cat(embeddings_all_gpus)
