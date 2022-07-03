@@ -14,6 +14,11 @@ from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
     PatchEmbed3d,
     SwinTransformer3d,
 )
+try:
+    from torch.hub import load_state_dict_from_url  # noqa: 401
+except ImportError:
+    from torch.utils.model_zoo import load_url as load_state_dict_from_url  # noqa: 401
+
 
 
 def _imagenet1k_head(input_dim: int) -> nn.Module:
@@ -104,11 +109,99 @@ def _omnivore_swin_t_encoder() -> SwinTransformer3d:
     return encoder
 
 
-# TODO: add pretrained weight capability
-def omnivore_swin_t(encoder_only=False) -> nn.Module:
-    encoder = _omnivore_swin_t_encoder()
-    if encoder_only:
-        return encoder
+def _omnivore_swin_s_encoder() -> SwinTransformer3d:
+    encoder = SwinTransformer3d(
+        patch_size=[2, 4, 4],
+        embed_dim=96,
+        depths=[2, 2, 18, 2],
+        num_heads=[3, 6, 12, 24],
+        window_size=[8, 7, 7],
+        stochastic_depth_prob=0.3,
+        norm_layer=nn.LayerNorm,
+        patch_embed=PatchEmbedOmnivore,
+        num_classes=None,
+    )
+    return encoder
 
+
+def _omnivore_swin_b_encoder() -> SwinTransformer3d:
+    encoder = SwinTransformer3d(
+        patch_size=[2, 4, 4],
+        embed_dim=128,
+        depths=[2, 2, 18, 2],
+        num_heads=[4, 8, 16, 32],
+        window_size=[16, 7, 7],
+        stochastic_depth_prob=0.3,
+        norm_layer=nn.LayerNorm,
+        patch_embed=PatchEmbedOmnivore,
+        num_classes=None,
+    )
+    return encoder
+
+
+# TODO: add pretrained weight capability
+def omnivore_swin_t(encoder_only: bool = False, pretrained: bool = False, progress: bool = True) -> nn.Module:
+    """
+    Builder function to get omnivore model with swin_t variant encoder
+    Args:
+        encoder_only (bool): If true then the builder will only return encoder without head (default: False)
+        pretrained (bool): If true then the it will load pretrained weight,
+            otherwise it will have random weight (default: False)
+        progress (bool): If true then there will be a progress bar for downloading weight (default: True)
+    """
+    encoder = _omnivore_swin_t_encoder()
     heads = _multimodal_head(input_dim=encoder.num_features)
-    return OmnivoreArchitecture(encoder, heads)
+    model = OmnivoreArchitecture(encoder, heads)
+    if pretrained:
+        weight_url = "https://download.pytorch.org/models/omnivore_swin_t-5b532aca.pth"
+        weight = load_state_dict_from_url(weight_url, progress=progress)
+        model.load_state_dict(weight)
+    if encoder_only:
+        return model.encoder
+    else:
+        return model
+
+
+def omnivore_swin_s(encoder_only: bool = False, pretrained: bool = False, progress: bool = True) -> nn.Module:
+    """
+    Builder function to get omnivore model with swin_s variant encoder
+    Args:
+        encoder_only (bool): If true then the builder will only return encoder without head (default: False)
+        pretrained (bool): If true then the it will load pretrained weight,
+            otherwise it will have random weight (default: False)
+        progress (bool): If true then there will be a progress bar for downloading weight (default: True)
+    """
+    encoder = _omnivore_swin_s_encoder()
+    heads = _multimodal_head(input_dim=encoder.num_features)
+    model = OmnivoreArchitecture(encoder, heads)
+    if pretrained:
+        weight_url = "https://download.pytorch.org/models/omnivore_swin_s-b64cc260.pth"
+        weight = load_state_dict_from_url(weight_url, progress=progress)
+        model.load_state_dict(weight)
+    if encoder_only:
+        return model.encoder
+    else:
+        return model
+
+
+def omnivore_swin_b(encoder_only: bool = False, pretrained: bool = False, progress: bool = True) -> nn.Module:
+    """
+    Builder function to get omnivore model with swin_b variant encoder
+    Args:
+        encoder_only (bool): If true then the builder will only return encoder without head (default: False)
+        pretrained (bool): If true then the it will load pretrained weight,
+            otherwise it will have random weight (default: False)
+        progress (bool): If true then there will be a progress bar for downloading weight (default: True)
+    """
+    encoder = _omnivore_swin_b_encoder()
+    heads = _multimodal_head(input_dim=encoder.num_features)
+    model = OmnivoreArchitecture(encoder, heads)
+    if pretrained:
+        weight_url = "https://download.pytorch.org/models/omnivore_swin_b-c2a4d126.pth"
+        weight = load_state_dict_from_url(weight_url, progress=progress)
+        model.load_state_dict(weight)
+    if encoder_only:
+        return model.encoder
+    else:
+        return model
+
