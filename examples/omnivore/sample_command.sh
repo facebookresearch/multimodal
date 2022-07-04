@@ -11,6 +11,7 @@ torchrun --nproc_per_node=8 --nnodes=4 train.py \
     --opt="adamw" \
     --random-erase=0.1 \
     --color-jitter-factor 0.1 0.1 0.1 0.1 \
+    --model-ema --model-ema-steps=1 --model-ema-decay=0.9999 \
     --video-grad-accum-iter=32 \
     --modalities image video rgbd \
     --val-data-sampling-factor 1 1 1 \

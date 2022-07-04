@@ -408,15 +408,15 @@ def main(args):
         lr_scheduler.step()
         if epoch % args.num_epoch_per_eval == args.num_epoch_per_eval - 1:
             evaluate(model, criterion, data_loader_test, device=device, args=args)
-        if model_ema:
-            evaluate(
-                model_ema,
-                criterion,
-                data_loader_test,
-                device=device,
-                args=args,
-                log_suffix="EMA",
-            )
+            if model_ema:
+                evaluate(
+                    model_ema,
+                    criterion,
+                    data_loader_test,
+                    device=device,
+                    args=args,
+                    log_suffix="EMA",
+                )
         if args.output_dir:
             checkpoint = {
                 "model": model_without_ddp.state_dict(),
