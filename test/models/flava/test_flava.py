@@ -83,7 +83,7 @@ class TestFLAVA(unittest.TestCase):
             sum(
                 value if value is not None else 0 for value in output.losses.values()
             ).item(),
-            21.4791,
+            21.3670,
             places=4,
         )
 
@@ -107,7 +107,7 @@ class TestFLAVA(unittest.TestCase):
             sum(
                 value if value is not None else 0 for value in output.losses.values()
             ).item(),
-            8.9674,
+            8.6285,
             places=4,
         )
 
@@ -132,7 +132,7 @@ class TestFLAVA(unittest.TestCase):
             sum(
                 value if value is not None else 0 for value in output.losses.values()
             ).item(),
-            10.0305,
+            11.0002,
             places=4,
         )
 

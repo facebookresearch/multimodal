@@ -304,7 +304,10 @@ class FLAVAPretrainingLoss(nn.Module):
         **kwargs: Any,
     ):
         super().__init__()
-
+        self.itm_loss = ITMLoss(
+            hidden_size=hidden_size,
+            ignore_index=ignore_index,
+        )
         self.contrastive_loss = FLAVAGlobalContrastiveLoss(
             logit_scale=logit_scale,
             image_embedding_size=hidden_size,
@@ -343,10 +346,6 @@ class FLAVAPretrainingLoss(nn.Module):
                     ignore_index=ignore_index,
                 ),
             }
-        )
-        self.itm_loss = ITMLoss(
-            hidden_size=hidden_size,
-            ignore_index=ignore_index,
         )
 
         self.mim_weight = mim_weight
