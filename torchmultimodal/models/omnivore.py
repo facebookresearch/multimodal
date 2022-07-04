@@ -14,11 +14,11 @@ from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
     PatchEmbed3d,
     SwinTransformer3d,
 )
+
 try:
     from torch.hub import load_state_dict_from_url  # noqa: 401
 except ImportError:
     from torch.utils.model_zoo import load_url as load_state_dict_from_url  # noqa: 401
-
 
 
 def _imagenet1k_head(input_dim: int) -> nn.Module:
@@ -139,8 +139,9 @@ def _omnivore_swin_b_encoder() -> SwinTransformer3d:
     return encoder
 
 
-# TODO: add pretrained weight capability
-def omnivore_swin_t(encoder_only: bool = False, pretrained: bool = False, progress: bool = True) -> nn.Module:
+def omnivore_swin_t(
+    encoder_only: bool = False, pretrained: bool = False, progress: bool = True
+) -> nn.Module:
     """
     Builder function to get omnivore model with swin_t variant encoder
     Args:
@@ -162,7 +163,9 @@ def omnivore_swin_t(encoder_only: bool = False, pretrained: bool = False, progre
         return model
 
 
-def omnivore_swin_s(encoder_only: bool = False, pretrained: bool = False, progress: bool = True) -> nn.Module:
+def omnivore_swin_s(
+    encoder_only: bool = False, pretrained: bool = False, progress: bool = True
+) -> nn.Module:
     """
     Builder function to get omnivore model with swin_s variant encoder
     Args:
@@ -184,7 +187,9 @@ def omnivore_swin_s(encoder_only: bool = False, pretrained: bool = False, progre
         return model
 
 
-def omnivore_swin_b(encoder_only: bool = False, pretrained: bool = False, progress: bool = True) -> nn.Module:
+def omnivore_swin_b(
+    encoder_only: bool = False, pretrained: bool = False, progress: bool = True
+) -> nn.Module:
     """
     Builder function to get omnivore model with swin_b variant encoder
     Args:
@@ -204,4 +209,3 @@ def omnivore_swin_b(encoder_only: bool = False, pretrained: bool = False, progre
         return model.encoder
     else:
         return model
-
