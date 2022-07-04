@@ -15,6 +15,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Check out repository
         uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          pip3 install --pre torch torchvision torchtext --extra-index-url https://download.pytorch.org/whl/nightly/cpu
+          pip3 install -r dev-requirements.txt
       - name: Build wheel
         run: |
           pip3 install wheel
@@ -22,3 +26,9 @@ jobs:
       - name: Install wheel
         run: |
           pip3 install dist/torchmultimodal*.whl
+      - name: Test import
+        run: |
+          python -c "import torchmultimodal"
+      - name: Run unit tests for sanity
+        run: |
+          pytest test -vv
