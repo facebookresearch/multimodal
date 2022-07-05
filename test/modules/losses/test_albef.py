@@ -21,14 +21,20 @@ class TestImageTextContrastiveLoss:
     def setup(self):
         set_rng_seed(0)
         self.loss = ImageTextContrastiveLoss()
+        self.loss_with_distillation = ImageTextContrastiveLoss(alpha=0.4)
 
     def test_itc_loss_invalid_sim(self):
         sim_i2t = torch.randn(2, 4)  # all inputs should be the same size
         sim_t2i = torch.randn(2, 3)
-        sim_i2t_m = torch.randn(2, 3)
-        sim_t2i_m = torch.randn(2, 3)
         with pytest.raises(RuntimeError):
-            self.loss(sim_i2t, sim_t2i, sim_i2t_m, sim_t2i_m).item()
+            self.loss(sim_i2t, sim_t2i)
+
+    def test_itc_loss_missing_sim_m(self):
+        # need momentum similarity inputs for ImageTextContrastiveLoss with nonzero alpha
+        sim_i2t = torch.randn(2, 3)
+        sim_t2i = torch.randn(2, 3)
+        with pytest.raises(AssertionError):
+            self.loss_with_distillation(sim_i2t, sim_t2i)
 
     def test_itc_loss_invalid_sim_m(self):
         sim_i2t = torch.randn(2, 3)
@@ -36,24 +42,31 @@ class TestImageTextContrastiveLoss:
         sim_i2t_m = torch.randn(2, 4)  # all inputs should be the same size
         sim_t2i_m = torch.randn(2, 3)
         with pytest.raises(RuntimeError):
-            self.loss(sim_i2t, sim_t2i, sim_i2t_m, sim_t2i_m).item()
+            self.loss_with_distillation(sim_i2t, sim_t2i, sim_i2t_m, sim_t2i_m)
 
     def test_itc_loss_invalid_sim_target(self):
         sim_i2t = torch.randn(2, 3)
         sim_t2i = torch.randn(2, 3)
-        sim_i2t_m = torch.randn(2, 3)
-        sim_t2i_m = torch.randn(2, 3)
         sim_targets = torch.randn(2, 4)  # all inputs should be the same size
         with pytest.raises(RuntimeError):
-            self.loss(sim_i2t, sim_t2i, sim_i2t_m, sim_t2i_m, sim_targets).item()
+            self.loss(sim_i2t, sim_t2i, sim_targets=sim_targets)
 
-    def test_itc_loss_without_sim_targets(self):
+    def test_itc_loss_without_distillation(self):
+        sim_i2t = torch.randn(2, 3)
+        sim_t2i = torch.randn(2, 3)
+        output = self.loss(sim_i2t, sim_t2i).item()
+        expected = 1.160506
+        assert_expected(output, expected, rtol=0, atol=1e-4)
+
+    def test_itc_loss_with_distillation(self):
         sim_i2t = torch.randn(2, 3)
         sim_t2i = torch.randn(2, 3)
         sim_i2t_m = torch.randn(2, 3)
         sim_t2i_m = torch.randn(2, 3)
-        output = self.loss(sim_i2t, sim_t2i, sim_i2t_m, sim_t2i_m).item()
-        expected = 1.160506
+        output = self.loss_with_distillation(
+            sim_i2t, sim_t2i, sim_i2t_m, sim_t2i_m
+        ).item()
+        expected = 1.341230
         assert_expected(output, expected, rtol=0, atol=1e-4)
 
     def test_itc_loss_with_sim_targets(self):
@@ -62,8 +75,10 @@ class TestImageTextContrastiveLoss:
         sim_i2t_m = torch.randn(2, 3)
         sim_t2i_m = torch.randn(2, 3)
         sim_targets = torch.randn(2, 3)
-        output = self.loss(sim_i2t, sim_t2i, sim_i2t_m, sim_t2i_m, sim_targets).item()
-        expected = -1.928954
+        output = self.loss_with_distillation(
+            sim_i2t, sim_t2i, sim_i2t_m, sim_t2i_m, sim_targets
+        ).item()
+        expected = -0.512445
         assert_expected(output, expected, rtol=0, atol=1e-4)
 
 

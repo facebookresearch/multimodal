@@ -15,15 +15,18 @@ from torch.nn import CrossEntropyLoss
 class ImageTextContrastiveLoss(nn.Module):
     """
     Compute the image-text contrastive loss from image-text similarity, as used in ALBEF.
+    Support loss distillation with pseudo-targets for non-zero alpha. Compute standard contrastive loss for zero alpha.
 
     Args:
-        alpha (float): The interpolation value of momentum similarity and sim_targets.
+        alpha (float): The interpolation value of momentum similarity and sim_targets. Default is 0.
 
     Inputs:
         sim_i2t (Tensor): Image to text similarity.
         sim_t2i (Tensor): Text to image similarity.
-        sim_i2t_m (Tensor): Image to text similarity from momentum models.
-        sim_t2i_m (Tensor): Text to image similarity from momentum models.
+        sim_i2t_m (Optional[Tensor]): Image to text similarity from momentum models.
+            Required if alpha is non-zero.
+        sim_t2i_m (Optional[Tensor]): Text to image similarity from momentum models.
+            Required if alpha is non-zero.
         sim_targets (Optional[Tensor]): Similarity pseudo-targets from momentum models. Default is the diagonal matrix.
             Requires all inputs to have the same size.
     """
@@ -39,23 +42,31 @@ class ImageTextContrastiveLoss(nn.Module):
         self,
         sim_i2t: Tensor,
         sim_t2i: Tensor,
-        sim_i2t_m: Tensor,
-        sim_t2i_m: Tensor,
+        sim_i2t_m: Optional[Tensor] = None,
+        sim_t2i_m: Optional[Tensor] = None,
         sim_targets: Optional[Tensor] = None,
     ) -> Tensor:
         if sim_targets is None:
             sim_targets = torch.zeros(sim_i2t.size()).to(sim_i2t.device)
             sim_targets.fill_diagonal_(1)
 
-        with torch.no_grad():
-            sim_i2t_targets = (
-                self.alpha * F.softmax(sim_i2t_m, dim=1)
-                + (1 - self.alpha) * sim_targets
-            )
-            sim_t2i_targets = (
-                self.alpha * F.softmax(sim_t2i_m, dim=1)
-                + (1 - self.alpha) * sim_targets
-            )
+        if self.alpha != 0:
+            assert (
+                sim_i2t_m is not None and sim_t2i_m is not None
+            ), "sim_i2t_m and sim_t2i_m cannot be none for non-zero alpha"
+
+            with torch.no_grad():
+                sim_i2t_targets = (
+                    self.alpha * F.softmax(sim_i2t_m, dim=1)
+                    + (1 - self.alpha) * sim_targets
+                )
+                sim_t2i_targets = (
+                    self.alpha * F.softmax(sim_t2i_m, dim=1)
+                    + (1 - self.alpha) * sim_targets
+                )
+        else:
+            sim_i2t_targets = sim_targets
+            sim_t2i_targets = sim_targets
 
         loss_i2t = -torch.sum(
             F.log_softmax(sim_i2t, dim=1) * sim_i2t_targets, dim=1
@@ -73,7 +84,7 @@ class ImageTextMatchingLoss(nn.Module):
     Compute the image-text matching loss by predicting whether an image-text pair is matched or not.
 
     Args:
-        hidden_size (int): The image-text multimodal embedding hidden size.
+        hidden_size (int): The image-text multimodal embedding hidden size. Default is 768.
 
     Inputs:
         embeddings_pos (Tensor of shape (batch_size_pos, hidden_size)):
@@ -112,7 +123,7 @@ class ImageTextMatchingLoss(nn.Module):
 class MaskedLanguageModelingLoss(nn.Module):
     """
     Compute the autoregressive masked language modeling loss by predicting the next token, as used in VQA.
-    Supports loss distillation for non-zero alpha. Computes standard mlm loss for zero alpha.
+    Support loss distillation for non-zero alpha. Compute standard mlm loss for zero alpha.
 
     Args:
         masked_token_id (int): The token id indicating a masked token. Default is -100.
