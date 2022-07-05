@@ -8,6 +8,7 @@
 import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
+from torch import Tensor
 from torchmultimodal.modules.losses.albef import (
     ImageTextContrastiveLoss,
     ImageTextMatchingLoss,
@@ -80,7 +81,7 @@ class TestImageTextMatchingLoss:
             self.loss(embeddings_pos, embeddings_neg)
 
     def test_itm_loss_invalid_input_hidden_size(self):
-        # embeddings hidden size (dim 2) should match the hidden size of itm_loss_module
+        # embeddings hidden size (dim 2) should match the hidden size of ImageTextMatchingLoss
         embeddings_pos = torch.randn(2, 5, 4)
         embeddings_neg = torch.randn(4, 5, 4)
         with pytest.raises(RuntimeError):
@@ -97,40 +98,45 @@ class TestImageTextMatchingLoss:
 class TestMaskedLanguageModelingLoss:
     @pytest.fixture(autouse=True)
     def setup(self):
+        torch.set_printoptions(precision=6)
         set_rng_seed(0)
         self.loss = MaskedLanguageModelingLoss(hidden_size=3)
+        self.loss_with_distillation = MaskedLanguageModelingLoss(
+            hidden_size=3, alpha=0.4
+        )
 
     def test_mlm_loss_invalid_labels(self):
         # labels dimensions should match the first two dimensions of the embeddings
         labels = torch.randint(10, (2, 6))
         embeddings = torch.randn(2, 5, 3)
-        embeddings_m = torch.randn(2, 5, 3)
-        weights = torch.randn(2)
-        with pytest.raises(RuntimeError):
-            self.loss(labels, embeddings, embeddings_m, weights)
+        with pytest.raises(ValueError):
+            self.loss(labels, embeddings)
 
     def test_mlm_loss_invalid_embeddings(self):
         labels = torch.randint(10, (2, 5))
-        # embeddings hidden size (dim 2) should match the hidden size of mlm_loss_module
+        # embeddings hidden size (dim 2) should match the hidden size of MaskedLanguageModelingLoss
         embeddings = torch.randn(2, 5, 4)
-        embeddings_m = torch.randn(2, 5, 4)
-        weights = torch.randn(2)
         with pytest.raises(RuntimeError):
-            self.loss(labels, embeddings, embeddings_m, weights)
+            self.loss(labels, embeddings)
 
-    def test_mlm_loss_invalid_weights(self):
+    def test_mlm_loss_missing_momentum_embeddings(self):
+        # need momentum embeddings input for MaskedLanguageModelingLoss with nonzero alpha
         labels = torch.randint(10, (2, 5))
         embeddings = torch.randn(2, 5, 3)
-        embeddings_m = torch.randn(2, 5, 3)
-        weights = torch.randn(3)  # all inputs should have the same batch size (dim 0)
-        with pytest.raises(RuntimeError):
-            self.loss(labels, embeddings, embeddings_m, weights)
+        with pytest.raises(AssertionError):
+            self.loss_with_distillation(labels, embeddings)
 
     def test_mlm_loss(self):
         labels = torch.randint(10, (2, 5))
         embeddings = torch.randn(2, 5, 3)
+        output = self.loss(labels, embeddings)
+        expected = Tensor([43.486340, 41.509407])
+        assert_expected(output, expected, rtol=0, atol=1e-4)
+
+    def test_mlm_loss_with_distillation(self):
+        labels = torch.randint(10, (2, 5))
+        embeddings = torch.randn(2, 5, 3)
         embeddings_m = torch.randn(2, 5, 3)
-        weights = torch.randn(2)
-        output = self.loss(labels, embeddings, embeddings_m, weights).item()
-        expected = -24.951170
+        output = self.loss_with_distillation(labels, embeddings, embeddings_m)
+        expected = Tensor([43.015320, 41.552132])
         assert_expected(output, expected, rtol=0, atol=1e-4)

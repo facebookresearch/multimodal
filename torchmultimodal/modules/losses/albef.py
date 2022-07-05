@@ -115,6 +115,7 @@ class ImageTextMatchingLoss(nn.Module):
 class MaskedLanguageModelingLoss(nn.Module):
     """
     Compute the autoregressive masked language modeling loss by predicting the next token, as used in VQA.
+    Supports loss distillation for non-zero alpha. Computes standard mlm loss for zero alpha.
 
     Args:
         masked_token_id (int): The token id indicating a masked token. Default is -100.
@@ -128,9 +129,9 @@ class MaskedLanguageModelingLoss(nn.Module):
         labels (Tensor of shape (batch_size, seq_length)): The masked output tokens.
         hidden_states (Tensor of shape (batch_size, seq_length, hidden_size)):
             The hidden states of preceding tokens.
-        hidden_states_m (Tensor of shape (batch_size, seq_length, hidden_size)):
+        hidden_states_m (Optional[Tensor] of shape (batch_size, seq_length, hidden_size)):
             The hidden states of preceding tokens from momentum models.
-        weights (Tensor of shape (batch_size)): The weight for each output.
+            Required if alpha is non-zero.
     """
 
     def __init__(
@@ -155,30 +156,34 @@ class MaskedLanguageModelingLoss(nn.Module):
         self,
         labels: Tensor,
         hidden_states: Tensor,
-        hidden_states_m: Tensor,
-        weights: Tensor,
+        hidden_states_m: Optional[Tensor] = None,
     ) -> Tensor:
         batch_size = labels.size(0)
         prediction_scores = self.prediction_head(hidden_states)
         # shift prediction scores and labels by one for next-token prediction
         prediction_scores = prediction_scores[:, :-1, :].contiguous()
         labels = labels[:, 1:].contiguous()
-        with torch.no_grad():
-            prediction_scores_m = self.prediction_head(hidden_states_m)
-            prediction_scores_m = prediction_scores_m[:, :-1, :].contiguous()
-        loss_distill = -torch.sum(
-            F.log_softmax(prediction_scores, dim=-1)
-            * F.softmax(prediction_scores_m, dim=-1),
-            dim=-1,
-        )
-        loss_distill = (loss_distill * (labels != self.mask_token_id)).sum(1)
         mlm_loss = self.loss_fn(
             prediction_scores.view(-1, self.vocab_size), labels.view(-1)
         )
         mlm_loss = mlm_loss.view(batch_size, -1).sum(1)
-        mlm_loss = (1 - self.alpha) * mlm_loss + self.alpha * loss_distill
-        mlm_loss = weights * mlm_loss
-        mlm_loss = mlm_loss.sum() / batch_size
+
+        if self.alpha != 0:
+            assert (
+                hidden_states_m is not None
+            ), "hidden_states_m cannot be None for non-zero alpha"
+
+            with torch.no_grad():
+                prediction_scores_m = self.prediction_head(hidden_states_m)
+                prediction_scores_m = prediction_scores_m[:, :-1, :].contiguous()
+            loss_distill = -torch.sum(
+                F.log_softmax(prediction_scores, dim=-1)
+                * F.softmax(prediction_scores_m, dim=-1),
+                dim=-1,
+            )
+            loss_distill = (loss_distill * (labels != self.mask_token_id)).sum(1)
+            mlm_loss = (1 - self.alpha) * mlm_loss + self.alpha * loss_distill
+
         return mlm_loss
 
 
