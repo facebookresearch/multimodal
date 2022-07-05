@@ -114,7 +114,7 @@ class ImageTextMatchingLoss(nn.Module):
 
 class MaskedLanguageModelingLoss(nn.Module):
     """
-    Compute the autoregressive masked language modeling loss by predicting the next token.
+    Compute the autoregressive masked language modeling loss by predicting the next token, as used in VQA.
 
     Args:
         masked_token_id (int): The token id indicating a masked token. Default is -100.
@@ -125,10 +125,12 @@ class MaskedLanguageModelingLoss(nn.Module):
         transform_act_fn (Callable[[Tensor], Tensor]): The activation function in the prediction_head. Default is GELU.
 
     Inputs:
-        labels (Tensor): The masked output tokens.
-        hidden_states (Tensor): The hidden states of preceding tokens.
-        hidden_states_m (Tensor): The hidden states of preceding tokens from momentum models.
-        weights (Tensor): The weight for each output.
+        labels (Tensor of shape (batch_size, seq_length)): The masked output tokens.
+        hidden_states (Tensor of shape (batch_size, seq_length, hidden_size)):
+            The hidden states of preceding tokens.
+        hidden_states_m (Tensor of shape (batch_size, seq_length, hidden_size)):
+            The hidden states of preceding tokens from momentum models.
+        weights (Tensor of shape (batch_size)): The weight for each output.
     """
 
     def __init__(
