@@ -15,6 +15,7 @@ from typing import Any, Callable, Optional
 import torch
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
+from torchmultimodal.utils.common import transpose_for_scores
 
 FLAVATransformerOutput = namedtuple(
     "FLAVATransformerOutput",
@@ -47,14 +48,6 @@ class FLAVASelfAttention(nn.Module):
 
         self.dropout = nn.Dropout(attention_probs_dropout_prob)
 
-    def transpose_for_scores(self, x: Tensor) -> Tensor:
-        new_x_shape = x.size()[:-1] + (
-            self.num_attention_heads,
-            self.attention_head_size,
-        )
-        x = x.view(*new_x_shape)
-        return x.permute(0, 2, 1, 3)
-
     def forward(
         self,
         hidden_states: Tensor,
@@ -62,10 +55,18 @@ class FLAVASelfAttention(nn.Module):
         head_mask: Tensor = None,
     ):
         mixed_query_layer = self.query(hidden_states)
-        key_layer = self.transpose_for_scores(self.key(hidden_states))
-        value_layer = self.transpose_for_scores(self.value(hidden_states))
+        key_layer = transpose_for_scores(
+            self.num_attention_heads, self.attention_head_size, self.key(hidden_states)
+        )
+        value_layer = transpose_for_scores(
+            self.num_attention_heads,
+            self.attention_head_size,
+            self.value(hidden_states),
+        )
 
-        query_layer = self.transpose_for_scores(mixed_query_layer)
+        query_layer = transpose_for_scores(
+            self.num_attention_heads, self.attention_head_size, mixed_query_layer
+        )
 
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
