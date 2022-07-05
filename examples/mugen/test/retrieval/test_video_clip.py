@@ -7,9 +7,9 @@
 import pytest
 import torch
 from examples.mugen.retrieval.video_clip import (
+    build_videoclip,
     Projection,
     TextEncoder,
-    videoclip,
     VideoEncoder,
 )
 
@@ -41,6 +41,7 @@ class TestTextEncoder:
             actual=out.sum(), expected=torch.as_tensor(expected_sum), rtol=0, atol=1e-4
         )
         assert next(encoder.parameters()).requires_grad
+        assert encoder.out_dim == 768
 
     def test_pretrained_untrainable(self):
         encoder = TextEncoder(trainable=False)
@@ -101,6 +102,7 @@ class TestVideoEncoder:
             actual=out.sum(), expected=torch.as_tensor(expected_sum), rtol=0, atol=1e-3
         )
         assert next(encoder.parameters()).requires_grad
+        assert encoder.out_dim == 1024
 
     def test_untrainable(self):
         encoder = VideoEncoder(trainable=False)
@@ -125,7 +127,7 @@ class TestProjection:
         assert_expected(actual=out, expected=expected, rtol=0, atol=1e-4)
 
 
-class TestVideoCLIPModel:
+class TestVideoCLIPBuilder:
     @pytest.fixture(autouse=True)
     def set_seed(self):
         set_rng_seed(1234)
@@ -143,19 +145,7 @@ class TestVideoCLIPModel:
 
     def test_forward(self, utils):
         input_text, input_video = utils
-        clip = videoclip()
-        clip_output = clip(features_a=input_text, features_b=input_video)
-        assert_expected(
-            actual=clip_output.embeddings_a.shape, expected=torch.Size([2, 256])
-        )
-        assert_expected(
-            actual=clip_output.embeddings_b.shape, expected=torch.Size([2, 256])
-        )
-
-    def test_text_dim(self, utils):
-        input_text, input_video = utils
-        clip = videoclip(text_model_config={"dim": 6})
-        clip_output = clip(features_a=input_text, features_b=input_video)
-        assert_expected(
-            actual=clip_output.embeddings_a.shape, expected=torch.Size([2, 256])
-        )
+        model = build_videoclip()
+        output = model(features_a=input_text, features_b=input_video)
+        assert_expected(actual=output.embeddings_a.shape, expected=torch.Size([2, 256]))
+        assert_expected(actual=output.embeddings_b.shape, expected=torch.Size([2, 256]))

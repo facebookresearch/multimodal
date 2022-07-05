@@ -25,7 +25,8 @@ class TextEncoder(nn.Module):
         pretrained (bool): whether to use a pretrained model or not.
             Defaults to True.
         trainable (bool): whether the encoder's weights should be trainable (not frozen).
-            Defaults to True. Ignored if ``pretrained`` is False.
+            Defaults to True.
+            Warning: If ``pretrained`` is False, ``trainable`` will act as True regardless of the supplied value.
         model_name (str): name of pretrained model, used when pretrained is True.
             Defaults to "distilbert-base-uncased", Hugging Face's standard DistilBERT model.
         model_config (Optional[Dict[str, Any]]): model config for DistilBERT, used when pretrained is False
@@ -59,6 +60,7 @@ class TextEncoder(nn.Module):
             )
             self.model = DistilBertModel(config=distilbert_config)
 
+        self.out_dim = self.model.config.dim
         # we are using the CLS token hidden representation as the sentence's embedding
         self.target_token_idx = 0
 
@@ -78,7 +80,7 @@ class TextEncoder(nn.Module):
 
 
 class VideoEncoder(nn.Module):
-    """Encode videos to a fixed size vector. Adapted from VideoCLIP
+    """Encode videos to the last layer before the fully-connected layer of S3D. Adapted from VideoCLIP
         (https://github.com/facebookresearch/fairseq/blob/main/examples/MMPT/mmpt/processors/models/s3dg.py)
 
     Args:
@@ -93,6 +95,7 @@ class VideoEncoder(nn.Module):
     def __init__(self, trainable: bool = True):
         super().__init__()
         self.model = S3D(400)
+        self.out_dim = self.model.fc.in_channels
         self.model.fc = nn.Identity()
 
         if not trainable:
@@ -138,7 +141,7 @@ class Projection(nn.Module):
         return embeds
 
 
-def videoclip(
+def build_videoclip(
     text_pretrained: bool = True,
     text_trainable: bool = True,
     text_model_name: str = "distilbert-base-uncased",
@@ -182,14 +185,14 @@ def videoclip(
     )
     text_encoder = nn.Sequential(
         text_model,
-        Projection(
-            text_model.model.config.dim, out_dim=proj_out_dim, dropout_prob=proj_dropout
-        ),
+        Projection(text_model.out_dim, out_dim=proj_out_dim, dropout_prob=proj_dropout),
     )
+
+    video_model = VideoEncoder(trainable=video_trainable)
     video_encoder = nn.Sequential(
-        VideoEncoder(
-            trainable=video_trainable,
+        video_model,
+        Projection(
+            video_model.out_dim, out_dim=proj_out_dim, dropout_prob=proj_dropout
         ),
-        Projection(1024, out_dim=proj_out_dim, dropout_prob=proj_dropout),
     )
     return CLIPArchitecture(encoder_a=text_encoder, encoder_b=video_encoder)
