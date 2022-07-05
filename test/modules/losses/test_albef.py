@@ -73,32 +73,24 @@ class TestImageTextMatchingLoss:
         set_rng_seed(0)
         self.loss = ImageTextMatchingLoss(hidden_size=3)
 
-    def test_itm_loss_invalid_input_batch_size(self):
-        # embeddings_neg's batch size (dim 0) should be double of embeddings_pos's batch size
-        embeddings_pos = torch.randn(2, 5, 3)
-        embeddings_neg = torch.randn(2, 5, 3)
-        with pytest.raises(ValueError):
-            self.loss(embeddings_pos, embeddings_neg)
-
     def test_itm_loss_invalid_input_hidden_size(self):
         # embeddings hidden size (dim 2) should match the hidden size of ImageTextMatchingLoss
-        embeddings_pos = torch.randn(2, 5, 4)
-        embeddings_neg = torch.randn(4, 5, 4)
+        embeddings_pos = torch.randn(2, 4)
+        embeddings_neg = torch.randn(4, 4)
         with pytest.raises(RuntimeError):
             self.loss(embeddings_pos, embeddings_neg)
 
     def test_itm_loss(self):
-        embeddings_pos = torch.randn(2, 5, 3)
-        embeddings_neg = torch.randn(4, 5, 3)
+        embeddings_pos = torch.randn(2, 3)
+        embeddings_neg = torch.randn(4, 3)
         output = self.loss(embeddings_pos, embeddings_neg).item()
-        expected = 0.974678
+        expected = 0.860578
         assert_expected(output, expected, rtol=0, atol=1e-4)
 
 
 class TestMaskedLanguageModelingLoss:
     @pytest.fixture(autouse=True)
     def setup(self):
-        torch.set_printoptions(precision=6)
         set_rng_seed(0)
         self.loss = MaskedLanguageModelingLoss(hidden_size=3)
         self.loss_with_distillation = MaskedLanguageModelingLoss(

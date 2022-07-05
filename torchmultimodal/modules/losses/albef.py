@@ -76,9 +76,9 @@ class ImageTextMatchingLoss(nn.Module):
         hidden_size (int): The image-text multimodal embedding hidden size.
 
     Inputs:
-        embeddings_pos (Tensor of shape (batch_size, seq_length, hidden_size)):
+        embeddings_pos (Tensor of shape (batch_size_pos, hidden_size)):
             The multimodal embeddings for positive image-text pairs.
-        embeddings_neg (Tensor of shape (2 * batch_size, seq_length, hidden_size)):
+        embeddings_neg (Tensor of shape (batch_size_neg, hidden_size)):
             The multimodal embeddings for negative image-text pairs.
     """
 
@@ -96,15 +96,12 @@ class ImageTextMatchingLoss(nn.Module):
         embeddings_pos: Tensor,
         embeddings_neg: Tensor,
     ) -> Tensor:
-        batch_size = embeddings_pos.size(0)
-        vl_embeddings = torch.cat(
-            [embeddings_pos[:, 0, :], embeddings_neg[:, 0, :]], dim=0
-        )
+        vl_embeddings = torch.cat([embeddings_pos, embeddings_neg], dim=0)
         vl_output = self.itm_head(vl_embeddings)
         itm_labels = torch.cat(
             [
-                torch.ones(batch_size, dtype=torch.long),
-                torch.zeros(2 * batch_size, dtype=torch.long),
+                torch.ones(embeddings_pos.size(0), dtype=torch.long),
+                torch.zeros(embeddings_neg.size(0), dtype=torch.long),
             ],
             dim=0,
         ).to(vl_embeddings.device)
