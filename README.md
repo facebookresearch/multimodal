@@ -9,7 +9,7 @@ As a first open source example, researchers will be able to train and extend FLA
 
 ## Installation
 
-TorchMultimodal requires Python >= 3.8. The library can be installed with or without CUDA support.
+TorchMultimodal requires Python >= 3.7. The library can be installed with or without CUDA support.
 
 ### Building from Source
 
