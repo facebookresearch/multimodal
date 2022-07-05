@@ -132,5 +132,5 @@ class TestMaskedLanguageModelingLoss:
         embeddings_m = torch.randn(2, 5, 3)
         weights = torch.randn(2)
         output = self.loss(labels, embeddings, embeddings_m, weights).item()
-        expected = -12.189002
+        expected = -24.951170
         assert_expected(output, expected, rtol=0, atol=1e-4)

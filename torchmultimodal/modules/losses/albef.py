@@ -205,8 +205,7 @@ class PredictionHead(nn.Module):
         self.dense = nn.Linear(hidden_size, hidden_size)
         self.transform_act_fn = transform_act_fn
         self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
-        self.decoder = nn.Linear(hidden_size, vocab_size, bias=False)
-        self.decoder.bias = nn.Parameter(torch.zeros(vocab_size))
+        self.decoder = nn.Linear(hidden_size, vocab_size)
 
     def forward(self, hidden_states: Tensor) -> Tensor:
         hidden_states = self.dense(hidden_states)
