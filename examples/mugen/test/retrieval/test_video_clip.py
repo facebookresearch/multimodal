@@ -4,11 +4,48 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import os
+from typing import Optional
+
 import pytest
 import torch
 from examples.mugen.retrieval.video_clip import TextEncoder, VideoEncoder
 
-from test.test_utils import assert_expected, set_rng_seed
+from test.test_utils import assert_expected, get_asset_path, set_rng_seed
+from torchmultimodal.utils.common import get_current_device, shift_dim
+
+
+def patch_load_model(mocker):
+    """Mock the ``load_model`` function of ``PretrainedMixin`` to allow loading truncated state dicts with ``strict=False``."""
+
+    def patched_load_model(
+        cls,
+        pretrained_url: Optional[str],
+        load_state_dict: bool = True,
+        state_dict_key: Optional[str] = None,
+    ):
+        assert isinstance(
+            cls, torch.nn.Module
+        ), "load_model can only be called on an nn.Module instance"
+        if os.path.exists(pretrained_url):
+            state_dict = torch.load(pretrained_url, map_location=get_current_device())
+        else:
+            state_dict = torch.hub.load_state_dict_from_url(
+                pretrained_url,
+                model_dir=cls.get_model_dir(pretrained_url),
+                map_location=get_current_device(),
+            )
+        if state_dict_key:
+            state_dict = state_dict[state_dict_key]
+
+        if load_state_dict:
+            cls.load_state_dict(state_dict, strict=False)
+        return state_dict
+
+    return mocker.patch(
+        "torchmultimodal.utils.common.PretrainedMixin.load_model",
+        new=patched_load_model,
+    )
 
 
 class TestTextEncoder:
@@ -67,18 +104,22 @@ class TestVideoEncoder:
     def utils(self):
         def make_input_video(c_dim=1):
             input_shape = [2, 3, 32, 32, 32]
-            input_shape[c_dim] = 3
-            return torch.randint(10, input_shape).float()
+            input_video = torch.randint(10, input_shape).float()
+            input_video = (
+                shift_dim(input_video, 1, c_dim) if c_dim != 1 else input_video
+            )
+            return input_video
 
         return make_input_video
 
-    def test_forward_pretrained(self, utils):
+    def test_forward_pretrained(self, utils, mocker):
         make_input_video = utils
         input_video = make_input_video()
-        encoder = VideoEncoder()
+        patch_load_model(mocker)
+        encoder = VideoEncoder(pretrain_path=get_asset_path("S3D_sample.pt"))
 
         out = encoder(input_video)
-        expected_sum = 1587.7263
+        expected_sum = 1829.8858
         assert_expected(
             actual=out.shape, expected=torch.Size([2, 1024])
         )  # batch x embedding
