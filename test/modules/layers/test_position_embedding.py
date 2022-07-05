@@ -17,63 +17,80 @@ from torchmultimodal.modules.layers.position_embedding import (
 class TestBroadcastedPositionEmbedding:
     @pytest.fixture(scope="class")
     def pos_emb(self):
-        return BroadcastedPositionEmbedding(
-            shape=(1, 2),
+        _pos_emb = BroadcastedPositionEmbedding(
+            shape=(1, 2, 3),
             embedding_dim=6,
         )
+        _pos_emb.embedding = nn.ParameterDict(
+            {
+                "d_0": nn.Parameter(torch.tensor([[0.0, 1.0]])),
+                "d_1": nn.Parameter(torch.tensor([[2.0, 3.0], [4.0, 5.0]])),
+                "d_2": nn.Parameter(torch.tensor([[6.0, 7.0], [8.0, 9.0], [0.0, 1.0]])),
+            }
+        )
+
+        return _pos_emb
 
     def test_init_sets_embedding(self, pos_emb):
         """Test the embeddings are initialized with the correct dimensions"""
-        expected = [(1, 3), (2, 3)]
+        expected = [(1, 2), (2, 2), (3, 2)]
         for i, (key, _) in enumerate(pos_emb.embedding.items()):
             assert_expected(pos_emb.embedding[key].shape, expected[i])
 
     def test_init_bad_embedding_dim(self):
         """Test raising error when the embedding dim is not allowed"""
         with pytest.raises(ValueError):
-            BroadcastedPositionEmbedding(shape=(1, 2), embedding_dim=5)
-
-    def test_seq_len(self, pos_emb):
-        assert_expected(pos_emb.seq_len, 2)
+            BroadcastedPositionEmbedding(shape=(1, 2, 3), embedding_dim=5)
 
     def test_broadcast(self, pos_emb):
         """Test embedding along each dim is broadcasted correctly"""
-        embedding = [
-            torch.tensor([[0.0, 1.0, 2.0]]),
-            torch.tensor([[3.0, 4.0, 5.0], [6.0, 7.0, 8]]),
-        ]
         expected = [
-            torch.tensor([[[[0.0, 1.0, 2.0], [0.0, 1.0, 2.0]]]]),
-            torch.tensor([[[[3.0, 4.0, 5.0], [6.0, 7.0, 8.0]]]]),
+            torch.tensor(
+                [
+                    [
+                        [[0.0, 1.0], [0.0, 1.0], [0.0, 1.0]],
+                        [[0.0, 1.0], [0.0, 1.0], [0.0, 1.0]],
+                    ],
+                ]
+            ),
+            torch.tensor(
+                [
+                    [
+                        [[2.0, 3.0], [2.0, 3.0], [2.0, 3.0]],
+                        [[4.0, 5.0], [4.0, 5.0], [4.0, 5.0]],
+                    ],
+                ]
+            ),
+            torch.tensor(
+                [
+                    [
+                        [[6.0, 7.0], [8.0, 9.0], [0.0, 1.0]],
+                        [[6.0, 7.0], [8.0, 9.0], [0.0, 1.0]],
+                    ],
+                ]
+            ),
         ]
-        for i, emb in enumerate(embedding):
-            pos_emb.embedding[f"d_{i}"] = nn.Parameter(emb)
+        for i in range(pos_emb.n_dim):
             assert_expected(pos_emb._broadcast(i), expected[i])
 
-    def test_decode(self, pos_emb):
-        """Test the embedding at a previous location is selected for each decode step"""
-        x_shape = (1, 2, 6)
-        broadcasted_embedding = torch.tensor(
-            [[[[0.0, 1.0, 2.0, 3.0, 4.0, 5.0], [7.0, 8.0, 9.0, 10.0, 11.0, 12.0]]]]
-        )
-        expected = [
-            torch.tensor([[[[7.0, 8.0, 9.0, 10.0, 11.0, 12.0]]]]),
-            torch.tensor([[[[0.0, 1.0, 2.0, 3.0, 4.0, 5.0]]]]),
-        ]
-
-        for decode_step, _ in enumerate(pos_emb.decode_idxs):
-            actual = pos_emb._decode(decode_step, broadcasted_embedding, x_shape)
-            assert_expected(actual, expected[decode_step])
-
     def test_forward(self, pos_emb):
-        expected = (1, 2, 6)
-        assert_expected(pos_emb().shape, expected)
-
-    def test_forward_decode(self, pos_emb):
-        """Test the decode statement inside ``forward`` is hit when ``decode_step`` is given"""
-        x = torch.zeros(1, *(pos_emb.shape), pos_emb.embedding_dim).flatten(
-            start_dim=1, end_dim=-2
+        """Test the correct embeddings are returned for the given position ids"""
+        position_ids = torch.tensor([1, 3, -1])
+        actual = pos_emb(position_ids)
+        expected = torch.tensor(
+            [
+                [
+                    [0.0, 1.0, 2.0, 3.0, 8.0, 9.0],
+                    [0.0, 1.0, 4.0, 5.0, 6.0, 7.0],
+                    [0.0, 1.0, 4.0, 5.0, 0.0, 1.0],
+                ]
+            ]
         )
-        actual = pos_emb(x, decode_step=0).shape
-        expected = (1, 1, 6)
         assert_expected(actual, expected)
+
+    def test_forward_invalid_input(self, pos_emb):
+        """Test raising error when position ids contain illegal values"""
+        with pytest.raises(IndexError):
+            pos_emb(position_ids=torch.tensor([-2, 0]))
+        with pytest.raises(IndexError):
+            pos_emb(position_ids=torch.tensor([0, 6]))
