@@ -643,6 +643,8 @@ def mdetr_resnet101(
     image_backbone = resnet101()
     image_backbone = mdetr_resnet101_backbone()
     pos_embed = PositionEmbedding2D(128, scale=2 * math.pi)
+    # Size of layer4 output in ResNet101. See
+    # https://github.com/pytorch/vision/blob/main/torchvision/models/resnet.py#L204
     image_backbone.num_channels = 2048
     text_encoder = mdetr_roberta_text_encoder()
     if embedding_dim is None:
