@@ -1,7 +1,10 @@
+import os
 import datetime
+import time
 import torch
 import torchvision
 import torchvision.datasets.samplers as video_samplers
+import examples.omnivore.utils as utils
 from examples.omnivore.data import datasets, presets, transforms
 from torch.utils.data.dataloader import default_collate
 from torchvision.transforms.functional import InterpolationMode
@@ -79,8 +82,11 @@ def get_single_data_loader_from_dataset(train_dataset, val_dataset, dataset_name
             if args.val_data_sampling_factor[i] == 0:
                 num_val_workers = 1
 
+
     # Reduce the amount of validation workers
     num_val_workers = (num_val_workers // 2) + 1
+
+    print(f"dataset {dataset_name} have {num_train_workers} train_workers and {num_val_workers} val_workers")
 
     train_data_loader = torch.utils.data.DataLoader(
         train_dataset,
@@ -107,7 +113,7 @@ def _get_cache_path(filepath):
 
     h = hashlib.sha1(filepath.encode()).hexdigest()
     cache_path = os.path.join(
-        "~", ".torch", "torchmultimodal", "omnivore", "kinetics", h[:10] + ".pt"
+        "~", ".torch", "torchmultimodal", "omnivore_kinetics", h[:10] + ".pt"
     )
     cache_path = os.path.expanduser(cache_path)
     return cache_path
@@ -290,4 +296,3 @@ def get_omnivore_data_loader(args):
         args.val_data_sampling_factor,
     )
     return train_data_loader, val_data_loader
-

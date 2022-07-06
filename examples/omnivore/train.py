@@ -646,12 +646,6 @@ def get_args_parser(add_help=True):
         help="Forces the use of deterministic algorithms only.",
     )
     parser.add_argument(
-        "--interpolation",
-        default="bilinear",
-        type=str,
-        help="the interpolation method (default: bilinear)",
-    )
-    parser.add_argument(
         "--val-resize-size",
         default=256,
         type=int,
