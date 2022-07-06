@@ -132,6 +132,7 @@ class MDETR(nn.Module):
         outputs_class = self.class_embed(hs)
         outputs_coord = self.bbox_embed(hs).sigmoid()
 
+        # Return projections from the last layer of the decoders
         out = {
             "pred_logits": outputs_class[-1],
             "pred_boxes": outputs_coord[-1],
@@ -221,6 +222,8 @@ class MDETRTransformer(nn.Module):
         bs = image_embeddings.size(0)
         image_embeddings = image_embeddings.flatten(2).permute(2, 0, 1)
         pos_embed = pos_embed.flatten(2).permute(2, 0, 1)
+        # Object query embeddings for each sample in the batch
+        # Size: (num_queries, batch_size, hidden_dim)
         query_embed = query_embed.unsqueeze(1).repeat(1, bs, 1)
         image_mask = image_mask.flatten(1)
 
@@ -659,7 +662,7 @@ def mdetr_resnet101(
     query_embed = nn.Embedding(num_queries, hidden_dim)
     # 4 gives the number of coordinates that represent the bounding box
     bbox_embed = MLP(hidden_dim, 4, [hidden_dim] * 2, dropout=0.0)
-    # The + 1 here corresponds to "no class"
+    # The + 1 here corresponds to the "no class" label
     class_embed = nn.Linear(hidden_dim, num_classes + 1)
     mdetr = MDETR(
         image_backbone,
