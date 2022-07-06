@@ -36,6 +36,18 @@ class TestMDETR:
     def embedding_dim(self):
         return 256
 
+    @pytest.fixture(autouse=True)
+    def num_decoder_layers(self):
+        return 6
+
+    @pytest.fixture(autouse=True)
+    def num_queries_full(self):
+        return 100
+
+    @pytest.fixture(autouse=True)
+    def num_classes_full(self):
+        return 255
+
     @pytest.fixture()
     def src(self, mm_dim, batch_size, embedding_dim):
         return torch.randn(mm_dim, batch_size, embedding_dim)
@@ -103,26 +115,50 @@ class TestMDETR:
         ).to(dtype=torch.long)
 
     @pytest.fixture()
-    def transformer(self, embedding_dim):
-        transformer = MDETRTransformer(d_model=embedding_dim)
+    def transformer(self, embedding_dim, num_decoder_layers):
+        transformer = MDETRTransformer(
+            d_model=embedding_dim, num_decoder_layers=num_decoder_layers
+        )
         transformer.eval()
         return transformer
 
     @pytest.fixture()
-    def mdetr(self):
-        mdetr = mdetr_resnet101()
+    def mdetr(self, num_queries_full, num_classes_full):
+        mdetr = mdetr_resnet101(
+            num_queries=num_queries_full, num_classes=num_classes_full
+        )
         mdetr.eval()
         return mdetr
 
-    def test_transformer_encoder(self, transformer, src, src_key_padding_mask, pos):
+    def test_transformer_encoder(
+        self,
+        transformer,
+        src,
+        src_key_padding_mask,
+        pos,
+        mm_dim,
+        batch_size,
+        embedding_dim,
+    ):
         actual = transformer.encoder(
             src=src, src_key_padding_mask=src_key_padding_mask, pos=pos
-        )[1, :, 1]
+        )
+        assert actual.size() == (mm_dim, batch_size, embedding_dim)
         expected = torch.Tensor([0.3924, 1.7622])
-        assert_expected(actual, expected, rtol=0, atol=1e-3)
+        assert_expected(actual[1, :, 1], expected, rtol=0, atol=1e-3)
 
     def test_transformer_decoder(
-        self, transformer, tgt, memory, memory_key_padding_mask, pos, query_pos
+        self,
+        transformer,
+        tgt,
+        memory,
+        memory_key_padding_mask,
+        pos,
+        query_pos,
+        num_decoder_layers,
+        num_queries,
+        batch_size,
+        embedding_dim,
     ):
         actual = transformer.decoder(
             tgt=tgt,
@@ -130,16 +166,30 @@ class TestMDETR:
             memory_key_padding_mask=memory_key_padding_mask,
             pos=pos,
             query_pos=query_pos,
-        )[1, :, :, 1]
+        )
+        assert actual.size() == (
+            num_decoder_layers,
+            num_queries,
+            batch_size,
+            embedding_dim,
+        )
         expected = torch.Tensor(
             [[-1.6592, 0.3761], [-2.5531, 0.7192], [-1.2693, 0.3763], [-1.1510, 0.1224]]
         )
-        assert_expected(actual, expected, rtol=0, atol=1e-3)
+        assert_expected(actual[1, :, :, 1], expected, rtol=0, atol=1e-3)
 
-    def test_mdetr(self, mdetr, test_tensors, input_ids):
+    def test_full_mdetr_model(
+        self,
+        mdetr,
+        test_tensors,
+        input_ids,
+        batch_size,
+        num_queries_full,
+        num_classes_full,
+    ):
         out = mdetr(test_tensors, input_ids)
-        logits_actual = out["pred_logits"][1, :10, 1]
-        boxes_actual = out["pred_boxes"][1, :10, 1]
+        logits_actual = out["pred_logits"]
+        boxes_actual = out["pred_boxes"]
         logits_expected = torch.Tensor(
             [
                 -0.8136,
@@ -168,5 +218,11 @@ class TestMDETR:
                 0.5620,
             ]
         )
-        assert_expected(logits_actual, logits_expected, rtol=0, atol=1e-3)
-        assert_expected(boxes_actual, boxes_expected, rtol=0, atol=1e-3)
+        assert logits_actual.size() == (
+            batch_size,
+            num_queries_full,
+            num_classes_full + 1,
+        )
+        assert boxes_actual.size() == (batch_size, num_queries_full, 4)
+        assert_expected(logits_actual[1, :10, 1], logits_expected, rtol=0, atol=1e-3)
+        assert_expected(boxes_actual[1, :10, 1], boxes_expected, rtol=0, atol=1e-3)

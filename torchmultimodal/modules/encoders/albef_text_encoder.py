@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
+from typing import Callable, Optional
 
 import torch
 from torch import nn, Tensor
@@ -32,6 +33,7 @@ class ALBEFTextEncoder(nn.Module):
         type_vocab_size (int): The vocabulary size of the token_type_ids. Default is 2.
         pad_token_id (int): The embedding for pad_token_id is not updated during training. Default is 0.
         layer_norm_eps (float): The epsilon used by the layer normalization layers. Default is 1e-12.
+        transform_act_fn (Callable[[Tensor], Tensor]): The activation function for the Transformer encoder layer. Default is GELU.
     Inputs:
         input_ids (Tensor of size (batch_size, sequence_length)): Indices of input sequence tokens in the vocabulary.
         attention_mask (Tensor of shape (batch_size, sequence_length)): Mask to avoid performing attention on padding token indices.
@@ -49,6 +51,7 @@ class ALBEFTextEncoder(nn.Module):
         type_vocab_size: int = 2,
         pad_token_id: int = 0,
         layer_norm_eps: float = 1e-12,
+        transform_act_fn: Callable[[Tensor], Tensor] = nn.functional.gelu,
     ) -> None:
         super().__init__()
 
@@ -66,6 +69,7 @@ class ALBEFTextEncoder(nn.Module):
             num_attention_heads,
             num_hidden_layers,
             layer_norm_eps,
+            transform_act_fn,
         )
 
     def forward(
@@ -122,6 +126,7 @@ class ALBEFTransformerEncoder(nn.Module):
         num_attention_heads: int,
         num_hidden_layers: int,
         layer_norm_eps: float,
+        transform_act_fn: Callable[[Tensor], Tensor],
     ) -> None:
         super().__init__()
         self.layer = nn.ModuleList(
@@ -131,6 +136,7 @@ class ALBEFTransformerEncoder(nn.Module):
                     intermediate_size,
                     num_attention_heads,
                     layer_norm_eps,
+                    transform_act_fn,
                 )
                 for _ in range(num_hidden_layers)
             ]
@@ -153,13 +159,14 @@ class ALBEFTransformerLayer(nn.Module):
         intermediate_size: int,
         num_attention_heads: int,
         layer_norm_eps: float,
+        transform_act_fn: Callable[[Tensor], Tensor],
     ) -> None:
         super().__init__()
         self.attention = ALBEFTransformerAttention(
             hidden_size, num_attention_heads, layer_norm_eps
         )
         self.dense1 = nn.Linear(hidden_size, intermediate_size)
-        self.transform_act_fn = nn.GELU()
+        self.transform_act_fn = transform_act_fn
         self.dense2 = nn.Linear(intermediate_size, hidden_size)
         self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
 
@@ -194,8 +201,11 @@ class ALBEFTransformerAttention(nn.Module):
         self,
         hidden_states: Tensor,
         attention_mask: Tensor,
+        encoder_hidden_states: Optional[Tensor] = None,
     ) -> Tensor:
-        self_output = self.self_attention(hidden_states, attention_mask)
+        self_output = self.self_attention(
+            hidden_states, attention_mask, encoder_hidden_states
+        )
         dense_output = self.dense(self_output)
         attention_output = self.layer_norm(dense_output + hidden_states)
         return attention_output
@@ -226,10 +236,19 @@ class ALBEFTransformerSelfAttention(nn.Module):
         self,
         hidden_states: Tensor,
         attention_mask: Tensor,
+        encoder_hidden_states: Optional[Tensor] = None,
     ) -> Tensor:
         mixed_query_layer = self.query(hidden_states)
-        mixed_key_layer = self.key(hidden_states)
-        mixed_value_layer = self.value(hidden_states)
+
+        # If encoder_hidden_states is not passed, then compute the self attention on hidden_states
+        # Otherwise, compute the cross attention on hidden_states and encoder_hidden_states
+        if encoder_hidden_states is None:
+            mixed_key_layer = self.key(hidden_states)
+            mixed_value_layer = self.value(hidden_states)
+        else:
+            mixed_key_layer = self.key(encoder_hidden_states)
+            mixed_value_layer = self.value(encoder_hidden_states)
+            attention_mask = None
 
         query_layer = transpose_for_scores(
             self.num_attention_heads, self.attention_head_size, mixed_query_layer
