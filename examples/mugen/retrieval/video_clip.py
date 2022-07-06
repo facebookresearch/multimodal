@@ -175,7 +175,9 @@ def build_videoclip(
     text_model_name: str = "distilbert-base-uncased",
     text_model_config: Optional[Dict[str, Any]] = None,
     text_padding_value: int = 0,
+    video_pretrained: bool = True,
     video_trainable: bool = True,
+    video_pretrain_path: str = PRETRAINED_S3D_KINETICS400_URL,
     proj_out_dim: int = 256,
     proj_dropout: float = 0.1,
 ) -> CLIPArchitecture:
@@ -187,14 +189,21 @@ def build_videoclip(
             Defaults to True.
         text_trainable (bool): whether the text encoder's weights should be trainable.
             Defaults to True.
+            Warning: If ``text_pretrained`` is False, ``text_trainable`` will act as True regardless of the supplied value.
         text_model_name (str): name of pretrained model, used when pretrained is True.
             Defaults to "distilbert-base-uncased", Hugging Face's standard DistilBERT model.
         text_model_config (Optional[Dict[str, Any]]): model config for DistilBERT, used when pretrained is False
             Defaults to None, indicating the default DistilBERT config.
         text_padding_value (int): value that was used to pad the input text.
             Defaults to 0, Hugging Face's BERT pad token.
+        video_pretrained (bool): whether to use a pretrained model or not.
+            Defaults to True.
         video_trainable (bool): whether the video encoder's weights should be trainable.
             Defaults to True.
+            Warning: If ``video_pretrained`` is False, ``video_trainable`` will act as True regardless of the supplied value.
+        video_pretrain_path (str): local path or remote URL to video encoder pretrained weights.
+            Defaults to ``PRETRAINED_S3D_KINETICS400_URL``, the weights MUGEN used from
+            pretraining S3D on Kinetics 400. Ignored if ``video_pretrained`` is False.
         proj_out_dim (int): output dimension to project both encoders' outputs to.
             Defaults to 256, the value used by MUGEN.
         proj_dropout (float): dropout probability in the projection layers.
@@ -216,7 +225,11 @@ def build_videoclip(
         Projection(text_model.out_dim, out_dim=proj_out_dim, dropout_prob=proj_dropout),
     )
 
-    video_model = VideoEncoder(trainable=video_trainable)
+    video_model = VideoEncoder(
+        pretrained=video_pretrained,
+        trainable=video_trainable,
+        pretrain_path=video_pretrain_path,
+    )
     video_encoder = nn.Sequential(
         video_model,
         Projection(
