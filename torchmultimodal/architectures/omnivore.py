@@ -6,9 +6,10 @@
 
 import torch
 from torch import nn
+from torchmultimodal.utils.common import PretrainedMixin
 
 
-class OmnivoreArchitecture(nn.Module):
+class OmnivoreArchitecture(nn.Module, PretrainedMixin):
     """Omnivore is a model that accept multiple vision modality.
 
     Omnivore (https://arxiv.org/abs/2201.08377) is a single model that able to do classification

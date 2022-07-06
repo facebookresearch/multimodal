@@ -15,6 +15,12 @@ from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
     SwinTransformer3d,
 )
 
+_OMNIVORE_PRETRAINED_URLS = {
+    "swin_t": "https://download.pytorch.org/models/omnivore_swin_t-5b532aca.pth",
+    "swin_s": "https://download.pytorch.org/models/omnivore_swin_s-b64cc260.pth",
+    "swin_b": "https://download.pytorch.org/models/omnivore_swin_b-c2a4d126.pth",
+}
+
 try:
     from torch.hub import load_state_dict_from_url  # noqa: 401
 except ImportError:
@@ -154,9 +160,7 @@ def omnivore_swin_t(
     heads = _multimodal_head(input_dim=encoder.num_features)
     model = OmnivoreArchitecture(encoder, heads)
     if pretrained:
-        weight_url = "https://download.pytorch.org/models/omnivore_swin_t-5b532aca.pth"
-        weight = load_state_dict_from_url(weight_url, progress=progress)
-        model.load_state_dict(weight)
+        model.load_model(_OMNIVORE_PRETRAINED_URLS["swin_t"])
     if encoder_only:
         return model.encoder
     else:
@@ -178,9 +182,7 @@ def omnivore_swin_s(
     heads = _multimodal_head(input_dim=encoder.num_features)
     model = OmnivoreArchitecture(encoder, heads)
     if pretrained:
-        weight_url = "https://download.pytorch.org/models/omnivore_swin_s-b64cc260.pth"
-        weight = load_state_dict_from_url(weight_url, progress=progress)
-        model.load_state_dict(weight)
+        model.load_model(_OMNIVORE_PRETRAINED_URLS["swin_s"])
     if encoder_only:
         return model.encoder
     else:
@@ -202,9 +204,7 @@ def omnivore_swin_b(
     heads = _multimodal_head(input_dim=encoder.num_features)
     model = OmnivoreArchitecture(encoder, heads)
     if pretrained:
-        weight_url = "https://download.pytorch.org/models/omnivore_swin_b-c2a4d126.pth"
-        weight = load_state_dict_from_url(weight_url, progress=progress)
-        model.load_state_dict(weight)
+        model.load_model(_OMNIVORE_PRETRAINED_URLS["swin_b"])
     if encoder_only:
         return model.encoder
     else:
