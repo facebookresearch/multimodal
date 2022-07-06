@@ -316,7 +316,7 @@ def _copy_params_momentum_models(model: nn.Module, model_m: nn.Module) -> None:
 
 
 @torch.no_grad()
-def _momentum_update(model, model_m: nn.Module, momentum: nn.Module) -> None:
+def _momentum_update(model: nn.Module, model_m: nn.Module, momentum: float) -> None:
     for param, param_m in zip(model.parameters(), model_m.parameters()):
         param_m.data = param_m.data * momentum + param.data * (1 - momentum)
 
