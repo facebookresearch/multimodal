@@ -104,22 +104,38 @@ def map_mdetr_state_dict(mdetr_state_dict, mm_state_dict, n_layers: int = 12):
         if "embeddings" not in k
     }
     for k, v in mdetr_state_dict.items():
-        if not k.startswith("transformer.text_encoder") and not k.startswith(
-            "transformer.resizer"
+        if (
+            not k.startswith("transformer.text_encoder")
+            and not k.startswith("transformer.resizer")
+            and "input_proj" not in k
         ):
             mapped_state_dict[k.replace("backbone.0", "image_backbone")] = v
-        if "embeddings" in k or "resizer" in k:
+        if "embeddings" in k:
             mapped_state_dict[k.replace("transformer.", "")] = v
-        if "LayerNorm" in k:
+        if "input_proj" in k:
+            mapped_state_dict[k.replace("input_proj", "image_projection")] = v
+        if "resizer" in k:
             mapped_state_dict[
-                f"text_encoder.encoder.embedding_layer_norm.{k.split('.')[-1]}"
+                k.replace("transformer.", "").replace("resizer", "text_projection")
             ] = v
+        if "embeddings.LayerNorm" in k:
+            new_k = k.replace("transformer.", "")
+            mapped_state_dict[new_k.replace("LayerNorm", "layer_norm")] = v
+            del mapped_state_dict[new_k]
         if "bbox_embed" in k:
             parsed = k.split(".")
             i = int(parsed[parsed.index("layers") + 1])
             mapped_state_dict[
-                k.replace("layers", "model").replace(str(i), str(3 * i))
+                k.replace("layers", "model").replace(str(i), str(2 * i))
             ] = v
+            del mapped_state_dict[k]
+        if all([x in k for x in ["transformer", "layers", "linear"]]):
+            k_split = k.split(".")
+            i = int(k_split[-2][-1])
+            k_new = ".".join(
+                k_split[:-2] + ["mlp", "model", str(3 * (i - 1)), k_split[-1]]
+            )
+            mapped_state_dict[k_new] = v
             del mapped_state_dict[k]
 
     # Drop contrastive losses (not used in our MDETR model class)

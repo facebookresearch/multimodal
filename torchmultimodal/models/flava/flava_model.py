@@ -12,7 +12,7 @@ import math
 from collections import namedtuple, OrderedDict
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Callable, List, Literal, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import torch
 from torch import nn, Tensor
@@ -31,6 +31,7 @@ from torchmultimodal.modules.losses.flava import (
     Pooler,
 )
 from torchmultimodal.utils.common import ModelOutput, PretrainedMixin
+from typing_extensions import Literal
 
 
 EMBEDDING_OPTIONS = Literal["image", "text", "mm"]

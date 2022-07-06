@@ -5,16 +5,15 @@
 # LICENSE file in the root directory of this source tree.
 
 import random
-from typing import Any, Callable, Dict
-from typing import Union, Iterable
+from typing import Any, Callable, Dict, Iterable, Union
 
 import PIL
 import torch
 import torchvision.transforms.functional as F
-from examples.mdetr.utils.box_ops import box_xyxy_to_cxcywh
 from examples.mdetr.utils.misc import interpolate
 from PIL.Image import Image
 from torchvision import transforms as T
+from torchvision.ops.boxes import box_convert
 
 
 def crop(image, target, region):
@@ -268,7 +267,7 @@ class Normalize(object):
         h, w = image.shape[-2:]
         if "boxes" in target:
             boxes = target["boxes"]
-            boxes = box_xyxy_to_cxcywh(boxes)
+            boxes = box_convert(boxes, "xyxy", "cxcywh")
             boxes = boxes / torch.tensor([w, h, w, h], dtype=torch.float32)
             target["boxes"] = boxes
         return image, target
