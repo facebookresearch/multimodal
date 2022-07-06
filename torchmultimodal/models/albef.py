@@ -189,8 +189,11 @@ class ALBEFModelWithSimilarity(nn.Module):
     ) -> ALBEFWithSimilarityOutput:
         outputs = self.model(image, text, text_atts)
 
+        # reshape idx to (B, 1)
         idx = idx.view(-1, 1)
+        # get identifiers for the most recent M samples
         idx_all = torch.cat([idx.t(), self.idx_queue.detach().clone()], dim=1)
+        # check for seen identifiers in the most recent M samples
         pos_idx = torch.eq(idx, idx_all).float()
         sim_targets = pos_idx / pos_idx.sum(1, keepdim=True)
         similarity = self._similarity(
@@ -248,6 +251,7 @@ class ALBEFModelWithSimilarity(nn.Module):
         text_embeds_m: Tensor,
         idx: Tensor,
     ) -> ALBEFSimilarity:
+        # transform the [CLS] embeddings to normalized lower-dimensional representations
         image_feat = F.normalize(self.vision_proj(image_embeds[:, 0, :]), dim=-1)
         text_feat = F.normalize(self.text_proj(text_embeds[:, 0, :]), dim=-1)
 
@@ -328,6 +332,6 @@ def _gather_embeddings(embeddings: torch.Tensor) -> torch.Tensor:
     embeddings_all_gpus = [
         torch.zeros_like(embeddings) for _ in range(torch.distributed.get_world_size())
     ]
-    torch.distributed.all_gather(embeddings_all_gpus, embeddings, async_op=False)
+    torch.distributed.all_gather(embeddings_all_gpus, embeddings)
 
     return torch.cat(embeddings_all_gpus)
