@@ -6,7 +6,7 @@
 
 import copy
 from collections import namedtuple
-from typing import Optional, Tuple
+from typing import Tuple
 
 import torch
 import torch.nn.functional as F
@@ -23,11 +23,10 @@ ALBEFOutput = namedtuple(
         "image_embeddings",
         "image_embeddings_m",
         "text_embeddings",
-        "text_atts",
         "vl_embeddings",
         "similarity",
     ],
-    defaults=(None, None, None, None, None, None),
+    defaults=(None, None, None, None, None),
 )
 
 ALBEFSimilarity = namedtuple(
@@ -124,7 +123,7 @@ class ALBEFModel(nn.Module):
         self,
         image: Tensor,
         text: Tensor,
-        text_atts: Optional[Tensor] = None,
+        text_atts: Tensor,
     ) -> ALBEFOutput:
         image_embeds, text_embeds, image_feat, text_feat = self._unimodal_embeddings(
             image, text, text_atts
@@ -148,7 +147,6 @@ class ALBEFModel(nn.Module):
             image_embeddings=image_embeds,
             image_embeddings_m=image_embeds_m,
             text_embeddings=text_embeds,
-            text_atts=text_atts,
             vl_embeddings=vl_embeds,
             similarity=similarity,
         )
@@ -178,7 +176,6 @@ class ALBEFModel(nn.Module):
         text_embeds_m = self.text_encoder_m(text, attention_mask=text_atts)
         image_feat_m = F.normalize(self.vision_proj_m(image_embeds_m[:, 0, :]), dim=-1)
         text_feat_m = F.normalize(self.text_proj_m(text_embeds_m[:, 0, :]), dim=-1)
-        self._dequeue_and_enqueue(image_feat_m, text_feat_m)
         return image_embeds_m, image_feat_m, text_feat_m
 
     @torch.no_grad()
@@ -227,6 +224,8 @@ class ALBEFModel(nn.Module):
 
         sim_i2t = image_feat @ text_feat_all / self.temp
         sim_t2i = text_feat @ image_feat_all / self.temp
+
+        self._dequeue_and_enqueue(image_feat_m, text_feat_m)
 
         return ALBEFSimilarity(
             sim_i2t=sim_i2t,
@@ -283,5 +282,5 @@ class ALBEFModel(nn.Module):
             text_embeds=text_embeds_all,
             text_atts=text_atts_all,
         )
-        vl_embeddings = torch.cat([output_pos, output_neg], dim=0)
+        vl_embeddings = torch.cat([output_pos[:, 0, :], output_neg[:, 0, :]], dim=0)
         return vl_embeddings

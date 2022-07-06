@@ -145,13 +145,13 @@ class MDETRTransformer(nn.Module):
     Transformer class for MDETR model.
 
     Args:   d_model (int): Number of features in the input.
-            nhead (int): Number of heads in multi-head attention.
+            num_heads (int): Number of heads in multi-head attention.
             num_encoder_layers (int): Number of layers in the encoder. Default: 6
             num_decoder_layers (int): Number of layers in the decoder. Default: 6
             dim_feedforward (int): Dimension of feedforward network. Default: 2048
             dropout (float): Dropout value. Default: 0.1.
-            activation (Callable[..., Tensor]): The activation function of the
-                intermediate layer. Default: relu
+            activation (Callable[..., nn.Module]): The activation function of the
+                intermediate layer. Default: nn.ReLU
             normalize_before (bool): Whether to do PreNorm. Default: False
             return_intermediate_dec (bool): Whether to return intermediate decoder outputs.
                 Default: True
@@ -169,27 +169,27 @@ class MDETRTransformer(nn.Module):
     def __init__(
         self,
         d_model: int = 512,
-        nhead: int = 8,
+        num_heads: int = 8,
         num_encoder_layers: int = 6,
         num_decoder_layers: int = 6,
         dim_feedforward: int = 2048,
         dropout: float = 0.1,
-        activation: Callable[..., Tensor] = nn.functional.relu,
+        activation: Callable[..., nn.Module] = nn.ReLU,
         normalize_before: bool = False,
         return_intermediate_dec: bool = True,
     ):
         super().__init__()
 
         encoder_layer = TransformerEncoderLayer(
-            d_model, nhead, dim_feedforward, dropout, activation, normalize_before
+            d_model, num_heads, dim_feedforward, dropout, activation, normalize_before
         )
-        encoder_norm = nn.LayerNorm(d_model) if normalize_before else None
+        encoder_final_norm = nn.LayerNorm(d_model) if normalize_before else None
         self.encoder = TransformerEncoder(
-            encoder_layer, num_encoder_layers, encoder_norm
+            encoder_layer, num_encoder_layers, encoder_final_norm
         )
 
         decoder_layer = TransformerDecoderLayer(
-            d_model, nhead, dim_feedforward, dropout, activation
+            d_model, num_heads, dim_feedforward, dropout, activation
         )
         decoder_norm = nn.LayerNorm(d_model)
         self.decoder = TransformerDecoder(
@@ -199,11 +199,11 @@ class MDETRTransformer(nn.Module):
             return_intermediate=return_intermediate_dec,
         )
         self.d_model = d_model
-        self._reset_parameters()
+        self._init_parameters()
 
-    # Reset all (non-normalization-layer) weights
+    # Initialize all (non-normalization-layer) weights
     # Biases will be unaffected
-    def _reset_parameters(self):
+    def _init_parameters(self):
         for p in self.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
@@ -218,7 +218,7 @@ class MDETRTransformer(nn.Module):
         text_attention_mask: Tensor,
     ):
         # flatten NxCxHxW to HWxNxC
-        bs, _, _, _ = image_embeddings.shape
+        bs = image_embeddings.size(0)
         image_embeddings = image_embeddings.flatten(2).permute(2, 0, 1)
         pos_embed = pos_embed.flatten(2).permute(2, 0, 1)
         query_embed = query_embed.unsqueeze(1).repeat(1, bs, 1)
@@ -227,14 +227,14 @@ class MDETRTransformer(nn.Module):
         tgt = torch.zeros_like(query_embed)
 
         # Concat on the sequence dimension
-        image_embeddings = torch.cat([image_embeddings, text_memory], dim=0)
+        mm_embeddings = torch.cat([image_embeddings, text_memory], dim=0)
         # For mask, sequence dimension is second
         image_mask = torch.cat([image_mask, text_attention_mask], dim=1)
 
         # Pad the pos_embed with 0 so that the addition will be a no-op for the text tokens
         pos_embed = torch.cat([pos_embed, torch.zeros_like(text_memory)], dim=0)
         mm_memory = self.encoder(
-            image_embeddings, src_key_padding_mask=image_mask, pos=pos_embed
+            mm_embeddings, src_key_padding_mask=image_mask, pos=pos_embed
         )
         text_memory = mm_memory[-len(text_memory) :]
         assert mm_memory.shape[1] == text_memory.shape[1] == tgt.shape[1]
@@ -385,11 +385,11 @@ class TransformerEncoderLayer(nn.Module):
     A single layer from a transformer encoder.
 
     Args:   d_model (int): Number of features in the input.
-            nhead (int): Number of heads in multi-head attention.
+            num_heads (int): Number of heads in multi-head attention.
             dim_feedforward (int): Dimension of feedforward network. Default: 2048
             dropout (float): Dropout value. Default: 0.1.
-            activation (Callable[..., Tensor]): The activation function of the
-                intermediate layer. Default: relu
+            activation (Callable[..., nn.Module]): The activation function of the
+                intermediate layer. Default: nn.ReLU
             normalize_before (bool): Whether to do PreNorm. Default: False
 
     Inputs: src (Tensor): The sequence to the encoder layer.
@@ -403,19 +403,15 @@ class TransformerEncoderLayer(nn.Module):
     def __init__(
         self,
         d_model: int,
-        nhead: int,
+        num_heads: int,
         dim_feedforward: int = 2048,
         dropout: float = 0.1,
-        activation: Callable[..., Tensor] = nn.functional.relu,
+        activation: Callable[..., nn.Module] = nn.ReLU,
         normalize_before: bool = False,
     ):
         super().__init__()
-        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        # Implementation of Feedforward model
-        self.linear1 = nn.Linear(d_model, dim_feedforward)
-        self.dropout = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(dim_feedforward, d_model)
-
+        self.self_attn = nn.MultiheadAttention(d_model, num_heads, dropout=dropout)
+        self.mlp = MLP(d_model, d_model, [dim_feedforward], dropout, activation)
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
         self.dropout1 = nn.Dropout(dropout)
@@ -434,16 +430,17 @@ class TransformerEncoderLayer(nn.Module):
         src_key_padding_mask: Optional[Tensor] = None,
         pos: Optional[Tensor] = None,
     ) -> Tensor:
-        q = k = self.with_pos_embed(src, pos)
-        src2 = self.self_attn(
-            q, k, value=src, attn_mask=src_mask, key_padding_mask=src_key_padding_mask
+        x = src
+        q = k = self.with_pos_embed(x, pos)
+        self_attention_outputs = self.self_attn(
+            q, k, value=x, attn_mask=src_mask, key_padding_mask=src_key_padding_mask
         )[0]
-        src = src + self.dropout1(src2)
-        src = self.norm1(src)
-        src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
-        src = src + self.dropout2(src2)
-        src = self.norm2(src)
-        return src
+        x = x + self.dropout1(self_attention_outputs)
+        x = self.norm1(x)
+        mlp_outputs = self.mlp(x)
+        x = x + self.dropout2(mlp_outputs)
+        x = self.norm2(x)
+        return x
 
     def forward_pre(
         self,
@@ -452,16 +449,17 @@ class TransformerEncoderLayer(nn.Module):
         src_key_padding_mask: Optional[Tensor] = None,
         pos: Optional[Tensor] = None,
     ) -> Tensor:
-        src2 = self.norm1(src)
-        q = k = self.with_pos_embed(src2, pos)
-        src2 = self.self_attn(
-            q, k, value=src2, attn_mask=src_mask, key_padding_mask=src_key_padding_mask
+        x = src
+        x = self.norm1(x)
+        q = k = self.with_pos_embed(x, pos)
+        self_attention_outputs = self.self_attn(
+            q, k, value=x, attn_mask=src_mask, key_padding_mask=src_key_padding_mask
         )[0]
-        src = src + self.dropout1(src2)
-        src2 = self.norm2(src)
-        src2 = self.linear2(self.dropout(self.activation(self.linear1(src2))))
-        src = src + self.dropout2(src2)
-        return src
+        x = x + self.dropout1(self_attention_outputs)
+        x = self.norm2(x)
+        mlp_outputs = self.mlp(x)
+        x = x + self.dropout2(mlp_outputs)
+        return x
 
     def forward(
         self,
@@ -480,11 +478,11 @@ class TransformerDecoderLayer(nn.Module):
     A single layer from a transformer decoder.
 
     Args:   d_model (int): Number of features in the input.
-            nhead (int): Number of heads in multi-head attention.
+            num_heads (int): Number of heads in multi-head attention.
             dim_feedforward (int): Dimension of feedforward network. Default: 2048
             dropout (float): Dropout value. Default: 0.1.
-            activation (Callable[..., Tensor]): The activation function of the
-                intermediate layer. Default: relu
+            activation (Callable[..., nn.Module]): The activation function of the
+                intermediate layer. Default: nn.ReLU
 
     Inputs: tgt (Tensor): The sequence to the decoder layer.
             memory (Tensor): The sequence from the last layer of the decoder.
@@ -503,19 +501,17 @@ class TransformerDecoderLayer(nn.Module):
     def __init__(
         self,
         d_model: int,
-        nhead: int,
+        num_heads: int,
         dim_feedforward: int = 2048,
         dropout: float = 0.1,
-        activation: Callable[..., Tensor] = nn.functional.relu,
+        activation: Callable[..., nn.Module] = nn.ReLU,
     ):
         super().__init__()
-        self.self_attn = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-        self.cross_attn_image = nn.MultiheadAttention(d_model, nhead, dropout=dropout)
-
-        # Implementation of Feedforward model
-        self.linear1 = nn.Linear(d_model, dim_feedforward)
-        self.dropout = nn.Dropout(dropout)
-        self.linear2 = nn.Linear(dim_feedforward, d_model)
+        self.self_attn = nn.MultiheadAttention(d_model, num_heads, dropout=dropout)
+        self.cross_attn_image = nn.MultiheadAttention(
+            d_model, num_heads, dropout=dropout
+        )
+        self.mlp = MLP(d_model, d_model, [dim_feedforward], dropout, activation)
 
         self.norm1 = nn.LayerNorm(d_model)
 
@@ -542,31 +538,32 @@ class TransformerDecoderLayer(nn.Module):
         pos: Optional[Tensor] = None,
         query_pos: Optional[Tensor] = None,
     ):
-        q = k = self.with_pos_embed(tgt, query_pos)
+        x = tgt
+        q = k = self.with_pos_embed(x, query_pos)
 
         # Self attention
-        tgt2 = self.self_attn(
-            q, k, value=tgt, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask
+        self_attention_outputs = self.self_attn(
+            q, k, value=x, attn_mask=tgt_mask, key_padding_mask=tgt_key_padding_mask
         )[0]
-        tgt = tgt + self.dropout1(tgt2)
-        tgt = self.norm1(tgt)
+        x = x + self.dropout1(self_attention_outputs)
+        x = self.norm1(x)
 
         # Cross attention to image
-        tgt2 = self.cross_attn_image(
-            query=self.with_pos_embed(tgt, query_pos),
+        cross_attention_outputs = self.cross_attn_image(
+            query=self.with_pos_embed(x, query_pos),
             key=self.with_pos_embed(memory, pos),
             value=memory,
             attn_mask=memory_mask,
             key_padding_mask=memory_key_padding_mask,
         )[0]
-        tgt = tgt + self.dropout3(tgt2)
-        tgt = self.norm3(tgt)
+        x = x + self.dropout3(cross_attention_outputs)
+        x = self.norm3(x)
 
         # FFN
-        tgt2 = self.linear2(self.dropout(self.activation(self.linear1(tgt))))
-        tgt = tgt + self.dropout4(tgt2)
-        tgt = self.norm4(tgt)
-        return tgt
+        mlp_outputs = self.mlp(x)
+        x = x + self.dropout4(mlp_outputs)
+        x = self.norm4(x)
+        return x
 
 
 class FeatureResizer(nn.Module):
@@ -593,7 +590,7 @@ class FeatureResizer(nn.Module):
         self.do_ln = do_ln
         # Object feature encoding
         self.fc = nn.Linear(input_feat_size, output_feat_size, bias=True)
-        self.layer_norm = nn.LayerNorm(output_feat_size, eps=1e-12)
+        self.layer_norm = nn.LayerNorm(output_feat_size, eps=1e-12) if do_ln else None
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, encoder_features: Tensor):
@@ -610,7 +607,7 @@ def get_clones(module: nn.Module, n: int) -> nn.ModuleList:
 
 def mdetr_transformer(
     d_model: int = 256,
-    nhead: int = 8,
+    num_heads: int = 8,
     num_encoder_layers: int = 6,
     num_decoder_layers: int = 6,
     dim_feedforward: int = 2048,
@@ -619,7 +616,7 @@ def mdetr_transformer(
 ) -> MDETRTransformer:
     return MDETRTransformer(
         d_model=d_model,
-        nhead=nhead,
+        num_heads=num_heads,
         num_encoder_layers=num_encoder_layers,
         num_decoder_layers=num_decoder_layers,
         dim_feedforward=dim_feedforward,
@@ -633,7 +630,7 @@ def mdetr_resnet101(
     num_classes: int = 255,
     embedding_dim: int = 768,
     transformer_d_model: int = 256,
-    transformer_nhead: int = 8,
+    transformer_num_heads: int = 8,
     transformer_encoder_layers: int = 6,
     transformer_decoder_layers: int = 6,
     transformer_dim_feedforward: int = 2048,
@@ -649,7 +646,7 @@ def mdetr_resnet101(
         embedding_dim = text_encoder.embedding_dim
     transformer = mdetr_transformer(
         transformer_d_model,
-        transformer_nhead,
+        transformer_num_heads,
         transformer_encoder_layers,
         transformer_decoder_layers,
         transformer_dim_feedforward,
@@ -657,18 +654,20 @@ def mdetr_resnet101(
         return_intermediate_dec,
     )
     hidden_dim = transformer_d_model
-    resizer = FeatureResizer(embedding_dim, hidden_dim)
-    input_proj = nn.Conv2d(image_backbone.num_channels, hidden_dim, kernel_size=1)
+    text_projection = FeatureResizer(embedding_dim, hidden_dim)
+    image_projection = nn.Conv2d(image_backbone.num_channels, hidden_dim, kernel_size=1)
     query_embed = nn.Embedding(num_queries, hidden_dim)
+    # 4 gives the number of coordinates that represent the bounding box
     bbox_embed = MLP(hidden_dim, 4, [hidden_dim] * 2, dropout=0.0)
+    # The + 1 here corresponds to "no class"
     class_embed = nn.Linear(hidden_dim, num_classes + 1)
     mdetr = MDETR(
         image_backbone,
         text_encoder,
         transformer,
         pos_embed,
-        resizer,
-        input_proj,
+        text_projection,
+        image_projection,
         query_embed,
         bbox_embed,
         class_embed,
