@@ -104,9 +104,9 @@ class VideoEncoder(nn.Module, PretrainedMixin):
 
     Inputs:
         x (Tensor): batch of videos with dimensions (batch, channel, time, height, width)
+            Size of ``channel`` dimension must be 3.
 
     """
-
 
     def __init__(
         self,
@@ -118,11 +118,12 @@ class VideoEncoder(nn.Module, PretrainedMixin):
         self.model = S3D(400)
         self.out_dim = self.model.fc.in_channels
         self.model.fc = nn.Identity()
-        
+
         if pretrained:
             self.load_model(pretrain_path)
 
         if pretrained and not trainable:
+            # check ``pretrained``` because if model isn't pretrained, then it should be trainable
             for p in self.model.parameters():
                 p.requires_grad = False
 

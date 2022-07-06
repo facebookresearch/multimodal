@@ -129,7 +129,7 @@ class TestVideoEncoder:
 
         return make_input_video
 
-    def test_forward_pretrained(self, utils, mocker):
+    def test_forward_pretrained_trainable(self, utils, mocker):
         make_input_video = utils
         input_video = make_input_video()
         patch_load_model(mocker)
@@ -143,8 +143,17 @@ class TestVideoEncoder:
         assert_expected(
             actual=out.sum(), expected=torch.as_tensor(expected_sum), rtol=0, atol=1e-3
         )
+        assert next(encoder.parameters()).requires_grad
+        assert encoder.out_dim == 1024
 
-    def test_forward_untrained(self, utils):
+    def test_pretrained_untrainable(self, mocker):
+        patch_load_model(mocker)
+        encoder = VideoEncoder(
+            trainable=False, pretrain_path=get_asset_path("S3D_sample.pt")
+        )
+        assert not next(encoder.parameters()).requires_grad
+
+    def test_forward_untrained_trainable(self, utils):
         make_input_video = utils
         input_video = make_input_video()
         encoder = VideoEncoder(pretrained=False)
@@ -157,11 +166,11 @@ class TestVideoEncoder:
             actual=out.sum(), expected=torch.as_tensor(expected_sum), rtol=0, atol=1e-3
         )
         assert next(encoder.parameters()).requires_grad
-        assert encoder.out_dim == 1024
 
-    def test_untrainable(self):
-        encoder = VideoEncoder(trainable=False)
-        assert not next(encoder.parameters()).requires_grad
+    def test_untrained_untrainable(self):
+        encoder = VideoEncoder(pretrained=False, trainable=False)
+        # encoder should ignore ``trainable`` if ``pretrained`` is False
+        assert next(encoder.parameters()).requires_grad
 
 
 class TestProjection:
