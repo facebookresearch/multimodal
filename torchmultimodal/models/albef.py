@@ -73,7 +73,7 @@ class ALBEFModel(nn.Module):
         text_encoder: nn.Module,
         multimodal_encoder: nn.Module,
         momentum: float = 0.995,
-    ):
+    ) -> None:
         super().__init__()
         self.vision_encoder = vision_encoder
         self.text_encoder = text_encoder
@@ -186,7 +186,7 @@ class ALBEFModelWithSimilarity(nn.Module):
         text: Tensor,
         text_atts: Tensor,
         idx: Tensor,
-    ):
+    ) -> ALBEFWithSimilarityOutput:
         outputs = self.model(image, text, text_atts)
 
         idx = idx.view(-1, 1)
@@ -309,14 +309,14 @@ class ALBEFModelWithSimilarity(nn.Module):
 
 
 @torch.no_grad()
-def _copy_params_momentum_models(model, model_m) -> None:
+def _copy_params_momentum_models(model: nn.Module, model_m: nn.Module) -> None:
     for param, param_m in zip(model.parameters(), model_m.parameters()):
         param_m.data.copy_(param.data)
         param_m.requires_grad = False
 
 
 @torch.no_grad()
-def _momentum_update(model, model_m, momentum) -> None:
+def _momentum_update(model, model_m: nn.Module, momentum: nn.Module) -> None:
     for param, param_m in zip(model.parameters(), model_m.parameters()):
         param_m.data = param_m.data * momentum + param.data * (1 - momentum)
 
