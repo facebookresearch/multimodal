@@ -12,13 +12,14 @@ from typing import List, Union
 from PIL import Image
 from torch import Tensor
 from torch.utils.data import Dataset
+from torchvision import transforms
 
 
 class VQADataset(Dataset):
     def __init__(
         self,
-        ann_file,
-        transform: List[str],
+        ann_file: List[str],
+        transform: transforms.Compose,
         vqa_root: str,
         vg_root: str,
         eos: str = "[SEP]",
