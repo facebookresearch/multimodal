@@ -53,6 +53,20 @@ class TestContrastiveLossWithTemperature(unittest.TestCase):
         self.assertEqual(loss.size(), torch.Size([]))
         self.assertAlmostEqual(loss.item(), 9.8753, 3)
 
+    def test_temperature_clamp(self):
+        torch.manual_seed(1234)
+        clip_loss_at_max = ContrastiveLossWithTemperature(logit_scale=4.6052).to(
+            get_current_device()
+        )
+        clip_loss_above_max = ContrastiveLossWithTemperature(logit_scale=5).to(
+            get_current_device()
+        )
+        image_embeddings = torch.randn(3, 5)
+        text_embeddings = torch.randn(3, 5)
+        loss_at_max = clip_loss_at_max(image_embeddings, text_embeddings).item()
+        loss_above_max = clip_loss_above_max(image_embeddings, text_embeddings).item()
+        self.assertAlmostEqual(first=loss_above_max, second=loss_at_max, places=3)
+
     @staticmethod
     def _model_worker(
         gpu_id: int,

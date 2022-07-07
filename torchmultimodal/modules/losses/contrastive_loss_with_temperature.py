@@ -158,6 +158,10 @@ class ContrastiveLossWithTemperature(nn.Module):
         logit_scale (Union[float, nn.Module]): Log of the learnable temperature parameter value
             A nn.Parameter instantiation can also be passed directly in case parent class
             is handling the initialization.
+        logit_scale_min (Optional[float]): Log of the minimum temperature value.
+            If None, then temperature will not be clamped to a minimum value.
+        logit_scale_max (Optional[float]): Log of the maximum temperature value.
+            If None, then temperature will not be clamped to a maximum value.
 
     Inputs: image_embeddings (Tensor): Tensor containing image features.
                 (In the CLIP model, these are the outputs of the image encoder.)
@@ -167,7 +171,12 @@ class ContrastiveLossWithTemperature(nn.Module):
                 all_gather to all workers (versus just the local worker).
     """
 
-    def __init__(self, logit_scale: Union[float, nn.Parameter] = DEFAULT_LOGIT_SCALE):
+    def __init__(
+        self,
+        logit_scale: Union[float, nn.Parameter] = DEFAULT_LOGIT_SCALE,
+        logit_scale_min: Optional[float] = 0.0,
+        logit_scale_max: Optional[float] = 4.6052,
+    ):
         super().__init__()
 
         # If already initialized, set to what was passed
@@ -176,6 +185,9 @@ class ContrastiveLossWithTemperature(nn.Module):
         else:
             self.logit_scale = nn.Parameter(logit_scale * torch.ones([]))
 
+        self.logit_scale_min = logit_scale_min
+        self.logit_scale_max = logit_scale_max
+
     def forward(
         self,
         image_embeddings: torch.Tensor,
@@ -183,8 +195,7 @@ class ContrastiveLossWithTemperature(nn.Module):
         backprop_in_gather: bool = True,
     ):
 
-        # Note: we clamp to 4.6052 = ln(100), as in the original paper.
-        self.logit_scale.data.clamp_(0, 4.6052)
+        self.logit_scale.data.clamp_(self.logit_scale_min, self.logit_scale_max)
         return contrastive_loss_with_temperature(
             image_embeddings=image_embeddings,
             text_embeddings=text_embeddings,
