@@ -248,23 +248,10 @@ def main(args):
 
     criterion = nn.CrossEntropyLoss(label_smoothing=args.label_smoothing)
 
-    custom_keys_weight_decay = []
-    if args.bias_weight_decay is not None:
-        custom_keys_weight_decay.append(("bias", args.bias_weight_decay))
-    if args.transformer_embedding_decay is not None:
-        for key in [
-            "class_token",
-            "position_embedding",
-            "relative_position_bias_table",
-        ]:
-            custom_keys_weight_decay.append((key, args.transformer_embedding_decay))
     parameters = utils.set_weight_decay(
         model,
         args.weight_decay,
         norm_weight_decay=args.norm_weight_decay,
-        custom_keys_weight_decay=custom_keys_weight_decay
-        if len(custom_keys_weight_decay) > 0
-        else None,
     )
 
     opt_name = args.opt.lower()
@@ -445,16 +432,8 @@ def get_args_parser(add_help=True):
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="PyTorch Classification Training", add_help=add_help
+        description="Torchmultimodal Omnivore Training", add_help=add_help
     )
-
-    parser.add_argument(
-        "--data-path",
-        default="/datasets01/imagenet_full_size/061417/",
-        type=str,
-        help="dataset path",
-    )
-    parser.add_argument("--model", default="resnet18", type=str, help="model name")
     parser.add_argument(
         "--device",
         default="cuda",
@@ -502,18 +481,6 @@ def get_args_parser(add_help=True):
         default=None,
         type=float,
         help="weight decay for Normalization layers (default: None, same value as --wd)",
-    )
-    parser.add_argument(
-        "--bias-weight-decay",
-        default=None,
-        type=float,
-        help="weight decay for bias parameters of all layers (default: None, same value as --wd)",
-    )
-    parser.add_argument(
-        "--transformer-embedding-decay",
-        default=None,
-        type=float,
-        help="weight decay for embedding parameters for vision transformer models (default: None, same value as --wd)",
     )
     parser.add_argument(
         "--label-smoothing",
@@ -758,7 +725,7 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--loader-pin-memory",
-        help="Do we use pin_memory in data_loader",
+        help="Pin_memory parameter in data_loader",
         action="store_true",
     )
     parser.add_argument(
@@ -771,7 +738,13 @@ def get_args_parser(add_help=True):
         "--video-grad-accum-iter",
         type=int,
         default=1,
-        help="[EXPERIMENT] number of gradient accumulation to reduce batch size for video",
+        help="Number of gradient accumulation iteration to reduce batch size for video",
+    )
+    parser.add_argument(
+        "--loader-drop-last",
+        type=bool,
+        action="store_true",
+        help="Drop last parameter in DataLoader",
     )
     return parser
 

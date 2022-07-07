@@ -95,7 +95,7 @@ def get_single_data_loader_from_dataset(train_dataset, val_dataset, dataset_name
         num_workers=num_train_workers,
         pin_memory=args.loader_pin_memory,
         collate_fn=collate_fn,
-        drop_last=True,
+        drop_last=args.drop_last,
     )
     val_data_loader = torch.utils.data.DataLoader(
         val_dataset,
@@ -103,7 +103,7 @@ def get_single_data_loader_from_dataset(train_dataset, val_dataset, dataset_name
         sampler=val_sampler,
         num_workers=num_val_workers,
         pin_memory=args.loader_pin_memory,
-        drop_last=True,
+        drop_last=args.drop_last,
     )
     return train_data_loader, val_data_loader
 
