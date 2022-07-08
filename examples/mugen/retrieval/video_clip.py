@@ -76,7 +76,7 @@ class TextEncoder(nn.Module):
 
 
 class VideoEncoder(nn.Module, PretrainedMixin):
-    """Encode videos to a fixed size vector.
+    """Encode videos to the last layer before the fully-connected layer of S3D.
 
     Adapted from MUGEN's video encoder
         (https://github.com/mugen-org/MUGEN_baseline/blob/main/lib/models/videoclip/modules.py)
@@ -105,7 +105,8 @@ class VideoEncoder(nn.Module, PretrainedMixin):
             self.load_model(pretrain_path)
 
     def forward(self, x):
-        assert (
-            x.shape[1] == 3
-        ), "Channels must be at first (zero-indexed) dimension of input and of size 3."
+        if x.shape[1] != 3:
+            raise ValueError(
+                "Channels must be at first (zero-indexed) dimension of input and of size 3."
+            )
         return self.model(x)

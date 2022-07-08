@@ -12,11 +12,13 @@ import torch
 from examples.mugen.retrieval.video_clip import TextEncoder, VideoEncoder
 
 from test.test_utils import assert_expected, get_asset_path, set_rng_seed
-from torchmultimodal.utils.common import get_current_device, shift_dim
+from torchmultimodal.utils.common import shift_dim
 
 
 def patch_load_model(mocker):
-    """Mock the ``load_model`` function of ``PretrainedMixin`` to allow loading truncated state dicts with ``strict=False``."""
+    """Mock the ``load_model`` function of ``VideoEncoder`` to allow loading truncated
+    state dicts with ``strict=False``.
+    """
 
     def patched_load_model(
         cls,
@@ -28,12 +30,10 @@ def patch_load_model(mocker):
             cls, torch.nn.Module
         ), "load_model can only be called on an nn.Module instance"
         if os.path.exists(pretrained_url):
-            state_dict = torch.load(pretrained_url, map_location=get_current_device())
+            state_dict = torch.load(pretrained_url)
         else:
             state_dict = torch.hub.load_state_dict_from_url(
-                pretrained_url,
-                model_dir=cls.get_model_dir(pretrained_url),
-                map_location=get_current_device(),
+                pretrained_url, model_dir=cls.get_model_dir(pretrained_url)
             )
         if state_dict_key:
             state_dict = state_dict[state_dict_key]
@@ -43,7 +43,7 @@ def patch_load_model(mocker):
         return state_dict
 
     return mocker.patch(
-        "torchmultimodal.utils.common.PretrainedMixin.load_model",
+        "examples.mugen.retrieval.video_clip.VideoEncoder.load_model",
         new=patched_load_model,
     )
 
@@ -139,3 +139,10 @@ class TestVideoEncoder:
         assert_expected(
             actual=out.sum(), expected=torch.as_tensor(expected_sum), rtol=0, atol=1e-3
         )
+
+    def test_invalid_channels(self, utils):
+        make_input_video = utils
+        input_video = make_input_video(c_dim=3)
+        encoder = VideoEncoder(pretrained=False)
+        with pytest.raises(ValueError):
+            encoder(input_video)
