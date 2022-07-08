@@ -21,7 +21,19 @@ PRETRAINED_S3D_KINETICS400_URL = (
 )
 
 
-class TextEncoder(nn.Module):
+class HuggingFaceMixin(PretrainedMixin):
+    """Interface to loading pretrained model from HuggingFace.
+
+    Inputs:
+        model_name (str): name of pretrained model.
+
+    """
+
+    def load_model(self, model_name: str):
+        self.model = DistilBertModel.from_pretrained(model_name)
+
+
+class TextEncoder(nn.Module, HuggingFaceMixin):
     """Encode tokenized text to the last hidden state representation of the CLS token using
         DistilBERT. DistilBERT prepends a CLS (classification) token to every text so the
         token's hidden state represents the entire text.
@@ -30,54 +42,34 @@ class TextEncoder(nn.Module):
         (https://github.com/mugen-org/MUGEN_baseline/blob/main/lib/models/videoclip/modules.py)
 
     Args:
-        pretrained (bool): whether to use a pretrained model or not.
-            Defaults to True.
-        trainable (bool): whether the encoder's weights should be trainable (not frozen).
-            Defaults to True. Ignored if ``pretrained`` is False.
-        model_name (str): name of pretrained model, used when ``pretrained`` is True.
-            Defaults to "distilbert-base-uncased", Hugging Face's standard DistilBERT model.
-        model_config (Optional[Dict[str, Any]]): model config for DistilBERT, used when ``pretrained`` is False
-            Defaults to None, indicating the default DistilBERT config.
+        model_config (Optional[Dict[str, Any]]): model config for DistilBERT.
+            Defaults to ``None``, indicating the default DistilBERT config.
         padding_value (int): value that was used to pad the input text.
-            Defaults to 0, Hugging Face's BERT pad token.
+            Defaults to ``0``, Hugging Face's BERT pad token.
 
     Inputs:
         input_ids (Tensor): tensor of (batch, text_length) tokenized text
 
     Returns:
-        Tensor: encoded text with dimensions (batch, model_config.dim).
-            Default and pretrained model_config.dim is 768.
+        Tensor: encoded text with dimensions (batch, ``model_config.dim``).
+            Default and pretrained ``model_config.dim`` is ``768``.
     """
 
     def __init__(
         self,
-        pretrained: bool = True,
-        trainable: bool = True,
-        model_name: str = "distilbert-base-uncased",
         model_config: Optional[Dict[str, Any]] = None,
         padding_value: int = 0,
     ):
         super().__init__()
         self.padding_value = padding_value
-        if pretrained:
-            print(f"Loading pretrained DistilBERT from {model_name}.")
-            self.model = DistilBertModel.from_pretrained(model_name)
-        else:
-            distilbert_config = (
-                DistilBertConfig(**model_config) if model_config else DistilBertConfig()
-            )
-            self.model = DistilBertModel(config=distilbert_config)
-
-        self.out_dim = self.model.config.dim
         # we are using the CLS token hidden representation as the sentence's embedding
         self.target_token_idx = 0
 
-        if pretrained and not trainable:
-            # check ``pretrained``` because if model isn't pretrained, then it should be trainable
-            for p in self.model.parameters():
-                p.requires_grad = False
-        elif not trainable:
-            warnings.warn("`trainable` acts as True when `pretrained` is False.")
+        distilbert_config = (
+            DistilBertConfig(**model_config) if model_config else DistilBertConfig()
+        )
+        self.model = DistilBertModel(config=distilbert_config)
+        self.out_dim = self.model.config.dim
 
     def build_attention_mask(self, input_ids: torch.Tensor) -> torch.Tensor:
         return (input_ids != self.padding_value).to(dtype=int)
@@ -95,42 +87,17 @@ class VideoEncoder(nn.Module, PretrainedMixin):
     Adapted from MUGEN's video encoder
         (https://github.com/mugen-org/MUGEN_baseline/blob/main/lib/models/videoclip/modules.py)
 
-    Args:
-        pretrained (bool): whether to use a pretrained model or not.
-            Defaults to True.
-        trainable (bool): whether the encoder's weights should be trainable (not frozen).
-            Defaults to True. Ignored if ``pretrained`` is False.
-        pretrain_path (str): local path or remote URL to pretrained weights.
-            Defaults to ``PRETRAINED_S3D_KINETICS400_URL``, the weights MUGEN used from
-            pretraining S3D on Kinetics 400. Ignored if ``pretrained`` is False.
-
     Inputs:
         x (Tensor): batch of videos with dimensions (batch, channel, time, height, width)
-            Size of ``channel`` dimension must be 3.
+            Size of ``channel`` dimension must be ``3``.
 
     """
 
-    def __init__(
-        self,
-        pretrained: bool = True,
-        trainable: bool = True,
-        pretrain_path: str = PRETRAINED_S3D_KINETICS400_URL,
-    ):
+    def __init__(self):
         super().__init__()
         self.model = S3D(400)
         self.out_dim = self.model.fc.in_channels
         self.model.fc = nn.Identity()
-
-        if pretrained:
-            print(f"Loading pretrained video encoder from {pretrain_path}.")
-            self.load_model(pretrain_path)
-
-        if pretrained and not trainable:
-            # check ``pretrained``` because if model isn't pretrained, then it should be trainable
-            for p in self.model.parameters():
-                p.requires_grad = False
-        elif not trainable:
-            warnings.warn("`trainable` acts as True when `pretrained` is False.")
 
     def forward(self, x):
         if x.shape[1] != 3:
@@ -146,9 +113,9 @@ class Projection(nn.Module):
     Args:
         in_dim (int): dimension of input.
         out_dim (int): dimension of output.
-            Defaults to 256, the value used by MUGEN.
+            Defaults to ``256``, the value used by MUGEN.
         dropout_prob (float): dropout probability.
-            Defaults to 0.1, the value used by MUGEN.
+            Defaults to ``0.1``, the value used by MUGEN.
 
     Inputs:
         x (Tensor): embeddings (batch, dim_in)
@@ -192,52 +159,68 @@ def videoclip(
 
     Args:
         text_pretrained (bool): whether to use a pretrained text encoder or not.
-            Defaults to True.
+            Defaults to ``True``.
         text_trainable (bool): whether the text encoder's weights should be trainable.
-            Defaults to True. Ignored if ``text_pretrained`` is False.
-        text_model_name (str): name of pretrained model, used when pretrained is True.
-            Defaults to "distilbert-base-uncased", Hugging Face's standard DistilBERT model.
-        text_model_config (Optional[Dict[str, Any]]): model config for DistilBERT, used when pretrained is False
-            Defaults to None, indicating the default DistilBERT config.
+            Defaults to ``True``. Ignored if ``text_pretrained`` is ``False``.
+        text_model_name (str): name of pretrained model, used when ``text_pretrained`` is ``True``.
+            Defaults to ``"distilbert-base-uncased"``, Hugging Face's standard DistilBERT model.
+        text_model_config (Optional[Dict[str, Any]]): model config for DistilBERT.
+            Defaults to ``None``, indicating the default DistilBERT config.
         text_padding_value (int): value that was used to pad the input text.
-            Defaults to 0, Hugging Face's BERT pad token.
+            Defaults to ``0``, Hugging Face's BERT pad token.
         video_pretrained (bool): whether to use a pretrained model or not.
-            Defaults to True.
+            Defaults to ``True``.
         video_trainable (bool): whether the video encoder's weights should be trainable.
-            Defaults to True. Ignored if ``video_pretrained`` is False.
+            Defaults to ``True``. Ignored if ``video_pretrained`` is ``False``.
         video_pretrain_path (str): local path or remote URL to video encoder pretrained weights.
             Defaults to ``PRETRAINED_S3D_KINETICS400_URL``, the weights MUGEN used from
-            pretraining S3D on Kinetics 400. Ignored if ``video_pretrained`` is False.
+            pretraining S3D on Kinetics 400. Ignored if ``video_pretrained`` is ``False``.
         proj_out_dim (int): output dimension to project both encoders' outputs to.
-            Defaults to 256, the value used by MUGEN.
+            Defaults to ``256``, the value used by MUGEN.
         proj_dropout (float): dropout probability in the projection layers.
-            Defaults to 0.1, the value used by MUGEN.
+            Defaults to ``0.1``, the value used by MUGEN.
 
     Returns:
         CLIPArchitecture: CLIP model using MUGEN's video encoder and text encoder.
 
     """
     text_model = TextEncoder(
-        pretrained=text_pretrained,
-        trainable=text_trainable,
-        model_name=text_model_name,
         model_config=text_model_config,
         padding_value=text_padding_value,
     )
+    if text_pretrained:
+        print(f"Loading pretrained DistilBERT from {text_model_name}.")
+        text_model.load_model(text_model_name)
+    if text_pretrained and not text_trainable:
+        # check `text_pretrained` because if model isn't pretrained, then it should be trainable
+        for p in text_model.model.parameters():
+            p.requires_grad = False
+    elif not text_trainable:
+        warnings.warn("`text_trainable` acts as True when `text_pretrained` is False.")
+
     text_encoder = nn.Sequential(
         text_model,
         Projection(text_model.out_dim, out_dim=proj_out_dim, dropout_prob=proj_dropout),
     )
 
-    video_model = VideoEncoder(
-        pretrained=video_pretrained,
-        trainable=video_trainable,
-        pretrain_path=video_pretrain_path,
-    )
+    video_model = VideoEncoder()
+    if video_pretrained:
+        print(f"Loading pretrained video encoder from {video_pretrain_path}.")
+        video_model.load_model(video_pretrain_path)
+    if video_pretrained and not video_trainable:
+        # check `video_pretrained` because if model isn't pretrained, then it should be trainable
+        for p in video_model.model.parameters():
+            p.requires_grad = False
+    elif not video_trainable:
+        warnings.warn(
+            "`video_trainable` acts as True when `video_pretrained` is False."
+        )
+
     video_encoder = nn.Sequential(
         video_model,
         Projection(
             video_model.out_dim, out_dim=proj_out_dim, dropout_prob=proj_dropout
         ),
     )
+
     return CLIPArchitecture(encoder_a=text_encoder, encoder_b=video_encoder)
