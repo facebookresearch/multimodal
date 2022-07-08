@@ -51,7 +51,7 @@ class TestFlickrPostProcessor:
         return [[2, 3, 4], [2, 2, 2, 3]]
 
     @pytest.fixture(scope="class")
-    def items_per_batch_element(self, n_tokens):
+    def phrases_per_sample(self, n_tokens):
         return [len(x) for x in n_tokens]
 
     @pytest.fixture(scope="class")
@@ -115,23 +115,23 @@ class TestFlickrPostProcessor:
         target_sizes,
         pos_map,
         batched_pos_map,
-        items_per_batch_element,
+        phrases_per_sample,
     ):
         with pytest.raises(TypeError):
             _ = transform(
                 outputs={"pred_logits": pred_logits, "pred_boxes": pred_boxes},
                 target_sizes=target_sizes,
                 positive_map=pos_map,
-                items_per_batch_element=items_per_batch_element,
+                phrases_per_sample=phrases_per_sample,
             )
         with pytest.raises(AssertionError):
-            incorrect_items_per_batch_element = deepcopy(items_per_batch_element)
-            incorrect_items_per_batch_element[-1] -= 1
+            incorrect_phrases_per_sample = deepcopy(phrases_per_sample)
+            incorrect_phrases_per_sample[-1] -= 1
             _ = transform(
                 outputs={"pred_logits": pred_logits, "pred_boxes": pred_boxes},
                 target_sizes=target_sizes,
                 positive_map=batched_pos_map,
-                items_per_batch_element=incorrect_items_per_batch_element,
+                phrases_per_sample=incorrect_phrases_per_sample,
             )
 
     def test_valid_inputs(
@@ -141,7 +141,7 @@ class TestFlickrPostProcessor:
         pred_boxes,
         target_sizes,
         batched_pos_map,
-        items_per_batch_element,
+        phrases_per_sample,
         batch_size,
         n_queries,
     ):
@@ -149,11 +149,11 @@ class TestFlickrPostProcessor:
             outputs={"pred_logits": pred_logits, "pred_boxes": pred_boxes},
             target_sizes=target_sizes,
             positive_map=batched_pos_map,
-            items_per_batch_element=items_per_batch_element,
+            phrases_per_sample=phrases_per_sample,
         )
         assert len(actual) == batch_size
-        assert len(actual[0]) == items_per_batch_element[0]
-        assert len(actual[1]) == items_per_batch_element[1]
+        assert len(actual[0]) == phrases_per_sample[0]
+        assert len(actual[1]) == phrases_per_sample[1]
         assert len(actual[0][0]) == n_queries
         assert len(actual[0][0][0]) == 4
         # Corresponds to out[0][1][1]
