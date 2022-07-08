@@ -48,13 +48,13 @@ def evaluate(
         flickr_res = []
         image_ids = [t["original_img_id"] for t in targets]
         sentence_ids = [t["sentence_id"] for t in targets]
-        items_per_batch_element = [t["nb_eval"] for t in targets]
+        phrases_per_sample = [t["nb_eval"] for t in targets]
         positive_map_eval = batch_dict["positive_map_eval"].to(device)
         flickr_results = postprocessor(
             outputs,
             orig_target_sizes,
             positive_map_eval,
-            items_per_batch_element,
+            phrases_per_sample,
         )
         assert len(flickr_results) == len(image_ids) == len(sentence_ids)
         for im_id, sent_id, output in zip(image_ids, sentence_ids, flickr_results):
