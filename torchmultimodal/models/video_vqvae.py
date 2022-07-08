@@ -4,12 +4,77 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, cast, List, Tuple
 
 from torch import nn, Tensor
+
+from torchmultimodal.models.vqvae import VQVAE
 from torchmultimodal.modules.layers.attention import AxialAttentionBlock
 from torchmultimodal.modules.layers.conv import SamePadConv3d, SamePadConvTranspose3d
 from torchmultimodal.utils.assertion import assert_equal_lengths
+from torchmultimodal.utils.common import to_tuple_tuple
+
+DEFAULT_ENCODER_IN_CHANNEL_DIMS = (3, 240, 240, 240, 240, 240)
+DEFAULT_DECODER_OUT_CHANNEL_DIMS = (240, 240, 240, 240, 3)
+
+
+def video_vqvae(
+    encoder_in_channel_dims: Tuple[int, ...] = DEFAULT_ENCODER_IN_CHANNEL_DIMS,
+    encoder_kernel_sizes: int = 4,
+    encoder_strides: int = 2,
+    n_res_layers: int = 4,
+    attn_hidden_dim: int = 240,
+    num_embeddings: int = 2048,
+    embedding_dim: int = 256,
+    decoder_out_channel_dims: Tuple[int, ...] = DEFAULT_DECODER_OUT_CHANNEL_DIMS,
+    decoder_kernel_sizes: int = 4,
+    decoder_strides: int = 2,
+) -> VQVAE:
+    """Construct Video VQVAE with default parameters used in VideoGPT (Yan et al. 2022). Code ref:
+    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
+
+    Args:
+        encoder_in_channel_dims (Tuple[int, ...], optional): See ``VideoEncoder``. Defaults to (3, 240, 240, 240, 240, 240).
+        encoder_kernel_sizes (int, optional): See ``VideoEncoder``. Defaults to 4.
+        encoder_strides (int, optional): See ``VideoEncoder``. Defaults to 2.
+        n_res_layers (int, optional): See ``VideoEncoder``. Used in both encoder and decoder. Defaults to 4.
+        attn_hidden_dim (int, optional): See ``VideoEncoder``. Used in both encoder and decoder. Defaults to 240.
+        num_embeddings (int, optional): Number of embedding vectors used in ``Codebook``. Defaults to 2048.
+        embedding_dim (int, optional): Dimensionality of embedding vectors in ``Codebook``. Defaults to 256.
+        decoder_out_channel_dims (Tuple[int, ...], optional): See ``VideoDecoder``. Defaults to (240, 240, 240, 240, 3).
+        decoder_kernel_sizes (int, optional): See ``VideoDecoder``. Defaults to 3.
+        decoder_strides (int, optional): See ``VideoDecoder``. Defaults to 2.
+
+    Returns:
+        VQVAE: constructed ``VQVAE`` model using ``VideoEncoder``, ``Codebook``, and ``VideoDecoder``
+    """
+
+    # Reformat kernel and strides to be tuple of tuple for encoder/decoder constructors
+    encoder_kernel_sizes_fixed, encoder_strides_fixed = _preprocess_int_conv_params(
+        encoder_in_channel_dims, encoder_kernel_sizes, encoder_strides
+    )
+    decoder_kernel_sizes_fixed, decoder_strides_fixed = _preprocess_int_conv_params(
+        decoder_out_channel_dims, decoder_kernel_sizes, decoder_strides
+    )
+
+    encoder = VideoEncoder(
+        encoder_in_channel_dims,
+        encoder_kernel_sizes_fixed,
+        encoder_strides_fixed,
+        embedding_dim,
+        n_res_layers,
+        attn_hidden_dim,
+    )
+    decoder = VideoDecoder(
+        decoder_out_channel_dims,
+        decoder_kernel_sizes_fixed,
+        decoder_strides_fixed,
+        embedding_dim,
+        n_res_layers,
+        attn_hidden_dim,
+    )
+
+    return VQVAE(encoder, decoder, num_embeddings, embedding_dim)
 
 
 class VideoEncoder(nn.Module):
@@ -46,7 +111,7 @@ class VideoEncoder(nn.Module):
         output_dim: int,
         n_res_layers: int = 4,
         attn_hidden_dim: int = 240,
-        **kwargs: Dict[str, Any],
+        **kwargs: Any,
     ):
         super().__init__()
 
@@ -133,7 +198,7 @@ class VideoDecoder(nn.Module):
         input_dim: int,
         n_res_layers: int = 4,
         attn_hidden_dim: int = 240,
-        **kwargs: Dict[str, Any],
+        **kwargs: Any,
     ):
         super().__init__()
 
@@ -218,3 +283,20 @@ class AttentionResidualBlock(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         return x + self.block(x)
+
+
+def _preprocess_int_conv_params(
+    channel_dims: Tuple[int, ...],
+    kernel_sizes: int,
+    strides: int,
+) -> Tuple[Tuple, Tuple]:
+    """Reformats conv params from int to tuple of tuple and assigns correct type"""
+    n_conv_layers = len(channel_dims)
+    kernel_sizes_fixed = to_tuple_tuple(
+        kernel_sizes, dim_tuple=3, num_tuple=n_conv_layers
+    )
+    kernel_sizes_fixed = cast(Tuple[Tuple[int, int, int], ...], kernel_sizes_fixed)
+    strides_fixed = to_tuple_tuple(strides, dim_tuple=3, num_tuple=n_conv_layers)
+    strides_fixed = cast(Tuple[Tuple[int, int, int], ...], strides_fixed)
+
+    return kernel_sizes_fixed, strides_fixed
