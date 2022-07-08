@@ -55,8 +55,8 @@ class VQVAE(nn.Module):
     def encode(self, x: Tensor) -> CodebookOutput:
         return self.codebook(self.encoder(x))
 
-    def decode(self, e: Tensor) -> Tensor:
-        return self.decoder(e)
+    def decode(self, x: Tensor) -> Tensor:
+        return self.decoder(x)
 
     def tokenize(self, x: Tensor) -> Tensor:
         """Similar to encode, but return flattened quantized outputs"""
