@@ -27,7 +27,7 @@ class TestFLAVA(unittest.TestCase):
 
     @torch.no_grad()
     def test_forward_classification(self):
-        flava = flava_model_for_classification(NUM_CLASSES)
+        flava = flava_model_for_classification(NUM_CLASSES, pretrained_model_key=None)
         text = torch.randint(0, 30500, (2, 77), dtype=torch.long)
         image = torch.rand((2, 3, 224, 224))
 

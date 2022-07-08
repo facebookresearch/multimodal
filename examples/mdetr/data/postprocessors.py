@@ -20,7 +20,7 @@ class PostProcessFlickr:
     """
 
     def __call__(
-        self, outputs, target_sizes, positive_map, items_per_batch_element
+        self, outputs, target_sizes, positive_map, phrases_per_sample
     ) -> List[Any]:
         """Perform the computation.
         Args:
@@ -31,7 +31,7 @@ class PostProcessFlickr:
             positive_map: tensor [total_nbr_phrases x max_seq_len] for each phrase in the batch, contains a binary
                           mask of the tokens that correspond to that sentence. Note that this is a "collapsed" batch,
                           meaning that all the phrases of all the batch elements are stored sequentially.
-            items_per_batch_element: list[int] number of phrases corresponding to each batch element.
+            phrases_per_sample: list[int] number of phrases corresponding to each batch element.
         """
         out_logits, out_bbox = outputs["pred_logits"], outputs["pred_boxes"]
 
@@ -47,7 +47,7 @@ class PostProcessFlickr:
         scale_fct = torch.stack([img_w, img_h, img_w, img_h], dim=1)
         # and from relative [0, 1] to absolute [0, height] coordinates
         boxes = boxes * scale_fct[:, None, :]
-        cum_sum = np.cumsum(items_per_batch_element)
+        cum_sum = np.cumsum(phrases_per_sample)
 
         curr_batch_index = 0
         # binarize the map if not already binary
@@ -72,7 +72,7 @@ class PostProcessFlickr:
             )
             _, indices = torch.sort(scores, descending=True)
 
-            assert items_per_batch_element[curr_batch_index] > 0
+            assert phrases_per_sample[curr_batch_index] > 0
             predicted_boxes[curr_batch_index].append(
                 boxes[curr_batch_index][indices].to("cpu").tolist()
             )
