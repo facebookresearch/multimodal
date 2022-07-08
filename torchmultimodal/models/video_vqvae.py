@@ -284,7 +284,7 @@ def _preprocess_int_conv_params(
     channel_dims: Tuple[int, ...],
     kernel_sizes: int,
     strides: int,
-) -> Tuple:
+) -> Tuple[Tuple, Tuple]:
     """Reformats conv params from int to tuple of tuple and assigns correct type"""
     n_conv_layers = len(channel_dims)
     kernel_sizes_fixed = to_tuple_tuple(
