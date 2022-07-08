@@ -4,13 +4,12 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple
 
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.attention import AxialAttentionBlock
-
 from torchmultimodal.modules.layers.conv import SamePadConv3d, SamePadConvTranspose3d
-from torchmultimodal.utils.common import format_convnet_params
+from torchmultimodal.utils.assertion import assert_equal_lengths
 
 
 class VideoEncoder(nn.Module):
@@ -22,12 +21,13 @@ class VideoEncoder(nn.Module):
     https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
 
     Args:
-        in_channel_dims (Tuple[int, ...]): input channel dimension for each conv layer
-        kernel_sizes (int or Tuple[int, int, int] or Tuple[Tuple[int, int, int], ...]): kernel sizes for each conv layer
-        strides (int or Tuple[int, int, int] or Tuple[Tuple[int, int, int], ...]): strides for each conv layer
-        n_res_layers (int): number of ``AttentionResidualBlocks`` to include
-        attn_hidden_dim (int): size of hidden dimension in attention block
-        embedding_dim (int): size of hidden dimension of final output
+        in_channel_dims (Tuple[int, ...]): input channel dimension for each layer in conv stack
+        kernel_sizes (Tuple[Tuple[int, int, int], ...]): kernel sizes for each layer in conv stack
+        strides (Tuple[Tuple[int, int, int], ...]): strides for each layer in conv stack
+        output_dim (int): size of hidden dimension of final output
+        n_res_layers (int): number of ``AttentionResidualBlocks`` to include. Default is 4.
+        attn_hidden_dim (int): size of hidden dimension in attention block. Default is 240.
+
         **kwargs (dict): keyword arguments to be passed into ``SamePadConv3d`` and used by ``nn.Conv3d``
 
     Raises:
@@ -41,16 +41,20 @@ class VideoEncoder(nn.Module):
     def __init__(
         self,
         in_channel_dims: Tuple[int, ...],
-        kernel_sizes: Union[int, Tuple[int, ...], Tuple[Tuple[int, ...], ...]],
-        strides: Union[int, Tuple[int, ...], Tuple[Tuple[int, ...], ...]],
-        n_res_layers: int,
-        attn_hidden_dim: int,
-        embedding_dim: int,
+        kernel_sizes: Tuple[Tuple[int, int, int], ...],
+        strides: Tuple[Tuple[int, int, int], ...],
+        output_dim: int,
+        n_res_layers: int = 4,
+        attn_hidden_dim: int = 240,
         **kwargs: Dict[str, Any],
     ):
         super().__init__()
-        in_channel_dims, kernel_sizes, strides = format_convnet_params(
-            in_channel_dims, kernel_sizes, strides, 3
+
+        assert_equal_lengths(
+            in_channel_dims,
+            kernel_sizes,
+            strides,
+            msg="in_channel_dims, kernel_sizes, and strides must be same length.",
         )
 
         convolutions: List[nn.Module] = []
@@ -79,7 +83,7 @@ class VideoEncoder(nn.Module):
         )
 
         self.conv_out = SamePadConv3d(
-            attn_hidden_dim, embedding_dim, kernel_size=1, stride=1
+            attn_hidden_dim, output_dim, kernel_size=1, stride=1
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -98,12 +102,12 @@ class VideoDecoder(nn.Module):
     https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
 
     Args:
-        out_channel_dims (Tuple[int, ...]): output channel dimension for each conv layer
-        kernel_sizes (int or Tuple[int, int, int] or Tuple[Tuple[int, int, int], ...]): kernel sizes for each conv layer
-        strides (int or Tuple[int, int, int] or Tuple[Tuple[int, int, int], ...]): strides for each conv layer
-        n_res_layers (int): number of ``AttentionResidualBlocks`` to include
-        attn_hidden_dim (int): size of hidden dimension in attention block
-        embedding_dim (int): size of hidden dimension of input
+        out_channel_dims (Tuple[int, ...]): output channel dimension for each layer in conv stack
+        kernel_sizes (Tuple[Tuple[int, int, int], ...]): kernel sizes for each layer in conv stack
+        strides (Tuple[Tuple[int, int, int], ...]): strides for each layer in conv stack
+        input_dim (int): input channel dimension for first conv layer before attention stack
+        n_res_layers (int): number of ``AttentionResidualBlocks`` to include. Default is 4.
+        attn_hidden_dim (int): size of hidden dimension in attention block. Default is 240.
         **kwargs (dict): keyword arguments to be passed into ``SamePadConvTranspose3d``
                          and used by ``nn.ConvTranspose3d``
 
@@ -119,20 +123,24 @@ class VideoDecoder(nn.Module):
     def __init__(
         self,
         out_channel_dims: Tuple[int, ...],
-        kernel_sizes: Union[int, Tuple[int, ...], Tuple[Tuple[int, ...], ...]],
-        strides: Union[int, Tuple[int, ...], Tuple[Tuple[int, ...], ...]],
-        n_res_layers: int,
-        attn_hidden_dim: int,
-        embedding_dim: int,
+        kernel_sizes: Tuple[Tuple[int, int, int], ...],
+        strides: Tuple[Tuple[int, int, int], ...],
+        input_dim: int,
+        n_res_layers: int = 4,
+        attn_hidden_dim: int = 240,
         **kwargs: Dict[str, Any],
     ):
         super().__init__()
-        out_channel_dims, kernel_sizes, strides = format_convnet_params(
-            out_channel_dims, kernel_sizes, strides, 3
+
+        assert_equal_lengths(
+            out_channel_dims,
+            kernel_sizes,
+            strides,
+            msg="out_channel_dims, kernel_sizes, and strides must be same length.",
         )
 
         self.conv_in = SamePadConv3d(
-            embedding_dim, attn_hidden_dim, kernel_size=1, stride=1
+            input_dim, attn_hidden_dim, kernel_size=1, stride=1
         )
 
         self.res_stack = nn.Sequential(
@@ -177,7 +185,7 @@ class AttentionResidualBlock(nn.Module):
 
     Args:
         hidden_dim (int): size of channel dim of input. Also determines dim of linear
-                          projections Wq, Wk, and Wv in attention
+                          projections Wq, Wk, and Wv in attention. Default is 240.
         n_head (int): number of heads in multihead attention. Must divide into hidden_dim
                       evenly. Default is 2 from VideoGPT.
 
@@ -185,7 +193,7 @@ class AttentionResidualBlock(nn.Module):
         x (Tensor): a [b, c, d1, ..., dn] tensor
     """
 
-    def __init__(self, hidden_dim: int, n_head: int = 2) -> None:
+    def __init__(self, hidden_dim: int = 240, n_head: int = 2) -> None:
         super().__init__()
         # To avoid hidden dim becoming 0 in middle layers
         if hidden_dim < 2:

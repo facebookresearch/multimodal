@@ -24,8 +24,8 @@ def random():
 def params():
     in_channel_dims = (2, 2)
     out_channel_dims = (2, 2)
-    kernel_sizes = (2, 2, 2)
-    strides = (1, 1, 1)
+    kernel_sizes = ((2, 2, 2), (2, 2, 2))
+    strides = ((1, 1, 1), (1, 1, 1))
     return in_channel_dims, out_channel_dims, kernel_sizes, strides
 
 
@@ -72,14 +72,16 @@ class TestVideoEncoder:
     @pytest.fixture
     def encoder(self, params):
         in_channel_dims, _, kernel_sizes, strides = params
-        return VideoEncoder(
+        enc = VideoEncoder(
             in_channel_dims=in_channel_dims,
             kernel_sizes=kernel_sizes,
             strides=strides,
+            output_dim=2,
             n_res_layers=1,
             attn_hidden_dim=2,
-            embedding_dim=2,
         )
+        enc.eval()
+        return enc
 
     def test_forward(self, input_tensor, encoder):
         actual = encoder(input_tensor)
@@ -87,12 +89,12 @@ class TestVideoEncoder:
             [
                 [
                     [
-                        [[0.1565, 0.3358], [0.2368, 0.3180]],
-                        [[0.2150, 0.3358], [0.2223, 0.2448]],
+                        [[0.2843, 0.2720], [0.2920, 0.2692]],
+                        [[0.2785, 0.2668], [0.2994, 0.2639]],
                     ],
                     [
-                        [[0.9679, 0.6932], [0.9255, 0.7203]],
-                        [[1.0502, 0.6932], [1.0287, 0.9623]],
+                        [[0.8453, 0.8817], [0.8226, 0.8899]],
+                        [[0.8626, 0.8972], [0.8008, 0.9057]],
                     ],
                 ]
             ]
@@ -104,14 +106,16 @@ class TestVideoDecoder:
     @pytest.fixture
     def decoder(self, params):
         _, out_channel_dims, kernel_sizes, strides = params
-        return VideoDecoder(
+        dec = VideoDecoder(
             out_channel_dims=out_channel_dims,
             kernel_sizes=kernel_sizes,
             strides=strides,
+            input_dim=2,
             n_res_layers=1,
             attn_hidden_dim=2,
-            embedding_dim=2,
         )
+        dec.eval()
+        return dec
 
     def test_forward(self, input_tensor, decoder):
         actual = decoder(input_tensor)
