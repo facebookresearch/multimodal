@@ -1,7 +1,2 @@
 [tool.usort]
 first_party_detection = false
-
-[tool.ufmt]
-excludes = [
-    "*__init__.py",
-]
