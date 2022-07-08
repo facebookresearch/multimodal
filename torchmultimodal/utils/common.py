@@ -152,12 +152,10 @@ class PretrainedMixin:
             self, torch.nn.Module
         ), "load_model can only be called on an nn.Module instance"
         if os.path.exists(pretrained_url):
-            state_dict = torch.load(pretrained_url, map_location=get_current_device())
+            state_dict = torch.load(pretrained_url)
         else:
             state_dict = torch.hub.load_state_dict_from_url(
-                pretrained_url,
-                model_dir=self.get_model_dir(pretrained_url),
-                map_location=get_current_device(),
+                pretrained_url, model_dir=self.get_model_dir(pretrained_url)
             )
         if state_dict_key:
             state_dict = state_dict[state_dict_key]

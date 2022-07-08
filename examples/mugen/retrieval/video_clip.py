@@ -133,9 +133,10 @@ class VideoEncoder(nn.Module, PretrainedMixin):
             warnings.warn("`trainable` acts as True when `pretrained` is False.")
 
     def forward(self, x):
-        assert (
-            x.shape[1] == 3
-        ), "Channels must be at first (zero-indexed) dimension of input and of size 3."
+        if x.shape[1] != 3:
+            raise ValueError(
+                "Channels must be at first (zero-indexed) dimension of input and of size 3."
+            )
         return self.model(x)
 
 
