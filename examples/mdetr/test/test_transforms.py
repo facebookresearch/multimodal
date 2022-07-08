@@ -173,8 +173,3 @@ class TestFlickrPostProcessor:
             rtol=0.0,
             atol=1e-2,
         )
-
-
-@pytest.fixture(scope="class")
-def pos_map(construct_test_pos_map):
-    return construct_test_pos_map()
