@@ -152,6 +152,11 @@ class VideoEncoder(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
+        in_channel = x.shape[1]
+        if in_channel != self.convs[0].conv.in_channels:
+            raise ValueError(
+                f"expected input channel dim to be {self.convs[0].conv.in_channels}, but got {in_channel}"
+            )
         h = self.convs(x)
         h = self.res_stack(h)
         h = self.conv_out(h)
