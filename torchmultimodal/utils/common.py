@@ -8,7 +8,7 @@ import hashlib
 import os
 from collections import OrderedDict
 from dataclasses import fields
-from typing import cast, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -184,44 +184,15 @@ class ModelOutput(OrderedDict):
             yield field.name, getattr(self, field.name)
 
 
-def format_convnet_params(
-    channel_dims: Tuple[int, ...],
-    kernel_sizes: Union[int, Tuple[int, ...], Tuple[Tuple[int, ...], ...]],
-    strides: Union[int, Tuple[int, ...], Tuple[Tuple[int, ...], ...]],
-    n_dims: int,
-) -> Tuple:
-
-    n_conv_layers = len(channel_dims)
-
-    if isinstance(kernel_sizes, int):
-        kernel_sizes = (kernel_sizes,) * n_conv_layers
-    # For single tuple case, repeat n_conv_layers times if matches input dimensions
-    # (i.e., (2,2,2) for 3d convolution). If length matches channel_dims, then do nothing
-    elif isinstance(kernel_sizes, tuple) and isinstance(kernel_sizes[0], int):
-        if len(kernel_sizes) == n_dims:
-            kernel_sizes = cast(
-                Tuple[Tuple[int, ...], ...], (kernel_sizes,) * n_conv_layers
-            )
-        elif not (
-            len(kernel_sizes) == n_dims or len(kernel_sizes) == len(channel_dims)
-        ):
-            raise ValueError(
-                f"incorrect length of kernel_sizes, expected {n_dims} or {len(channel_dims)} but got {len(kernel_sizes)}"
-            )
-
-    if isinstance(strides, int):
-        strides = (strides,) * n_conv_layers
-    # For single tuple case, repeat n_conv_layers times if matches input dimensions
-    # (i.e., (2,2,2) for 3d convolution). If length matches channel_dims, then do nothing
-    elif isinstance(strides, tuple) and isinstance(strides[0], int):
-        if len(strides) == n_dims:
-            strides = cast(Tuple[Tuple[int, ...], ...], (strides,) * n_conv_layers)
-        elif not (len(strides) == n_dims or len(strides) == len(channel_dims)):
-            raise ValueError(
-                f"incorrect length of strides, expected {n_dims} or {len(channel_dims)} but got {len(strides)}"
-            )
-
-    if not (len(channel_dims) == len(kernel_sizes) == len(strides)):
-        raise ValueError("channel_dims, kernel_sizes, strides should have same length")
-
-    return channel_dims, kernel_sizes, strides
+def to_tuple_tuple(
+    param: Union[int, Tuple[int, ...]], dim_tuple: int, num_tuple: int
+) -> Tuple[Tuple[int, ...], ...]:
+    """
+    Convert single integer or single tuple to tuple of tuples.
+    Used for kernel_size and strides parameters in convolutional models
+    """
+    if isinstance(param, int):
+        param = (param,) * dim_tuple
+    if isinstance(param, tuple):
+        param_fixed = (param,) * num_tuple
+    return param_fixed

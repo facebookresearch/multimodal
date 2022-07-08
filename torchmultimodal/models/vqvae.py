@@ -7,8 +7,7 @@
 from typing import NamedTuple
 
 from torch import nn, Tensor
-from torchmultimodal.modules.layers import Codebook
-from torchmultimodal.modules.layers.codebook import CodebookOutput
+from torchmultimodal.modules.layers.codebook import Codebook, CodebookOutput
 
 
 class VQVAEOutput(NamedTuple):
