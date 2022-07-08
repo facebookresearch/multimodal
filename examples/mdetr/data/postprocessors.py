@@ -4,39 +4,57 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Any, List
+from typing import Dict, List
 
 import numpy as np
 import torch
 import torch.nn.functional as F
+from torch import Tensor
 from torchvision.ops.boxes import box_convert
 
 
 class PostProcessFlickr:
     """This module converts the model's output for Flickr30k entities evaluation.
 
-    This processor is intended for recall@k evaluation with respect to each phrase in the sentence.
-    It requires a description of each phrase (as a binary mask), and returns a sorted list of boxes for each phrase.
+    This processor is intended for recall@k evaluation with respect to each phrase
+    in the sentence. It requires a description of each phrase (as a binary mask),
+    and returns a sorted list of boxes for each phrase. Based on MDETR repo:
+    https://github.com/ashkamath/mdetr/blob/main/models/postprocessors.py#L13.
+
+
+    Inputs: outputs (Dict[str, Tensor]): raw outputs of the model. Should contain keys
+                pred_logits and pred_boxes.
+            target_sizes (Tensor) Size of each image in the batch. For evaluation, this
+                must be the original image size (before any data augmentation).
+                Size: (2, batch_size)
+            positive_map (Tensor): For each phrase in the batch, contains a binary mask
+                of the tokens that correspond to that sentence. Note that this is a
+                "collapsed" batch, meaning that all the phrases of all the batch
+                elements are stored sequentially.
+                Size: (total_num_phrases, max_seq_len)
+            phrases_per_sample (List[int]): Number of phrases corresponding
+                to each batch element.
+
+    Returns: a List[List[List[float]]]: List of bounding box coordinates for each
+                phrase in each sample sorted by probabilities.
+
+
     """
 
     def __call__(
-        self, outputs, target_sizes, positive_map, phrases_per_sample
-    ) -> List[Any]:
-        """Perform the computation.
-        Args:
-            outputs: raw outputs of the model
-            target_sizes: tensor of dimension [batch_size x 2] containing the size of each images of the batch
-                          For evaluation, this must be the original image size (before any data augmentation)
-                          For visualization, this should be the image size after data augment, but before padding
-            positive_map: tensor [total_nbr_phrases x max_seq_len] for each phrase in the batch, contains a binary
-                          mask of the tokens that correspond to that sentence. Note that this is a "collapsed" batch,
-                          meaning that all the phrases of all the batch elements are stored sequentially.
-            phrases_per_sample: list[int] number of phrases corresponding to each batch element.
-        """
+        self,
+        outputs: Dict[str, Tensor],
+        target_sizes: Tensor,
+        positive_map: Tensor,
+        phrases_per_sample: List[int],
+    ) -> List[List[List[float]]]:
+
         out_logits, out_bbox = outputs["pred_logits"], outputs["pred_boxes"]
 
-        assert len(out_logits) == len(target_sizes)
-        assert target_sizes.shape[1] == 2
+        assert out_logits.size(0) == target_sizes.size(
+            0
+        ), "Logits and target sizes should both have first dim = batch_size"
+        assert target_sizes.size(1) == 2, "Target sizes should have second dim = 2"
 
         batch_size = target_sizes.shape[0]
         prob = F.softmax(out_logits, -1)
@@ -53,10 +71,12 @@ class PostProcessFlickr:
         # binarize the map if not already binary
         pos = positive_map > 1e-6
 
-        predicted_boxes: List[List[List[int]]] = [[] for _ in range(batch_size)]
+        predicted_boxes: List[List[List[float]]] = [[] for _ in range(batch_size)]
 
         # The collapsed batch dimension must match the number of items
-        assert len(pos) == cum_sum[-1]
+        assert (
+            pos.size(0) == cum_sum[-1]
+        ), "First dimension of positive map must equal sum of phrases per sample"
 
         if len(pos) == 0:
             return predicted_boxes
@@ -72,7 +92,9 @@ class PostProcessFlickr:
             )
             _, indices = torch.sort(scores, descending=True)
 
-            assert phrases_per_sample[curr_batch_index] > 0
+            assert (
+                phrases_per_sample[curr_batch_index] > 0
+            ), "Each sample must have at least one phrase"
             predicted_boxes[curr_batch_index].append(
                 boxes[curr_batch_index][indices].to("cpu").tolist()
             )
@@ -82,6 +104,8 @@ class PostProcessFlickr:
             # check if we need to move to the next batch element
             while i >= cum_sum[curr_batch_index] - 1:
                 curr_batch_index += 1
-                assert curr_batch_index < len(cum_sum)
+                assert curr_batch_index < len(
+                    cum_sum
+                ), "Current batch index is not less than total number of phrases"
 
         return predicted_boxes
