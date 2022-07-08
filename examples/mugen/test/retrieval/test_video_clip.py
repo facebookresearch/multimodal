@@ -10,9 +10,9 @@ from typing import Optional
 import pytest
 import torch
 from examples.mugen.retrieval.video_clip import (
-    build_videoclip,
     Projection,
     TextEncoder,
+    videoclip,
     VideoEncoder,
 )
 
@@ -209,7 +209,7 @@ class TestVideoCLIPBuilder:
 
     def test_forward(self, utils):
         input_text, input_video = utils
-        model = build_videoclip()
+        model = videoclip()
         output = model(features_a=input_text, features_b=input_video)
         assert_expected(actual=output.embeddings_a.shape, expected=torch.Size([2, 256]))
         assert_expected(actual=output.embeddings_b.shape, expected=torch.Size([2, 256]))

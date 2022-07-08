@@ -4,6 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import warnings
 from typing import Any, Dict, Optional
 
 import torch
@@ -32,11 +33,10 @@ class TextEncoder(nn.Module):
         pretrained (bool): whether to use a pretrained model or not.
             Defaults to True.
         trainable (bool): whether the encoder's weights should be trainable (not frozen).
-            Defaults to True.
-            Warning: If ``pretrained`` is False, ``trainable`` will act as True regardless of the supplied value.
-        model_name (str): name of pretrained model, used when pretrained is True.
+            Defaults to True. Ignored if ``pretrained`` is False.
+        model_name (str): name of pretrained model, used when ``pretrained`` is True.
             Defaults to "distilbert-base-uncased", Hugging Face's standard DistilBERT model.
-        model_config (Optional[Dict[str, Any]]): model config for DistilBERT, used when pretrained is False
+        model_config (Optional[Dict[str, Any]]): model config for DistilBERT, used when ``pretrained`` is False
             Defaults to None, indicating the default DistilBERT config.
         padding_value (int): value that was used to pad the input text.
             Defaults to 0, Hugging Face's BERT pad token.
@@ -60,6 +60,7 @@ class TextEncoder(nn.Module):
         super().__init__()
         self.padding_value = padding_value
         if pretrained:
+            print(f"Loading pretrained DistilBERT from {model_name}.")
             self.model = DistilBertModel.from_pretrained(model_name)
         else:
             distilbert_config = (
@@ -75,6 +76,8 @@ class TextEncoder(nn.Module):
             # check ``pretrained``` because if model isn't pretrained, then it should be trainable
             for p in self.model.parameters():
                 p.requires_grad = False
+        elif not trainable:
+            warnings.warn("`trainable` acts as True when `pretrained` is False.")
 
     def build_attention_mask(self, input_ids: torch.Tensor) -> torch.Tensor:
         return (input_ids != self.padding_value).to(dtype=int)
@@ -96,8 +99,7 @@ class VideoEncoder(nn.Module, PretrainedMixin):
         pretrained (bool): whether to use a pretrained model or not.
             Defaults to True.
         trainable (bool): whether the encoder's weights should be trainable (not frozen).
-            Defaults to True.
-            Warning: If ``pretrained`` is False, ``trainable`` will act as True regardless of the supplied value.
+            Defaults to True. Ignored if ``pretrained`` is False.
         pretrain_path (str): local path or remote URL to pretrained weights.
             Defaults to ``PRETRAINED_S3D_KINETICS400_URL``, the weights MUGEN used from
             pretraining S3D on Kinetics 400. Ignored if ``pretrained`` is False.
@@ -120,12 +122,15 @@ class VideoEncoder(nn.Module, PretrainedMixin):
         self.model.fc = nn.Identity()
 
         if pretrained:
+            print(f"Loading pretrained video encoder from {pretrain_path}.")
             self.load_model(pretrain_path)
 
         if pretrained and not trainable:
             # check ``pretrained``` because if model isn't pretrained, then it should be trainable
             for p in self.model.parameters():
                 p.requires_grad = False
+        elif not trainable:
+            warnings.warn("`trainable` acts as True when `pretrained` is False.")
 
     def forward(self, x):
         assert (
@@ -169,7 +174,7 @@ class Projection(nn.Module):
         return embeds
 
 
-def build_videoclip(
+def videoclip(
     text_pretrained: bool = True,
     text_trainable: bool = True,
     text_model_name: str = "distilbert-base-uncased",
@@ -188,8 +193,7 @@ def build_videoclip(
         text_pretrained (bool): whether to use a pretrained text encoder or not.
             Defaults to True.
         text_trainable (bool): whether the text encoder's weights should be trainable.
-            Defaults to True.
-            Warning: If ``text_pretrained`` is False, ``text_trainable`` will act as True regardless of the supplied value.
+            Defaults to True. Ignored if ``text_pretrained`` is False.
         text_model_name (str): name of pretrained model, used when pretrained is True.
             Defaults to "distilbert-base-uncased", Hugging Face's standard DistilBERT model.
         text_model_config (Optional[Dict[str, Any]]): model config for DistilBERT, used when pretrained is False
@@ -199,8 +203,7 @@ def build_videoclip(
         video_pretrained (bool): whether to use a pretrained model or not.
             Defaults to True.
         video_trainable (bool): whether the video encoder's weights should be trainable.
-            Defaults to True.
-            Warning: If ``video_pretrained`` is False, ``video_trainable`` will act as True regardless of the supplied value.
+            Defaults to True. Ignored if ``video_pretrained`` is False.
         video_pretrain_path (str): local path or remote URL to video encoder pretrained weights.
             Defaults to ``PRETRAINED_S3D_KINETICS400_URL``, the weights MUGEN used from
             pretraining S3D on Kinetics 400. Ignored if ``video_pretrained`` is False.
