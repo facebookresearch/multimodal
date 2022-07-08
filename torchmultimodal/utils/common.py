@@ -146,6 +146,7 @@ class PretrainedMixin:
         pretrained_url: Optional[str],
         load_state_dict: bool = True,
         state_dict_key: Optional[str] = None,
+        strict: bool = True,
     ):
         assert isinstance(
             self, torch.nn.Module
@@ -160,7 +161,7 @@ class PretrainedMixin:
             state_dict = state_dict[state_dict_key]
 
         if load_state_dict:
-            self.load_state_dict(state_dict)
+            self.load_state_dict(state_dict, strict=strict)
         return state_dict
 
 
