@@ -27,7 +27,7 @@ pip install -r flava/requirements.txt
 
 ### Access ImageNet
 
-To access the ImageNet dataset, you must first create an account at [HuggingFace](https://huggingface.co/join). Once your account is created and your email is confirmed, log in, click on your profile, and go to Settings -> Access Tokens. Create a new token with READ access and copy it to clipboard. Then run `huggingface-cli login` in your terminal and paste the access token there. It should create an auth token at `~/.huggingface/token` that will be used to authenticate the dataset download request.
+To access the ImageNet dataset, you must first create an account at [HuggingFace](https://huggingface.co/join). Once your account is created and your email is confirmed, log in, click on your profile, and go to Settings -> Access Tokens. Create a new token with READ access and copy it to clipboard. Then run `huggingface-cli login` in your terminal and paste the access token there. It should create an auth token at `~/.huggingface/token` that will be used to authenticate the dataset download request. Finally, visit the [dataset page](https://huggingface.co/datasets/imagenet-1k) and accept the terms and conditions of the dataset while logged into your account.
 
 ### Launching and test pretraining
 
