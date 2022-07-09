@@ -44,8 +44,8 @@ class PatchEmbeddings(nn.Module):
         num_patches = (image_size[1] // patch_size[1]) * (
             image_size[0] // patch_size[0]
         )
-        self.image_size: Tuple[int, int] = (image_size[0], image_size[1])
-        self.patch_size: Tuple[int, int] = (patch_size[0], patch_size[1])
+        self.image_size = image_size
+        self.patch_size = patch_size
         self.num_patches = num_patches
 
         self.projection = nn.Conv2d(

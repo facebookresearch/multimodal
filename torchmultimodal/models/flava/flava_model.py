@@ -11,7 +11,7 @@ import math
 from collections import namedtuple, OrderedDict
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import torch
 from torch import nn, Tensor
@@ -631,32 +631,24 @@ class DalleEncoder(nn.Module):
 class DalleVAEEncoder(nn.Module, PretrainedMixin):
     def __init__(
         self, image_size: Union[int, Tuple[int, int]] = 112, pretrained: bool = True
-    ) -> None:
+    ):
         super().__init__()
         self.image_size = image_size
         self.encoder = DalleEncoder()
         if pretrained:
             self.load_model()
 
-    def load_model(
-        self,
-        pretrained_url: str = None,
-        load_state_dict: bool = False,
-        state_dict_key: Optional[str] = None,
-    ) -> Dict[str, Any]:
+    def load_model(self) -> Any:  # type: ignore
         # TODO (T116682215): Network error due to FLAVA model relying on access to openAI
         encoder = super().load_model(
-            "https://cdn.openai.com/dall-e/encoder.pkl", load_state_dict=load_state_dict
+            "https://cdn.openai.com/dall-e/encoder.pkl", load_state_dict=False
         )
-        if isinstance(encoder, dict):
-            self.encoder.load_state_dict(encoder)
-        else:
-            self.encoder.load_state_dict(encoder.state_dict())
+        self.encoder.load_state_dict(encoder.state_dict())  # type: ignore
         return self.state_dict()
 
     def get_codebook_indices(self, images: Tensor) -> Tensor:
         z_logits = self.encoder(images)
-        return torch.argmax(z_logits, dim=1)
+        return torch.argmax(z_logits, axis=1)  # type: ignore
 
     def get_codebook_probs(self, images: Tensor) -> Tensor:
         z_logits = self.encoder(images)

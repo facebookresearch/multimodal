@@ -8,10 +8,10 @@ import hashlib
 import os
 from collections import OrderedDict
 from dataclasses import fields
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, List, Optional, Union
 
 import torch
-from torch import nn, Tensor
+from torch import Tensor
 
 
 def get_current_device() -> Union[str, torch.device]:
@@ -146,7 +146,7 @@ class PretrainedMixin:
         pretrained_url: str,
         load_state_dict: bool = True,
         state_dict_key: Optional[str] = None,
-    ) -> Union[Dict[str, Any], nn.Module]:
+    ) -> Any:
         assert isinstance(
             self, torch.nn.Module
         ), "load_model can only be called on an nn.Module instance"

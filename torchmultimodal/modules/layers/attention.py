@@ -89,8 +89,8 @@ class MultiHeadAttention(nn.Module):
         q: Tensor,
         k: Tensor,
         v: Tensor,
-        decode_step: int = None,
-        decode_idx: Iterable[int] = None,
+        decode_step: Optional[int] = None,
+        decode_idx: Optional[Iterable[int]] = None,
     ) -> Tensor:
         # compute k, q, v
         d_k, d_v, n_head = self.d_k, self.d_v, self.n_head
