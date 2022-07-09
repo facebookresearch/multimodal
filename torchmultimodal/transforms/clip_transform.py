@@ -8,7 +8,6 @@ from typing import Callable, Iterable, List, Optional, Tuple, Union
 
 import torch
 from PIL.Image import Image
-from torchmultimodal.transforms.text_transforms import PadTransform, StrToIntTransform
 from torchtext import transforms as text_transforms
 from torchtext.transforms import CLIPTokenizer
 from torchvision import transforms
@@ -67,7 +66,7 @@ class CLIPTransform:
         text_bpe_merges_path: str = CLIP_DEFAULT_VOCAB_BPE_PATH,
         text_encoder_json_path: Optional[str] = None,
         num_merges: Optional[int] = 48894,
-    ):
+    ) -> None:
         joint_transforms: List[Callable] = [
             convert_to_rgb,
             transforms.ToTensor(),
@@ -101,9 +100,11 @@ class CLIPTransform:
                 text_transforms.AddToken(self.text_start_token, begin=True),
                 text_transforms.AddToken(self.text_end_token, begin=False),
                 text_transforms.Truncate(self.text_max_length),
-                StrToIntTransform(),
+                text_transforms.StrToIntTransform(),
                 text_transforms.ToTensor(padding_value=0),
-                PadTransform(max_length=self.text_max_length),
+                text_transforms.PadTransform(
+                    max_length=self.text_max_length, pad_value=0
+                ),
             ]
         )
 
