@@ -7,7 +7,7 @@
 import unittest
 
 import torch
-from torchmultimodal.architectures.clip import CLIPArchitecture
+from torchmultimodal.models.clip import CLIP
 from torchmultimodal.modules.encoders.clip_resnet_encoder import ResNetForCLIP
 from torchmultimodal.modules.encoders.clip_text_encoder import CLIPTextEncoder
 from torchmultimodal.utils.common import get_current_device
@@ -35,7 +35,7 @@ class TestCLIPModule(unittest.TestCase):
             heads=8,
             layers=12,
         )
-        clip_resnet = CLIPArchitecture(
+        clip_resnet = CLIP(
             encoder_a=resnet_encoder,
             encoder_b=text_encoder,
         )
@@ -74,7 +74,7 @@ class TestCLIPModule(unittest.TestCase):
             0
         )
         image = torch.randn(3, 224, 224).unsqueeze(0)
-        clip_vit = CLIPArchitecture(encoder_a=vit_encoder, encoder_b=text_encoder)
+        clip_vit = CLIP(encoder_a=vit_encoder, encoder_b=text_encoder)
         clip_vit = clip_vit.to(self.device)
         self.assertTrue(isinstance(clip_vit, torch.nn.Module))
 

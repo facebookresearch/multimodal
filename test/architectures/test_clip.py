@@ -8,17 +8,17 @@ import pytest
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.architectures.clip import CLIPArchitecture
+from torchmultimodal.models.clip import CLIP
 
 
-class TestCLIPArchitecture:
+class TestCLIP:
     @pytest.fixture
     def start(self):
         set_rng_seed(1234)
 
         encoder_a = torch.nn.Linear(5, 3)
         encoder_b = torch.nn.Linear(4, 3)
-        clip = CLIPArchitecture(encoder_a, encoder_b)
+        clip = CLIP(encoder_a, encoder_b)
 
         input_a = torch.randint(1, 8, (2, 5), dtype=torch.float)
         input_b = torch.randint(1, 8, (2, 4), dtype=torch.float)
