@@ -8,7 +8,7 @@ import hashlib
 import os
 from collections import OrderedDict
 from dataclasses import fields
-from typing import Any, List, Optional, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -146,6 +146,7 @@ class PretrainedMixin:
         pretrained_url: str,
         load_state_dict: bool = True,
         state_dict_key: Optional[str] = None,
+        strict: bool = True,
     ) -> Any:
         assert isinstance(
             self, torch.nn.Module
@@ -160,7 +161,7 @@ class PretrainedMixin:
             state_dict = state_dict[state_dict_key]
 
         if load_state_dict:
-            self.load_state_dict(state_dict)
+            self.load_state_dict(state_dict, strict=strict)
         return state_dict
 
 
@@ -182,3 +183,17 @@ class ModelOutput(OrderedDict):
     def items(self) -> Any:
         for field in fields(self):
             yield field.name, getattr(self, field.name)
+
+
+def to_tuple_tuple(
+    param: Union[int, Tuple[int, ...]], dim_tuple: int, num_tuple: int
+) -> Tuple[Tuple[int, ...], ...]:
+    """
+    Convert single integer or single tuple to tuple of tuples.
+    Used for kernel_size and strides parameters in convolutional models
+    """
+    if isinstance(param, int):
+        param = (param,) * dim_tuple
+    if isinstance(param, tuple):
+        param_fixed = (param,) * num_tuple
+    return param_fixed

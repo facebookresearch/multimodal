@@ -208,3 +208,8 @@ class Codebook(nn.Module):
         quantized = self._postprocess(quantized_flat, permuted_shape)
 
         return CodebookOutput(encoded_flat, quantized_flat, codebook_indices, quantized)
+
+    def extra_repr(self):
+        return "num_embeddings={}, embedding_dim={}".format(
+            self.num_embeddings, self.embedding_dim
+        )

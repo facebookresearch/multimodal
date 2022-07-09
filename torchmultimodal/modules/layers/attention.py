@@ -4,12 +4,74 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+from itertools import repeat
 from typing import Dict, Iterable, Optional, Tuple
 
 import torch
 from torch import nn, Tensor
 from torch.nn import functional as F
 from torchmultimodal.utils.common import shift_dim
+
+
+class AxialAttentionBlock(nn.Module):
+    """Computes multihead axial attention across all dims of the input.
+
+    Axial attention is an alternative to standard full attention, where instead
+    of computing attention across the entire flattened input, you compute it for
+    each dimension. To capture the global context that full attention does, stacking
+    multiple axial attention layers will allow information to propagate among the
+    multiple dimensions of the input. This enables attention calculations on high
+    dimensional inputs (images, videos) where full attention would be computationally
+    expensive and unfeasible. For more details, see "Axial Attention in
+    Multidimensional Transformers" (Ho et al. 2019) and CCNet (Huang et al. 2019).
+
+    Follows implementation by VideoGPT:
+    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
+
+    Args:
+        n_dims (int): dimensionality of input data, not including batch or channel dims
+        qkv_dim (int): dimensionality of linear projections Wq, Wk, and Wv in attention
+        n_head (int): number of heads in multihead attention. Must divide into qkv_dim
+                      evenly
+
+    Inputs:
+        x (Tensor): a [b, c, d1, ..., dn] tensor, where c == qkv_dim
+    """
+
+    def __init__(self, n_dims: int, qkv_dim: int, n_head: int) -> None:
+        super().__init__()
+        self.qkv_dim = qkv_dim
+        self.mha_attns = nn.ModuleList(
+            [
+                MultiHeadAttention(
+                    shape=tuple(
+                        repeat(0, n_dims)
+                    ),  # dummy value for shape since we are not using causal
+                    dim_q=qkv_dim,
+                    dim_kv=qkv_dim,
+                    n_head=n_head,
+                    n_layer=1,
+                    causal=False,
+                    attn_module=AxialAttention(d),
+                )
+                for d in range(n_dims)
+            ]
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        n_channel = x.shape[1]
+        if n_channel != self.qkv_dim:
+            raise ValueError(
+                f"Input channel dimension is {n_channel}, expected {self.qkv_dim}"
+            )
+
+        h = shift_dim(x, 1, -1)  # (b, c, d1, ..., dn) -> (b, d1, ..., dn, c)
+        attn_out = torch.zeros_like(h)
+        for mha_attn in self.mha_attns:
+            attn_out += mha_attn(h, h, h)
+        h = attn_out
+        h = shift_dim(h, -1, 1)  # (b, d1, ..., dn, c) -> (b, c, d1, ..., dn)
+        return h
 
 
 class MultiHeadAttention(nn.Module):
@@ -40,7 +102,7 @@ class MultiHeadAttention(nn.Module):
 
     def __init__(
         self,
-        shape: Tuple[int],
+        shape: Tuple[int, ...],
         dim_q: int,
         dim_kv: int,
         n_head: int,
@@ -93,7 +155,6 @@ class MultiHeadAttention(nn.Module):
         decode_idx: Optional[Iterable[int]] = None,
     ) -> Tensor:
         # compute k, q, v
-        d_k, d_v, n_head = self.d_k, self.d_v, self.n_head
         q = self._split_multihead(self.w_qs(q))
         k = self._split_multihead(self.w_ks(k))
         v = self._split_multihead(self.w_vs(v))
@@ -104,11 +165,11 @@ class MultiHeadAttention(nn.Module):
                 if self.causal:
                     k_shape = (
                         q.shape[0],
-                        n_head,
+                        self.n_head,
                         *self.shape,
                         self.d_k,
                     )
-                    v_shape = (q.shape[0], n_head, *self.shape, self.d_v)
+                    v_shape = (q.shape[0], self.n_head, *self.shape, self.d_v)
                     self.cache = dict(
                         k=torch.zeros(k_shape, dtype=k.dtype, device=q.device),
                         v=torch.zeros(v_shape, dtype=v.dtype, device=q.device),
@@ -148,7 +209,7 @@ class FullAttention(nn.Module):
     """
 
     def __init__(
-        self, shape: Tuple[int], causal: bool = False, attn_dropout: float = 0.0
+        self, shape: Tuple[int, ...], causal: bool = False, attn_dropout: float = 0.0
     ) -> None:
         super().__init__()
         self.causal = causal
