@@ -7,12 +7,13 @@
 from typing import List
 
 import torch
-from examples.albef.data.transforms import test_transform, train_transform
+from examples.albef.data.transforms import ALBEFTransform
 from examples.albef.data.vqa_dataset import VQADataset
 from torch.utils.data import DataLoader
 
 
 def create_dataset(
+    image_size: int,
     dataset: str,
     vqa_root: str,
     vg_root: str,
@@ -21,42 +22,29 @@ def create_dataset(
     test_file: List[str],
 ):
     if dataset == "vqa":
+        train_transform = ALBEFTransform(image_size)
+        test_transform = ALBEFTransform(image_size, is_train=False)
         train_dataset = VQADataset(
             train_file,
-            train_transform,
             vqa_root,
             vg_root,
+            train_transform,
             split="train",
         )
         vqa_test_dataset = VQADataset(
             test_file,
-            test_transform,
             vqa_root,
             vg_root,
+            test_transform,
             split="test",
             answer_list=answer_list,
         )
         return train_dataset, vqa_test_dataset
 
 
-def vqa_collate_fn(batch):
-    image_list, question_list, answer_list, weight_list, n = [], [], [], [], []
-    for image, question, answer, weights in batch:
-        image_list.append(image)
-        question_list.append(question)
-        weight_list += weights
-        answer_list += answer
-        n.append(len(answer))
-    return (
-        torch.stack(image_list, dim=0),
-        question_list,
-        answer_list,
-        torch.Tensor(weight_list),
-        n,
-    )
-
-
-def create_sampler(datasets, shuffles, num_tasks, global_rank):
+def create_sampler(
+    datasets, shuffles, num_tasks, global_rank
+):  # args: is_distributed, optional num_tasks and global_rank
     samplers = []
     for dataset, shuffle in zip(datasets, shuffles):
         sampler = torch.utils.data.DistributedSampler(
@@ -81,7 +69,7 @@ def create_loader(datasets, samplers, batch_size, num_workers, is_trains, collat
             dataset,
             batch_size=bs,
             num_workers=n_worker,
-            pin_memory=True,
+            pin_memory=True,  # TODO: what is this???
             sampler=sampler,
             shuffle=shuffle,
             collate_fn=collate_fn,

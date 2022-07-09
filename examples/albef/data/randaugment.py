@@ -321,10 +321,9 @@ arg_dict = {
 
 
 class RandomAugment(object):
-    def __init__(self, n=2, m=10, is_pil=False, augs=None):
+    def __init__(self, n=2, m=10, augs=None):
         self.n = n
         self.m = m
-        self.is_pil = is_pil
         if augs:
             self.augs = augs
         else:
@@ -335,8 +334,7 @@ class RandomAugment(object):
         return [(op, 0.5, self.m) for op in sampled_ops]
 
     def __call__(self, img):
-        if self.is_pil:
-            img = np.array(img)
+        img = np.array(img)
         ops = self.get_random_ops()
         for name, prob, level in ops:
             if np.random.random() > prob:
