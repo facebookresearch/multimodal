@@ -6,7 +6,7 @@
 
 import math
 from copy import deepcopy
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import torch
 from torch import nn, Tensor
@@ -106,7 +106,7 @@ class MDETR(nn.Module):
         mask = padded_text == padding_idx
         return padded_text, mask
 
-    def forward(self, images: List[Tensor], text: List[Tensor]):
+    def forward(self, images: List[Tensor], text: List[Tensor]) -> Dict[str, Tensor]:
 
         images, image_mask = self._pad_images(images)
         text, text_attention_mask = self._pad_text(text)
@@ -204,7 +204,7 @@ class MDETRTransformer(nn.Module):
 
     # Initialize all (non-normalization-layer) weights
     # Biases will be unaffected
-    def _init_parameters(self):
+    def _init_parameters(self) -> None:
         for p in self.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
@@ -217,7 +217,7 @@ class MDETRTransformer(nn.Module):
         pos_embed: Tensor,
         text_memory: Tensor,
         text_attention_mask: Tensor,
-    ):
+    ) -> Tensor:
         # flatten NxCxHxW to HWxNxC
         bs = image_embeddings.size(0)
         image_embeddings = image_embeddings.flatten(2).permute(2, 0, 1)
@@ -527,7 +527,7 @@ class TransformerDecoderLayer(nn.Module):
 
         self.activation = activation
 
-    def with_pos_embed(self, tensor, pos: Optional[Tensor]):
+    def with_pos_embed(self, tensor: Tensor, pos: Optional[Tensor]) -> Tensor:
         return tensor if pos is None else tensor + pos
 
     def forward(
@@ -540,7 +540,7 @@ class TransformerDecoderLayer(nn.Module):
         memory_key_padding_mask: Optional[Tensor] = None,
         pos: Optional[Tensor] = None,
         query_pos: Optional[Tensor] = None,
-    ):
+    ) -> Tensor:
         x = tgt
         q = k = self.with_pos_embed(x, query_pos)
 
@@ -596,7 +596,7 @@ class FeatureResizer(nn.Module):
         self.layer_norm = nn.LayerNorm(output_feat_size, eps=1e-12) if do_ln else None
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, encoder_features: Tensor):
+    def forward(self, encoder_features: Tensor) -> Tensor:
         x = self.fc(encoder_features)
         if self.do_ln:
             x = self.layer_norm(x)

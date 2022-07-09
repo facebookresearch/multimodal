@@ -209,7 +209,7 @@ class Codebook(nn.Module):
 
         return CodebookOutput(encoded_flat, quantized_flat, codebook_indices, quantized)
 
-    def extra_repr(self):
+    def extra_repr(self) -> str:
         return "num_embeddings={}, embedding_dim={}".format(
             self.num_embeddings, self.embedding_dim
         )
