@@ -11,7 +11,7 @@ from dataclasses import fields
 from typing import List, Optional
 
 import torch
-from torch import Tensor
+from torch import nn, Tensor
 
 
 def get_current_device():
@@ -131,6 +131,18 @@ def transpose_for_scores(
 ) -> Tensor:
     x = x.unflatten(-1, (num_attention_heads, attention_head_size))
     return x.permute(0, 2, 1, 3)
+
+
+@torch.no_grad()
+def remove_grad(model: nn.Module) -> None:
+    for param in model.parameters():
+        param.requires_grad = False
+
+
+@torch.no_grad()
+def momentum_update(model: nn.Module, model_m: nn.Module, momentum: float) -> None:
+    for param, param_m in zip(model.parameters(), model_m.parameters()):
+        param_m.data = param_m.data * momentum + param.data * (1 - momentum)
 
 
 class PretrainedMixin:

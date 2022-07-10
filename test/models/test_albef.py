@@ -4,6 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import copy
 from functools import partial
 
 import pytest
@@ -11,8 +12,6 @@ import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn, Tensor
 from torchmultimodal.models.albef import (
-    _copy_params_momentum_models,
-    _momentum_update,
     ALBEFModel,
     ALBEFModelWithSimilarity,
     ALBEFSimilarity,
@@ -22,6 +21,7 @@ from torchmultimodal.modules.encoders.albef_multimodal_encoder import (
 )
 from torchmultimodal.modules.encoders.albef_text_encoder import ALBEFTextEncoder
 from torchmultimodal.modules.encoders.albef_vision_encoder import ALBEFVisionEncoder
+from torchmultimodal.utils.common import momentum_update, remove_grad
 
 
 @pytest.fixture(autouse=True)
@@ -142,8 +142,8 @@ def test_albef_multimodal_embeddings_momentum(albef_model_output):
 
 def test_copy_params_momentum_models():
     model = nn.Linear(3, 2)
-    model_m = nn.Linear(3, 2)
-    _copy_params_momentum_models(model, model_m)
+    model_m = copy.deepcopy(model)
+    remove_grad(model_m)
     for param, param_m in zip(model.parameters(), model_m.parameters()):
         assert_expected(param, param_m, rtol=0, atol=1e-4)
         assert not param_m.requires_grad
@@ -171,7 +171,7 @@ def test_momentum_update():
     model_m = nn.Linear(3, 2)
     model.weight = nn.Parameter(init_weight)
     model_m.weight = nn.Parameter(init_weight_m)
-    _momentum_update(model, model_m, 0.75)
+    momentum_update(model, model_m, 0.75)
     expected_weight_m = Tensor([[4.75, 4.25, 3.75], [3.25, 2.75, 2.25]])
     assert_expected(model.weight, init_weight, rtol=0, atol=1e-4)
     assert_expected(model_m.weight, expected_weight_m, rtol=0, atol=1e-4)

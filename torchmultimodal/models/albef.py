@@ -11,6 +11,7 @@ from typing import Tuple
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
+from torchmultimodal.utils.common import momentum_update, remove_grad
 
 
 ALBEFOutput = namedtuple(
@@ -82,9 +83,9 @@ class ALBEFModel(nn.Module):
         self.text_encoder_m = copy.deepcopy(text_encoder)
         self.multimodal_encoder_m = copy.deepcopy(multimodal_encoder)
 
-        _copy_params_momentum_models(self.vision_encoder, self.vision_encoder_m)
-        _copy_params_momentum_models(self.text_encoder, self.text_encoder_m)
-        _copy_params_momentum_models(self.multimodal_encoder, self.multimodal_encoder_m)
+        remove_grad(self.vision_encoder_m)
+        remove_grad(self.text_encoder_m)
+        remove_grad(self.multimodal_encoder_m)
         self.momentum = momentum
 
     def forward(
@@ -100,9 +101,9 @@ class ALBEFModel(nn.Module):
         )
 
         with torch.no_grad():
-            _momentum_update(self.vision_encoder, self.vision_encoder_m, self.momentum)
-            _momentum_update(self.text_encoder, self.text_encoder_m, self.momentum)
-            _momentum_update(
+            momentum_update(self.vision_encoder, self.vision_encoder_m, self.momentum)
+            momentum_update(self.text_encoder, self.text_encoder_m, self.momentum)
+            momentum_update(
                 self.multimodal_encoder, self.multimodal_encoder_m, self.momentum
             )
             image_embeds_m = self.vision_encoder_m(image)
@@ -158,8 +159,8 @@ class ALBEFModelWithSimilarity(nn.Module):
         self.vision_proj_m = copy.deepcopy(vision_proj)
         self.text_proj_m = copy.deepcopy(text_proj)
 
-        _copy_params_momentum_models(self.vision_proj, self.vision_proj_m)
-        _copy_params_momentum_models(self.text_proj, self.text_proj_m)
+        remove_grad(self.vision_proj_m)
+        remove_grad(self.text_proj_m)
 
         self.queue_size = queue_size
         self.temp = temp
@@ -256,8 +257,8 @@ class ALBEFModelWithSimilarity(nn.Module):
         text_feat = F.normalize(self.text_proj(text_embeds[:, 0, :]), dim=-1)
 
         with torch.no_grad():
-            _momentum_update(self.vision_proj, self.vision_proj_m, self.model.momentum)
-            _momentum_update(self.text_proj, self.text_proj_m, self.model.momentum)
+            momentum_update(self.vision_proj, self.vision_proj_m, self.model.momentum)
+            momentum_update(self.text_proj, self.text_proj_m, self.model.momentum)
             image_feat_m = F.normalize(
                 self.vision_proj_m(image_embeds_m[:, 0, :]), dim=-1
             )
@@ -310,19 +311,6 @@ class ALBEFModelWithSimilarity(nn.Module):
         text_embeds_neg = torch.stack(text_embeds_neg, dim=0)
         text_atts_neg = torch.stack(text_atts_neg, dim=0)
         return image_embeds_neg, text_embeds_neg, text_atts_neg
-
-
-@torch.no_grad()
-def _copy_params_momentum_models(model: nn.Module, model_m: nn.Module) -> None:
-    for param, param_m in zip(model.parameters(), model_m.parameters()):
-        param_m.data.copy_(param.data)
-        param_m.requires_grad = False
-
-
-@torch.no_grad()
-def _momentum_update(model: nn.Module, model_m: nn.Module, momentum: float) -> None:
-    for param, param_m in zip(model.parameters(), model_m.parameters()):
-        param_m.data = param_m.data * momentum + param.data * (1 - momentum)
 
 
 def _gather_embeddings(embeddings: torch.Tensor) -> torch.Tensor:
