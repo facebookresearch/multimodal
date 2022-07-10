@@ -4,27 +4,15 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Iterable, List, Tuple, Union
+from typing import Iterable, Tuple, Union
 
 import torch
-from examples.albef.data.randaugment import RandomAugment
 from PIL.Image import Image
 from torchmultimodal.transforms.bert_text_transform import BertTextTransform
 from torchvision import transforms
+from torchvision.transforms import RandAugment
 
 
-AUGS = [
-    "Identity",
-    "AutoContrast",
-    "Equalize",
-    "Brightness",
-    "Sharpness",
-    "ShearX",
-    "ShearY",
-    "TranslateX",
-    "TranslateY",
-    "Rotate",
-]
 MEAN = (0.48145466, 0.4578275, 0.40821073)
 STDEV = (0.26862954, 0.26130258, 0.27577711)
 
@@ -35,9 +23,6 @@ class ALBEFTransform:
         image_size: int = 384,
         scale: Tuple[float, float] = (0.5, 1.0),
         image_interpolation=transforms.InterpolationMode.BICUBIC,
-        randaugment_n: int = 2,
-        randaugment_m: int = 7,
-        augs: List[str] = AUGS,
         mean: Tuple[float, float, float] = MEAN,
         stdev: Tuple[float, float, float] = STDEV,
         is_train: bool = True,
@@ -49,11 +34,7 @@ class ALBEFTransform:
                         image_size, scale=scale, interpolation=image_interpolation
                     ),
                     transforms.RandomHorizontalFlip(),
-                    RandomAugment(
-                        randaugment_n,
-                        randaugment_m,
-                        augs,
-                    ),
+                    RandAugment(),
                     transforms.ToTensor(),
                     transforms.Normalize(mean, stdev),
                 ]
