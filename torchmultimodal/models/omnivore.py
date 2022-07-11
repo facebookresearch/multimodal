@@ -8,6 +8,7 @@
 from typing import Callable, List, Optional
 
 import torch
+import torchmultimodal.utils.common as common_utils
 from torch import nn
 from torchmultimodal.architectures.omnivore import OmnivoreArchitecture
 from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
@@ -19,6 +20,12 @@ _OMNIVORE_PRETRAINED_URLS = {
     "swin_t": "https://download.pytorch.org/models/omnivore_swin_t-5b532aca.pth",
     "swin_s": "https://download.pytorch.org/models/omnivore_swin_s-b64cc260.pth",
     "swin_b": "https://download.pytorch.org/models/omnivore_swin_b-c2a4d126.pth",
+    "swin_t_encoder": "https://download.pytorch.org/models/omnivore_swin_t_encoder-b7e39400.pth",
+    "swin_s_encoder": "https://download.pytorch.org/models/omnivore_swin_s_encoder-40b05ba1.pth",
+    "swin_b_encoder": "https://download.pytorch.org/models/omnivore_swin_b_encoder-a9134768.pth",
+    "swin_t_heads": "https://download.pytorch.org/models/omnivore_swin_t_heads-c8bfb7fd.pth",
+    "swin_s_heads": "https://download.pytorch.org/models/omnivore_swin_s_heads-c5e77246.pth",
+    "swin_b_heads": "https://download.pytorch.org/models/omnivore_swin_b_heads-3c38b3ed.pth",
 }
 
 
@@ -95,7 +102,7 @@ class PatchEmbedOmnivore(nn.Module):
         return x
 
 
-def _omnivore_swin_t_encoder() -> SwinTransformer3d:
+def omnivore_swin_t_encoder(pretrained=False, progress=True) -> SwinTransformer3d:
     encoder = SwinTransformer3d(
         patch_size=[2, 4, 4],
         embed_dim=96,
@@ -107,10 +114,16 @@ def _omnivore_swin_t_encoder() -> SwinTransformer3d:
         patch_embed=PatchEmbedOmnivore,
         num_classes=None,
     )
+    if pretrained:
+        common_utils.load_module_from_url(
+            encoder,
+            _OMNIVORE_PRETRAINED_URLS["swin_t_encoder"],
+            progress=progress,
+        )
     return encoder
 
 
-def _omnivore_swin_s_encoder() -> SwinTransformer3d:
+def omnivore_swin_s_encoder(pretrained=False, progress=True) -> SwinTransformer3d:
     encoder = SwinTransformer3d(
         patch_size=[2, 4, 4],
         embed_dim=96,
@@ -122,10 +135,16 @@ def _omnivore_swin_s_encoder() -> SwinTransformer3d:
         patch_embed=PatchEmbedOmnivore,
         num_classes=None,
     )
+    if pretrained:
+        common_utils.load_module_from_url(
+            encoder,
+            _OMNIVORE_PRETRAINED_URLS["swin_s_encoder"],
+            progress=progress,
+        )
     return encoder
 
 
-def _omnivore_swin_b_encoder() -> SwinTransformer3d:
+def omnivore_swin_b_encoder(pretrained=False, progress=True) -> SwinTransformer3d:
     encoder = SwinTransformer3d(
         patch_size=[2, 4, 4],
         embed_dim=128,
@@ -137,70 +156,70 @@ def _omnivore_swin_b_encoder() -> SwinTransformer3d:
         patch_embed=PatchEmbedOmnivore,
         num_classes=None,
     )
+    if pretrained:
+        common_utils.load_module_from_url(
+            encoder,
+            _OMNIVORE_PRETRAINED_URLS["swin_b_encoder"],
+            progress=progress,
+        )
     return encoder
 
 
-def omnivore_swin_t(
-    encoder_only: bool = False, pretrained: bool = False, progress: bool = True
-) -> nn.Module:
+def omnivore_swin_t(pretrained: bool = False, progress: bool = True) -> nn.Module:
     """
     Builder function to get omnivore model with swin_t variant encoder
     Args:
-        encoder_only (bool): If true then the builder will only return encoder without head (default: False)
         pretrained (bool): If true then the it will load pretrained weight,
             otherwise it will have random weight (default: False)
         progress (bool): If true then there will be a progress bar for downloading weight (default: True)
     """
-    encoder = _omnivore_swin_t_encoder()
+    encoder = omnivore_swin_t_encoder(pretrained=pretrained)
     heads = _multimodal_head(input_dim=encoder.num_features)
-    model = OmnivoreArchitecture(encoder, heads)
     if pretrained:
-        model.load_model(_OMNIVORE_PRETRAINED_URLS["swin_t"])
-    if encoder_only:
-        return model.encoder
-    else:
-        return model
+        common_utils.load_module_from_url(
+            heads,
+            _OMNIVORE_PRETRAINED_URLS["swin_t_heads"],
+            progress=progress,
+        )
+    model = OmnivoreArchitecture(encoder, heads)
+    return model
 
 
-def omnivore_swin_s(
-    encoder_only: bool = False, pretrained: bool = False, progress: bool = True
-) -> nn.Module:
+def omnivore_swin_s(pretrained: bool = False, progress: bool = True) -> nn.Module:
     """
     Builder function to get omnivore model with swin_s variant encoder
     Args:
-        encoder_only (bool): If true then the builder will only return encoder without head (default: False)
         pretrained (bool): If true then the it will load pretrained weight,
             otherwise it will have random weight (default: False)
         progress (bool): If true then there will be a progress bar for downloading weight (default: True)
     """
-    encoder = _omnivore_swin_s_encoder()
+    encoder = omnivore_swin_s_encoder()
     heads = _multimodal_head(input_dim=encoder.num_features)
-    model = OmnivoreArchitecture(encoder, heads)
     if pretrained:
-        model.load_model(_OMNIVORE_PRETRAINED_URLS["swin_s"])
-    if encoder_only:
-        return model.encoder
-    else:
-        return model
+        common_utils.load_module_from_url(
+            heads,
+            _OMNIVORE_PRETRAINED_URLS["swin_s_heads"],
+            progress=progress,
+        )
+    model = OmnivoreArchitecture(encoder, heads)
+    return model
 
 
-def omnivore_swin_b(
-    encoder_only: bool = False, pretrained: bool = False, progress: bool = True
-) -> nn.Module:
+def omnivore_swin_b(pretrained: bool = False, progress: bool = True) -> nn.Module:
     """
     Builder function to get omnivore model with swin_b variant encoder
     Args:
-        encoder_only (bool): If true then the builder will only return encoder without head (default: False)
         pretrained (bool): If true then the it will load pretrained weight,
             otherwise it will have random weight (default: False)
         progress (bool): If true then there will be a progress bar for downloading weight (default: True)
     """
-    encoder = _omnivore_swin_b_encoder()
+    encoder = omnivore_swin_b_encoder()
     heads = _multimodal_head(input_dim=encoder.num_features)
-    model = OmnivoreArchitecture(encoder, heads)
     if pretrained:
-        model.load_model(_OMNIVORE_PRETRAINED_URLS["swin_b"])
-    if encoder_only:
-        return model.encoder
-    else:
-        return model
+        common_utils.load_module_from_url(
+            heads,
+            _OMNIVORE_PRETRAINED_URLS["swin_b_heads"],
+            progress=progress,
+        )
+    model = OmnivoreArchitecture(encoder, heads)
+    return model

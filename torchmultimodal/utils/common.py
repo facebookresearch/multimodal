@@ -133,6 +133,19 @@ def transpose_for_scores(
     return x.permute(0, 2, 1, 3)
 
 
+def load_module_from_url(m: torch.nn.Module, url: str, progress=True):
+    model_dir = os.path.join(
+        torch.hub.get_dir(),
+        "multimodal",
+        hashlib.sha256(url.encode("utf-8")).hexdigest(),
+    )
+
+    state_dict = torch.hub.load_state_dict_from_url(
+        url, model_dir=model_dir, progress=progress
+    )
+    m.load_state_dict(state_dict)
+
+
 class PretrainedMixin:
     def get_model_dir(self, url):
         return os.path.join(
