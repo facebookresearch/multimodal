@@ -13,33 +13,33 @@ from test.test_utils import assert_expected, set_rng_seed
 from torchvision.ops.boxes import box_convert
 
 
-@pytest.fixture(scope="class", autouse=True)
+@pytest.fixture(autouse=True)
 def rng():
     set_rng_seed(0)
 
 
 class TestMatcher:
-    @pytest.fixture(scope="class")
+    @pytest.fixture()
     def batch_size(self):
         return 2
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture()
     def num_classes(self):
         return 7
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture()
     def max_slice_len(self):
         return 3
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture()
     def n_boxes_per_sample(self):
         return [3, 8]
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture()
     def total_boxes(self, n_boxes_per_sample):
         return sum(n_boxes_per_sample)
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture()
     def positive_map(self, max_slice_len, total_boxes, num_classes):
         positive_map = torch.zeros(total_boxes, num_classes)
         for i in range(total_boxes):
@@ -48,7 +48,7 @@ class TestMatcher:
             positive_map[i, start_idx : start_idx + increment] = 1
         return positive_map
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture()
     def construct_valid_boxes(self):
         def _construct_valid_boxes(n_boxes):
             boxes = []
@@ -64,11 +64,11 @@ class TestMatcher:
 
         return _construct_valid_boxes
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture()
     def target_boxes(self, construct_valid_boxes, n_boxes_per_sample):
         return [construct_valid_boxes(n_boxes) for n_boxes in n_boxes_per_sample]
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture()
     def matcher(self):
         return HungarianMatcher(cost_class=1, cost_bbox=5, cost_giou=2)
 
@@ -88,10 +88,10 @@ class TestMatcher:
             (
                 5,
                 [
-                    (torch.LongTensor([2, 3, 4]), torch.LongTensor([2, 0, 1])),
+                    (torch.LongTensor([0, 1, 4]), torch.LongTensor([2, 1, 0])),
                     (
                         torch.LongTensor([0, 1, 2, 3, 4]),
-                        torch.LongTensor([7, 2, 0, 1, 3]),
+                        torch.LongTensor([1, 5, 4, 6, 2]),
                     ),
                 ],
             ),
@@ -111,15 +111,6 @@ class TestMatcher:
         pred_logits = torch.randn(batch_size, num_queries, num_classes)
         pred_boxes = construct_valid_boxes(batch_size * num_queries).reshape(
             batch_size, num_queries, -1
-        )
-        print(
-            f"""
-        LOGITS {pred_logits},
-        BOXES {pred_boxes},
-        TARGET BOXES {target_boxes},
-        POSITIVE MAP {positive_map},
-        num_queries {num_queries}
-        """
         )
         actual = matcher(pred_logits, pred_boxes, target_boxes, positive_map)
         for actual_sample, expected_sample in zip(actual, expected):

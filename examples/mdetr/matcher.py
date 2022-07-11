@@ -22,31 +22,33 @@ class HungarianMatcher(nn.Module):
     as non-objects). This implementation is based on the MDETR repo:
     https://github.com/ashkamath/mdetr/blob/main/models/matcher.py#L13
 
-    Params: cost_class (float): Relative weight of the classification error in the
-                matching cost. Default: 1
-            cost_bbox (float): Relative weight of the L1 error of the bounding box
-                coordinates in the matching cost. Default: 1
-            cost_giou (float): Relative weight of the giou loss of the bounding box in
-                the matching cost. Default: 1
+    Attributes:
+        cost_class (float): Relative weight of the classification error in the
+            matching cost. Default: ``1``
+        cost_bbox (float): Relative weight of the L1 error of the bounding box
+            coordinates in the matching cost. Default: ``1``
+        cost_giou (float): Relative weight of the giou loss of the bounding box in
+            the matching cost. Default: ``1``
 
 
-    Inputs: pred_logits (Tensor): Classification logits.
-                Size: (batch_size, num_queries, num_classes)
-            pred_boxes (Tensor): Predicted box coordinates.
-                Size: (batch_size, num_queries, 4)
-            target_boxes_per_sample (List[Tensor]): A list of target bounding boxes.
-                Length = batch_size.
-                Each element is a tensor of size (n_boxes_for_sample, 4).
-            positive_map (Tensor): positive_map[i,j] = 1 when box i maps to class j.
-                Size: (total_boxes, num_classes) where total_boxes is the sum of
-                n_boxes_for_sample over every sample in the batch.
+    Args:
+        pred_logits (Tensor): Classification logits.
+            Size: (batch_size, num_queries, num_classes)
+        pred_boxes (Tensor): Predicted box coordinates.
+            Size: (batch_size, num_queries, 4)
+        target_boxes_per_sample (List[Tensor]): A list of target bounding boxes.
+            Length = batch_size.
+            Each element is a tensor of size (n_boxes_for_sample, 4).
+        positive_map (Tensor): :math:`\text{positive_map}[i,j] = 1` when box i maps to class j.
+            Size: (total_boxes, num_classes) where total_boxes is the sum of
+            n_boxes_for_sample over every sample in the batch.
 
     Returns:
-            A list of size batch_size, containing tuples of (index_i, index_j) where:
-                - index_i is the indices of the selected predictions (in order)
-                - index_j is the indices of the corresponding selected targets (in order)
-            For each batch element, it holds:
-                len(index_i) = len(index_j) = min(num_queries, num_target_boxes)
+        A list of size batch_size, containing tuples of ``(index_i, index_j)`` where:
+            - ``index_i`` is the indices of the selected predictions (in order)
+            - ``index_j`` is the indices of the corresponding selected targets
+        For each batch element, it holds:
+            len(index_i) = len(index_j) = min(num_queries, num_target_boxes)
 
     """
 
@@ -57,9 +59,8 @@ class HungarianMatcher(nn.Module):
         self.cost_class = cost_class
         self.cost_bbox = cost_bbox
         self.cost_giou = cost_giou
-        assert (
-            cost_class != 0 or cost_bbox != 0 or cost_giou != 0
-        ), "At least one cost must be nonzero"
+        if cost_class == 0 and cost_bbox == 0 and cost_giou == 0:
+            raise ValueError("At least one cost must be nonzero")
 
     @torch.no_grad()
     def forward(
@@ -77,22 +78,25 @@ class HungarianMatcher(nn.Module):
             pred_logits.flatten(0, 1), dim=-1
         )  # [batch_size * num_queries, num_classes]
         out_bbox = pred_boxes.flatten(0, 1)  # [batch_size * num_queries, 4]
-        assert target_boxes.size(0) == positive_map.size(
-            0
-        ), "Total of target boxes should match first dim of positive map"
+        if target_boxes.size(0) != positive_map.size(0):
+            raise ValueError(
+                "Total of target boxes should match first dim of positive map"
+            )
 
-        # Compute the soft-cross entropy between the predicted token alignment and the GT one for each box
+        # Compute the soft-cross entropy between the predicted token alignment
+        # and the ground truth one for each box
         cost_class = -(out_prob.unsqueeze(1) * positive_map.unsqueeze(0)).sum(-1)
 
         # Compute the L1 cost between boxes
         cost_bbox = torch.cdist(out_bbox, target_boxes, p=1)
-        assert (
-            cost_class.shape == cost_bbox.shape
-        ), f"""
-        Classification and bounding box cost shapes do not match.
-        Classification cost shape: {cost_class.shape},
-        Bounding box cost shape: {cost_bbox.shape}
-        """
+        if cost_class.shape != cost_bbox.shape:
+            raise ValueError(
+                f"""
+            Classification and bounding box cost shapes do not match.
+            Classification cost shape: {cost_class.shape},
+            Bounding box cost shape: {cost_bbox.shape}
+            """
+            )
 
         # Compute the giou cost betwen boxes
         cost_giou = -generalized_box_iou(
@@ -120,12 +124,3 @@ class HungarianMatcher(nn.Module):
             )
             for i, j in indices
         ]
-
-
-def build_matcher(args):
-    matcher = HungarianMatcher(
-        cost_class=args.set_cost_class,
-        cost_bbox=args.set_cost_bbox,
-        cost_giou=args.set_cost_giou,
-    )
-    return matcher
