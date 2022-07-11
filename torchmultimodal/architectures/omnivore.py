@@ -4,8 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import torch
-from torch import nn
+from torch import nn, Tensor
 
 
 class OmnivoreArchitecture(nn.Module):
@@ -29,7 +28,7 @@ class OmnivoreArchitecture(nn.Module):
         self.encoder = encoder
         self.heads = heads
 
-    def forward(self, x: torch.Tensor, input_type: str):
+    def forward(self, x: Tensor, input_type: str) -> Tensor:
         x = self.encoder(x)
         assert (
             input_type in self.heads

@@ -82,7 +82,7 @@ class MDETRTextEmbeddings(nn.Module):
         input_ids: Tensor,
         token_type_ids: Optional[Tensor] = None,
         position_ids: Optional[Tensor] = None,
-    ):
+    ) -> Tensor:
         batch_size, seq_length = input_ids.size()
         device = input_ids.device
 
@@ -206,7 +206,7 @@ class MDETRTextEncoder(nn.Module):
         attention_mask: Optional[Tensor] = None,
         token_type_ids: Optional[Tensor] = None,
         position_ids: Optional[Tensor] = None,
-    ):
+    ) -> Tensor:
 
         embedding_output = self.embeddings(
             input_ids=input_ids,
@@ -234,7 +234,7 @@ def mdetr_roberta_text_encoder(
     num_encoder_layers: int = 12,
     encoder_dropout_prob: float = 0.1,
     normalize_before: bool = False,
-):
+) -> MDETRTextEncoder:
     embeddings = MDETRTextEmbeddings(
         hidden_size=embedding_dim,
         vocab_size=vocab_size,

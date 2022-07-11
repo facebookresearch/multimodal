@@ -11,6 +11,7 @@ from PIL.Image import Image
 from torchtext import transforms as text_transforms
 from torchtext.transforms import CLIPTokenizer
 from torchvision import transforms as image_transforms
+from torchvision.transforms import InterpolationMode
 
 
 CLIP_DEFAULT_MEAN = (0.48145466, 0.4578275, 0.40821073)
@@ -56,7 +57,7 @@ class CLIPTransform:
     def __init__(
         self,
         image_size: Union[int, Tuple[int, int]] = (224, 224),
-        image_interpolation=image_transforms.InterpolationMode.BICUBIC,
+        image_interpolation: InterpolationMode = InterpolationMode.BICUBIC,
         image_mean: Tuple[float, float, float] = CLIP_DEFAULT_MEAN,
         image_std: Tuple[float, float, float] = CLIP_DEFAULT_STD,
         text_max_length: int = 77,

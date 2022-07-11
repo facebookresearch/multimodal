@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Union
 
 import torch
 from torch import nn
@@ -105,7 +105,9 @@ def _omnivore_swin_t_encoder() -> SwinTransformer3d:
 
 
 # TODO: add pretrained weight capability
-def omnivore_swin_t(encoder_only=False) -> nn.Module:
+def omnivore_swin_t(
+    encoder_only: bool = False,
+) -> Union[OmnivoreArchitecture, SwinTransformer3d]:
     encoder = _omnivore_swin_t_encoder()
     if encoder_only:
         return encoder
