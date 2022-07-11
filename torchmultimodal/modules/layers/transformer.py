@@ -57,8 +57,8 @@ class FLAVASelfAttention(nn.Module):
     def forward(
         self,
         hidden_states: Tensor,
-        attention_mask: Tensor = None,
-        head_mask: Tensor = None,
+        attention_mask: Optional[Tensor] = None,
+        head_mask: Optional[Tensor] = None,
     ) -> Tuple[Tensor, Tensor]:
         mixed_query_layer = self.query(hidden_states)
         key_layer = transpose_for_scores(
@@ -122,8 +122,8 @@ class FLAVAAttention(nn.Module):
     def forward(
         self,
         hidden_states: Tensor,
-        attention_mask: Tensor = None,
-        head_mask: Tensor = None,
+        attention_mask: Optional[Tensor] = None,
+        head_mask: Optional[Tensor] = None,
     ) -> Tuple[Tensor, Tensor]:
         self_outputs = self.attention(
             hidden_states,
@@ -168,7 +168,7 @@ class FLAVATransformerLayer(nn.Module):
         self,
         hidden_states: Tensor,
         attention_mask: Optional[Tensor] = None,
-        head_mask: Tensor = None,
+        head_mask: Optional[Tensor] = None,
     ) -> Tuple[Tensor, Tensor]:
         # TODO(asg): Support postnorm transformer architecture
         # TODO(asg): After verification with this code, try replacing with
