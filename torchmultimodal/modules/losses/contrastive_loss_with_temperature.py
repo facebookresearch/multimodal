@@ -177,14 +177,14 @@ class ContrastiveLossWithTemperature(nn.Module):
     def __init__(
         self,
         logit_scale: Union[float, nn.Parameter] = DEFAULT_LOGIT_SCALE,
-        logit_scale_min: Optional[float] = 0.0,
-        logit_scale_max: Optional[float] = 4.6052,
+        logit_scale_min: Optional[float] = math.log(1),
+        logit_scale_max: Optional[float] = math.log(100),
     ):
         super().__init__()
 
         if not logit_scale_min and not logit_scale_max:
             raise ValueError(
-                "At least one of `logit_scale_min` and `logit_scale_max` must not be None."
+                "Only one of `logit_scale_min` and `logit_scale_max` can be None."
             )
         self.logit_scale_min = logit_scale_min
         self.logit_scale_max = logit_scale_max
