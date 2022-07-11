@@ -53,19 +53,33 @@ class TestContrastiveLossWithTemperature(unittest.TestCase):
         self.assertEqual(loss.size(), torch.Size([]))
         self.assertAlmostEqual(loss.item(), 9.8753, 3)
 
-    def test_temperature_clamp(self):
+    def test_temperature_clamp_max(self):
         torch.manual_seed(1234)
-        clip_loss_at_max = ContrastiveLossWithTemperature(logit_scale=4.6052).to(
-            get_current_device()
-        )
-        clip_loss_above_max = ContrastiveLossWithTemperature(logit_scale=5).to(
-            get_current_device()
-        )
+        clip_loss_at_max = ContrastiveLossWithTemperature(
+            logit_scale=2, logit_scale_max=2
+        ).to(get_current_device())
+        clip_loss_above_max = ContrastiveLossWithTemperature(
+            logit_scale=3, logit_scale_max=2
+        ).to(get_current_device())
         image_embeddings = torch.randn(3, 5)
         text_embeddings = torch.randn(3, 5)
         loss_at_max = clip_loss_at_max(image_embeddings, text_embeddings).item()
         loss_above_max = clip_loss_above_max(image_embeddings, text_embeddings).item()
         self.assertAlmostEqual(first=loss_above_max, second=loss_at_max, places=3)
+
+    def test_temperature_clamp_min(self):
+        torch.manual_seed(1234)
+        clip_loss_at_min = ContrastiveLossWithTemperature(
+            logit_scale=2, logit_scale_min=2
+        ).to(get_current_device())
+        clip_loss_below_min = ContrastiveLossWithTemperature(
+            logit_scale=1, logit_scale_min=2
+        ).to(get_current_device())
+        image_embeddings = torch.randn(3, 5)
+        text_embeddings = torch.randn(3, 5)
+        loss_at_min = clip_loss_at_min(image_embeddings, text_embeddings).item()
+        loss_below_min = clip_loss_below_min(image_embeddings, text_embeddings).item()
+        self.assertAlmostEqual(first=loss_below_min, second=loss_at_min, places=3)
 
     @staticmethod
     def _model_worker(
