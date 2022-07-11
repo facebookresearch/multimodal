@@ -21,11 +21,11 @@ class ImageTextContrastiveLoss(nn.Module):
         alpha (float): The interpolation value of momentum similarity and sim_targets. Default is 0.
 
     Inputs:
-        sim_i2t (Tensor): Image to text similarity.
-        sim_t2i (Tensor): Text to image similarity.
-        sim_i2t_m (Optional[Tensor]): Image to text similarity from momentum models.
+        image_to_text_sim (Tensor): Image to text similarity.
+        text_to_image_sim (Tensor): Text to image similarity.
+        image_to_text_sim_m (Optional[Tensor]): Image to text similarity from momentum models.
             Required if alpha is non-zero.
-        sim_t2i_m (Optional[Tensor]): Text to image similarity from momentum models.
+        text_to_image_sim_m (Optional[Tensor]): Text to image similarity from momentum models.
             Required if alpha is non-zero.
         sim_targets (Optional[Tensor]): Similarity pseudo-targets from momentum models. Default is the diagonal matrix.
             Requires all inputs to have the same size.
@@ -40,39 +40,41 @@ class ImageTextContrastiveLoss(nn.Module):
 
     def forward(
         self,
-        sim_i2t: Tensor,
-        sim_t2i: Tensor,
-        sim_i2t_m: Optional[Tensor] = None,
-        sim_t2i_m: Optional[Tensor] = None,
+        image_to_text_sim: Tensor,
+        text_to_image_sim: Tensor,
+        image_to_text_sim_m: Optional[Tensor] = None,
+        text_to_image_sim_m: Optional[Tensor] = None,
         sim_targets: Optional[Tensor] = None,
     ) -> Tensor:
         if sim_targets is None:
-            sim_targets = torch.zeros(sim_i2t.size()).to(sim_i2t.device)
+            sim_targets = torch.zeros(image_to_text_sim.size()).to(
+                image_to_text_sim.device
+            )
             sim_targets.fill_diagonal_(1)
 
         if self.alpha != 0:
             assert (
-                sim_i2t_m is not None and sim_t2i_m is not None
+                image_to_text_sim_m is not None and text_to_image_sim_m is not None
             ), "sim_i2t_m and sim_t2i_m cannot be none for non-zero alpha"
 
             with torch.no_grad():
-                sim_i2t_targets = (
-                    self.alpha * F.softmax(sim_i2t_m, dim=1)
+                image_to_text_sim_targets = (
+                    self.alpha * F.softmax(image_to_text_sim_m, dim=1)
                     + (1 - self.alpha) * sim_targets
                 )
-                sim_t2i_targets = (
-                    self.alpha * F.softmax(sim_t2i_m, dim=1)
+                text_to_image_sim_targets = (
+                    self.alpha * F.softmax(text_to_image_sim_m, dim=1)
                     + (1 - self.alpha) * sim_targets
                 )
         else:
-            sim_i2t_targets = sim_targets
-            sim_t2i_targets = sim_targets
+            image_to_text_sim_targets = sim_targets
+            text_to_image_sim_targets = sim_targets
 
         loss_i2t = -torch.sum(
-            F.log_softmax(sim_i2t, dim=1) * sim_i2t_targets, dim=1
+            F.log_softmax(image_to_text_sim, dim=1) * image_to_text_sim_targets, dim=1
         ).mean()
         loss_t2i = -torch.sum(
-            F.log_softmax(sim_t2i, dim=1) * sim_t2i_targets, dim=1
+            F.log_softmax(text_to_image_sim, dim=1) * text_to_image_sim_targets, dim=1
         ).mean()
 
         loss_itc = (loss_i2t + loss_t2i) / 2
