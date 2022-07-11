@@ -81,6 +81,10 @@ class TestContrastiveLossWithTemperature(unittest.TestCase):
         loss_below_min = clip_loss_below_min(image_embeddings, text_embeddings).item()
         self.assertAlmostEqual(first=loss_below_min, second=loss_at_min, places=3)
 
+    def test_temperature_clamp_invalid(self):
+        with self.assertRaises(ValueError):
+            ContrastiveLossWithTemperature(logit_scale_max=None, logit_scale_min=None)
+
     @staticmethod
     def _model_worker(
         gpu_id: int,

@@ -158,10 +158,13 @@ class ContrastiveLossWithTemperature(nn.Module):
         logit_scale (Union[float, nn.Module]): Log of the learnable temperature parameter value
             A nn.Parameter instantiation can also be passed directly in case parent class
             is handling the initialization.
+            Defaults to ``ln(1/0.07)``, as in the CLIP paper.
         logit_scale_min (Optional[float]): Log of the minimum temperature value.
-            If None, then temperature will not be clamped to a minimum value.
+            If ``None``, then temperature will not be clamped to a minimum value.
+            Defaults to ``ln(1)``, as in the CLIP paper.
         logit_scale_max (Optional[float]): Log of the maximum temperature value.
-            If None, then temperature will not be clamped to a maximum value.
+            If ``None``, then temperature will not be clamped to a maximum value.
+            Defaults to ``ln(100)``, as in the CLIP paper.
 
     Inputs: image_embeddings (Tensor): Tensor containing image features.
                 (In the CLIP model, these are the outputs of the image encoder.)
@@ -179,14 +182,18 @@ class ContrastiveLossWithTemperature(nn.Module):
     ):
         super().__init__()
 
+        if not logit_scale_min and not logit_scale_max:
+            raise ValueError(
+                "At least one of `logit_scale_min` and `logit_scale_max` must not be None."
+            )
+        self.logit_scale_min = logit_scale_min
+        self.logit_scale_max = logit_scale_max
+
         # If already initialized, set to what was passed
         if isinstance(logit_scale, nn.Parameter):
             self.logit_scale = logit_scale
         else:
             self.logit_scale = nn.Parameter(logit_scale * torch.ones([]))
-
-        self.logit_scale_min = logit_scale_min
-        self.logit_scale_max = logit_scale_max
 
     def forward(
         self,
