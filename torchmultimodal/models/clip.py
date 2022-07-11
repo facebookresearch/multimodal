@@ -62,7 +62,7 @@ class CLIP(nn.Module):
         return CLIPOutput(embeddings_a=embeddings_a, embeddings_b=embeddings_b)
 
 
-def clip_vit_b16():
+def clip_vit_b16() -> CLIP:
     vision_encoder = VisionTransformer(
         image_size=224,
         patch_size=16,
@@ -76,7 +76,7 @@ def clip_vit_b16():
     return CLIP(vision_encoder, text_encoder)
 
 
-def clip_vit_b32():
+def clip_vit_b32() -> CLIP:
     vision_encoder = VisionTransformer(
         image_size=224,
         patch_size=32,
@@ -90,7 +90,7 @@ def clip_vit_b32():
     return CLIP(vision_encoder, text_encoder)
 
 
-def clip_vit_l14():
+def clip_vit_l14() -> CLIP:
     vision_encoder = VisionTransformer(
         image_size=224,
         patch_size=14,
@@ -104,7 +104,7 @@ def clip_vit_l14():
     return CLIP(vision_encoder, text_encoder)
 
 
-def clip_rn50():
+def clip_rn50() -> CLIP:
     vision_encoder = ResNetForCLIP(
         layers=(3, 4, 6, 3),
         output_dim=1024,
@@ -115,7 +115,7 @@ def clip_rn50():
     return CLIP(vision_encoder, text_encoder)
 
 
-def clip_rn101():
+def clip_rn101() -> CLIP:
     vision_encoder = ResNetForCLIP(
         layers=(3, 4, 23, 3),
         output_dim=1024,
@@ -127,7 +127,7 @@ def clip_rn101():
 
 
 # Note: these models require larger image sizes
-def clip_rn50x4():
+def clip_rn50x4() -> CLIP:
     vision_encoder = ResNetForCLIP(
         layers=(4, 6, 10, 6),
         output_dim=640,
@@ -139,7 +139,7 @@ def clip_rn50x4():
     return CLIP(vision_encoder, text_encoder)
 
 
-def clip_rn50x16():
+def clip_rn50x16() -> CLIP:
     vision_encoder = ResNetForCLIP(
         layers=(6, 8, 18, 8),
         output_dim=768,
@@ -151,7 +151,7 @@ def clip_rn50x16():
     return CLIP(vision_encoder, text_encoder)
 
 
-def clip_rn50x64():
+def clip_rn50x64() -> CLIP:
     vision_encoder = ResNetForCLIP(
         layers=(3, 15, 36, 10),
         output_dim=1024,
@@ -164,7 +164,7 @@ def clip_rn50x64():
 
 
 # Note: these models use torchvision's ResNet
-def clip_rn50_tv():
+def clip_rn50_tv() -> CLIP:
     vision_encoder = ResNet(
         block=Bottleneck,
         layers=(3, 4, 6, 3),
@@ -174,7 +174,7 @@ def clip_rn50_tv():
     return CLIP(vision_encoder, text_encoder)
 
 
-def clip_rn101_tv():
+def clip_rn101_tv() -> CLIP:
     vision_encoder = ResNet(
         block=Bottleneck,
         layers=(3, 4, 23, 3),

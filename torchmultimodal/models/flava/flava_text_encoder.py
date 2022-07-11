@@ -47,12 +47,14 @@ class TextEmbeddings(nn.Module):
         self.register_buffer(
             "position_ids", torch.arange(max_position_embeddings).expand((1, -1))
         )
+        self.position_ids: Tensor
         if version.parse(torch.__version__) > version.parse("1.6.0"):
             self.register_buffer(
                 "token_type_ids",
                 torch.zeros(self.position_ids.size(), dtype=torch.long),
                 persistent=False,
             )
+            self.token_type_ids: Tensor
 
     def forward(
         self,
@@ -61,7 +63,7 @@ class TextEmbeddings(nn.Module):
         position_ids: Optional[Tensor] = None,
         inputs_embeds: Optional[Tensor] = None,
         past_key_values_length: int = 0,
-    ):
+    ) -> Tensor:
         if input_ids is not None:
             input_shape = input_ids.size()
         else:
@@ -130,7 +132,7 @@ class TextTransformer(nn.Module):
         self.apply(weight_init_fn)
 
     def get_extended_attention_mask(
-        self, attention_mask: Tensor, input_shape: Tuple[int], device: device
+        self, attention_mask: Tensor, input_shape: Tuple[int, ...], device: device
     ) -> Tensor:
         """
         Makes broadcastable attention and causal masks so that future and masked tokens are ignored.
@@ -174,7 +176,7 @@ class TextTransformer(nn.Module):
         token_type_ids: Optional[Tensor] = None,
         position_ids: Optional[Tensor] = None,
         attention_mask: Optional[Tensor] = None,
-    ):
+    ) -> FLAVATransformerOutput:
         if input_ids is None:
             raise ValueError("You have to specify input_ids")
         input_shape = input_ids.size()
@@ -230,7 +232,7 @@ def flava_text_encoder(
     pad_token_id: int = 0,
     type_vocab_size: int = 2,
     max_position_embeddings: int = 512,
-):
+) -> TextTransformer:
     embeddings = TextEmbeddings(
         hidden_size=hidden_size,
         vocab_size=vocab_size,

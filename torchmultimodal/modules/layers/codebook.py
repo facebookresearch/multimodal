@@ -135,7 +135,9 @@ class Codebook(nn.Module):
 
         return encoded_flat, permuted_shape
 
-    def _ema_update_embedding(self, encoded_flat: Tensor, codebook_indices: Tensor):
+    def _ema_update_embedding(
+        self, encoded_flat: Tensor, codebook_indices: Tensor
+    ) -> None:
         # Closed form solution of codebook loss, ||e - E(x)||^2, is simply the average
         # of the encoder output. However, we can't compute this in minibatches, so we
         # must use exponential moving average.
@@ -207,7 +209,7 @@ class Codebook(nn.Module):
 
         return CodebookOutput(encoded_flat, quantized_flat, codebook_indices, quantized)
 
-    def extra_repr(self):
+    def extra_repr(self) -> str:
         return "num_embeddings={}, embedding_dim={}".format(
             self.num_embeddings, self.embedding_dim
         )
