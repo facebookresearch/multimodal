@@ -16,9 +16,6 @@ from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
 )
 
 _OMNIVORE_PRETRAINED_URLS = {
-    "swin_t": "https://download.pytorch.org/models/omnivore_swin_t-5b532aca.pth",
-    "swin_s": "https://download.pytorch.org/models/omnivore_swin_s-b64cc260.pth",
-    "swin_b": "https://download.pytorch.org/models/omnivore_swin_b-c2a4d126.pth",
     "swin_t_encoder": "https://download.pytorch.org/models/omnivore_swin_t_encoder-b7e39400.pth",
     "swin_s_encoder": "https://download.pytorch.org/models/omnivore_swin_s_encoder-40b05ba1.pth",
     "swin_b_encoder": "https://download.pytorch.org/models/omnivore_swin_b_encoder-a9134768.pth",
@@ -91,9 +88,9 @@ class PatchEmbedOmnivore(nn.Module):
     reference: https://arxiv.org/abs/2201.08377
 
     Args:
-        patch_size (Tuple[int, int, int]): Patch token size. Default: (2, 4, 4)
-        embed_dim (int): Number of linear projection output channels. Default: 96
-        norm_layer (nn.Module, optional): Normalization layer. Default: None
+        patch_size (Tuple[int, int, int]): Patch token size. Default: ``(2, 4, 4)``
+        embed_dim (int): Number of linear projection output channels. Default: ``96``
+        norm_layer (nn.Module, optional): Normalization layer. Default: ``None``
     """
 
     def __init__(
@@ -199,8 +196,8 @@ def omnivore_swin_t(pretrained: bool = False, progress: bool = True) -> nn.Modul
     Builder function to get omnivore model with swin_t variant encoder
     Args:
         pretrained (bool): If true then the it will load pretrained weight,
-            otherwise it will have random weight (default: False)
-        progress (bool): If true then there will be a progress bar for downloading weight (default: True)
+            otherwise it will have random weight (default: ``False``)
+        progress (bool): If true then there will be a progress bar for downloading weight (default: ``True``)
     """
     encoder = omnivore_swin_t_encoder(pretrained=pretrained)
     heads = _multimodal_head(input_dim=encoder.num_features)
@@ -219,8 +216,8 @@ def omnivore_swin_s(pretrained: bool = False, progress: bool = True) -> nn.Modul
     Builder function to get omnivore model with swin_s variant encoder
     Args:
         pretrained (bool): If true then the it will load pretrained weight,
-            otherwise it will have random weight (default: False)
-        progress (bool): If true then there will be a progress bar for downloading weight (default: True)
+            otherwise it will have random weight (default: ``False``)
+        progress (bool): If true then there will be a progress bar for downloading weight (default: ``True``)
     """
     encoder = omnivore_swin_s_encoder(pretrained=pretrained)
     heads = _multimodal_head(input_dim=encoder.num_features)
@@ -239,8 +236,8 @@ def omnivore_swin_b(pretrained: bool = False, progress: bool = True) -> nn.Modul
     Builder function to get omnivore model with swin_b variant encoder
     Args:
         pretrained (bool): If true then the it will load pretrained weight,
-            otherwise it will have random weight (default: False)
-        progress (bool): If true then there will be a progress bar for downloading weight (default: True)
+            otherwise it will have random weight (default: ``False``)
+        progress (bool): If true then there will be a progress bar for downloading weight (default: ``True``)
     """
     encoder = omnivore_swin_b_encoder(pretrained=pretrained)
     heads = _multimodal_head(input_dim=encoder.num_features)
