@@ -16,6 +16,17 @@ from torch.utils.data import DataLoader, DistributedSampler
 
 
 class VQADataModule(LightningDataModule):
+    """
+    The Data Module for Visual Question Answering task.
+
+    Args:
+        train_files (List[str]): The paths to training json files.
+        test_files (List[str]): The paths to testing json files.
+        answer_list (str): The path to the answers list.
+        vqa_root (str): The path to vqa data directory.
+        vg_root (str): The path to vg data directory.
+    """
+
     def __init__(
         self,
         train_files: List[str],
@@ -65,6 +76,18 @@ class VQADataModule(LightningDataModule):
         num_tasks: int = 0,
         global_rank: int = 0,
     ) -> DataLoader:
+        """
+        DataLoader Outputs:
+            images (Tensor): Tensor of shape (B, C, W, H) of image inputs.
+            questions (Tensor): Tensor of shape (B, L) of question inputs.
+            question_atts (Tensor): Tensor of shape (B, L) of question attention mask.
+            answers (Tensor): Tensor of shape (N, M) of answer inputs.
+                N >= B because a vqa sample can have multiple answers.
+            answer_atts (Tensor): Tensor of shape (N, M) of answer attention mask.
+            weights (Tensor): Tensor of shape (N) of answer weights.
+            ans_lengths (List[int]): List of length B and sum N where
+                ans_lengths[i] = number of answers for images[i] and questions[i].
+        """
         sampler = self._get_sampler(
             dataset=self.train_dataset,
             shuffle=True,
@@ -80,7 +103,7 @@ class VQADataModule(LightningDataModule):
             pin_memory=True,
             sampler=sampler,
             shuffle=shuffle,
-            collate_fn=vqa_collate_fn,
+            collate_fn=vqa_train_collate_fn,
             drop_last=True,
         )
 
@@ -92,6 +115,13 @@ class VQADataModule(LightningDataModule):
         num_tasks: int = 0,
         global_rank: int = 0,
     ) -> DataLoader:
+        """
+        DataLoader Outputs:
+            images (Tensor): Tensor of shape (B, C, W, H) of image inputs.
+            questions (Tensor): Tensor of shape (B, L) of question inputs.
+            question_atts (Tensor): Tensor of shape (B, L) of question attention mask.
+            question_ids (List): List of length B of question ids.
+        """
         sampler = self._get_sampler(
             dataset=self.test_dataset,
             shuffle=False,
@@ -106,31 +136,31 @@ class VQADataModule(LightningDataModule):
             pin_memory=True,
             sampler=sampler,
             shuffle=False,
-            collate_fn=None,
+            collate_fn=vqa_test_collate_fn,
             drop_last=False,
         )
 
 
-def vqa_collate_fn(
-    batch: List[Tensor, Tensor, List[Tensor], List[float]]
-) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, List]:
-    image_list, question_list, answer_list, weight_list, n = [], [], [], [], []
+def vqa_train_collate_fn(
+    batch: List[Tuple[Tensor, Tensor, List[Tensor], List[float]]]
+) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, List[int]]:
+    image_list = []
+    question_list = []
+    answer_list = []
+    weight_list = []
+    ans_lengths = []
     for image, question, answer, weights in batch:
         image_list.append(image)
-        images = torch.stack(image_list, dim=0)
-
         question_list.append(question)
-        questions = pad_sequence(question_list, batch_first=True)
-        question_atts = (questions != 0).type(torch.long)
-
         answer_list += answer
-        answers = pad_sequence(answer_list, batch_first=True)
-        answer_atts = (answers != 0).type(torch.long)
-
         weight_list += weights
-        weights = torch.Tensor(weight_list)
-
-        n.append(len(answer))
+        ans_lengths.append(len(answer))
+    images = torch.stack(image_list, dim=0)
+    questions = pad_sequence(question_list, batch_first=True)
+    question_atts = (questions != 0).type(torch.long)
+    answers = pad_sequence(answer_list, batch_first=True)
+    answer_atts = (answers != 0).type(torch.long)
+    weights = torch.Tensor(weight_list)
     return (
         images,
         questions,
@@ -138,5 +168,24 @@ def vqa_collate_fn(
         answers,
         answer_atts,
         weights,
-        n,
+        ans_lengths,
+    )
+
+
+def vqa_test_collate_fn(
+    batch: List[Tuple[Tensor, Tensor, int]]
+) -> Tuple[Tensor, Tensor, Tensor, List[int]]:
+    image_list, question_list, question_ids = [], [], []
+    for image, question, question_id in batch:
+        image_list.append(image)
+        question_list.append(question)
+        question_ids.append(question_id)
+    images = torch.stack(image_list, dim=0)
+    questions = pad_sequence(question_list, batch_first=True)
+    question_atts = (questions != 0).type(torch.long)
+    return (
+        images,
+        questions,
+        question_atts,
+        question_ids,
     )

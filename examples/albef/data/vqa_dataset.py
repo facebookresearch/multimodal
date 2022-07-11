@@ -26,7 +26,7 @@ class VQADataset(Dataset):
         vg_root (str): The path to vg data directory.
         transform (ALBEFTransform): Image and text transforms.
         split (str): Indicates train or test. Default is train.
-        answer_list (str): the path to the answers list. Required for test split.
+        answer_list (str): The path to the answers list. Required for test split.
     """
 
     def __init__(

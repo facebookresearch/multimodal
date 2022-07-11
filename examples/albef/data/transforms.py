@@ -19,6 +19,24 @@ STDEV = (0.26862954, 0.26130258, 0.27577711)
 
 
 class ALBEFTransform:
+    """
+    Data transform for ALBEF model image and text input.
+
+    Args:
+        image_size (int): The input image resolution. Default is 384.
+        scale (Tuple[float, float]): The scaling factors for RandomResizedCrop. Default is (0.5, 1.0).
+        image_interpolation (InterpolationMode): The interpolation mode for RandomResizedCrop. Default is BICUBIC.
+        mean (Tuple[float, float, float]): The mean for dataset normalization.
+            Default is (0.48145466, 0.4578275, 0.40821073).
+        stdev (Tuple[float, float, float]): The standard devaiation for dataset normalization.
+            Default is (0.26862954, 0.26130258, 0.27577711).
+        is_train (bool): whether the dataset is a training dataset. Default is True.
+
+    Inputs:
+        image (Union[Iterable[Image], Image]): an image input or a batch of image inputs.
+        text: (Union[Iterable[str], str]): a text input or a batch of text inputs.
+    """
+
     def __init__(
         self,
         image_size: int = 384,
