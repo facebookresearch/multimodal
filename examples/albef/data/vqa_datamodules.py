@@ -40,7 +40,7 @@ class VQADataModule(LightningDataModule):
             train_files,
             vqa_root,
             vg_root,
-            ALBEFTransform(),
+            ALBEFTransform(is_train=True),
             split="train",
         )
 
@@ -56,10 +56,10 @@ class VQADataModule(LightningDataModule):
     def _get_sampler(
         self,
         dataset: VQADataset,
-        shuffle: bool = False,
-        is_distributed: bool = False,
-        num_tasks: int = 1,
-        global_rank: int = 1,
+        shuffle: bool,
+        is_distributed: bool,
+        num_tasks: int,
+        global_rank: int,
     ) -> Union[None, DistributedSampler]:
         if not is_distributed:
             return None
