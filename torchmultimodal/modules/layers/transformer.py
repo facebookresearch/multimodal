@@ -167,7 +167,7 @@ class FLAVATransformerLayer(nn.Module):
     def forward(
         self,
         hidden_states: Tensor,
-        attention_mask: Tensor = None,
+        attention_mask: Optional[Tensor] = None,
         head_mask: Tensor = None,
     ) -> Tuple[Tensor, Tensor]:
         # TODO(asg): Support postnorm transformer architecture

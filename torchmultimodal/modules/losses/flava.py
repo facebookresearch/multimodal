@@ -442,10 +442,10 @@ class FLAVAPretrainingLoss(nn.Module):
                 else -(text_masked_sequence.size(1) - 1)
             )
             sequence_for_text = multimodal_masked_sequence[:, start_index:, :]
-            outputs.mmm_text_output = self.mmm_loss["mlm"](
+            outputs.mmm_text_output = self.mmm_loss.mlm(
                 sequence_for_text,
                 mlm_labels,
-            )
+            )  # type: ignore
             outputs.mmm_text_output.loss *= self.mmm_text_loss_weight
             outputs.losses.mmm_text_loss = outputs.mmm_text_output.loss
 
@@ -458,10 +458,10 @@ class FLAVAPretrainingLoss(nn.Module):
                 else (image_masked_sequence.size(1) - 1)
             )
             sequence_for_image = multimodal_masked_sequence[:, 2 : 2 + total_indices, :]
-            outputs.mmm_image_output = self.mmm_loss["mim"](
+            outputs.mmm_image_output = self.mmm_loss.mim(
                 sequence_for_image,
                 mim_labels,
-            )
+            )  # type: ignore
             outputs.mmm_image_output.loss *= self.mmm_image_loss_weight
             outputs.losses.mmm_image_loss = outputs.mmm_image_output.loss
 
