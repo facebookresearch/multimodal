@@ -81,15 +81,18 @@ def train_one_epoch(
     for i, ((image, target), input_type) in enumerate(
         metric_logger.log_every(data_loader, args.print_freq, header)
     ):
-        # Doing gradient accumulation with accumulation size depend on input_type
+        # If input_type is video, we will do "gradient accumulation" to reduce gpu memory usage
+        # Each forward-backward call will be done on smaller chunk_size where chunk_size
+        # is roughly batch_size divided by number of accumulation iteration
         accum_iter = 1
         if input_type == "video":
             accum_iter = args.video_grad_accum_iter
         start_time = time.time()
         b, c, t, h, w = image.shape
 
-        # Accumulate loss from smaller chunk size (compared to batch_size)
         chunk_start = 0
+        # We rounding up chunk_size and realized_accum_iter in case the batch size
+        # is not divisible by accum_iter
         chunk_size = (b + accum_iter - 1) // accum_iter
         realized_accum_iter = (b + chunk_size - 1) // chunk_size
         all_chunk_outputs = []
@@ -238,9 +241,8 @@ def main(args):
 
     data_loader, data_loader_test = data_builder.get_omnivore_data_loader(args)
 
-    print("Creating model")
-    # model = torchvision.models.__dict__[args.model](weights=args.weights, num_classes=num_classes)
-    model = omnivore.omnivore_swin_t()
+    print(f"Creating model: {args.model}")
+    model = getattr(omnivore, args.model)()
     model.to(device)
 
     if args.distributed and args.sync_bn:
@@ -439,6 +441,12 @@ def get_args_parser(add_help=True):
         default="cuda",
         type=str,
         help="device (Use cuda or cpu Default: cuda)",
+    )
+    parser.add_argument(
+        "--model",
+        default="omnivore_swin_t",
+        type=str,
+        help="Model name. Default: 'omnivore_swin_t'",
     )
     parser.add_argument(
         "-b",
@@ -650,7 +658,6 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "--weights", default=None, type=str, help="the weights enum name to load"
     )
-
     parser.add_argument(
         "--train-resize-size",
         default=256,
@@ -742,7 +749,6 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--loader-drop-last",
-        type=bool,
         action="store_true",
         help="Drop last parameter in DataLoader",
     )

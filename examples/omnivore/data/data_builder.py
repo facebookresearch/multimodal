@@ -1,3 +1,13 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree.
+
+# This file, data_builder.py, consists of functions to build the dataset
+# for training in torchmultimodal/examples/omnivore/train.py
+# Since there are a lot of parameters, we will pass it with args
+
 import os
 import datetime
 import time
@@ -95,7 +105,7 @@ def get_single_data_loader_from_dataset(train_dataset, val_dataset, dataset_name
         num_workers=num_train_workers,
         pin_memory=args.loader_pin_memory,
         collate_fn=collate_fn,
-        drop_last=args.drop_last,
+        drop_last=args.loader_drop_last,
     )
     val_data_loader = torch.utils.data.DataLoader(
         val_dataset,
@@ -103,7 +113,7 @@ def get_single_data_loader_from_dataset(train_dataset, val_dataset, dataset_name
         sampler=val_sampler,
         num_workers=num_val_workers,
         pin_memory=args.loader_pin_memory,
-        drop_last=args.drop_last,
+        drop_last=args.loader_drop_last,
     )
     return train_data_loader, val_data_loader
 
@@ -177,10 +187,10 @@ def get_imagenet_data_loader(args):
     )
 
     imagenet_train_dataset = torchvision.datasets.folder.ImageFolder(
-        f"{imagenet_path}/train", imagenet_train_preset
+        os.path.join(imagenet_path, "train"), imagenet_train_preset
     )
     imagenet_val_dataset = torchvision.datasets.folder.ImageFolder(
-        f"{imagenet_path}/val", imagenet_val_preset
+        os.path.join(imagenet_path, "val"), imagenet_val_preset
     )
 
     (
