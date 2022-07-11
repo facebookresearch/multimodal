@@ -12,7 +12,8 @@ from torchmultimodal.transforms.bert_text_transform import BertTextTransform
 from torchvision import transforms
 from torchvision.transforms import RandAugment
 
-
+# mean and standard deviation from the ALBEF repo:
+# https://github.com/salesforce/ALBEF/blob/main/dataset/__init__.py#L16
 MEAN = (0.48145466, 0.4578275, 0.40821073)
 STDEV = (0.26862954, 0.26130258, 0.27577711)
 
@@ -56,7 +57,6 @@ class ALBEFTransform:
         self,
         image: Union[Iterable[Image], Image],
         text: Union[Iterable[str], str],
-        is_answer: bool = False,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # Convert to list
         if isinstance(text, str):
@@ -66,9 +66,6 @@ class ALBEFTransform:
 
         # Text transform
         text_result = self.text_transform(text)
-        if is_answer:
-            # TODO: add 102 here to the end of each text_result (before padding)
-            pass
 
         # Image transform
         image_result = torch.stack([self.image_transform(x) for x in image])

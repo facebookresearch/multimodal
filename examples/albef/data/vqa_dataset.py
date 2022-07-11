@@ -7,7 +7,7 @@
 import json
 import os
 import re
-from typing import List, Union
+from typing import List, Tuple, Union
 
 from examples.albef.data.transforms import ALBEFTransform
 
@@ -25,9 +25,7 @@ class VQADataset(Dataset):
         vqa_root (str): The path to vqa data directory.
         vg_root (str): The path to vg data directory.
         transform (ALBEFTransform): Image and text transforms.
-        eos (str): The end-of-sentence token. Default is [SEP].
         split (str): Indicates train or test. Default is train.
-        max_words (int): the word limit for text preprocessing in training. Default is 30.
         answer_list (str): the path to the answers list. Required for test split.
     """
 
@@ -38,7 +36,6 @@ class VQADataset(Dataset):
         vg_root: str,
         transform: ALBEFTransform,
         split: str = "train",
-        max_words: int = 30,
         answer_list: str = "",
     ) -> None:
         self.ann = []
@@ -49,16 +46,18 @@ class VQADataset(Dataset):
         self.vg_root = vg_root
         self.transform = transform
         self.split = split
-        self.max_words = max_words
 
         if split == "test":
-            self.max_words = 50  # do not limit question length during test
             self.answer_list = json.load(open(answer_list, "r"))
 
     def __len__(self) -> int:
         return len(self.ann)
 
-    def __getitem__(self, index: int) -> Union[Tensor, Tensor, List[str], List[float]]:
+    def __getitem__(
+        self, index: int
+    ) -> Union[
+        Tuple[Tensor, Tensor, int], Tuple[Tensor, Tensor, List[Tensor], List[float]]
+    ]:
         ann = self.ann[index]
 
         if ann["dataset"] == "vqa":
@@ -70,14 +69,14 @@ class VQADataset(Dataset):
         image = self.transform.image_transform(image)
 
         if self.split == "test":
-            question = pre_question(ann["question"], self.max_words)
+            question = pre_question(ann["question"])
             question = self.transform.text_transform(question)
             question_id = ann["question_id"]
             return image, question, question_id
 
         elif self.split == "train":
 
-            question = pre_question(ann["question"], self.max_words)
+            question = pre_question(ann["question"])
             question = self.transform.text_transform(question)
 
             if ann["dataset"] == "vqa":
@@ -104,7 +103,7 @@ class VQADataset(Dataset):
             return image, question, answers, weights
 
 
-def pre_question(question, max_words):
+def pre_question(question: str) -> str:
     question = (
         re.sub(
             r"([,.'!?\"()*#:;~])",
@@ -115,10 +114,5 @@ def pre_question(question, max_words):
         .replace("/", " ")
     )
     question = question.rstrip(" ")
-
-    # truncate question
-    question_words = question.split(" ")
-    if len(question_words) > max_words:
-        question = " ".join(question_words[:max_words])
 
     return question

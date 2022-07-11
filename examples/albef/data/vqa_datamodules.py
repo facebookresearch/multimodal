@@ -4,12 +4,13 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import List, Union
+from typing import List, Tuple, Union
 
 import torch
 from examples.albef.data.transforms import ALBEFTransform
 from examples.albef.data.vqa_dataset import VQADataset
 from pytorch_lightning import LightningDataModule
+from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, DistributedSampler
 
@@ -22,7 +23,7 @@ class VQADataModule(LightningDataModule):
         answer_list: str,
         vqa_root: str,
         vg_root: str,
-    ):
+    ) -> None:
         super().__init__()
         self.train_dataset = VQADataset(
             train_files,
@@ -43,11 +44,11 @@ class VQADataModule(LightningDataModule):
 
     def _get_sampler(
         self,
-        dataset=VQADataset,
+        dataset: VQADataset,
         shuffle: bool = False,
         is_distributed: bool = False,
-        num_tasks: int = 0,
-        global_rank: int = 0,
+        num_tasks: int = 1,
+        global_rank: int = 1,
     ) -> Union[None, DistributedSampler]:
         if not is_distributed:
             return None
@@ -59,11 +60,11 @@ class VQADataModule(LightningDataModule):
     def train_dataloader(
         self,
         batch_size: int,
-        num_workers,
+        num_workers: int,
         is_distributed: bool = False,
         num_tasks: int = 0,
         global_rank: int = 0,
-    ):
+    ) -> DataLoader:
         sampler = self._get_sampler(
             dataset=self.train_dataset,
             shuffle=True,
@@ -86,11 +87,11 @@ class VQADataModule(LightningDataModule):
     def test_dataloader(
         self,
         batch_size: int,
-        num_workers,
+        num_workers: int,
         is_distributed: bool = False,
         num_tasks: int = 0,
         global_rank: int = 0,
-    ):
+    ) -> DataLoader:
         sampler = self._get_sampler(
             dataset=self.test_dataset,
             shuffle=False,
@@ -110,7 +111,9 @@ class VQADataModule(LightningDataModule):
         )
 
 
-def vqa_collate_fn(batch):
+def vqa_collate_fn(
+    batch: List[Tensor, Tensor, List[Tensor], List[float]]
+) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, List]:
     image_list, question_list, answer_list, weight_list, n = [], [], [], [], []
     for image, question, answer, weights in batch:
         image_list.append(image)
