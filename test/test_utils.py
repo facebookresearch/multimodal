@@ -12,7 +12,6 @@ from pathlib import Path
 
 import torch
 import torch.distributed as dist
-from torch import Tensor
 
 
 def gpu_test(gpu_count: int = 1):
@@ -71,9 +70,7 @@ def get_asset_path(file_name: str) -> str:
     return str(_ASSET_DIR.joinpath(file_name))
 
 
-def assert_expected(
-    actual: Tensor, expected: Tensor, rtol: float = None, atol: float = None
-):
+def assert_expected(actual: Any, expected: Any, rtol: float = None, atol: float = None):
     torch.testing.assert_close(
         actual,
         expected,
