@@ -136,7 +136,7 @@ def _omnivore_swin_t_encoder() -> SwinTransformer3d:
 # TODO: add pretrained weight capability
 def omnivore_swin_t(
     encoder_only: bool = False,
-) -> Union[OmnivoreArchitecture, SwinTransformer3d]:
+) -> Union[Omnivore, SwinTransformer3d]:
     encoder = _omnivore_swin_t_encoder()
     if encoder_only:
         return encoder
