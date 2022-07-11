@@ -9,7 +9,6 @@ from typing import Callable, Optional
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
-from torch.nn import CrossEntropyLoss
 
 
 class ImageTextContrastiveLoss(nn.Module):
@@ -160,7 +159,6 @@ class MaskedLanguageModelingLoss(nn.Module):
         self.prediction_head = PredictionHead(
             vocab_size, hidden_size, layer_norm_eps, transform_act_fn
         )
-        self.loss_fn = CrossEntropyLoss(reduction="none")
 
     def forward(
         self,
@@ -173,8 +171,10 @@ class MaskedLanguageModelingLoss(nn.Module):
         # shift prediction scores and labels by one for next-token prediction
         prediction_scores = prediction_scores[:, :-1, :].contiguous()
         labels = labels[:, 1:].contiguous()
-        mlm_loss = self.loss_fn(
-            prediction_scores.view(-1, self.vocab_size), labels.view(-1)
+        mlm_loss = F.cross_entropy(
+            prediction_scores.view(-1, self.vocab_size),
+            labels.view(-1),
+            reduction="none",
         )
         mlm_loss = mlm_loss.view(batch_size, -1).sum(1)
 
