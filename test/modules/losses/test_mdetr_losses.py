@@ -9,7 +9,7 @@ import random
 import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.modules.losses.mdetr import box_losses, classification_loss
+from torchmultimodal.modules.losses.mdetr import box_losses, soft_token_prediction_loss
 from torchvision.ops.boxes import box_convert
 
 
@@ -99,11 +99,11 @@ class TestMDETRLosses:
     def target_boxes(self, construct_valid_boxes, n_boxes_per_sample):
         return [construct_valid_boxes(n_boxes) for n_boxes in n_boxes_per_sample]
 
-    def test_classification_loss(
+    def test_soft_token_prediction_loss(
         self, pred_logits, n_boxes_per_sample, positive_map, indices, num_boxes
     ):
         actual = torch.Tensor(
-            classification_loss(
+            soft_token_prediction_loss(
                 pred_logits, n_boxes_per_sample, positive_map, indices, num_boxes
             )
         )
