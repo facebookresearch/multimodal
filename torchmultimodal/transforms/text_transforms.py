@@ -11,7 +11,7 @@ import torch.nn.functional as F
 
 
 class PadTransform:
-    def __init__(self, max_length: int):
+    def __init__(self, max_length: int) -> None:
         self.max_length = max_length
 
     def __call__(self, texts: torch.Tensor) -> torch.Tensor:
@@ -23,7 +23,7 @@ class PadTransform:
 
 
 class StrToIntTransform:
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     def __call__(
