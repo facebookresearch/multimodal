@@ -8,7 +8,7 @@ import hashlib
 import os
 from collections import OrderedDict
 from dataclasses import fields
-from typing import List, Optional
+from typing import List, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
@@ -183,3 +183,17 @@ class ModelOutput(OrderedDict):
     def items(self):
         for field in fields(self):
             yield field.name, getattr(self, field.name)
+
+
+def to_tuple_tuple(
+    param: Union[int, Tuple[int, ...]], dim_tuple: int, num_tuple: int
+) -> Tuple[Tuple[int, ...], ...]:
+    """
+    Convert single integer or single tuple to tuple of tuples.
+    Used for kernel_size and strides parameters in convolutional models
+    """
+    if isinstance(param, int):
+        param = (param,) * dim_tuple
+    if isinstance(param, tuple):
+        param_fixed = (param,) * num_tuple
+    return param_fixed
