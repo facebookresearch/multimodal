@@ -647,8 +647,6 @@ def mdetr_resnet101(
     # https://github.com/pytorch/vision/blob/main/torchvision/models/resnet.py#L204
     image_backbone.num_channels = 2048
     text_encoder = mdetr_roberta_text_encoder()
-    if embedding_dim is None:
-        embedding_dim = text_encoder.embedding_dim
     transformer = mdetr_transformer(
         transformer_d_model,
         transformer_num_heads,
