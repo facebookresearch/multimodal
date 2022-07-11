@@ -224,7 +224,7 @@ class FullAttention(nn.Module):
         q: Tensor,
         k: Tensor,
         v: Tensor,
-        decode_step: int = None,
+        decode_step: Optional[int] = None,
         decode_idx: Iterable[int] = None,
     ) -> Tensor:
         mask = torch.Tensor(self.mask) if self.causal else None
@@ -270,7 +270,7 @@ class AxialAttention(nn.Module):
         q: Tensor,
         k: Tensor,
         v: Tensor,
-        decode_step: int = None,
+        decode_step: Optional[int] = None,
         decode_idx: Iterable[int] = None,
     ) -> Tensor:
         # Ensure axial dim is within right dimensions, should be between head dim and embedding dim

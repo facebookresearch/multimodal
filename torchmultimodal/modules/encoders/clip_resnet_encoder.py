@@ -11,7 +11,7 @@ from typing import Tuple
 
 import torch
 import torch.nn.functional as F
-from torch import nn
+from torch import nn, Tensor
 
 EXPANSION = 4
 
@@ -61,7 +61,7 @@ class ResNetForCLIPBottleneck(nn.Module):
                 )
             )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         identity = x
 
         out = self.relu1(self.bn1(self.conv1(x)))
@@ -91,7 +91,7 @@ class AttentionPool2d(nn.Module):
         self.c_proj = nn.Linear(embed_dim, output_dim or embed_dim)
         self.num_heads = num_heads
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         x = x.reshape(x.shape[0], x.shape[1], -1).permute(2, 0, 1)  # NCHW -> (HW)NC
         x = torch.cat([x.mean(dim=0, keepdim=True), x], dim=0)  # (HW+1)NC
         x = x + self.positional_embedding[:, None, :].to(x.dtype)  # (HW+1)NC
@@ -217,8 +217,8 @@ class ResNetForCLIP(nn.Module):
                 if name.endswith("bn3.weight"):
                     nn.init.zeros_(param)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        def stem(x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: Tensor) -> Tensor:
+        def stem(x: Tensor) -> Tensor:
             x = self.relu1(self.bn1(self.conv1(x)))
             x = self.relu2(self.bn2(self.conv2(x)))
             x = self.relu3(self.bn3(self.conv3(x)))
