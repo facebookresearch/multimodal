@@ -193,7 +193,7 @@ def omnivore_swin_s(pretrained: bool = False, progress: bool = True) -> nn.Modul
             otherwise it will have random weight (default: False)
         progress (bool): If true then there will be a progress bar for downloading weight (default: True)
     """
-    encoder = omnivore_swin_s_encoder()
+    encoder = omnivore_swin_s_encoder(pretrained=pretrained)
     heads = _multimodal_head(input_dim=encoder.num_features)
     if pretrained:
         common_utils.load_module_from_url(
@@ -213,7 +213,7 @@ def omnivore_swin_b(pretrained: bool = False, progress: bool = True) -> nn.Modul
             otherwise it will have random weight (default: False)
         progress (bool): If true then there will be a progress bar for downloading weight (default: True)
     """
-    encoder = omnivore_swin_b_encoder()
+    encoder = omnivore_swin_b_encoder(pretrained=pretrained)
     heads = _multimodal_head(input_dim=encoder.num_features)
     if pretrained:
         common_utils.load_module_from_url(
