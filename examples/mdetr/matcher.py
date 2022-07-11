@@ -50,6 +50,9 @@ class HungarianMatcher(nn.Module):
         For each batch element, it holds:
             len(index_i) = len(index_j) = min(num_queries, num_target_boxes)
 
+    Raises:
+        ValueError: If all costs are zero or first dim of target boxes and positive map
+            don't match or classification cost and bbox cost shapes don't match.
     """
 
     def __init__(
