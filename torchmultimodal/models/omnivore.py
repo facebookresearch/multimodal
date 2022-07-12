@@ -25,20 +25,22 @@ _OMNIVORE_PRETRAINED_URLS = {
 }
 
 
-class OmnivoreArchitecture(nn.Module):
+class Omnivore(nn.Module):
     """Omnivore is a model that accept multiple vision modality.
 
     Omnivore (https://arxiv.org/abs/2201.08377) is a single model that able to do classification
     on images, videos, and single-view 3D data using the same shared parameters of the encoder.
 
-    Args:   encoder (nn.Module): Instantiated encoder.
-                See SwinTransformer3dEncoder class.
-            heads (Optinal[nn.ModuleDict]): Dictionary of multiple heads for each dataset type
+    Args:
+        encoder (nn.Module): Instantiated encoder. It generally accept a video backbone.
+            The paper use SwinTransformer3d for the encoder.
+        heads (Optional[nn.ModuleDict]): Dictionary of multiple heads for each dataset type
 
-    Inputs: x (Tensor): 5 Dimensional batched video tensor with format of B C D H W
-                where B is batch, C is channel, D is time, H is height, and W is width.
-            input_type (str): The dataset type of the input, this will used to choose
-                the correct head.
+    Inputs:
+        x (Tensor): 5 Dimensional batched video tensor with format of B C D H W
+            where B is batch, C is channel, D is time, H is height, and W is width.
+        input_type (str): The dataset type of the input, this will used to choose
+            the correct head.
     """
 
     def __init__(self, encoder: nn.Module, heads: nn.ModuleDict):
@@ -207,7 +209,7 @@ def omnivore_swin_t(pretrained: bool = False, progress: bool = True) -> nn.Modul
             _OMNIVORE_PRETRAINED_URLS["swin_t_heads"],
             progress=progress,
         )
-    model = OmnivoreArchitecture(encoder, heads)
+    model = Omnivore(encoder, heads)
     return model
 
 
@@ -227,7 +229,7 @@ def omnivore_swin_s(pretrained: bool = False, progress: bool = True) -> nn.Modul
             _OMNIVORE_PRETRAINED_URLS["swin_s_heads"],
             progress=progress,
         )
-    model = OmnivoreArchitecture(encoder, heads)
+    model = Omnivore(encoder, heads)
     return model
 
 
@@ -247,5 +249,5 @@ def omnivore_swin_b(pretrained: bool = False, progress: bool = True) -> nn.Modul
             _OMNIVORE_PRETRAINED_URLS["swin_b_heads"],
             progress=progress,
         )
-    model = OmnivoreArchitecture(encoder, heads)
+    model = Omnivore(encoder, heads)
     return model
