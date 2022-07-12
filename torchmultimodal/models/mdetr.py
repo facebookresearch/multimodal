@@ -150,14 +150,11 @@ class MDETR(nn.Module):
             text_memory=text_memory_resized,
             text_attention_mask=text_attention_mask,
         )
-        outputs_class = self.class_embed(transformer_outputs.decoder_hidden_states)
-        outputs_coord = self.bbox_embed(
-            transformer_outputs.decoder_hidden_states
-        ).sigmoid()
+        final_hidden_state = transformer_outputs.decoder_hidden_states[-1]
+        outputs_class = self.class_embed(final_hidden_state)
+        outputs_coord = self.bbox_embed(final_hidden_state).sigmoid()
         projected_queries = F.normalize(
-            self.contrastive_alignment_image_projection(
-                transformer_outputs.decoder_hidden_states
-            ),
+            self.contrastive_alignment_image_projection(final_hidden_state),
             p=2,
             dim=-1,
         )
@@ -168,11 +165,11 @@ class MDETR(nn.Module):
             p=2,
             dim=-1,
         )
-        # Return projections from the last layer of the decoders
+
         return MDETROutput(
-            pred_logits=outputs_class[-1],
-            pred_boxes=outputs_coord[-1],
-            projected_queries=projected_queries[-1],
+            pred_logits=outputs_class,
+            pred_boxes=outputs_coord,
+            projected_queries=projected_queries,
             projected_tokens=projected_tokens,
         )
 

@@ -19,7 +19,7 @@ def contrastive_alignment_loss(
     num_boxes: int,
     tokenized: BatchEncoding,
     temperature: float = 0.07,
-):
+) -> Tensor:
     """Contrastive alignment loss.
 
     Enforces alignment between the text representations after cross encoder and the
@@ -81,7 +81,12 @@ def contrastive_alignment_loss(
     return tot_loss / num_boxes
 
 
-def construct_positive_map(logits: Tensor, target_tokens, indices, tokenized):
+def construct_positive_map(
+    logits: Tensor,
+    target_tokens: List[List[List[int]]],
+    indices: List[Tuple[Tensor, Tensor]],
+    tokenized: BatchEncoding,
+):
     # construct a map such that positive_map[k, i,j] = True iff query i is associated to token j in batch item k
     # For efficency, the construction happens on CPU, then the whole matrix is transferred to GPU in one go.
     positive_map = torch.zeros(logits.shape, dtype=torch.bool)
@@ -91,23 +96,10 @@ def construct_positive_map(logits: Tensor, target_tokens, indices, tokenized):
             for (beg, end) in tok_list:
                 beg_pos = tokenized.char_to_token(i, beg)
                 end_pos = tokenized.char_to_token(i, end - 1)
-                if beg_pos is None:
-                    try:
-                        beg_pos = tokenized.char_to_token(beg + 1)
-                        if beg_pos is None:
-                            beg_pos = tokenized.char_to_token(beg + 2)
-                    except Exception:
-                        beg_pos = None
-                if end_pos is None:
-                    try:
-                        end_pos = tokenized.char_to_token(end - 2)
-                        if end_pos is None:
-                            end_pos = tokenized.char_to_token(end - 3)
-                    except Exception:
-                        end_pos = None
-                if beg_pos is None or end_pos is None:
-                    continue
 
-                assert beg_pos is not None and end_pos is not None
+                if beg_pos is None and end_pos is None:
+                    raise ValueError(
+                        "At least one of beg_pos and end_pos must not be None"
+                    )
                 positive_map[i, idx_src[j], beg_pos : end_pos + 1].fill_(True)
     return positive_map.to(logits.device)
