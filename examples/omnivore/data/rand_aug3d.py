@@ -5,11 +5,11 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
-from typing import Dict, List, Optional, Tuple
+from typing import List, Optional
 
 import torch
 from torch import Tensor
-from torchvision.transforms import functional as F, InterpolationMode
+from torchvision.transforms import autoaugment, functional as F, InterpolationMode
 
 __all__ = ["RandAugment3d"]
 
@@ -112,14 +112,9 @@ def _apply_op(
     return img
 
 
-class RandAugment3d(torch.nn.Module):
-    r"""**Modified RandAugment in order to handle single-view depth image**
-    RandAugment data augmentation method based on
-    `"RandAugment: Practical automated data augmentation with a reduced search space"
-    <https://arxiv.org/abs/1909.13719>`_.
-    If the image is torch Tensor, it should be of type torch.uint8, and it is expected
-    to have [..., 1 or 3, H, W] shape, where ... means an arbitrary number of leading dimensions.
-    If img is PIL Image, it is expected to be in mode "L" or "RGB".
+class RandAugment3d(autoaugment.RandAugment):
+    """Modified RandAugment in order to handle single-view depth image.
+    In here, color / non-geometric operation will only be applied on RGB channel.
 
     Args:
         num_ops (int): Number of augmentation transformations to apply sequentially.
@@ -140,12 +135,13 @@ class RandAugment3d(torch.nn.Module):
         interpolation: InterpolationMode = InterpolationMode.NEAREST,
         fill: Optional[List[float]] = None,
     ) -> None:
-        super().__init__()
-        self.num_ops = num_ops
-        self.magnitude = magnitude
-        self.num_magnitude_bins = num_magnitude_bins
-        self.interpolation = interpolation
-        self.fill = fill
+        super().__init__(
+            num_ops=num_ops,
+            magnitude=magnitude,
+            num_magnitude_bins=num_magnitude_bins,
+            interpolation=interpolation,
+            fill=fill,
+        )
         self.geom_ops = {
             "Identity",
             "ShearX",
@@ -153,36 +149,6 @@ class RandAugment3d(torch.nn.Module):
             "TranslateX",
             "TranslateY",
             "Rotate",
-        }
-
-    def _augmentation_space(
-        self, num_bins: int, image_size: Tuple[int, int]
-    ) -> Dict[str, Tuple[Tensor, bool]]:
-        return {
-            # op_name: (magnitudes, signed)
-            "Identity": (torch.tensor(0.0), False),
-            "ShearX": (torch.linspace(0.0, 0.3, num_bins), True),
-            "ShearY": (torch.linspace(0.0, 0.3, num_bins), True),
-            "TranslateX": (
-                torch.linspace(0.0, 150.0 / 331.0 * image_size[1], num_bins),
-                True,
-            ),
-            "TranslateY": (
-                torch.linspace(0.0, 150.0 / 331.0 * image_size[0], num_bins),
-                True,
-            ),
-            "Rotate": (torch.linspace(0.0, 30.0, num_bins), True),
-            "Brightness": (torch.linspace(0.0, 0.9, num_bins), True),
-            "Color": (torch.linspace(0.0, 0.9, num_bins), True),
-            "Contrast": (torch.linspace(0.0, 0.9, num_bins), True),
-            "Sharpness": (torch.linspace(0.0, 0.9, num_bins), True),
-            "Posterize": (
-                8 - (torch.arange(num_bins) / ((num_bins - 1) / 4)).round().int(),
-                False,
-            ),
-            # "Solarize": (torch.linspace(256.0, 0.0, num_bins), False),
-            "AutoContrast": (torch.tensor(0.0), False),
-            "Equalize": (torch.tensor(0.0), False),
         }
 
     def forward(self, img: Tensor) -> Tensor:
@@ -225,15 +191,3 @@ class RandAugment3d(torch.nn.Module):
                     fill=fill,
                 )
         return img
-
-    def __repr__(self) -> str:
-        s = (
-            f"{self.__class__.__name__}("
-            f"num_ops={self.num_ops}"
-            f", magnitude={self.magnitude}"
-            f", num_magnitude_bins={self.num_magnitude_bins}"
-            f", interpolation={self.interpolation}"
-            f", fill={self.fill}"
-            f")"
-        )
-        return s
