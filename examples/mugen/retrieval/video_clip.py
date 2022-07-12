@@ -9,7 +9,14 @@ from typing import Any, Dict, Optional
 import torch
 from examples.mugen.retrieval.s3d import S3D
 from torch import nn
+
+from torchmultimodal.utils.common import PretrainedMixin
 from transformers import DistilBertConfig, DistilBertModel
+
+
+PRETRAINED_S3D_KINETICS400_URL = (
+    "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/S3D_kinetics400.pt"
+)
 
 
 class TextEncoder(nn.Module):
@@ -68,18 +75,38 @@ class TextEncoder(nn.Module):
         return last_hidden_state[:, self.target_token_idx, :]
 
 
-class VideoEncoder(nn.Module):
-    """Encode videos to a fixed size vector. Adapted from VideoCLIP
-        (https://github.com/facebookresearch/fairseq/blob/main/examples/MMPT/mmpt/processors/models/s3dg.py)
+class VideoEncoder(nn.Module, PretrainedMixin):
+    """Encode videos to the last layer before the fully-connected layer of S3D.
+
+    Adapted from MUGEN's video encoder
+        (https://github.com/mugen-org/MUGEN_baseline/blob/main/lib/models/videoclip/modules.py)
+
+    Args:
+        pretrained (bool): whether to use a pretrained model or not.
+            Defaults to True.
+        pretrain_path (str): local path or remote URL to pretrained weights.
+            Defaults to ``PRETRAINED_S3D_KINETICS400_URL``, the weights MUGEN used from
+            pretraining S3D on Kinetics 400. Ignored if ``pretrained`` is False.
 
     Inputs:
         x (Tensor): batch of videos with dimensions (batch, channel, time, height, width)
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        pretrained: bool = True,
+        pretrain_path: str = PRETRAINED_S3D_KINETICS400_URL,
+    ):
         super().__init__()
         self.model = S3D(400)
         self.model.fc = nn.Identity()
 
+        if pretrained:
+            self.load_model(pretrain_path)
+
     def forward(self, x):
+        if x.shape[1] != 3:
+            raise ValueError(
+                "Channels must be at first (zero-indexed) dimension of input and of size 3."
+            )
         return self.model(x)
