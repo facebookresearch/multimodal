@@ -93,11 +93,18 @@ class VideoEncoder(nn.Module, PretrainedMixin):
 
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+        pretrained: bool = True,
+        pretrain_path: str = PRETRAINED_S3D_KINETICS400_URL,
+    ):
         super().__init__()
         self.model = S3D(400)
         self.out_dim = self.model.fc.in_channels
         self.model.fc = nn.Identity()
+
+        if pretrained:
+            self.load_model(pretrain_path)
 
     def forward(self, x):
         if x.shape[1] != 3:

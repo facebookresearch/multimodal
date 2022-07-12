@@ -111,7 +111,7 @@ class TestVideoEncoder:
     def test_forward(self, utils):
         make_input_video = utils
         input_video = make_input_video()
-        encoder = VideoEncoder()
+        encoder = VideoEncoder(pretrained=False)
         out = encoder(input_video)
         expected_sum = 846.3781
         assert_expected(
