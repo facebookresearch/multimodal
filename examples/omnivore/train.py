@@ -90,13 +90,13 @@ def train_one_epoch(
         if input_type == "video":
             accum_iter = args.video_grad_accum_iter
         start_time = time.time()
-        b, c, t, h, w = image.shape
+        batch_size = image.shape[0]
 
         chunk_start = 0
         # We rounding up chunk_size and realized_accum_iter in case the batch size
         # is not divisible by accum_iter
-        chunk_size = (b + accum_iter - 1) // accum_iter
-        realized_accum_iter = (b + chunk_size - 1) // chunk_size
+        chunk_size = (batch_size + accum_iter - 1) // accum_iter
+        realized_accum_iter = (batch_size + chunk_size - 1) // chunk_size
         all_chunk_outputs = []
         accum_loss = 0
         for chunk_num in range(realized_accum_iter):
@@ -156,7 +156,6 @@ def train_one_epoch(
         output = torch.cat(all_chunk_outputs, dim=0)
         target = target.to(device)
         acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
-        batch_size = image.shape[0]
         metric_logger.update(loss=accum_loss, lr=optimizer.param_groups[0]["lr"])
         metric_logger.meters[f"{input_type}_acc1"].update(acc1.item(), n=batch_size)
         metric_logger.meters[f"{input_type}_acc5"].update(acc5.item(), n=batch_size)
@@ -195,11 +194,11 @@ def evaluate(
             accum_iter = 1
             if input_type == "video":
                 accum_iter = args.video_grad_accum_iter
-            b, c, t, h, w = image.shape
 
+            batch_size = image.shape[0]
             chunk_start = 0
-            chunk_size = (b + accum_iter - 1) // accum_iter
-            realized_accum_iter = (b + chunk_size - 1) // chunk_size
+            chunk_size = (batch_size + accum_iter - 1) // accum_iter
+            realized_accum_iter = (batch_size + chunk_size - 1) // chunk_size
             accum_loss = 0
             all_chunk_outputs = []
             for chunk_num in range(realized_accum_iter):
@@ -224,7 +223,7 @@ def evaluate(
             if input_type == "video":
                 # Aggregate the prediction softmax and label for video-level accuracy
                 preds = torch.softmax(output, dim=1)
-                for batch_num in range(b):
+                for batch_num in range(batch_size):
                     idx = video_idx[batch_num].item()
                     agg_preds[idx] += preds[batch_num].detach()
                     agg_targets[idx] = target[batch_num].detach().item()
@@ -232,7 +231,6 @@ def evaluate(
             acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
             # FIXME need to take into account that the datasets
             # could have been padded in distributed setup
-            batch_size = image.shape[0]
             metric_logger.update(loss=accum_loss)
             metric_logger.meters[f"{input_type}_acc1"].update(acc1.item(), n=batch_size)
             metric_logger.meters[f"{input_type}_acc5"].update(acc5.item(), n=batch_size)

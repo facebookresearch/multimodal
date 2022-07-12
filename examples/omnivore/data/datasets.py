@@ -158,6 +158,22 @@ class OmnivoreSunRgbdDatasets(VisionDataset):
 
 
 class ConcatIterable:
+    """
+    ConcatIterable is used to group iterable object.
+    When user iterate on this object, we will sample random iterable and return their
+    item with coresponding output_key.
+    With repeat_factors, user can do upsampling or downsampling to the iterables.
+    We mainly use this class to concat different data loader during training.
+
+    Args:
+        iterables: the iterable objects that will be grouped
+        output_keys: List of keys that is used to identify the iterable output.
+            The list length should be the same as number of iterables.
+        repeat_factors: List of numbers that represent the upsampling / downsampling factor
+            to the coresponding iterables. Should have same length as iterables.
+        seed: the seed for randomness
+    """
+
     def __init__(self, iterables, output_keys, repeat_factors, seed=42):
         self.iterables = iterables
         self.output_keys = output_keys

@@ -21,6 +21,8 @@ def _apply_op(
     interpolation: InterpolationMode,
     fill: Optional[List[float]],
 ):
+    # Modified from torchvision.transforms.autoaugment._apply_op
+    # we assume the input img has type float and in range 0 to 1
     if op_name == "ShearX":
         # magnitude should be arctan(magnitude)
         # official autoaug: (1, level, 0, 0, 1, 0)
@@ -88,7 +90,11 @@ def _apply_op(
         img = F.posterize(img, int(magnitude))
         img = (img / 255.9999).to(dtype=torch.float32)
     elif op_name == "Solarize":
-        img = F.solarize(img, magnitude)
+        # The tensor dtype must be torch.uint8
+        # and values are expected to be in [0, 255]
+        img = (img * 255.9999).to(dtype=torch.uint8)
+        img = F.solarize(img, int(magnitude))
+        img = (img / 255.9999).to(dtype=torch.float32)
     elif op_name == "AutoContrast":
         img = F.autocontrast(img)
     elif op_name == "Equalize":

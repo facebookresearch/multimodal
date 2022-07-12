@@ -71,6 +71,8 @@ def get_single_data_loader_from_dataset(train_dataset, val_dataset, dataset_name
         )
     if mixup_transforms:
         mixupcutmix = torchvision.transforms.RandomChoice(mixup_transforms)
+        # Since not all dataset return tuple of same length, we take the
+        # first two elements that assumed to be image/video and label
         collate_fn = lambda batch: mixupcutmix(*(default_collate(batch)[:2]))  # noqa: E731
 
     num_train_workers = args.workers
