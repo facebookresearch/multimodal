@@ -6,13 +6,13 @@
 
 from typing import List
 
+from examples.cnn_lstm.cnn_encoder import CNNEncoder
+from examples.cnn_lstm.lstm_encoder import LSTMEncoder
+
 from torch import nn
 from torchmultimodal.architectures.late_fusion import LateFusionArchitecture
 from torchmultimodal.modules.fusions.concat_fusion import ConcatFusionModule
 from torchmultimodal.modules.layers.mlp import MLP
-
-from .cnn_encoder import CNNEncoder
-from .lstm_encoder import LSTMEncoder
 
 
 DEFAULT_CNN_INPUT_DIMS = [3, 64, 128, 128, 64, 64]
