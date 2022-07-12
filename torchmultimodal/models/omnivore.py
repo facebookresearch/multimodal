@@ -8,7 +8,7 @@
 from typing import Callable, List, Optional, Union
 
 import torch
-from torch import nn
+from torch import nn, Tensor
 from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
     PatchEmbed3d,
     SwinTransformer3d,
@@ -61,7 +61,7 @@ class Omnivore(nn.Module):
         self.encoder = encoder
         self.heads = heads
 
-    def forward(self, x: torch.Tensor, input_type: str):
+    def forward(self, x: torch.Tensor, input_type: str) -> Tensor:
         x = self.encoder(x)
         assert (
             input_type in self.heads
