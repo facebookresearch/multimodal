@@ -15,7 +15,7 @@ import torch
 import torchvision
 import torchvision.datasets.samplers as video_samplers
 import examples.omnivore.utils as utils
-from examples.omnivore.data import datasets, presets, transforms
+from examples.omnivore.data import datasets, presets, transforms, sampler
 from torch.utils.data.dataloader import default_collate
 from torchvision.transforms.functional import InterpolationMode
 
@@ -38,7 +38,7 @@ def get_sampler(train_dataset, val_dataset, dataset_name, args):
     else:
         if args.distributed:
             if hasattr(args, "ra_sampler") and args.ra_sampler:
-                train_sampler = RASampler(
+                train_sampler = sampler.RASampler(
                     train_dataset, shuffle=True, repetitions=args.ra_reps
                 )
             else:
@@ -71,7 +71,7 @@ def get_single_data_loader_from_dataset(train_dataset, val_dataset, dataset_name
         )
     if mixup_transforms:
         mixupcutmix = torchvision.transforms.RandomChoice(mixup_transforms)
-        collate_fn = lambda batch: mixupcutmix(*default_collate(batch))  # noqa: E731
+        collate_fn = lambda batch: mixupcutmix(*(default_collate(batch)[:2]))  # noqa: E731
 
     num_train_workers = args.workers
     num_val_workers = args.workers

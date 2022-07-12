@@ -17,8 +17,13 @@ from torchvision.datasets.vision import VisionDataset
 
 class OmnivoreKinetics(torchvision.datasets.kinetics.Kinetics):
     def __getitem__(self, idx):
-        video, audio, label = super().__getitem__(idx)
-        return video, label
+        video, audio, info, video_idx = self.video_clips.get_clip(idx)
+        label = self.samples[video_idx][1]
+
+        if self.transform is not None:
+            video = self.transform(video)
+
+        return video, label, video_idx
 
 
 class OmnivoreSunRgbdDatasets(VisionDataset):
@@ -49,7 +54,7 @@ class OmnivoreSunRgbdDatasets(VisionDataset):
                 "baseline": 0.095,  # guessed based on length of 18cm for ASUS xtion v1
             },
         }
-
+        # Omnivore only use these selected 19 classes
         self.classes = [
             "bathroom",
             "bedroom",

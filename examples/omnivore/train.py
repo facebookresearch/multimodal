@@ -78,9 +78,11 @@ def train_one_epoch(
     data_loader.init_indices(epoch=epoch, shuffle=True)
 
     header = f"Epoch: [{epoch}]"
-    for i, ((image, target), input_type) in enumerate(
+    for i, (batch_data, input_type) in enumerate(
         metric_logger.log_every(data_loader, args.print_freq, header)
     ):
+        image, target = batch_data[:2]
+
         # If input_type is video, we will do "gradient accumulation" to reduce gpu memory usage
         # Each forward-backward call will be done on smaller chunk_size where chunk_size
         # is roughly batch_size divided by number of accumulation iteration
@@ -169,12 +171,26 @@ def evaluate(
     header = f"Test: {log_suffix}"
 
     data_loader.init_indices(epoch=0, shuffle=False)
+    for i, modality in enumerate(args.modalities):
+        if modality == "video":
+            # We aggregate predictions of all clips per video to get video-level accuracy
+            # For this, we prepare a tensor to contain the aggregation
+            num_videos = len(data_loader.iterables[i].dataset.samples)
+            num_video_classes = len(data_loader.iterables[i].dataset.classes)
+            agg_preds = torch.zeros(
+                (num_videos, num_video_classes), dtype=torch.float32, device=device
+            )
+            agg_targets = torch.zeros((num_videos), dtype=torch.int32, device=device)
 
     num_processed_samples = 0
     with torch.inference_mode():
-        for (image, target), input_type in metric_logger.log_every(
+        for batch_data, input_type in metric_logger.log_every(
             data_loader, print_freq, header
         ):
+            image, target = batch_data[:2]
+            if input_type == "video":
+                video_idx = batch_data[2]
+
             # We do the evaluation in chunks to reduce memory usage for video
             accum_iter = 1
             if input_type == "video":
@@ -204,6 +220,15 @@ def evaluate(
 
             output = torch.cat(all_chunk_outputs, dim=0)
             target = target.to(device, non_blocking=True)
+
+            if input_type == "video":
+                # Aggregate the prediction softmax and label for video-level accuracy
+                preds = torch.softmax(output, dim=1)
+                for batch_num in range(b):
+                    idx = video_idx[batch_num].item()
+                    agg_preds[idx] += preds[batch_num].detach()
+                    agg_targets[idx] = target[batch_num].detach().item()
+
             acc1, acc5 = utils.accuracy(output, target, topk=(1, 5))
             # FIXME need to take into account that the datasets
             # could have been padded in distributed setup
@@ -219,7 +244,19 @@ def evaluate(
         try:
             acc1 = getattr(metric_logger, f"{modality}_acc1").global_avg
             acc5 = getattr(metric_logger, f"{modality}_acc5").global_avg
-            print(f"{header} {modality} Acc@1 {acc1:.3f} Image Acc@5 {acc5:.3f}")
+            if modality == "video":
+                # Reduce the agg_preds and agg_targets from all gpu and show result
+                agg_preds = utils.reduce_across_processes(agg_preds)
+                agg_targets = utils.reduce_across_processes(
+                    agg_targets, op=torch.distributed.ReduceOp.MAX
+                )
+                agg_acc1, agg_acc5 = utils.accuracy(agg_preds, agg_targets, topk=(1, 5))
+                print(f"{header} Clip Acc@1 {acc1:.3f} Clip Acc@5 {acc5:.3f}")
+                print(f"{header} Video Acc@1 {agg_acc1:.3f} Video Acc@5 {agg_acc5:.3f}")
+            else:
+                print(
+                    f"{header} {modality} Acc@1 {acc1:.3f} {modality} Acc@5 {acc5:.3f}"
+                )
         except Exception:
             pass
 
@@ -239,7 +276,7 @@ def main(args):
     else:
         torch.backends.cudnn.benchmark = True
 
-    data_loader, data_loader_test = data_builder.get_omnivore_data_loader(args)
+    train_data_loader, val_data_loader = data_builder.get_omnivore_data_loader(args)
 
     print(f"Creating model: {args.model}")
     model = getattr(omnivore, args.model)()
@@ -253,7 +290,6 @@ def main(args):
     parameters = utils.set_weight_decay(
         model,
         args.weight_decay,
-        norm_weight_decay=args.norm_weight_decay,
     )
 
     opt_name = args.opt.lower()
@@ -371,13 +407,13 @@ def main(args):
             evaluate(
                 model_ema,
                 criterion,
-                data_loader_test,
+                val_data_loader,
                 device=device,
                 args=args,
                 log_suffix="EMA",
             )
         else:
-            evaluate(model, criterion, data_loader_test, device=device, args=args)
+            evaluate(model, criterion, val_data_loader, device=device, args=args)
         return
 
     print("Start training")
@@ -387,7 +423,7 @@ def main(args):
             model,
             criterion,
             optimizer,
-            data_loader,
+            train_data_loader,
             device,
             epoch,
             args,
@@ -396,12 +432,12 @@ def main(args):
         )
         lr_scheduler.step()
         if epoch % args.num_epoch_per_eval == args.num_epoch_per_eval - 1:
-            evaluate(model, criterion, data_loader_test, device=device, args=args)
+            evaluate(model, criterion, val_data_loader, device=device, args=args)
             if model_ema:
                 evaluate(
                     model_ema,
                     criterion,
-                    data_loader_test,
+                    val_data_loader,
                     device=device,
                     args=args,
                     log_suffix="EMA",
@@ -483,12 +519,6 @@ def get_args_parser(add_help=True):
         metavar="W",
         help="weight decay (default: 1e-4)",
         dest="weight_decay",
-    )
-    parser.add_argument(
-        "--norm-weight-decay",
-        default=None,
-        type=float,
-        help="weight decay for Normalization layers (default: None, same value as --wd)",
     )
     parser.add_argument(
         "--label-smoothing",
@@ -737,8 +767,9 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--color-jitter-factor",
-        nargs=4,
+        default=[0.1, 0.1, 0.1, 0.1],
         type=float,
+        nargs=4,
         help="Color jitter factor in brightness, contrast, saturation, and hue",
     )
     parser.add_argument(
