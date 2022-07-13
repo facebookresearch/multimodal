@@ -17,6 +17,10 @@ from torchmultimodal.modules.layers.attention import (
 )
 
 
+# TODO: Port the entire script to pytest
+# TODO: Split into tests by attention module
+
+
 class TestAttention(unittest.TestCase):
     """
     Test all Attention classes
@@ -47,6 +51,17 @@ class TestAttention(unittest.TestCase):
             causal=False,
             attn_module=self.full,
         )
+        """
+        self.mha_causal = MultiHeadAttention(
+            self.input_shape,
+            self.hidden_dim,
+            self.hidden_dim,
+            self.n_heads,
+            1,
+            causal=True,
+            attn_module=self.full,
+        )
+        """
         self.block = AxialAttentionBlock(
             len(self.input_shape), self.hidden_dim, self.n_heads
         )
@@ -148,6 +163,70 @@ class TestAttention(unittest.TestCase):
             ]
         )
         assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+    def test_multi_head_attention_use_cache(self):
+        q = 2 * torch.ones(1, *self.input_shape, self.hidden_dim)
+        k = 2 * torch.ones(1, *self.input_shape, self.hidden_dim)
+        v = 2 * torch.ones(1, *self.input_shape, self.hidden_dim)
+        expected = torch.tensor(
+            [
+                [
+                    [
+                        [[2.4187, 4.1634, 1.4579], [2.4187, 4.1634, 1.4579]],
+                        [[2.4187, 4.1634, 1.4579], [2.4187, 4.1634, 1.4579]],
+                    ],
+                    [
+                        [[2.4187, 4.1634, 1.4579], [2.4187, 4.1634, 1.4579]],
+                        [[2.4187, 4.1634, 1.4579], [2.4187, 4.1634, 1.4579]],
+                    ],
+                ]
+            ]
+        )
+        # cached k, v are linearly projected and split-headed: (b, n_heads, *shape, emb_dim)
+        expected_k = torch.tensor(
+            [
+                [
+                    [
+                        [
+                            [[-0.6646, 2.5237, 0.9081], [-0.6646, 2.5237, 0.9081]],
+                            [[-0.6646, 2.5237, 0.9081], [-0.6646, 2.5237, 0.9081]],
+                        ],
+                        [
+                            [[-0.6646, 2.5237, 0.9081], [-0.6646, 2.5237, 0.9081]],
+                            [[-0.6646, 2.5237, 0.9081], [-0.6646, 2.5237, 0.9081]],
+                        ],
+                    ],
+                ],
+            ]
+        )
+        expected_v = torch.tensor(
+            [
+                [
+                    [
+                        [
+                            [[0.6410, 0.0894, 4.9714], [0.6410, 0.0894, 4.9714]],
+                            [[0.6410, 0.0894, 4.9714], [0.6410, 0.0894, 4.9714]],
+                        ],
+                        [
+                            [[0.6410, 0.0894, 4.9714], [0.6410, 0.0894, 4.9714]],
+                            [[0.6410, 0.0894, 4.9714], [0.6410, 0.0894, 4.9714]],
+                        ],
+                    ],
+                ],
+            ]
+        )
+
+        # initially the cache should be empty
+        assert not self.mha.cache
+        # test caching of k, v consistent between two passes
+        for i in range(2):
+            actual = self.mha(q, k, v, use_cache=True)
+            assert_expected(self.mha.cache["k"], expected_k, rtol=0, atol=1e-4)
+            assert_expected(self.mha.cache["v"], expected_v, rtol=0, atol=1e-4)
+            assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+    def test_multi_head_attention_causal_use_cache(self):
+        pass
 
     def test_axial_block_forward(self):
         """Test AxialAttentionBlock with sub-components"""
