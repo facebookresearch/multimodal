@@ -75,7 +75,7 @@ class TestBroadcastedPositionEmbedding:
 
     def test_forward(self, pos_emb):
         """Test the correct embeddings are returned for the given position ids"""
-        position_ids = torch.tensor([1, 3, -1])
+        position_ids = torch.tensor([[1, 3, -1]])
         actual = pos_emb(position_ids)
         expected = torch.tensor(
             [
