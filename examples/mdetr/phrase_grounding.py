@@ -22,7 +22,7 @@ from examples.mdetr.utils.metrics import MetricLogger
 from examples.mdetr.utils.misc import targets_to
 from torchmultimodal.models.mdetr import mdetr_resnet101
 
-# TODO (once losses are added): support logging of losses
+
 @torch.no_grad()
 def evaluate(
     model,

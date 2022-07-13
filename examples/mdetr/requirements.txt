@@ -1,3 +1,4 @@
+scipy
 prettytable
 pycocotools
 transformers

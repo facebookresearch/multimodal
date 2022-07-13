@@ -19,7 +19,7 @@ def build_flickr(image_set, tokenizer, transform, args):
     elif args.GT_type == "separate":
         identifier = "separateGT"
     else:
-        assert False, f"{args.GT_type} is not a valid type of annotation for flickr"
+        raise ValueError(f"{args.GT_type} is not a valid type of annotation for flickr")
 
     if args.test:
         ann_file = Path(args.flickr_ann_path) / f"final_flickr_{identifier}_test.json"
@@ -30,12 +30,12 @@ def build_flickr(image_set, tokenizer, transform, args):
 
     is_train = image_set == "train"
 
-    tokenizer = RobertaTokenizerFast.from_pretrained(args.text_encoder_type)
+    tokenizer = RobertaTokenizerFast.from_pretrained(args.tokenizer_type)
     dataset = ModulatedDetection(
         img_dir,
         ann_file,
         transforms=transform,
-        return_tokens=True,  # args.contrastive_align_loss,
+        return_tokens=True,
         tokenizer=tokenizer,
         is_train=is_train,
     )

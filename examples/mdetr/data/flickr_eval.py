@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 """ Evaluator for Flickr30k """
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as Et
 from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Union
@@ -13,6 +13,9 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 import numpy as np
 import utils.dist as dist
 from prettytable import PrettyTable
+
+from torch import Tensor
+from torchvision.ops.boxes import box_iou
 
 
 def get_sentence_data(filename) -> List[Dict[str, Any]]:
@@ -112,7 +115,7 @@ def get_annotations(
           width - int representing the width of the image
           depth - int representing the depth of the image
     """
-    tree = ET.parse(filename)
+    tree = Et.parse(filename)
     root = tree.getroot()
     size_container = root.findall("size")[0]
     anno_info: Dict[str, Union[int, List[str], Dict[str, List[List[int]]]]] = {}
@@ -149,59 +152,6 @@ def get_annotations(
     anno_info["scene"] = all_scenes
 
     return anno_info
-
-
-def box_area(boxes: np.array) -> np.array:
-    """
-    Computes the area of a set of bounding boxes, which are specified by its
-    (x1, y1, x2, y2) coordinates.
-
-    Args:
-        boxes (Tensor[N, 4]): boxes for which the area will be computed. They
-            are expected to be in (x1, y1, x2, y2) format with
-            ``0 <= x1 < x2`` and ``0 <= y1 < y2``.
-
-    Returns:
-        area (Tensor[N]): area for each box
-    """
-    assert boxes.ndim == 2 and boxes.shape[-1] == 4
-    return (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
-
-
-# implementation from https://github.com/kuangliu/torchcv/blob/master/torchcv/utils/box.py
-# with slight modifications
-def _box_inter_union(boxes1: np.array, boxes2: np.array):
-    area1 = box_area(boxes1)
-    area2 = box_area(boxes2)
-
-    lt = np.maximum(boxes1[:, None, :2], boxes2[:, :2])  # [N,M,2]
-    rb = np.minimum(boxes1[:, None, 2:], boxes2[:, 2:])  # [N,M,2]
-
-    wh = (rb - lt).clip(min=0)  # [N,M,2]
-    inter = wh[:, :, 0] * wh[:, :, 1]  # [N,M]
-
-    union = area1[:, None] + area2 - inter
-
-    return inter, union
-
-
-def box_iou(boxes1: np.array, boxes2: np.array) -> np.array:
-    """
-    Return intersection-over-union (Jaccard index) of boxes.
-
-    Both sets of boxes are expected to be in ``(x1, y1, x2, y2)`` format with
-    ``0 <= x1 < x2`` and ``0 <= y1 < y2``.
-
-    Args:
-        boxes1 (Tensor[N, 4])
-        boxes2 (Tensor[M, 4])
-
-    Returns:
-        iou (Tensor[N, M]): the NxM matrix containing the pairwise IoU values for every element in boxes1 and boxes2
-    """
-    inter, union = _box_inter_union(boxes1, boxes2)
-    iou = inter / union
-    return iou
 
 
 def _merge_boxes(boxes: List[List[int]]) -> List[List[int]]:
@@ -275,7 +225,6 @@ class Flickr30kEntitiesRecallEvaluator:
         topk: Sequence[int] = (1, 5, 10, -1),
         iou_thresh: float = 0.5,
         merge_boxes: bool = False,
-        verbose: bool = True,
     ):
 
         assert subset in ["train", "test", "val"], f"Wrong flickr subset {subset}"
@@ -285,18 +234,12 @@ class Flickr30kEntitiesRecallEvaluator:
 
         flickr_path = Path(flickr_path)
 
-        # We load the image ids corresponding to the current subset
+        # Load the image ids corresponding to the current subset
         with open(flickr_path / f"{subset}.txt") as file_d:
             self.img_ids = [line.strip() for line in file_d]
 
-        if verbose:
-            print(f"Flickr subset contains {len(self.img_ids)} images")
-
         # Read the box annotations for all the images
         self.imgid2boxes: Dict[str, Dict[str, List[List[int]]]] = {}
-
-        if verbose:
-            print("Loading annotations...")
 
         for img_id in self.img_ids:
             anno_info = get_annotations(flickr_path / "Annotations" / f"{img_id}.xml")[
@@ -311,9 +254,6 @@ class Flickr30kEntitiesRecallEvaluator:
 
         # Read the sentences annotations
         self.imgid2sentences: Dict[str, List[List[Optional[Dict]]]] = {}
-
-        if verbose:
-            print("Loading annotations...")
 
         self.all_ids: List[str] = []
         tot_phrases = 0
@@ -339,11 +279,6 @@ class Flickr30kEntitiesRecallEvaluator:
                 for k in range(len(sentence_info))
                 if self.imgid2sentences[img_id][k] is not None
             ]
-
-        if verbose:
-            print(
-                f"There are {tot_phrases} phrases in {len(self.all_ids)} sentences to evaluate"
-            )
 
     def evaluate(self, predictions: List[Dict]):
         evaluated_ids = set()
@@ -382,9 +317,6 @@ class Flickr30kEntitiesRecallEvaluator:
                     f"Unknown sentence id {pred['sentence_id']}"
                     f" in image {pred['image_id']}"
                 )
-            target_sentence = self.imgid2sentences[str(pred["image_id"])][
-                int(pred["sentence_id"])
-            ]
 
             phrases = self.imgid2sentences[str(pred["image_id"])][
                 int(pred["sentence_id"])
@@ -399,8 +331,7 @@ class Flickr30kEntitiesRecallEvaluator:
                 target_boxes = self.imgid2boxes[str(pred["image_id"])][
                     phrase["phrase_id"]
                 ]
-
-                ious = box_iou(np.asarray(cur_boxes), np.asarray(target_boxes))
+                ious = box_iou(Tensor(cur_boxes), Tensor(target_boxes))
                 for k in self.topk:
                     maxi = 0
                     if k == -1:
@@ -447,7 +378,6 @@ class FlickrEvaluator(object):
             topk=top_k,
             iou_thresh=iou_thresh,
             merge_boxes=merge_boxes,
-            verbose=False,
         )
         self.predictions = []
         self.results = None
