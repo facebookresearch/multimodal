@@ -7,7 +7,7 @@
 import unittest
 
 import torch
-from torchmultimodal.modules.encoders.lstm_encoder import LSTMEncoder
+from examples.cnn_lstm.lstm_encoder import LSTMEncoder
 
 
 class TestLSTMEncoder(unittest.TestCase):

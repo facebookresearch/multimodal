@@ -7,7 +7,7 @@
 import unittest
 
 import torch
-from torchmultimodal.models.cnn_lstm import cnn_lstm_classifier
+from examples.cnn_lstm.cnn_lstm import cnn_lstm_classifier
 
 
 class TestCNNLSTMModule(unittest.TestCase):
