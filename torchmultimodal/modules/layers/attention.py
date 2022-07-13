@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from itertools import repeat
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import torch
 from torch import nn, Tensor
@@ -83,7 +83,7 @@ class MultiHeadAttention(nn.Module):
     attend to information from different representation subspaces at different positions,
     as described in Attention Is All You Need (Vaswani et al. 2017).
 
-    Args:
+    Attributes:
         shape (Tuple[int]): shape of input data (d1, ..., dn)
         dim_q (int): dimensionality of query embedding vector
         dim_kv (int): dimensionality of key/value embedding vector
@@ -114,6 +114,9 @@ class MultiHeadAttention(nn.Module):
         attn_module: nn.Module,
     ) -> None:
         super().__init__()
+        if isinstance(attn_module, AxialAttention) and causal:
+            raise TypeError("Causal axial attention is not supported.")
+
         self.causal = causal
         self.shape = shape
 
@@ -134,7 +137,7 @@ class MultiHeadAttention(nn.Module):
 
         self.attn = attn_module
 
-        self.cache: Dict[str, Tensor] = dict()
+        self.cache: Optional[Dict[str, Tensor]] = None
 
     def _split_multihead(self, x: Tensor) -> Tensor:
         # Splits input tensor of size (b, d1, ..., dn, n_head * emb_dim)
@@ -161,7 +164,7 @@ class MultiHeadAttention(nn.Module):
         k = self._split_multihead(self.w_ks(k))
         v = self._split_multihead(self.w_vs(v))
 
-        # fast decoding
+        # fast decoding by caching past key, value tensors
         if use_cache:
             if not self.cache:
                 # initialize the cache with the present k, v
@@ -169,13 +172,11 @@ class MultiHeadAttention(nn.Module):
             else:
                 if self.causal:
                     # append present k, v to past k, v
+                    # for autoregressive decoding inputs are flattened as 1D sequences
+                    # so are the cached tensors: (b, n_heads, seq_len, c)
                     k_, v_ = self.cache["k"], self.cache["v"]
-                    self.cache["k"] = torch.cat(
-                        [k_, k], dim=2
-                    )  # (b, n_head, d1, ..., dn, emb_dim)
-                    self.cache["v"] = torch.cat(
-                        [v_, v], dim=2
-                    )  # (b, n_head, d1, ..., dn, emb_dim)
+                    self.cache["k"] = torch.cat([k_, k], dim=2)
+                    self.cache["v"] = torch.cat([v_, v], dim=2)
                 # override the present k, v with the cache
                 k, v = self.cache["k"], self.cache["v"]
 
