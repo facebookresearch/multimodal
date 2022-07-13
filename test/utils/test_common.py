@@ -10,7 +10,7 @@ import pytest
 import torch
 from test.test_utils import assert_expected
 
-from torchmultimodal.utils.common import shift_dim, tensor_slice
+from torchmultimodal.utils.common import shift_dim, tensor_slice, to_tuple_tuple
 
 
 def test_shift_dim():
@@ -57,3 +57,17 @@ class TestTensorSlice:
     @pytest.mark.xfail(raises=ValueError, reason="Invalid size")
     def test_invalid_size(self, test_input):
         tensor_slice(test_input, [0, 1, 0], [-2, 1, 2])
+
+
+class TestToTupleTuple:
+    @pytest.fixture(scope="class")
+    def expected(self):
+        return ((2, 2, 2), (2, 2, 2), (2, 2, 2))
+
+    def test_int(self, expected):
+        actual = to_tuple_tuple(2, 3, 3)
+        assert actual == expected, "int -> tuple[tuple] incorrect"
+
+    def test_tuple(self, expected):
+        actual = to_tuple_tuple((2, 2, 2), 3, 3)
+        assert actual == expected, "tuple -> tuple[tuple] incorrect"
