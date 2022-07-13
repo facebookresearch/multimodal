@@ -4,113 +4,240 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import copy
+from functools import partial
+
+import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn, Tensor
-from torchmultimodal.models.albef import ALBEFModel, ALBEFSimilarity
+from torchmultimodal.models.albef import (
+    ALBEFModel,
+    ALBEFModelWithSimilarity,
+    ALBEFSimilarity,
+)
+from torchmultimodal.modules.encoders.albef_multimodal_encoder import (
+    ALBEFMultimodalEncoder,
+)
+from torchmultimodal.modules.encoders.albef_text_encoder import ALBEFTextEncoder
+from torchmultimodal.modules.encoders.albef_vision_encoder import ALBEFVisionEncoder
+from torchmultimodal.utils.common import momentum_update, remove_grad
 
 
-class TestALBEFModel:
-    albef = ALBEFModel(
-        nn.Linear(3, 2),
-        nn.Linear(3, 2),
-        nn.Linear(3, 2),
+@pytest.fixture(autouse=True)
+def vision_encoder():
+    set_rng_seed(0)
+    return ALBEFVisionEncoder(
+        image_size=4,
+        patch_size=4,
+        num_layers=2,
+        num_heads=1,
+        hidden_dim=3,
+        mlp_dim=6,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
+    )
+
+
+@pytest.fixture(autouse=True)
+def text_encoder():
+    return ALBEFTextEncoder(hidden_size=3, num_attention_heads=1)
+
+
+@pytest.fixture(autouse=True)
+def multimodal_encoder():
+    return ALBEFMultimodalEncoder(hidden_size=3, num_attention_heads=1)
+
+
+@pytest.fixture(autouse=True)
+def albef_model(vision_encoder, text_encoder, multimodal_encoder):
+    return ALBEFModel(
+        vision_encoder,
+        text_encoder,
+        multimodal_encoder,
+    )
+
+
+@pytest.fixture(autouse=True)
+def albef_with_sim(albef_model):
+    return ALBEFModelWithSimilarity(
+        albef_model,
         nn.Linear(3, 2),
         nn.Linear(3, 2),
         embed_dim=2,
         queue_size=4,
     )
 
-    def test_copy_params_momentum_models(self):
-        self.albef.models_m = [nn.Linear(3, 2) for _ in range(5)]
-        self.albef._copy_params_momentum_models()
-        for model, model_m in zip(self.albef.models, self.albef.models_m):
-            for param, param_m in zip(model.parameters(), model_m.parameters()):
-                assert_expected(param, param_m, rtol=0, atol=1e-4)
-                assert not param_m.requires_grad
 
-    def test_dequeue_and_enqueue(self):
-        image_feat_m = torch.randn(2, 2)
-        text_feat_m = torch.randn(2, 2)
-        self.albef._dequeue_and_enqueue(image_feat_m, text_feat_m)
-        assert_expected(
-            self.albef.image_queue[:, 0:2], image_feat_m.T, rtol=0, atol=1e-4
-        )
-        assert_expected(self.albef.text_queue[:, 0:2], text_feat_m.T, rtol=0, atol=1e-4)
+@pytest.fixture(autouse=True)
+def albef_model_output(albef_model):
+    image = torch.randn(2, 3, 4, 4)
+    text = torch.randint(10, (2, 2))
+    text_atts = Tensor([[1, 1], [1, 0]])
+    return albef_model(image, text, text_atts)
 
-    def test_momentum_update(self):
-        init_weight = Tensor([[1, 2, 3], [4, 5, 6]])
-        init_weight_m = Tensor([[6, 5, 4], [3, 2, 1]])
-        self.albef.models[0].weight = nn.Parameter(init_weight)
-        self.albef.models_m[0].weight = nn.Parameter(init_weight_m)
-        self.albef._momentum_update()
-        expected_weight_m = Tensor([[5.9750, 4.9850, 3.9950], [3.0050, 2.0150, 1.0250]])
-        assert_expected(self.albef.models[0].weight, init_weight, rtol=0, atol=1e-4)
-        assert_expected(
-            self.albef.models_m[0].weight, expected_weight_m, rtol=0, atol=1e-4
-        )
 
-    def test_similarity(self):
-        set_rng_seed(0)
-        self.albef.image_queue = torch.randn(2, 4)
-        self.albef.text_queue = torch.randn(2, 4)
-        image_feat = torch.randn(2, 2)
-        text_feat = torch.randn(2, 2)
-        image_feat_m = torch.randn(2, 2)
-        text_feat_m = torch.randn(2, 2)
-        output = self.albef._similarity(
-            image_feat, text_feat, image_feat_m, text_feat_m
-        )
-        expected_sim_i2t = Tensor(
-            [
-                [-3.660729, -11.191917, 1.252719, 9.129601, -0.882724, -0.818697],
-                [15.755546, 21.687363, 27.634123, -18.587852, 30.696188, -4.964930],
-            ]
-        )
-        expected_sim_t2i = Tensor(
-            [
-                [27.311251, -23.288742, -14.411922, -30.653456, -3.136197, 20.444725],
-                [16.565296, -26.082125, 8.684321, -19.420963, -24.787359, 16.908016],
-            ]
-        )
-        expected_sim_i2t_m = Tensor(
-            [
-                [-13.028821, -22.274969, -17.438065, 18.764980, -20.974815, 2.714235],
-                [8.504787, 5.272466, 22.941040, -5.002890, 23.104834, -4.742508],
-            ]
-        )
-        expected_sim_t2i_m = Tensor(
-            [
-                [-13.028821, 8.504787, 10.671893, 14.442708, -3.490067, -8.771053],
-                [-22.274969, 5.272466, 31.752522, 24.050060, -23.705740, -11.501695],
-            ]
-        )
-        assert_expected(output.sim_i2t, expected_sim_i2t, rtol=0, atol=1e-4)
-        assert_expected(output.sim_t2i, expected_sim_t2i, rtol=0, atol=1e-4)
-        assert_expected(output.sim_i2t_m, expected_sim_i2t_m, rtol=0, atol=1e-4)
-        assert_expected(output.sim_t2i_m, expected_sim_t2i_m, rtol=0, atol=1e-4)
+def test_albef_image_embeddings(albef_model_output):
+    expected = Tensor(
+        [
+            [[1.364883, -1.003092, -0.361791], [-0.634884, 1.411830, -0.776947]],
+            [[1.401580, -0.537510, -0.864071], [1.378901, -0.417473, -0.961429]],
+        ]
+    )
+    assert_expected(albef_model_output.image_embeddings, expected, rtol=0, atol=1e-4)
 
-    def test_neg_embeddings(self):
-        set_rng_seed(0)
-        image_embeds = torch.randn(2, 1, 3)
-        text_embeds = torch.randn(2, 1, 3)
-        text_atts = torch.randn(2, 1)
-        similarity = ALBEFSimilarity(
-            sim_i2t=torch.randn(2, 5),
-            sim_t2i=torch.randn(2, 5),
-            sim_i2t_m=torch.randn(2, 5),
-            sim_t2i_m=torch.randn(2, 5),
-        )
-        image_embeds_neg, text_embeds_neg, text_atts_neg = self.albef._neg_embeddings(
-            image_embeds, text_embeds, text_atts, similarity
-        )
-        expected_image_embeds_neg = Tensor(
-            [[0.568431, -1.084522, -1.398595], [1.540996, -0.293429, -2.178789]]
-        ).unsqueeze(1)
-        expected_text_embeds_neg = Tensor(
-            [[-0.403344, -0.596635, 0.182036], [0.403347, 0.838026, -0.719258]]
-        ).unsqueeze(1)
-        expected_text_atts_neg = Tensor([1.100604, -0.856675]).unsqueeze(1)
-        assert_expected(image_embeds_neg, expected_image_embeds_neg, rtol=0, atol=1e-4)
-        assert_expected(text_embeds_neg, expected_text_embeds_neg, rtol=0, atol=1e-4)
-        assert_expected(text_atts_neg, expected_text_atts_neg, rtol=0, atol=1e-4)
+
+def test_albef_image_embeddings_momentum(albef_model_output):
+    expected = Tensor(
+        [
+            [[1.364883, -1.003092, -0.361791], [-0.634884, 1.411830, -0.776947]],
+            [[1.401580, -0.537510, -0.864070], [1.378902, -0.417473, -0.961429]],
+        ]
+    )
+    assert_expected(albef_model_output.image_embeddings_m, expected, rtol=0, atol=1e-4)
+
+
+def test_albef_text_embeddings(albef_model_output):
+    expected = Tensor(
+        [
+            [[-0.317956, 1.352367, -1.034411], [1.064044, -1.338780, 0.274735]],
+            [[-1.320019, 0.220507, 1.099512], [1.411497, -0.781628, -0.629869]],
+        ]
+    )
+    assert_expected(albef_model_output.text_embeddings, expected, rtol=0, atol=1e-4)
+
+
+def test_albef_text_embeddings_momentum(albef_model_output):
+    expected = Tensor(
+        [
+            [[-0.317956, 1.352367, -1.034411], [1.064044, -1.338780, 0.274735]],
+            [[-1.320019, 0.220507, 1.099512], [1.411497, -0.781628, -0.629869]],
+        ]
+    )
+    assert_expected(albef_model_output.text_embeddings_m, expected, rtol=0, atol=1e-4)
+
+
+def test_albef_multimodal_embeddings(albef_model_output):
+    expected = Tensor(
+        [
+            [[-0.068738, 1.257666, -1.188928], [1.409873, -0.609056, -0.800817]],
+            [[-1.402520, 0.544084, 0.858435], [1.202279, -1.246038, 0.043760]],
+        ]
+    )
+    assert_expected(
+        albef_model_output.multimodal_embeddings, expected, rtol=0, atol=1e-4
+    )
+
+
+def test_albef_multimodal_embeddings_momentum(albef_model_output):
+    expected = Tensor(
+        [
+            [[-0.068738, 1.257666, -1.188928], [1.409873, -0.609056, -0.800817]],
+            [[-1.402520, 0.544084, 0.858435], [1.202279, -1.246038, 0.043760]],
+        ]
+    )
+    assert_expected(
+        albef_model_output.multimodal_embeddings_m, expected, rtol=0, atol=1e-4
+    )
+
+
+def test_copy_params_momentum_models():
+    model = nn.Linear(3, 2)
+    model_m = copy.deepcopy(model)
+    remove_grad(model_m)
+    for param, param_m in zip(model.parameters(), model_m.parameters()):
+        assert_expected(param, param_m, rtol=0, atol=1e-4)
+        assert not param_m.requires_grad
+
+
+def test_dequeue_and_enqueue(albef_with_sim):
+    image_feat_m = torch.randn(2, 2)
+    text_feat_m = torch.randn(2, 2)
+    idx = Tensor([[2], [1]]).type(torch.long)
+    albef_with_sim._dequeue_and_enqueue(image_feat_m, text_feat_m, idx)
+    assert_expected(
+        albef_with_sim.image_queue[:, 0:2],
+        image_feat_m.T,
+        rtol=0,
+        atol=1e-4,
+    )
+    assert_expected(albef_with_sim.text_queue[:, 0:2], text_feat_m.T, rtol=0, atol=1e-4)
+    assert_expected(albef_with_sim.idx_queue[:, 0:2], idx.T, rtol=0, atol=1e-4)
+
+
+def test_momentum_update():
+    init_weight = Tensor([[1, 2, 3], [4, 5, 6]])
+    init_weight_m = Tensor([[6, 5, 4], [3, 2, 1]])
+    model = nn.Linear(3, 2)
+    model_m = nn.Linear(3, 2)
+    model.weight = nn.Parameter(init_weight)
+    model_m.weight = nn.Parameter(init_weight_m)
+    momentum_update(model, model_m, 0.75)
+    expected_weight_m = Tensor([[4.75, 4.25, 3.75], [3.25, 2.75, 2.25]])
+    assert_expected(model.weight, init_weight, rtol=0, atol=1e-4)
+    assert_expected(model_m.weight, expected_weight_m, rtol=0, atol=1e-4)
+
+
+def test_similarity(albef_with_sim):
+    albef_with_sim.image_queue = torch.randn(2, 4)
+    albef_with_sim.text_queue = torch.randn(2, 4)
+    image_embeds = torch.randn(2, 5, 3)
+    image_embeds_m = torch.randn(2, 5, 3)
+    text_embeds = torch.randn(2, 7, 3)
+    text_embeds_m = torch.randn(2, 7, 3)
+    idx = Tensor([[2], [1]]).type(torch.long)
+    output = albef_with_sim._similarity(
+        image_embeds, image_embeds_m, text_embeds, text_embeds_m, idx
+    )
+    expected_sim_i2t = Tensor(
+        [
+            [-8.987030, 2.026297, 15.253501, -1.860801, -0.848526, 13.968639],
+            [8.694868, -13.275172, 7.817042, -15.054668, -7.098372, -4.353704],
+        ]
+    )
+    expected_sim_t2i = Tensor(
+        [
+            [1.554099, 13.017061, 1.329893, -7.265085, -13.645567, -24.406017],
+            [14.280089, -4.813700, -26.382078, -18.587244, 8.058000, 4.677015],
+        ]
+    )
+    expected_sim_i2t_m = Tensor(
+        [
+            [-14.285593, 12.297211, 6.138124, 10.562518, 5.003767, 14.855797],
+            [4.378431, -10.728498, 12.003965, -13.604518, -6.404640, 1.081460],
+        ]
+    )
+    expected_sim_t2i_m = Tensor(
+        [
+            [-14.285593, 4.378431, 26.256630, 18.763636, -7.592294, -3.874518],
+            [12.297211, -10.728498, -24.761192, -13.457666, 13.999524, 16.140541],
+        ]
+    )
+    assert_expected(output.sim_i2t, expected_sim_i2t, rtol=0, atol=1e-4)
+    assert_expected(output.sim_t2i, expected_sim_t2i, rtol=0, atol=1e-4)
+    assert_expected(output.sim_i2t_m, expected_sim_i2t_m, rtol=0, atol=1e-4)
+    assert_expected(output.sim_t2i_m, expected_sim_t2i_m, rtol=0, atol=1e-4)
+
+
+def test_neg_embeddings(albef_with_sim):
+    image_embeds = torch.randn(2, 1, 3)
+    text_embeds = torch.randn(2, 1, 3)
+    text_atts = torch.randn(2, 1)
+    similarity = ALBEFSimilarity(
+        sim_i2t=torch.randn(2, 5),
+        sim_t2i=torch.randn(2, 5),
+        sim_i2t_m=torch.randn(2, 5),
+        sim_t2i_m=torch.randn(2, 5),
+    )
+    image_embeds_neg, text_embeds_neg, text_atts_neg = albef_with_sim._neg_embeddings(
+        image_embeds, text_embeds, text_atts, similarity
+    )
+    expected_image_embeds_neg = Tensor(
+        [[0.373975, 0.941025, 0.132136], [1.607509, 1.356168, -0.130043]]
+    ).unsqueeze(1)
+    expected_text_embeds_neg = Tensor(
+        [[-0.413785, -0.197094, -1.121131], [-1.144303, -1.731178, -0.771461]]
+    ).unsqueeze(1)
+    expected_text_atts_neg = Tensor([-0.976535, 0.799085]).unsqueeze(1)
+    assert_expected(image_embeds_neg, expected_image_embeds_neg, rtol=0, atol=1e-4)
+    assert_expected(text_embeds_neg, expected_text_embeds_neg, rtol=0, atol=1e-4)
+    assert_expected(text_atts_neg, expected_text_atts_neg, rtol=0, atol=1e-4)
