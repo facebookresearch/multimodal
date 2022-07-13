@@ -52,7 +52,7 @@ class TestAttention(unittest.TestCase):
         )
 
     def test_scaled_dot_product_attention(self):
-        actual = scaled_dot_product_attention(self.q, self.k, self.v)
+        actual, _ = scaled_dot_product_attention(self.q, self.k, self.v)
         expected = torch.tensor(
             [
                 [

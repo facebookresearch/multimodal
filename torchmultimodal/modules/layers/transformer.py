@@ -7,13 +7,13 @@
 # Code for some of the transformers components in this file are initialized
 # from their counterparts in Hugging Face Transformers library.
 
-import math
 from collections import namedtuple
 from functools import partial
 from typing import Any, Callable, Optional, Tuple
 
 import torch
 from torch import nn, Tensor
+from torchmultimodal.modules.layers.attention import scaled_dot_product_attention
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.utils.common import transpose_for_scores
 
@@ -52,7 +52,7 @@ class FLAVASelfAttention(nn.Module):
         self.key = nn.Linear(hidden_size, self.all_head_size)
         self.value = nn.Linear(hidden_size, self.all_head_size)
 
-        self.dropout = nn.Dropout(attention_probs_dropout_prob)
+        self.attn_dropout = attention_probs_dropout_prob
 
     def forward(
         self,
@@ -74,25 +74,14 @@ class FLAVASelfAttention(nn.Module):
             self.num_attention_heads, self.attention_head_size, mixed_query_layer
         )
 
-        # Take the dot product between "query" and "key" to get the raw attention scores.
-        attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
-        attention_scores = attention_scores / math.sqrt(self.attention_head_size)
-        if attention_mask is not None:
-            # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
-            attention_scores = attention_scores + attention_mask
-
-        # Normalize the attention scores to probabilities.
-        attention_probs = nn.functional.softmax(attention_scores, dim=-1)
-
-        # This is actually dropping out entire tokens to attend to, which might
-        # seem a bit unusual, but is taken from the original Transformer paper.
-        attention_probs = self.dropout(attention_probs)
-
-        # Mask heads if we want to
-        if head_mask is not None:
-            attention_probs = attention_probs * head_mask
-
-        context_layer = torch.matmul(attention_probs, value_layer)
+        context_layer, attention_probs = scaled_dot_product_attention(
+            query_layer,
+            key_layer,
+            value_layer,
+            attention_mask,
+            head_mask,
+            self.attn_dropout,
+        )
 
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
         new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)

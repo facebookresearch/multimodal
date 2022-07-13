@@ -239,8 +239,12 @@ class FullAttention(nn.Module):
         k = k.flatten(start_dim=2, end_dim=-2)
         v = v.flatten(start_dim=2, end_dim=-2)
 
-        out = scaled_dot_product_attention(
-            q, k, v, mask=mask, attn_dropout=self.attn_dropout if self.training else 0.0
+        out, _ = scaled_dot_product_attention(
+            q,
+            k,
+            v,
+            attention_mask=mask,
+            attn_dropout=self.attn_dropout if self.training else 0.0,
         )
 
         return out.unflatten(2, old_shape)
@@ -283,7 +287,7 @@ class AxialAttention(nn.Module):
         old_shape = list(v.shape)
         v = v.flatten(end_dim=-3)
 
-        out = scaled_dot_product_attention(
+        out, _ = scaled_dot_product_attention(
             q, k, v, attn_dropout=self.attn_dropout if self.training else 0.0
         )
         out = out.view(*old_shape)
@@ -295,25 +299,40 @@ def scaled_dot_product_attention(
     q: Tensor,
     k: Tensor,
     v: Tensor,
-    mask: Optional[Tensor] = None,
+    attention_mask: Optional[Tensor] = None,
+    head_mask: Optional[Tensor] = None,
     attn_dropout: float = 0.0,
-) -> Tensor:
+) -> Tuple[Tensor, Tensor]:
     """Similar to PyTorch Core's _scaled_dot_product_attention but generalized
     to handle n-dimensional input tokens (images, video) and support multihead.
     Computes attention as described in Attention Is All You Need (Vaswani et al. 2017)
 
     Inputs:
         q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor
+        attention_mask (Optional[Tensor]): tensor containing 1s for positions to attend to and 0s for masked positions.
+        head_mask (Optional[Tensor]): tensor containing 1s for positions to keep and 0s for masked positions. Applied after
+                                      dropout, before matrix multiplication with values.
     """
 
+    # Take the dot product between "query" and "key" and scale to get the raw attention scores.
     attn = torch.matmul(q, k.transpose(-1, -2))
     attn = attn / torch.sqrt(torch.tensor(q.shape[-1]))
-    if mask is not None:
-        attn = attn.masked_fill(mask == 0, float("-inf"))
+    # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
+    # masked positions, this operation will create a tensor which is 0.0 for
+    # positions we want to attend and -inf for masked positions.
+    # Since we are adding it to the raw scores before the softmax, this is
+    # effectively the same as removing these entirely.
+    if attention_mask is not None:
+        attn = attn.masked_fill(attention_mask == 0, float("-inf"))
+    # Normalize the attention scores to probabilities
     attn_float = F.softmax(attn, dim=-1)
     attn = attn_float.type_as(attn)  # b x n_head x (d1, ..., dn) x c
+    # This is actually dropping out entire tokens to attend to, which might
+    # seem a bit unusual, but is taken from the original Transformer paper.
     attn = F.dropout(attn, p=attn_dropout)
-
+    # Mask heads if we want to
+    if head_mask is not None:
+        attn = attn * head_mask
     a = torch.matmul(attn, v)  # b x n_head x (d1, ..., dn) x c
 
-    return a
+    return a, attn
