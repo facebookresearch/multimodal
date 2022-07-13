@@ -6,10 +6,11 @@
 
 from typing import List
 
+from examples.cnn_lstm.cnn_encoder import CNNEncoder
+from examples.cnn_lstm.lstm_encoder import LSTMEncoder
+
 from torch import nn
 from torchmultimodal.architectures.late_fusion import LateFusionArchitecture
-from torchmultimodal.modules.encoders.cnn_encoder import CNNEncoder
-from torchmultimodal.modules.encoders.lstm_encoder import LSTMEncoder
 from torchmultimodal.modules.fusions.concat_fusion import ConcatFusionModule
 from torchmultimodal.modules.layers.mlp import MLP
 

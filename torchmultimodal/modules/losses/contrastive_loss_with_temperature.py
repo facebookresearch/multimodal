@@ -10,25 +10,25 @@ from typing import Optional, OrderedDict, Tuple, Union
 
 import torch
 import torch.nn.functional as F
-from torch import nn
+from torch import nn, Tensor
 from torch.distributed import all_gather as all_gather_no_backprop
 from torch.distributed.nn.functional import all_gather as all_gather_with_backprop
 
 
 @dataclass
 class ContrastiveLossOutput(OrderedDict):
-    loss: torch.Tensor
-    image_logits: torch.Tensor
-    text_logits: torch.Tensor
-    image_loss: torch.Tensor
-    text_loss: torch.Tensor
+    loss: Tensor
+    image_logits: Tensor
+    text_logits: Tensor
+    image_loss: Tensor
+    text_loss: Tensor
 
 
 def _gather_embeddings_and_labels(
-    image_embeddings: torch.Tensor,
-    text_embeddings: torch.Tensor,
+    image_embeddings: Tensor,
+    text_embeddings: Tensor,
     backprop_in_gather: bool = True,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> Tuple[Tensor, Tensor, Tensor]:
     if not torch.distributed.is_available() or not torch.distributed.is_initialized():
         labels = torch.arange(image_embeddings.size(0), device=image_embeddings.device)
         return image_embeddings, text_embeddings, labels
@@ -69,10 +69,10 @@ def _gather_embeddings_and_labels(
 
 
 def contrastive_loss_with_temperature(
-    image_embeddings: torch.Tensor,
-    text_embeddings: torch.Tensor,
+    image_embeddings: Tensor,
+    text_embeddings: Tensor,
     logit_scale: nn.Parameter,
-    mask: Optional[torch.Tensor] = None,
+    mask: Optional[Tensor] = None,
     backprop_in_gather: bool = True,
 ) -> ContrastiveLossOutput:
     """Functional component for the ContrastiveLossWithTemperature. Please
@@ -84,7 +84,7 @@ def contrastive_loss_with_temperature(
         text_embeddings (Tensor): Tensor containing text features.
             (In the CLIP model, these are the outputs of the text encoder.)
         logit_scale (nn.Parameter): Parameter with value of log of the learned temperature
-        mask (Optional[torch.Tensor], optional): If certain elements of the inputs shouldn't
+        mask (Optional[Tensor], optional): If certain elements of the inputs shouldn't
             be considered in the loss calculation use this option to pass a boolean
             mask. Size is (BatchSize,). Defaults to None.
         backprop_in_gather (bool): Whether to backpropagate the gradients from
@@ -158,6 +158,13 @@ class ContrastiveLossWithTemperature(nn.Module):
         logit_scale (Union[float, nn.Module]): Log of the learnable temperature parameter value
             A nn.Parameter instantiation can also be passed directly in case parent class
             is handling the initialization.
+            Defaults to ``ln(1/0.07)``, as in the CLIP paper.
+        logit_scale_min (Optional[float]): Log of the minimum temperature value.
+            If ``None``, then temperature will not be clamped to a minimum value.
+            Defaults to ``ln(1)``, as in the CLIP paper.
+        logit_scale_max (Optional[float]): Log of the maximum temperature value.
+            If ``None``, then temperature will not be clamped to a maximum value.
+            Defaults to ``ln(100)``, as in the CLIP paper.
 
     Inputs: image_embeddings (Tensor): Tensor containing image features.
                 (In the CLIP model, these are the outputs of the image encoder.)
@@ -167,8 +174,20 @@ class ContrastiveLossWithTemperature(nn.Module):
                 all_gather to all workers (versus just the local worker).
     """
 
-    def __init__(self, logit_scale: Union[float, nn.Parameter] = DEFAULT_LOGIT_SCALE):
+    def __init__(
+        self,
+        logit_scale: Union[float, nn.Parameter] = DEFAULT_LOGIT_SCALE,
+        logit_scale_min: Optional[float] = math.log(1),
+        logit_scale_max: Optional[float] = math.log(100),
+    ):
         super().__init__()
+
+        if not logit_scale_min and not logit_scale_max:
+            raise ValueError(
+                "Only one of `logit_scale_min` and `logit_scale_max` can be None."
+            )
+        self.logit_scale_min = logit_scale_min
+        self.logit_scale_max = logit_scale_max
 
         # If already initialized, set to what was passed
         if isinstance(logit_scale, nn.Parameter):
@@ -178,13 +197,12 @@ class ContrastiveLossWithTemperature(nn.Module):
 
     def forward(
         self,
-        image_embeddings: torch.Tensor,
-        text_embeddings: torch.Tensor,
+        image_embeddings: Tensor,
+        text_embeddings: Tensor,
         backprop_in_gather: bool = True,
-    ):
+    ) -> Tensor:
 
-        # Note: we clamp to 4.6052 = ln(100), as in the original paper.
-        self.logit_scale.data.clamp_(0, 4.6052)
+        self.logit_scale.data.clamp_(self.logit_scale_min, self.logit_scale_max)
         return contrastive_loss_with_temperature(
             image_embeddings=image_embeddings,
             text_embeddings=text_embeddings,
