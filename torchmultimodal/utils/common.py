@@ -133,7 +133,9 @@ def transpose_for_scores(
     return x.permute(0, 2, 1, 3)
 
 
-def load_module_from_url(model: torch.nn.Module, url: str, progress: bool = True):
+def load_module_from_url(
+    model: torch.nn.Module, url: str, progress: bool = True
+) -> None:
     model_dir = os.path.join(
         torch.hub.get_dir(),
         "multimodal",

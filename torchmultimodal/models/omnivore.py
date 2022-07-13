@@ -132,7 +132,7 @@ class PatchEmbedOmnivore(nn.Module):
 
 def omnivore_swin_t_encoder(
     pretrained: bool = False, progress: bool = True
-) -> nn.Module:
+) -> SwinTransformer3d:
     encoder = SwinTransformer3d(
         patch_size=[2, 4, 4],
         embed_dim=96,
@@ -155,7 +155,7 @@ def omnivore_swin_t_encoder(
 
 def omnivore_swin_s_encoder(
     pretrained: bool = False, progress: bool = True
-) -> nn.Module:
+) -> SwinTransformer3d:
     encoder = SwinTransformer3d(
         patch_size=[2, 4, 4],
         embed_dim=96,
@@ -178,7 +178,7 @@ def omnivore_swin_s_encoder(
 
 def omnivore_swin_b_encoder(
     pretrained: bool = False, progress: bool = True
-) -> nn.Module:
+) -> SwinTransformer3d:
     encoder = SwinTransformer3d(
         patch_size=[2, 4, 4],
         embed_dim=128,
