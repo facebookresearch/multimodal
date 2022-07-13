@@ -29,7 +29,7 @@ class ImageNetClassificationPresetTrain:
         crop_size,
         mean=(0.485, 0.456, 0.406),
         std=(0.229, 0.224, 0.225),
-        interpolation=InterpolationMode.BILINEAR,
+        interpolation=InterpolationMode.BICUBIC,
         hflip_prob=0.5,
         auto_augment_policy=None,
         random_erase_prob=0.0,
@@ -82,7 +82,7 @@ class ImageNetClassificationPresetEval:
         resize_size=256,
         mean=(0.485, 0.456, 0.406),
         std=(0.229, 0.224, 0.225),
-        interpolation=InterpolationMode.BILINEAR,
+        interpolation=InterpolationMode.BICUBIC,
     ):
 
         self.transforms = transforms.Compose(

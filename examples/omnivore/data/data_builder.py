@@ -179,13 +179,13 @@ def get_imagenet_data_loader(args):
 
     imagenet_train_preset = presets.ImageNetClassificationPresetTrain(
         crop_size=args.train_crop_size,
-        interpolation=InterpolationMode.BILINEAR,
+        interpolation=InterpolationMode.BICUBIC,
         auto_augment_policy="ra",
         random_erase_prob=args.random_erase,
         color_jitter_factor=args.color_jitter_factor,
     )
     imagenet_val_preset = presets.ImageNetClassificationPresetEval(
-        crop_size=args.val_crop_size, interpolation=InterpolationMode.BILINEAR
+        crop_size=args.val_crop_size, interpolation=InterpolationMode.BICUBIC
     )
 
     imagenet_train_dataset = torchvision.datasets.folder.ImageFolder(
@@ -250,7 +250,7 @@ def get_sunrgbd_data_loader(args):
     lprint("Start creating depth dataset")
     depth_train_preset = presets.DepthClassificationPresetTrain(
         crop_size=args.train_crop_size,
-        interpolation=InterpolationMode.NEAREST,
+        interpolation=InterpolationMode.BILINEAR,
         random_erase_prob=args.random_erase,
         max_depth=75.0,
         mean=(0.485, 0.456, 0.406, 0.0418),
@@ -259,7 +259,7 @@ def get_sunrgbd_data_loader(args):
     )
     depth_val_preset = presets.DepthClassificationPresetEval(
         crop_size=args.val_crop_size,
-        interpolation=InterpolationMode.NEAREST,
+        interpolation=InterpolationMode.BILINEAR,
         max_depth=75.0,
         mean=(0.485, 0.456, 0.406, 0.0418),
         std=(0.229, 0.224, 0.225, 0.0295),
