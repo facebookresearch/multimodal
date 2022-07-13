@@ -57,7 +57,7 @@ if __name__ == "__main__":
         name=DISTNAME,
         include_package_data=True,
         packages=find_packages(exclude=EXCLUDES),
-        python_requires=">=3.8",
+        python_requires=">=3.7",
         install_requires=read_requirements("requirements.txt"),
         version=_get_version(),
         description=DESCRIPTION,
