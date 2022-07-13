@@ -25,6 +25,31 @@ _OMNIVORE_PRETRAINED_URLS = {
 }
 
 
+def _imagenet1k_head(input_dim: int) -> nn.Module:
+    return nn.Linear(input_dim, 1000, bias=True)
+
+
+def _kinetics400_head(input_dim: int) -> nn.Module:
+    return nn.Sequential(
+        nn.Dropout(p=0.5),
+        nn.Linear(input_dim, 400, bias=True),
+    )
+
+
+def _sunrgbd_head(input_dim: int) -> nn.Module:
+    return nn.Linear(input_dim, 19, bias=True)
+
+
+def _multimodal_head(input_dim: int) -> nn.ModuleDict:
+    return nn.ModuleDict(
+        {
+            "image": _imagenet1k_head(input_dim),
+            "rgbd": _sunrgbd_head(input_dim),
+            "video": _kinetics400_head(input_dim),
+        }
+    )
+
+
 class Omnivore(nn.Module):
     """Omnivore is a model that accept multiple vision modality.
 
@@ -55,31 +80,6 @@ class Omnivore(nn.Module):
         ), f"Unsupported input_type: {input_type}, please use one of {list(self.heads.keys())}"
         x = self.heads[input_type](x)
         return x
-
-
-def _imagenet1k_head(input_dim: int) -> nn.Module:
-    return nn.Linear(input_dim, 1000, bias=True)
-
-
-def _kinetics400_head(input_dim: int) -> nn.Module:
-    return nn.Sequential(
-        nn.Dropout(p=0.5),
-        nn.Linear(input_dim, 400, bias=True),
-    )
-
-
-def _sunrgbd_head(input_dim: int) -> nn.Module:
-    return nn.Linear(input_dim, 19, bias=True)
-
-
-def _multimodal_head(input_dim: int) -> nn.ModuleDict:
-    return nn.ModuleDict(
-        {
-            "image": _imagenet1k_head(input_dim),
-            "rgbd": _sunrgbd_head(input_dim),
-            "video": _kinetics400_head(input_dim),
-        }
-    )
 
 
 class PatchEmbedOmnivore(nn.Module):

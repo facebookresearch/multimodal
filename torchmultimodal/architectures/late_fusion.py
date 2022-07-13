@@ -32,8 +32,6 @@ class LateFusionArchitecture(nn.Module):
         encoders: nn.ModuleDict,
         fusion_module: nn.Module,
         head_module: nn.Module,
-        *args,
-        **kwargs,
     ):
         super().__init__()
         # Sort encoders by key on init for consistency
