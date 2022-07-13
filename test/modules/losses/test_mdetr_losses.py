@@ -9,7 +9,12 @@ import random
 import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.modules.losses.mdetr import box_losses, soft_token_prediction_loss
+from torch import nn
+from torchmultimodal.modules.losses.mdetr import (
+    box_losses,
+    mdetr_gqa_loss,
+    soft_token_prediction_loss,
+)
 from torchvision.ops.boxes import box_convert
 
 
@@ -116,3 +121,94 @@ class TestMDETRLosses:
         expected_giou_loss = torch.tensor(1.1768)
         assert_expected(actual.l1_loss, expected_l1_loss, rtol=0, atol=1e-3)
         assert_expected(actual.giou_loss, expected_giou_loss, rtol=0, atol=1e-3)
+
+
+class TestGQALoss:
+    @pytest.fixture()
+    def batch_size(self):
+        return 2
+
+    @pytest.fixture()
+    def embedding_dim(self):
+        return 7
+
+    @pytest.fixture()
+    def num_question_types(self):
+        return 5
+
+    @pytest.fixture()
+    def loss(self, embedding_dim):
+        loss = mdetr_gqa_loss(embedding_dim)
+        loss.answer_type_head.weight = nn.Parameter(
+            torch.ones_like(loss.answer_type_head.weight)
+        )
+        loss.answer_type_head.bias = nn.Parameter(
+            torch.zeros_like(loss.answer_type_head.bias)
+        )
+        for v in loss.specialized_heads.values():
+            v.weight = nn.Parameter(torch.ones_like(v.weight))
+            v.bias = nn.Parameter(torch.zeros_like(v.bias))
+        return loss
+
+    @pytest.fixture()
+    def answer_type_embeddings(self, batch_size, embedding_dim):
+        return torch.randn(batch_size, embedding_dim)
+
+    @pytest.fixture()
+    def specialized_embeddings(self, batch_size, embedding_dim, num_question_types):
+        return torch.randn(batch_size, embedding_dim, num_question_types)
+
+    @pytest.fixture()
+    def answer_types(self):
+        return torch.LongTensor([0, 3])
+
+    @pytest.fixture()
+    def answer_specific_labels(self):
+        return [
+            torch.LongTensor([1, -100]),
+            torch.LongTensor([-100, -100]),
+            torch.LongTensor([-100, -100]),
+            torch.LongTensor([-100, 5]),
+            torch.LongTensor([-100, -100]),
+        ]
+
+    def test_invalid_inputs(
+        self,
+        answer_type_embeddings,
+        specialized_embeddings,
+        answer_types,
+        answer_specific_labels,
+        loss,
+    ):
+        with pytest.raises(ValueError):
+            actual = loss(
+                answer_type_embeddings,
+                specialized_embeddings[:, :, :-1],
+                answer_types,
+                answer_specific_labels,
+            )
+
+    def test_valid_inputs(
+        self,
+        answer_type_embeddings,
+        specialized_embeddings,
+        answer_types,
+        answer_specific_labels,
+        loss,
+    ):
+        actual = loss(
+            answer_type_embeddings,
+            specialized_embeddings,
+            answer_types,
+            answer_specific_labels,
+        )
+        expected = {
+            "answer_type": torch.tensor(1.6094),
+            "answer_obj": torch.tensor(1.0986),
+            "answer_attr": torch.tensor(0.0),
+            "answer_rel": torch.tensor(0.0),
+            "answer_global": torch.tensor(4.7095),
+            "answer_cat": torch.tensor(0.0),
+        }
+        for k in actual.keys():
+            assert_expected(actual[k], expected[k], rtol=0, atol=1e-3)

@@ -4,11 +4,11 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import List, NamedTuple, Tuple
+from typing import Dict, List, NamedTuple, Tuple
 
 import torch
 import torch.nn.functional as F
-from torch import Tensor
+from torch import nn, Tensor
 from torchvision.ops.boxes import box_convert, generalized_box_iou
 
 
@@ -153,3 +153,100 @@ def box_losses(
     )
     giou_loss = giou_loss.sum() / num_boxes
     return BoxLosses(l1_loss=l1_loss, giou_loss=giou_loss)
+
+
+class VQALoss(nn.Module):
+    """Cross entropy loss used by MDETR for VQA.
+
+    Uses one head for predicting the question type and a ModuleDict of specialized
+    heads for each of the different question types. As in MDETR, the question
+    type head is included in all loss calculations by default. Other heads are
+    conditionally included in the loss depending on the question types in the batch.
+
+    Attributes:
+        answer_type_head (nn.Module): Classification head to predict the answer type.
+        specialized_heads (nn.ModuleDict): Classification head modules for each answer
+            type. In MDETR these are all just linear layers.
+
+    Args:
+        answer_type_embedding (Tensor): Embeddings used to predict question type.
+            Size: (batch_size, embedding_dim)
+        specialized_embeddings (Tensor): Embeddings for each of the question types.
+            Size: (batch_size, embedding_dim, num_question_types)
+        answer_types (Tensor): Categorical values for answer types (ground truth).
+            Size: (batch_size)
+        answer_specific_labels (List[Tensor]): A list of length num_question_types
+            where ``answer_specific_labels[i]`` gives the ground truth categorical
+            labels from answer_type i. Each tensor has size (batch_size)
+
+    Returns:
+        A dictionary of losses from answer type and specialized head predictions.
+
+    Raises:
+        ValueError if the last dim of specialized embeddings does not equal the number
+            of specialized heads.
+    """
+
+    def __init__(self, answer_type_head: nn.Module, specialized_heads: nn.ModuleDict):
+        super().__init__()
+        self.answer_type_head = answer_type_head
+        self.specialized_heads = specialized_heads
+
+    def forward(
+        self,
+        answer_type_embedding: Tensor,
+        specialized_embeddings: Tensor,
+        answer_types: Tensor,
+        answer_specific_labels: List[Tensor],
+    ) -> Dict[str, Tensor]:
+        if specialized_embeddings.size(-1) != len(self.specialized_heads):
+            raise ValueError(
+                "Number of specialized embeddings must equal number of specialized heads"
+            )
+
+        losses = {}
+
+        # Compute the loss for the answer type embeddings
+        answer_type_preds = self.answer_type_head(answer_type_embedding)
+        answer_type_loss = F.cross_entropy(answer_type_preds, answer_types)
+        losses["answer_type"] = answer_type_loss
+
+        specialized_embeds_list = torch.unbind(specialized_embeddings, dim=-1)
+
+        # Iterate over question type heads, mask unused samples, and calculate loss
+        for i, (head_type, specialized_head) in enumerate(
+            self.specialized_heads.items()
+        ):
+            mask = answer_types.eq(i)
+            if not any(mask):
+                losses[head_type] = torch.tensor(0.0)
+            else:
+                specialized_embeds = specialized_embeds_list[i][mask]
+                specialized_labels = answer_specific_labels[i][mask]
+                specialized_preds = specialized_head(specialized_embeds)
+                specialized_loss = F.cross_entropy(
+                    specialized_preds, specialized_labels
+                )
+                losses[head_type] = specialized_loss
+        return losses
+
+
+def mdetr_gqa_loss(hidden_dim: int = 256) -> VQALoss:
+    answer_type_head = nn.Linear(hidden_dim, 5)  # Number of answer types
+    answer_obj_head = nn.Linear(hidden_dim, 3)
+    answer_attr_head = nn.Linear(hidden_dim, 403)
+    answer_rel_head = nn.Linear(hidden_dim, 1594)
+    answer_global_head = nn.Linear(hidden_dim, 111)
+    answer_cat_head = nn.Linear(hidden_dim, 678)
+    specialized_heads = nn.ModuleDict(
+        {
+            "answer_obj": answer_obj_head,
+            "answer_attr": answer_attr_head,
+            "answer_rel": answer_rel_head,
+            "answer_global": answer_global_head,
+            "answer_cat": answer_cat_head,
+        }
+    )
+    return VQALoss(
+        answer_type_head=answer_type_head, specialized_heads=specialized_heads
+    )
