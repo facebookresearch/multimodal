@@ -12,8 +12,10 @@ from torchmultimodal.modules.layers.attention import (
     AxialAttention,
     AxialAttentionBlock,
     FullAttention,
+    merge_multihead,
     MultiHeadAttention,
     scaled_dot_product_attention,
+    split_multihead,
 )
 
 
@@ -115,14 +117,14 @@ class TestAttention(unittest.TestCase):
 
     def test_split_multihead(self):
         x = torch.randn(1, *self.input_shape, 6)
-        self.mha.n_head = 2
-        out = self.mha._split_multihead(x)
+        n_head = 2
+        out = split_multihead(x, n_head)
         actual = torch.tensor(out.shape)
         expected = torch.tensor((1, 2, *self.input_shape, 3))
         assert_expected(actual, expected)
 
-    def test_combine_multihead(self):
-        out = self.mha._combine_multihead(self.q)
+    def test_merge_multihead(self):
+        out = merge_multihead(self.q)
         actual = torch.tensor(out.shape)
         expected = torch.tensor((1, *self.input_shape, self.hidden_dim))
         assert_expected(actual, expected)

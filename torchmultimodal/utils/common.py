@@ -121,13 +121,6 @@ def tensor_slice(x: Tensor, begin: List[int], size: List[int]) -> Tensor:
     return x[slices]
 
 
-def transpose_for_scores(
-    num_attention_heads: int, attention_head_size: int, x: Tensor
-) -> Tensor:
-    x = x.unflatten(-1, (num_attention_heads, attention_head_size))
-    return x.permute(0, 2, 1, 3)
-
-
 @torch.no_grad()
 def remove_grad(model: nn.Module) -> None:
     for param in model.parameters():

@@ -133,19 +133,6 @@ class MultiHeadAttention(nn.Module):
 
         self.cache: Dict[str, Tensor] = dict()
 
-    def _split_multihead(self, x: Tensor) -> Tensor:
-        # Splits input tensor of size (b x (d1, ..., dn) x hidden)
-        # into (b x (d1...dn) x n_head x emb_dim)
-        x = x.unflatten(-1, (self.n_head, -1))
-        # Rearrange to put head dim first, (b x n_head x (d1, ..., dn) x emb_dim)
-        x = shift_dim(x, -2, 1)
-        return x
-
-    def _combine_multihead(self, x: Tensor) -> Tensor:
-        # Moves head dim back to original location and concatenates heads
-        # (b x n_head x (d1, ..., dn) x emb_dim) -> (b x (d1, ..., dn) x hidden)
-        return shift_dim(x, 1, -2).flatten(start_dim=-2)
-
     def forward(
         self,
         q: Tensor,
@@ -155,9 +142,9 @@ class MultiHeadAttention(nn.Module):
         decode_idx: Optional[Iterable[int]] = None,
     ) -> Tensor:
         # compute k, q, v
-        q = self._split_multihead(self.w_qs(q))
-        k = self._split_multihead(self.w_ks(k))
-        v = self._split_multihead(self.w_vs(v))
+        q = split_multihead(self.w_qs(q), self.n_head)
+        k = split_multihead(self.w_ks(k), self.n_head)
+        v = split_multihead(self.w_vs(v), self.n_head)
 
         # fast decoding
         if decode_step is not None:
@@ -188,7 +175,7 @@ class MultiHeadAttention(nn.Module):
             k, v = self.cache["k"], self.cache["v"]
 
         a = self.attn(q, k, v, decode_step, decode_idx)
-        a = self._combine_multihead(a)
+        a = merge_multihead(a)
         a = self.fc(a)
 
         return a
@@ -336,3 +323,18 @@ def scaled_dot_product_attention(
     a = torch.matmul(attn, v)  # b x n_head x (d1, ..., dn) x c
 
     return a, attn
+
+
+def split_multihead(x: Tensor, n_head: int) -> Tensor:
+    """Splits input tensor of size (b x (d1, ..., dn) x hidden)
+    into (b x (d1...dn) x n_head x emb_dim)"""
+    x = x.unflatten(-1, (n_head, -1))
+    # Rearrange to put head dim first, (b x n_head x (d1, ..., dn) x emb_dim)
+    x = shift_dim(x, -2, 1)
+    return x
+
+
+def merge_multihead(x: Tensor) -> Tensor:
+    """Moves head dim back to original location and concatenates heads"""
+    # (b x n_head x (d1, ..., dn) x emb_dim) -> (b x (d1, ..., dn) x hidden)
+    return shift_dim(x, 1, -2).flatten(start_dim=-2)
