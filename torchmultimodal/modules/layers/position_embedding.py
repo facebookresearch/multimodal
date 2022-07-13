@@ -20,16 +20,19 @@ class BroadcastedPositionEmbedding(nn.Module):
         Each embedding vector of the ``i``-th dim is repeated by ``N`` times, where
     :math:`N = \prod_{j>i}\text{dim}[j]`.
 
-    Args:
+    Attributes:
         shape (Tuple[int, ...]): shape of raw data before batching and embedding
         embedding_dim (int): the size of each embedding vector
 
     Raises:
         ValueError: if ``embedding_dim`` is not an integer multiple of ``len(shape)``
 
-    Inputs:
-        position_ids (Tensor): 1D tensor of integers indicating locations of the broadcasted
+    Args:
+        position_ids (Tensor): batches of of 1D integer tensors indicating locations of the broadcasted
             position embeddings to be returned.
+
+    Returns:
+        A tensor with the position embeddings selected by position ids.
     """
 
     def __init__(
@@ -112,11 +115,10 @@ class BroadcastedPositionEmbedding(nn.Module):
 
         # concatenated embeddings: (*(shape), embedding_dim)
         embeddings = torch.cat(embeddings, dim=-1)
-        # extract relevant indices for the embeddings and transpose: (len(position_ids), len(shape))
-        indices = [*self.indices[position_ids].transpose(0, 1)]
-        # return the relevant embeddings: (len(position_ids), embedding_dim)
-        # the embeddings are flattened across ``shape`` as the indices are broadcasted
-        embeddings = embeddings[indices]
 
-        # (batch, len(position_ids), embedding_dim)
-        return embeddings.unsqueeze(0)
+        # expand the permuted tensor to form a list of size `n_dim`
+        # where each elm is a tensor of shape (pos_ids, batch)
+        indices = [*self.indices[position_ids].permute(2, 1, 0)]
+        embeddings = embeddings[indices].transpose(0, 1)  # (batch, pos_ids, emb_dim)
+
+        return embeddings

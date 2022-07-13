@@ -4,6 +4,8 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import warnings
+
 import torch
 from torch import nn
 from torch.utils.checkpoint import checkpoint
@@ -61,12 +63,32 @@ class TransformerDecoderLayer(nn.Module):
             activation=SiLU,
         )
 
-    def forward(self, x, layer_cache=None):
+    def forward(self, x, cache=None):
         h = self.pre_attention_norm(x)
         if self.training:
-            h = checkpoint(self.attention, h, h, h, layer_cache)
+            # By default the checkpoint API stashes and restores the RNG state during each checkpointed
+            # segment such that checkpointed passes making use of RNG (e.g., through dropout, batch norm)
+            # have deterministic outputs as compared to non-checkpointed passes. This can incur a moderate
+            # performance hit which we mitigate by checkpointing either before and after the layer that
+            # requires RNG.
+            if cache is not None:
+                warnings.warn(
+                    "Using `cache` is incompatible with gradient checkpointing. Setting `cache=None`..."
+                )
+                cache = None
+
+            def create_custom_forward(module):
+                # Specifies what should the checkpoint API run in forward pass
+                def custom_forward(*inputs):
+                    return module(*inputs, cache)
+
+                return custom_forward
+
+            checkpoint(create_custom_forward(self.attention), h, h, h)
+
         else:
-            h = self.attention(h, h, h, layer_cache)
+            h = self.attention(h, h, h, cache)
+
         h = self.post_attention_dropout(h)
         x = x + h
 
@@ -75,15 +97,18 @@ class TransformerDecoderLayer(nn.Module):
             h = checkpoint(self.mlp_block, h)
         else:
             h = self.mlp_block(h)
+
         h = self.post_mlp_dropout(h)
         x = x + h
 
         return x
 
 
-# TODO: Implement cache for k, v
+# TODO: Remove mask generation from FullAttention
+#   Add util to generate mask, attention_mask
+#   Add mask as an argument to `forward`
+# TODO: Retire shape in attention modules
 # TODO: Implement init_cache method to initialize cache
-# TODO: Update API of MultiheadAttention, FullAttention
 class TransformerDecoder(nn.Module):
     def __init__(
         self,
@@ -113,8 +138,7 @@ class TransformerDecoder(nn.Module):
     def forward(
         self,
         hidden_states,
-        attn_mask,
-        causal_attn_mask,
+        attention_mask,
         cache=None,
     ):
         all_hidden_states = []
@@ -122,7 +146,7 @@ class TransformerDecoder(nn.Module):
 
         for layer in self.layers:
             all_hidden_states.append(hidden_states)
-            layer_outputs = layer(hidden_states, attn_mask, causal_attn_mask)
+            layer_outputs = layer(hidden_states, attention_mask)
             hidden_states = layer_outputs[0]
             all_attentions.append(layer_outputs[1])
 
