@@ -73,7 +73,7 @@ class Omnivore(nn.Module):
         self.encoder = encoder
         self.heads = heads
 
-    def forward(self, x: torch.Tensor, input_type: str):
+    def forward(self, x: torch.Tensor, input_type: str) -> torch.Tensor:
         x = self.encoder(x)
         assert (
             input_type in self.heads
