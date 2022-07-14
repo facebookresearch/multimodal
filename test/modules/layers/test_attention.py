@@ -30,11 +30,6 @@ def hidden_dim():
 
 
 @pytest.fixture
-def n_heads():
-    return 1
-
-
-@pytest.fixture
 def n_dim():
     return 3
 
@@ -45,19 +40,19 @@ def input_shape(n_dim):
 
 
 @pytest.fixture
-def q(n_heads, input_shape, hidden_dim):
+def q(input_shape, hidden_dim):
+    n_heads = 1
     return torch.randn(1, n_heads, *input_shape, hidden_dim // n_heads)
 
 
 @pytest.fixture
-def kv(n_heads, input_shape, hidden_dim):
+def kv(input_shape, hidden_dim):
+    n_heads = 1
     return torch.randn(1, n_heads, *input_shape, hidden_dim // n_heads)
 
 
 @pytest.fixture
 def full_attn(input_shape):
-    # TODO: retire causal once mask generation is moved out of FullAttention
-    #   causal inside FullAttention does not affect caching of k, v
     return FullAttention(input_shape, causal=False, attn_dropout=0.0)
 
 
@@ -68,8 +63,8 @@ def axial_attn():
 
 class TestMultiheadAttention:
     @pytest.fixture
-    def multihead_attn(self, input_shape, hidden_dim, n_heads):
-        def create_multihead_attn(causal, attn_module):
+    def multihead_attn(self, input_shape, hidden_dim):
+        def create_multihead_attn(n_heads, causal, attn_module):
             return MultiHeadAttention(
                 input_shape, hidden_dim, hidden_dim, n_heads, 1, causal, attn_module
             )
@@ -77,18 +72,17 @@ class TestMultiheadAttention:
         return create_multihead_attn
 
     def test_split_multihead(self, input_shape, multihead_attn, full_attn):
-        mha = multihead_attn(False, full_attn)
+        mha = multihead_attn(2, False, full_attn)
         x = torch.randn(1, *input_shape, 6)  # (b, d1, ..., dn, c)
-        mha.n_head = 2
         out = mha._split_multihead(x)
         actual = torch.tensor(out.shape)
         expected = torch.tensor((1, 2, *input_shape, 3))  # (b, h, d1, ..., dn, c // h)
         assert_expected(actual, expected)
 
     def test_combine_multihead(
-        self, n_heads, input_shape, hidden_dim, multihead_attn, full_attn, q
+        self, input_shape, hidden_dim, multihead_attn, full_attn, q
     ):
-        mha = multihead_attn(False, full_attn)
+        mha = multihead_attn(1, False, full_attn)
         out = mha._combine_multihead(q)
         actual = torch.tensor(out.shape)
         expected = torch.tensor((1, *input_shape, hidden_dim))
@@ -101,7 +95,7 @@ class TestMultiheadAttention:
         multihead_attn,
         full_attn,
     ):
-        mha = multihead_attn(False, full_attn)
+        mha = multihead_attn(1, False, full_attn)
         q = 2 * torch.ones(1, *input_shape, hidden_dim)
         k = 2 * torch.ones(1, *input_shape, hidden_dim)
         v = 2 * torch.ones(1, *input_shape, hidden_dim)
@@ -123,12 +117,20 @@ class TestMultiheadAttention:
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_multi_head_attention_use_cache(
-        self, input_shape, hidden_dim, multihead_attn, full_attn
+        self, input_shape, hidden_dim, multihead_attn, full_attn, mocker
     ):
-        mha = multihead_attn(False, full_attn)
+        mha = multihead_attn(1, False, full_attn)
+        mock_projection_k = mocker.patch.object(
+            mha.w_ks, "forward", wraps=mha.w_ks.forward
+        )
+        mock_projection_v = mocker.patch.object(
+            mha.w_vs, "forward", wraps=mha.w_vs.forward
+        )
+
         q = 2 * torch.ones(1, *input_shape, hidden_dim)
         k = 2 * torch.ones(1, *input_shape, hidden_dim)
         v = 2 * torch.ones(1, *input_shape, hidden_dim)
+
         expected = torch.tensor(
             [
                 [
@@ -180,17 +182,21 @@ class TestMultiheadAttention:
 
         # initially the cache should be empty
         assert not mha.cache
-        # test caching of k, v consistent between two passes
         for i in range(2):
-            actual = mha(q, k, v, use_cache=True)
+            # pertube the input k, v but cache only once
+            actual = mha(q, k + i, v + i, use_cache=True)
             assert_expected(mha.cache["k"], expected_k, rtol=0, atol=1e-4)
             assert_expected(mha.cache["v"], expected_v, rtol=0, atol=1e-4)
             assert_expected(actual, expected, rtol=0, atol=1e-4)
+            # test that k, v projection is skipped except for the first pass
+            mock_projection_k.assert_called_once()
+            mock_projection_v.assert_called_once()
 
     def test_multi_head_attention_causal_use_cache(
-        self, n_heads, input_shape, hidden_dim, multihead_attn, full_attn
+        self, input_shape, hidden_dim, multihead_attn, full_attn
     ):
-        mha = multihead_attn(True, full_attn)
+        n_heads = 1
+        mha = multihead_attn(n_heads, True, full_attn)
         seq_len = torch.prod(torch.tensor(input_shape)).item()
         q = 2 * torch.ones(1, *input_shape, hidden_dim).flatten(start_dim=1, end_dim=-2)
         k = 2 * torch.ones(1, *input_shape, hidden_dim).flatten(start_dim=1, end_dim=-2)
@@ -210,10 +216,6 @@ class TestMultiheadAttention:
 
         out = torch.cat(out, dim=1)
         assert_expected(out.shape, torch.Size([1, seq_len, hidden_dim]))
-
-    def test_error_causal_axial_attention(self, multihead_attn, axial_attn):
-        with pytest.raises(TypeError):
-            multihead_attn(True, axial_attn)
 
 
 def test_scaled_dot_product_attention(q, kv):
@@ -285,8 +287,8 @@ def test_axial_attention(axial_attn, q, kv):
 
 class TestAxialBlock:
     @pytest.fixture
-    def axial_block(self, input_shape, hidden_dim, n_heads):
-        return AxialAttentionBlock(len(input_shape), hidden_dim, n_heads)
+    def axial_block(self, input_shape, hidden_dim):
+        return AxialAttentionBlock(len(input_shape), hidden_dim, 1)
 
     def test_axial_block_forward(self, axial_block, hidden_dim, input_shape):
         """Test AxialAttentionBlock with sub-components"""
