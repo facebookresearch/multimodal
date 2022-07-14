@@ -5,14 +5,24 @@
 # LICENSE file in the root directory of this source tree.
 
 
-from typing import Callable, List, Optional, Union
+from typing import Callable, List, Optional
 
 import torch
-from torch import nn, Tensor
+import torchmultimodal.utils.common as common_utils
+from torch import nn
 from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
     PatchEmbed3d,
     SwinTransformer3d,
 )
+
+_OMNIVORE_PRETRAINED_URLS = {
+    "swin_t_encoder": "https://download.pytorch.org/models/omnivore_swin_t_encoder-b7e39400.pth",
+    "swin_s_encoder": "https://download.pytorch.org/models/omnivore_swin_s_encoder-40b05ba1.pth",
+    "swin_b_encoder": "https://download.pytorch.org/models/omnivore_swin_b_encoder-a9134768.pth",
+    "swin_t_heads": "https://download.pytorch.org/models/omnivore_swin_t_heads-c8bfb7fd.pth",
+    "swin_s_heads": "https://download.pytorch.org/models/omnivore_swin_s_heads-c5e77246.pth",
+    "swin_b_heads": "https://download.pytorch.org/models/omnivore_swin_b_heads-3c38b3ed.pth",
+}
 
 
 def _imagenet1k_head(input_dim: int) -> nn.Module:
@@ -46,14 +56,16 @@ class Omnivore(nn.Module):
     Omnivore (https://arxiv.org/abs/2201.08377) is a single model that able to do classification
     on images, videos, and single-view 3D data using the same shared parameters of the encoder.
 
-    Args:   encoder (nn.Module): Instantiated encoder.
-                See SwinTransformer3dEncoder class.
-            heads (Optinal[nn.ModuleDict]): Dictionary of multiple heads for each dataset type
+    Args:
+        encoder (nn.Module): Instantiated encoder. It generally accept a video backbone.
+            The paper use SwinTransformer3d for the encoder.
+        heads (Optional[nn.ModuleDict]): Dictionary of multiple heads for each dataset type
 
-    Inputs: x (Tensor): 5 Dimensional batched video tensor with format of B C D H W
-                where B is batch, C is channel, D is time, H is height, and W is width.
-            input_type (str): The dataset type of the input, this will used to choose
-                the correct head.
+    Inputs:
+        x (Tensor): 5 Dimensional batched video tensor with format of B C D H W
+            where B is batch, C is channel, D is time, H is height, and W is width.
+        input_type (str): The dataset type of the input, this will used to choose
+            the correct head.
     """
 
     def __init__(self, encoder: nn.Module, heads: nn.ModuleDict):
@@ -61,7 +73,7 @@ class Omnivore(nn.Module):
         self.encoder = encoder
         self.heads = heads
 
-    def forward(self, x: torch.Tensor, input_type: str) -> Tensor:
+    def forward(self, x: torch.Tensor, input_type: str) -> torch.Tensor:
         x = self.encoder(x)
         assert (
             input_type in self.heads
@@ -78,9 +90,9 @@ class PatchEmbedOmnivore(nn.Module):
     reference: https://arxiv.org/abs/2201.08377
 
     Args:
-        patch_size (Tuple[int, int, int]): Patch token size. Default: (2, 4, 4)
-        embed_dim (int): Number of linear projection output channels. Default: 96
-        norm_layer (nn.Module, optional): Normalization layer. Default: None
+        patch_size (Tuple[int, int, int]): Patch token size. Default: ``(2, 4, 4)``
+        embed_dim (int): Number of linear projection output channels. Default: ``96``
+        norm_layer (nn.Module, optional): Normalization layer. Default: ``None``
     """
 
     def __init__(
@@ -118,7 +130,9 @@ class PatchEmbedOmnivore(nn.Module):
         return x
 
 
-def _omnivore_swin_t_encoder() -> SwinTransformer3d:
+def omnivore_swin_t_encoder(
+    pretrained: bool = False, progress: bool = True
+) -> SwinTransformer3d:
     encoder = SwinTransformer3d(
         patch_size=[2, 4, 4],
         embed_dim=96,
@@ -130,16 +144,116 @@ def _omnivore_swin_t_encoder() -> SwinTransformer3d:
         patch_embed=PatchEmbedOmnivore,
         num_classes=None,
     )
+    if pretrained:
+        common_utils.load_module_from_url(
+            encoder,
+            _OMNIVORE_PRETRAINED_URLS["swin_t_encoder"],
+            progress=progress,
+        )
     return encoder
 
 
-# TODO: add pretrained weight capability
-def omnivore_swin_t(
-    encoder_only: bool = False,
-) -> Union[Omnivore, SwinTransformer3d]:
-    encoder = _omnivore_swin_t_encoder()
-    if encoder_only:
-        return encoder
+def omnivore_swin_s_encoder(
+    pretrained: bool = False, progress: bool = True
+) -> SwinTransformer3d:
+    encoder = SwinTransformer3d(
+        patch_size=[2, 4, 4],
+        embed_dim=96,
+        depths=[2, 2, 18, 2],
+        num_heads=[3, 6, 12, 24],
+        window_size=[8, 7, 7],
+        stochastic_depth_prob=0.3,
+        norm_layer=nn.LayerNorm,
+        patch_embed=PatchEmbedOmnivore,
+        num_classes=None,
+    )
+    if pretrained:
+        common_utils.load_module_from_url(
+            encoder,
+            _OMNIVORE_PRETRAINED_URLS["swin_s_encoder"],
+            progress=progress,
+        )
+    return encoder
 
+
+def omnivore_swin_b_encoder(
+    pretrained: bool = False, progress: bool = True
+) -> SwinTransformer3d:
+    encoder = SwinTransformer3d(
+        patch_size=[2, 4, 4],
+        embed_dim=128,
+        depths=[2, 2, 18, 2],
+        num_heads=[4, 8, 16, 32],
+        window_size=[16, 7, 7],
+        stochastic_depth_prob=0.3,
+        norm_layer=nn.LayerNorm,
+        patch_embed=PatchEmbedOmnivore,
+        num_classes=None,
+    )
+    if pretrained:
+        common_utils.load_module_from_url(
+            encoder,
+            _OMNIVORE_PRETRAINED_URLS["swin_b_encoder"],
+            progress=progress,
+        )
+    return encoder
+
+
+def omnivore_swin_t(pretrained: bool = False, progress: bool = True) -> nn.Module:
+    """
+    Builder function to get omnivore model with swin_t variant encoder
+    Args:
+        pretrained (bool): If true then the it will load pretrained weight,
+            otherwise it will have random weight (default: ``False``)
+        progress (bool): If true then there will be a progress bar for downloading weight (default: ``True``)
+    """
+    encoder = omnivore_swin_t_encoder(pretrained=pretrained)
     heads = _multimodal_head(input_dim=encoder.num_features)
-    return Omnivore(encoder, heads)
+    if pretrained:
+        common_utils.load_module_from_url(
+            heads,
+            _OMNIVORE_PRETRAINED_URLS["swin_t_heads"],
+            progress=progress,
+        )
+    model = Omnivore(encoder, heads)
+    return model
+
+
+def omnivore_swin_s(pretrained: bool = False, progress: bool = True) -> nn.Module:
+    """
+    Builder function to get omnivore model with swin_s variant encoder
+    Args:
+        pretrained (bool): If true then the it will load pretrained weight,
+            otherwise it will have random weight (default: ``False``)
+        progress (bool): If true then there will be a progress bar for downloading weight (default: ``True``)
+    """
+    encoder = omnivore_swin_s_encoder(pretrained=pretrained)
+    heads = _multimodal_head(input_dim=encoder.num_features)
+    if pretrained:
+        common_utils.load_module_from_url(
+            heads,
+            _OMNIVORE_PRETRAINED_URLS["swin_s_heads"],
+            progress=progress,
+        )
+    model = Omnivore(encoder, heads)
+    return model
+
+
+def omnivore_swin_b(pretrained: bool = False, progress: bool = True) -> nn.Module:
+    """
+    Builder function to get omnivore model with swin_b variant encoder
+    Args:
+        pretrained (bool): If true then the it will load pretrained weight,
+            otherwise it will have random weight (default: ``False``)
+        progress (bool): If true then there will be a progress bar for downloading weight (default: ``True``)
+    """
+    encoder = omnivore_swin_b_encoder(pretrained=pretrained)
+    heads = _multimodal_head(input_dim=encoder.num_features)
+    if pretrained:
+        common_utils.load_module_from_url(
+            heads,
+            _OMNIVORE_PRETRAINED_URLS["swin_b_heads"],
+            progress=progress,
+        )
+    model = Omnivore(encoder, heads)
+    return model
