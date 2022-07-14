@@ -14,7 +14,6 @@ from torchtext.transforms import (
     Sequential,
     StrToIntTransform,
     ToTensor,
-    Truncate,
 )
 
 
@@ -26,10 +25,6 @@ class BertTextTransform:
             Defaults to HuggingFace BERT base (uncased) model's vocab file.
         do_lower_case (bool): whether to convert input text to lowercase.
             Defaults to True.
-        truncate (bool): whether to truncate input text to max_seq_length.
-            Defaults to False.
-        max_seq_len (int): the max sequence length after truncating, including start and end tokens.
-            Defaults to 25.
         start_token (int): value to represent the start of each text.
             Defaults to 101, Hugging Face's BERT start token.
         end_token (int): value to represent the end of each text.
@@ -49,8 +44,6 @@ class BertTextTransform:
         self,
         vocab_file: str = "https://huggingface.co/bert-base-uncased/resolve/main/vocab.txt",
         do_lower_case: bool = True,
-        truncate: bool = False,
-        max_seq_len: int = 25,
         start_token: int = 101,
         end_token: int = 102,
         padding_value: int = 0,
@@ -60,7 +53,6 @@ class BertTextTransform:
                 vocab_path=vocab_file, do_lower_case=do_lower_case, return_tokens=False
             ),
             StrToIntTransform(),
-            Truncate(max_seq_len=max_seq_len - 2) if truncate else torch.nn.Identity(),
             AddToken(start_token, begin=True),
             AddToken(end_token, begin=False),
             ToTensor(padding_value=padding_value),

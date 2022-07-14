@@ -4,87 +4,137 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Iterable, Tuple, Union
+import re
+from typing import Tuple
 
 import torch
-from PIL.Image import Image
-from torchmultimodal.transforms.bert_text_transform import BertTextTransform
+
+from torchtext.transforms import (
+    AddToken,
+    BERTTokenizer,
+    Sequential,
+    StrToIntTransform,
+    ToTensor,
+    Truncate,
+)
 from torchvision import transforms
-from torchvision.transforms import RandAugment
 
 # mean and standard deviation from the ALBEF repo:
 # https://github.com/salesforce/ALBEF/blob/main/dataset/__init__.py#L16
 MEAN = (0.48145466, 0.4578275, 0.40821073)
-STDEV = (0.26862954, 0.26130258, 0.27577711)
+STD_DEV = (0.26862954, 0.26130258, 0.27577711)
 
 
-class ALBEFTransform:
+class ALBEFTextTransform:
     """
-    Data transform for ALBEF model image and text input.
+    Remove punctuations and trailing spaces in input text and transform it into
+    a Tensor of token ids using BERTTokenizer.
 
     Args:
-        image_size (int): The input image resolution. Default is 384.
-        scale (Tuple[float, float]): The scaling factors for RandomResizedCrop. Default is (0.5, 1.0).
-        image_interpolation (InterpolationMode): The interpolation mode for RandomResizedCrop. Default is BICUBIC.
-        mean (Tuple[float, float, float]): The mean for dataset normalization.
-            Default is (0.48145466, 0.4578275, 0.40821073).
-        stdev (Tuple[float, float, float]): The standard devaiation for dataset normalization.
-            Default is (0.26862954, 0.26130258, 0.27577711).
-        is_train (bool): whether the dataset is a training dataset. Default is True.
+        vocab_file (str): Local or URL path to pre-trained vocab file.
+            Defaults to HuggingFace BERT base (uncased) model's vocab file.
+        do_lower_case (bool): Whether to convert input text to lowercase.
+            Defaults to True.
+        truncate (bool): Whether to truncate input text to max_seq_length.
+            Defaults to False.
+        add_end_token (bool): Whether to add the end-of-sentence token.
+            Defaults to True.
+        max_seq_len (int): The max sequence length after truncating, including start and end tokens.
+            Defaults to 25.
+        cls_token_id (int): Value to represent the start of each text.
+            Defaults to 101, Hugging Face's BERT cls token id.
+        sep_token_id (int): Value to represent the end of each text.
+            Defaults to 102, Hugging Face's BERT sep token id.
+        pad_token_id (int): Value with which to pad each text so that all texts are the same length.
+            Defaults to 0, Hugging Face's BERT pad token id.
 
     Inputs:
-        image (Union[Iterable[Image], Image]): an image input or a batch of image inputs.
-        text: (Union[Iterable[str], str]): a text input or a batch of text inputs.
+        text (str): Input text to transform.
     """
 
     def __init__(
         self,
-        image_size: int = 384,
-        scale: Tuple[float, float] = (0.5, 1.0),
-        image_interpolation=transforms.InterpolationMode.BICUBIC,
-        mean: Tuple[float, float, float] = MEAN,
-        stdev: Tuple[float, float, float] = STDEV,
-        is_train: bool = True,
-    ) -> None:
-        if is_train:
-            self.image_transform = transforms.Compose(
-                [
-                    transforms.RandomResizedCrop(
-                        image_size, scale=scale, interpolation=image_interpolation
-                    ),
-                    transforms.RandomHorizontalFlip(),
-                    RandAugment(),
-                    transforms.ToTensor(),
-                    transforms.Normalize(mean, stdev),
-                ]
+        vocab_file: str = "https://huggingface.co/bert-base-uncased/resolve/main/vocab.txt",
+        do_lower_case: bool = True,
+        truncate: bool = False,
+        add_end_token: bool = True,
+        max_seq_len: int = 25,
+        cls_token_id: int = 101,
+        sep_token_id: int = 102,
+        pad_token_id: int = 0,
+    ):
+        self.cls_token_id = cls_token_id
+        self.sep_token_id = sep_token_id
+        self.pad_token_id = pad_token_id
+
+        # start_token + max_word_tokens + optional(end_token) = max_seq_len
+        max_word_tokens = max_seq_len - (2 if add_end_token else 1)
+
+        self.tokenizer = Sequential(
+            BERTTokenizer(
+                vocab_path=vocab_file, do_lower_case=do_lower_case, return_tokens=False
+            ),
+            StrToIntTransform(),
+            Truncate(max_seq_len=max_word_tokens) if truncate else torch.nn.Identity(),
+            AddToken(self.cls_token_id, begin=True),
+            AddToken(self.sep_token_id, begin=False)
+            if add_end_token
+            else torch.nn.Identity(),
+            ToTensor(padding_value=self.pad_token_id),
+        )
+
+    def pre_process(self, text: str) -> str:
+        text = (
+            re.sub(
+                r"([,.'!?\"()*#:;~])",
+                "",
+                text,
             )
-            self.text_transform = BertTextTransform(truncate=True, max_seq_len=25)
-        else:
-            self.image_transform = transforms.Compose(
-                [
-                    transforms.Resize(
-                        (image_size, image_size), interpolation=image_interpolation
-                    ),
-                    transforms.ToTensor(),
-                    transforms.Normalize(mean, stdev),
-                ]
-            )
-            self.text_transform = BertTextTransform()
+            .replace("-", " ")
+            .replace("/", " ")
+        )
+        text = text.rstrip(" ")
 
-    def __call__(
-        self,
-        image: Union[Iterable[Image], Image],
-        text: Union[Iterable[str], str],
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
-        # Convert to list
-        if isinstance(text, str):
-            text = [text]
-        if isinstance(image, Image):
-            image = [image]
+        return text
 
-        # Text transform
-        text_result = self.text_transform(text)
+    def __call__(self, text: str) -> torch.Tensor:
+        text = self.pre_process(text)
+        input_ids = self.tokenizer(text)
+        return input_ids
 
-        # Image transform
-        image_result = torch.stack([self.image_transform(x) for x in image])
-        return image_result, text_result
+
+def training_image_transform(
+    image_size: int = 384,
+    scale: Tuple[float, float] = (0.5, 1.0),
+    image_interpolation=transforms.InterpolationMode.BICUBIC,
+    mean: Tuple[float, float, float] = MEAN,
+    std_dev: Tuple[float, float, float] = STD_DEV,
+) -> transforms.Compose:
+    return transforms.Compose(
+        [
+            transforms.RandomResizedCrop(
+                image_size, scale=scale, interpolation=image_interpolation
+            ),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandAugment(),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std_dev),
+        ]
+    )
+
+
+def testing_image_transform(
+    image_size: int = 384,
+    image_interpolation=transforms.InterpolationMode.BICUBIC,
+    mean: Tuple[float, float, float] = MEAN,
+    std_dev: Tuple[float, float, float] = STD_DEV,
+) -> transforms.Compose:
+    return transforms.Compose(
+        [
+            transforms.Resize(
+                (image_size, image_size), interpolation=image_interpolation
+            ),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std_dev),
+        ]
+    )

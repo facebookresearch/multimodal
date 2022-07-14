@@ -4,10 +4,14 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple
 
 import torch
-from examples.albef.data.transforms import ALBEFTransform
+from examples.albef.data.transforms import (
+    ALBEFTextTransform,
+    testing_image_transform,
+    training_image_transform,
+)
 from examples.albef.data.vqa_dataset import VQADataset
 from pytorch_lightning import LightningDataModule
 from torch import Tensor
@@ -25,6 +29,8 @@ class VQADataModule(LightningDataModule):
         answer_list (str): The path to the answers list.
         vqa_root (str): The path to vqa data directory.
         vg_root (str): The path to vg data directory.
+        batch_size (int): The sampling batch size.
+        num_workers (int): The number of workers for the distributed mode.
     """
 
     def __init__(
@@ -34,13 +40,17 @@ class VQADataModule(LightningDataModule):
         answer_list: str,
         vqa_root: str,
         vg_root: str,
+        batch_size: int,
+        num_workers: int,
     ) -> None:
         super().__init__()
         self.train_dataset = VQADataset(
             train_files,
             vqa_root,
             vg_root,
-            ALBEFTransform(is_train=True),
+            training_image_transform(),
+            ALBEFTextTransform(truncate=True, max_seq_len=25, add_end_token=False),
+            ALBEFTextTransform(),
             split="train",
         )
 
@@ -48,10 +58,15 @@ class VQADataModule(LightningDataModule):
             test_files,
             vqa_root,
             vg_root,
-            ALBEFTransform(is_train=False),
+            testing_image_transform(),
+            ALBEFTextTransform(add_end_token=False),
+            ALBEFTextTransform(),
             split="test",
             answer_list=answer_list,
         )
+
+        self.batch_size = batch_size
+        self.num_workers = num_workers
 
     def _get_sampler(
         self,
@@ -60,7 +75,7 @@ class VQADataModule(LightningDataModule):
         is_distributed: bool,
         num_tasks: int,
         global_rank: int,
-    ) -> Union[None, DistributedSampler]:
+    ) -> Optional[DistributedSampler]:
         if not is_distributed:
             return None
 
@@ -70,8 +85,6 @@ class VQADataModule(LightningDataModule):
 
     def train_dataloader(
         self,
-        batch_size: int,
-        num_workers: int,
         is_distributed: bool = False,
         num_tasks: int = 0,
         global_rank: int = 0,
@@ -98,8 +111,8 @@ class VQADataModule(LightningDataModule):
         shuffle = sampler is None
         return DataLoader(
             self.train_dataset,
-            batch_size=batch_size,
-            num_workers=num_workers,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
             pin_memory=True,
             sampler=sampler,
             shuffle=shuffle,
@@ -109,8 +122,6 @@ class VQADataModule(LightningDataModule):
 
     def test_dataloader(
         self,
-        batch_size: int,
-        num_workers: int,
         is_distributed: bool = False,
         num_tasks: int = 0,
         global_rank: int = 0,
@@ -131,8 +142,8 @@ class VQADataModule(LightningDataModule):
         )
         return DataLoader(
             self.test_dataset,
-            batch_size=batch_size,
-            num_workers=num_workers,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
             pin_memory=True,
             sampler=sampler,
             shuffle=False,
