@@ -138,7 +138,6 @@ class TestMDETRTextEncoder(unittest.TestCase):
         self.assertEqual(
             out.size(), (self.batch_size, self.input_length, self.hidden_size)
         )
-        print(actual)
         assert_expected(actual, expected, rtol=0.0, atol=1e-4)
 
     def test_mdetr_modified_transformer(self):
