@@ -8,13 +8,13 @@ import hashlib
 import os
 from collections import OrderedDict
 from dataclasses import fields
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 
 import torch
-from torch import Tensor
+from torch import nn, Tensor
 
 
-def get_current_device():
+def get_current_device() -> Union[str, torch.device]:
     if torch.cuda.is_available() and torch.cuda.is_initialized():
         return f"cuda:{torch.cuda.current_device()}"
     else:
@@ -54,7 +54,7 @@ def get_extended_attention_mask(attention_mask: Tensor) -> Tensor:
 
 def shift_dim(
     x: Tensor, src_dim: int = -1, dest_dim: int = -1, make_contiguous: bool = True
-):
+) -> Tensor:
     """Permutes tensor x by moving src_dim to dest_dim.
     i.e. shift_dim(x, 1, -1) would be (b, c, t, h, w) -> (b, t, h, w, c)
 
@@ -133,8 +133,35 @@ def transpose_for_scores(
     return x.permute(0, 2, 1, 3)
 
 
+def load_module_from_url(
+    model: torch.nn.Module, url: str, progress: bool = True
+) -> None:
+    model_dir = os.path.join(
+        torch.hub.get_dir(),
+        "multimodal",
+        hashlib.sha256(url.encode("utf-8")).hexdigest(),
+    )
+
+    state_dict = torch.hub.load_state_dict_from_url(
+        url, model_dir=model_dir, progress=progress
+    )
+    model.load_state_dict(state_dict)
+
+
+@torch.no_grad()
+def remove_grad(model: nn.Module) -> None:
+    for param in model.parameters():
+        param.requires_grad = False
+
+
+@torch.no_grad()
+def momentum_update(model: nn.Module, model_m: nn.Module, momentum: float) -> None:
+    for param, param_m in zip(model.parameters(), model_m.parameters()):
+        param_m.data = param_m.data * momentum + param.data * (1 - momentum)
+
+
 class PretrainedMixin:
-    def get_model_dir(self, url):
+    def get_model_dir(self, url: str) -> str:
         return os.path.join(
             torch.hub.get_dir(),
             "multimodal",
@@ -143,11 +170,11 @@ class PretrainedMixin:
 
     def load_model(
         self,
-        pretrained_url: Optional[str],
+        pretrained_url: str,
         load_state_dict: bool = True,
         state_dict_key: Optional[str] = None,
         strict: bool = True,
-    ):
+    ) -> Any:
         assert isinstance(
             self, torch.nn.Module
         ), "load_model can only be called on an nn.Module instance"
@@ -166,21 +193,21 @@ class PretrainedMixin:
 
 
 class ModelOutput(OrderedDict):
-    def keys(self):
+    def keys(self) -> Any:
         for field in fields(self):
             yield field.name
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: Any) -> Any:
         return getattr(self, key)
 
-    def __iter__(self):
+    def __iter__(self) -> Any:
         yield from self.keys()
 
-    def values(self):
+    def values(self) -> Any:
         for field in fields(self):
             yield getattr(self, field.name)
 
-    def items(self):
+    def items(self) -> Any:
         for field in fields(self):
             yield field.name, getattr(self, field.name)
 

@@ -11,7 +11,7 @@ import torch
 from examples.mugen.retrieval.s3d import S3D
 from torch import nn
 
-from torchmultimodal.architectures.clip import CLIPArchitecture
+from torchmultimodal.models.clip import CLIP
 from torchmultimodal.utils.common import PretrainedMixin
 from transformers import DistilBertConfig, DistilBertModel
 
@@ -52,7 +52,7 @@ class TextEncoder(nn.Module, HuggingFaceMixin):
 
     Returns:
         Tensor: encoded text with dimensions (batch, ``model_config.dim``).
-            Default and pretrained ``model_config.dim`` is ``768``.
+            Default ``model_config.dim`` is ``768``.
     """
 
     def __init__(
@@ -93,7 +93,9 @@ class VideoEncoder(nn.Module, PretrainedMixin):
 
     """
 
-    def __init__(self):
+    def __init__(
+        self,
+    ):
         super().__init__()
         self.model = S3D(400)
         self.out_dim = self.model.fc.in_channels
@@ -153,7 +155,7 @@ def videoclip(
     video_pretrain_path: str = PRETRAINED_S3D_KINETICS400_URL,
     proj_out_dim: int = 256,
     proj_dropout: float = 0.1,
-) -> CLIPArchitecture:
+) -> CLIP:
     """Create MUGEN's video-text CLIP model with a S3D-backed video encoder and DistilBERT-backed text encoder.
         MUGEN paper: https://arxiv.org/abs/2204.08058
 
@@ -181,7 +183,7 @@ def videoclip(
             Defaults to ``0.1``, the value used by MUGEN.
 
     Returns:
-        CLIPArchitecture: CLIP model using MUGEN's video encoder and text encoder.
+        CLIP: CLIP model using MUGEN's video encoder and text encoder.
 
     """
     text_model = TextEncoder(
@@ -223,4 +225,4 @@ def videoclip(
         ),
     )
 
-    return CLIPArchitecture(encoder_a=text_encoder, encoder_b=video_encoder)
+    return CLIP(encoder_a=text_encoder, encoder_b=video_encoder)

@@ -11,7 +11,7 @@ from torchtext.models.roberta.modules import TransformerEncoder
 
 class CLIPTextEncoder(nn.Module):
     """CLIP text encoder class. Should be instantiated and passed to
-    CLIPArchitecture (architectures/clip.py)
+    CLIP (models/clip.py)
 
     As in CLIP, the text encoder follows a Transformer architecture.
 

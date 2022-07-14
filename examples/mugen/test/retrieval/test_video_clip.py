@@ -230,13 +230,14 @@ class TestVideoCLIPBuilder:
         )
 
     def test_untrained_untrainable(self):
-        model = videoclip(
-            text_pretrained=False,
-            text_trainable=False,
-            video_pretrained=False,
-            video_trainable=False,
-            proj_out_dim=3,
-        )
+        with pytest.warns(UserWarning):
+            model = videoclip(
+                text_pretrained=False,
+                text_trainable=False,
+                video_pretrained=False,
+                video_trainable=False,
+                proj_out_dim=3,
+            )
 
         assert next(model.encoder_a.parameters()).requires_grad
         assert next(model.encoder_b.parameters()).requires_grad
