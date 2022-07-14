@@ -161,8 +161,12 @@ class MultiHeadAttention(nn.Module):
     ) -> Tensor:
         # compute k, q, v
         q = self._split_multihead(self.w_qs(q))
-        k = self._split_multihead(self.w_ks(k))
-        v = self._split_multihead(self.w_vs(v))
+
+        # For causal k, v are provided step-wise so we should always compute them
+        # For non-causal skip computing k, v if they have been cached
+        if self.causal or not self.cache:
+            k = self._split_multihead(self.w_ks(k))
+            v = self._split_multihead(self.w_vs(v))
 
         # fast decoding by caching past key, value tensors
         if use_cache:
@@ -187,6 +191,8 @@ class MultiHeadAttention(nn.Module):
         return a
 
 
+# TODO: retire causal once mask generation is moved out of FullAttention
+#   causal inside FullAttention does not affect caching of k, v
 class FullAttention(nn.Module):
     """Computes attention over the entire flattened input.
 
