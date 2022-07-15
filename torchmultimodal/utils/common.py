@@ -128,6 +128,21 @@ def transpose_for_scores(
     return x.permute(0, 2, 1, 3)
 
 
+def load_module_from_url(
+    model: torch.nn.Module, url: str, progress: bool = True
+) -> None:
+    model_dir = os.path.join(
+        torch.hub.get_dir(),
+        "multimodal",
+        hashlib.sha256(url.encode("utf-8")).hexdigest(),
+    )
+
+    state_dict = torch.hub.load_state_dict_from_url(
+        url, model_dir=model_dir, progress=progress
+    )
+    model.load_state_dict(state_dict)
+
+
 @torch.no_grad()
 def remove_grad(model: nn.Module) -> None:
     for param in model.parameters():
