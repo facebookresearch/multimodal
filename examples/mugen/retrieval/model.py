@@ -38,10 +38,6 @@ class VideoCLIPLightningModule(LightningModule):
             logit_scale_max=logit_scale_max,
         )
 
-    def forward(self, batch, batch_idx):
-        text, video = batch.get("text"), batch.get("video")
-        return self.model(features_a=text, features_b=video)
-
     def test_step(self, batch, batch_idx):
         text, video = batch.get("text"), batch.get("video")
         model_output = self.model(features_a=text, features_b=video)
