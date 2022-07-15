@@ -219,7 +219,7 @@ class TestMultiheadAttention:
 
 
 def test_scaled_dot_product_attention(q, kv):
-    actual = scaled_dot_product_attention(q, kv, kv)
+    actual, _ = scaled_dot_product_attention(q, kv, kv)
     expected = torch.tensor(
         [
             [
