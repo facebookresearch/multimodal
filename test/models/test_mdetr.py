@@ -188,34 +188,34 @@ class TestMDETR:
         num_classes_full,
     ):
         out = mdetr(test_tensors, input_ids)
-        logits_actual = out["pred_logits"]
-        boxes_actual = out["pred_boxes"]
+        logits_actual = out.pred_logits
+        boxes_actual = out.pred_boxes
         logits_expected = torch.Tensor(
             [
-                -0.8136,
-                -0.8156,
-                -0.8094,
-                -0.8099,
-                -0.8226,
-                -0.8106,
-                -0.8104,
-                -0.8207,
-                -0.8172,
-                -0.8063,
+                -0.8264,
+                -0.8312,
+                -0.8164,
+                -0.8235,
+                -0.8361,
+                -0.8247,
+                -0.8258,
+                -0.8323,
+                -0.8297,
+                -0.8214,
             ]
         )
         boxes_expected = torch.Tensor(
             [
-                0.5612,
-                0.5623,
-                0.5615,
-                0.5617,
-                0.5620,
-                0.5614,
-                0.5617,
-                0.5611,
-                0.5615,
-                0.5620,
+                0.5595,
+                0.5601,
+                0.5598,
+                0.5597,
+                0.5601,
+                0.5595,
+                0.5597,
+                0.5593,
+                0.5596,
+                0.5601,
             ]
         )
         assert logits_actual.size() == (
