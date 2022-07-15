@@ -180,8 +180,6 @@ class MultiHeadAttention(nn.Module):
         return a
 
 
-# TODO: retire causal once mask generation is moved out of FullAttention
-#   causal inside FullAttention does not affect caching of k, v
 class FullAttention(nn.Module):
     """Computes attention over the entire n-dimensional input.
 
