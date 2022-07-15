@@ -268,7 +268,8 @@ def test_axial_attention(axial_attn, q, kv):
         ]
     )
     assert_expected(actual, expected, rtol=0, atol=1e-4)
-    
+
+
 def test_split_multihead(input_shape):
     x = torch.randn(1, *input_shape, 6)  # (b, d1, ..., dn, c)
     out = split_multihead(x, 2)
@@ -276,11 +277,13 @@ def test_split_multihead(input_shape):
     expected = torch.tensor((1, 2, *input_shape, 3))  # (b, h, d1, ..., dn, c // h)
     assert_expected(actual, expected)
 
+
 def test_merge_multihead(input_shape, hidden_dim, q):
     out = merge_multihead(q)
     actual = torch.tensor(out.shape)
     expected = torch.tensor((1, *input_shape, hidden_dim))
     assert_expected(actual, expected)
+
 
 class TestAxialBlock:
     @pytest.fixture
