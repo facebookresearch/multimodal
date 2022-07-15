@@ -4,7 +4,9 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import unittest
+from itertools import repeat
+
+import pytest
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
@@ -17,164 +19,302 @@ from torchmultimodal.modules.layers.attention import (
 )
 
 
-class TestAttention(unittest.TestCase):
-    """
-    Test all Attention classes
-    """
+@pytest.fixture(autouse=True)
+def set_seed():
+    set_rng_seed(4)
 
-    def setUp(self):
-        set_rng_seed(4)
-        self.hidden_dim = 3
-        self.n_heads = 1
-        self.input_shape = (2, 2, 2)
-        self.q = torch.randn(
-            1, self.n_heads, *self.input_shape, self.hidden_dim // self.n_heads
-        )
-        self.k = torch.randn(
-            1, self.n_heads, *self.input_shape, self.hidden_dim // self.n_heads
-        )
-        self.v = torch.randn(
-            1, self.n_heads, *self.input_shape, self.hidden_dim // self.n_heads
-        )
-        self.full = FullAttention(self.input_shape, causal=False, attn_dropout=0.0)
-        self.ax = AxialAttention(1)  # only on second axis of input
-        self.mha = MultiHeadAttention(
-            self.input_shape,
-            self.hidden_dim,
-            self.hidden_dim,
-            self.n_heads,
-            1,
-            causal=False,
-            attn_module=self.full,
-        )
-        self.block = AxialAttentionBlock(
-            len(self.input_shape), self.hidden_dim, self.n_heads
-        )
 
-    def test_scaled_dot_product_attention(self):
-        actual, _ = scaled_dot_product_attention(self.q, self.k, self.v)
-        expected = torch.tensor(
-            [
-                [
-                    [
-                        [
-                            [[0.7199, 2.2441, -0.7576], [0.4518, 1.5191, -0.2356]],
-                            [[-1.1097, -0.1524, 0.3367], [0.0885, -0.2590, 0.4254]],
-                        ],
-                        [
-                            [[-0.1849, 0.3928, 0.3666], [-0.5445, 0.0442, -0.0061]],
-                            [[0.8435, -1.4510, -1.1567], [0.2037, -0.9690, -0.4564]],
-                        ],
-                    ]
-                ]
-            ]
-        )
-        assert_expected(actual, expected, rtol=0, atol=1e-4)
+@pytest.fixture
+def hidden_dim():
+    return 3
 
-    def test_full_attention(self):
-        actual = self.full(self.q, self.k, self.v)
-        # Output of full attention should be same as scaled_dot_product_attention
-        # since input dims are flattened
-        expected = torch.tensor(
-            [
-                [
-                    [
-                        [
-                            [[0.4130, 0.5607, -0.6003], [0.1206, -0.0833, -0.1378]],
-                            [[0.5494, -0.1801, -0.8837], [0.3011, 0.7369, -0.2519]],
-                        ],
-                        [
-                            [[0.1344, 0.5524, 0.0436], [0.6117, 0.6719, -0.8588]],
-                            [[0.1731, 0.8062, 0.0261], [-0.2240, -0.5229, -0.2820]],
-                        ],
-                    ]
-                ]
-            ]
-        )
-        assert_expected(actual, expected, rtol=0, atol=1e-4)
 
-    def test_axial_attention(self):
-        actual = self.ax(self.q, self.k, self.v)
-        expected = torch.tensor(
-            [
-                [
-                    [
-                        [
-                            [[0.8644, 2.3747, -0.8809], [-0.7204, 0.0344, 0.4795]],
-                            [[0.8348, 2.4704, -0.9301], [-0.5203, 0.0964, 0.5355]],
-                        ],
-                        [
-                            [[-0.7800, -0.5387, -0.4397], [0.7498, -1.2456, -0.9972]],
-                            [[-0.7235, -0.5575, -0.4205], [0.7629, -1.2702, -1.0178]],
-                        ],
-                    ]
-                ]
-            ]
-        )
-        assert_expected(actual, expected, rtol=0, atol=1e-4)
+@pytest.fixture
+def n_dim():
+    return 3
 
-    def test_split_multihead(self):
-        x = torch.randn(1, *self.input_shape, 6)
-        self.mha.n_head = 2
-        out = self.mha._split_multihead(x)
+
+@pytest.fixture
+def input_shape(n_dim):
+    return tuple(repeat(2, n_dim))
+
+
+@pytest.fixture
+def q(input_shape, hidden_dim):
+    n_heads = 1
+    return torch.randn(1, n_heads, *input_shape, hidden_dim // n_heads)
+
+
+@pytest.fixture
+def kv(input_shape, hidden_dim):
+    n_heads = 1
+    return torch.randn(1, n_heads, *input_shape, hidden_dim // n_heads)
+
+
+@pytest.fixture
+def full_attn(input_shape):
+    return FullAttention(input_shape, causal=False, attn_dropout=0.0)
+
+
+@pytest.fixture
+def axial_attn():
+    return AxialAttention(1)  # only on second axis of input
+
+
+class TestMultiheadAttention:
+    @pytest.fixture
+    def multihead_attn(self, input_shape, hidden_dim):
+        def create_multihead_attn(n_heads, causal, attn_module):
+            return MultiHeadAttention(
+                input_shape, hidden_dim, hidden_dim, n_heads, 1, causal, attn_module
+            )
+
+        return create_multihead_attn
+
+    def test_split_multihead(self, input_shape, multihead_attn, full_attn):
+        mha = multihead_attn(2, False, full_attn)
+        x = torch.randn(1, *input_shape, 6)  # (b, d1, ..., dn, c)
+        out = mha._split_multihead(x)
         actual = torch.tensor(out.shape)
-        expected = torch.tensor((1, 2, *self.input_shape, 3))
+        expected = torch.tensor((1, 2, *input_shape, 3))  # (b, h, d1, ..., dn, c // h)
         assert_expected(actual, expected)
 
-    def test_combine_multihead(self):
-        out = self.mha._combine_multihead(self.q)
+    def test_combine_multihead(
+        self, input_shape, hidden_dim, multihead_attn, full_attn, q
+    ):
+        mha = multihead_attn(1, False, full_attn)
+        out = mha._combine_multihead(q)
         actual = torch.tensor(out.shape)
-        expected = torch.tensor((1, *self.input_shape, self.hidden_dim))
+        expected = torch.tensor((1, *input_shape, hidden_dim))
         assert_expected(actual, expected)
 
-    def test_multi_head_attention(self):
-        # New tensors because need unflattened shape
-        q = 2 * torch.ones(1, *self.input_shape, self.hidden_dim)
-        k = 2 * torch.ones(1, *self.input_shape, self.hidden_dim)
-        v = 2 * torch.ones(1, *self.input_shape, self.hidden_dim)
-        actual = self.mha(q, k, v)
+    def test_multi_head_attention(
+        self,
+        input_shape,
+        hidden_dim,
+        multihead_attn,
+        full_attn,
+    ):
+        mha = multihead_attn(1, False, full_attn)
+        q = 2 * torch.ones(1, *input_shape, hidden_dim)
+        k = 2 * torch.ones(1, *input_shape, hidden_dim)
+        v = 2 * torch.ones(1, *input_shape, hidden_dim)
+        actual = mha(q, k, v)
         expected = torch.tensor(
             [
                 [
                     [
-                        [[2.4187, 4.1634, 1.4579], [2.4187, 4.1634, 1.4579]],
-                        [[2.4187, 4.1634, 1.4579], [2.4187, 4.1634, 1.4579]],
+                        [[0.7469, 0.0560, 1.4119], [0.7469, 0.0560, 1.4119]],
+                        [[0.7469, 0.0560, 1.4119], [0.7469, 0.0560, 1.4119]],
                     ],
                     [
-                        [[2.4187, 4.1634, 1.4579], [2.4187, 4.1634, 1.4579]],
-                        [[2.4187, 4.1634, 1.4579], [2.4187, 4.1634, 1.4579]],
+                        [[0.7469, 0.0560, 1.4119], [0.7469, 0.0560, 1.4119]],
+                        [[0.7469, 0.0560, 1.4119], [0.7469, 0.0560, 1.4119]],
                     ],
-                ]
+                ],
             ]
         )
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
-    def test_axial_block_forward(self):
+    def test_multi_head_attention_use_cache(
+        self, input_shape, hidden_dim, multihead_attn, full_attn, mocker
+    ):
+        mha = multihead_attn(1, False, full_attn)
+        mock_projection_k = mocker.patch.object(
+            mha.w_ks, "forward", wraps=mha.w_ks.forward
+        )
+        mock_projection_v = mocker.patch.object(
+            mha.w_vs, "forward", wraps=mha.w_vs.forward
+        )
+
+        q = 2 * torch.ones(1, *input_shape, hidden_dim)
+        k = 2 * torch.ones(1, *input_shape, hidden_dim)
+        v = 2 * torch.ones(1, *input_shape, hidden_dim)
+
+        expected = torch.tensor(
+            [
+                [
+                    [
+                        [[0.7469, 0.0560, 1.4119], [0.7469, 0.0560, 1.4119]],
+                        [[0.7469, 0.0560, 1.4119], [0.7469, 0.0560, 1.4119]],
+                    ],
+                    [
+                        [[0.7469, 0.0560, 1.4119], [0.7469, 0.0560, 1.4119]],
+                        [[0.7469, 0.0560, 1.4119], [0.7469, 0.0560, 1.4119]],
+                    ],
+                ],
+            ]
+        )
+
+        # cached k, v are linearly projected and split-headed: (b, n_heads, d1, ..., dn, emb_dim)
+        expected_k = torch.tensor(
+            [
+                [
+                    [
+                        [
+                            [[1.6964, -0.2340, 0.4197], [1.6964, -0.2340, 0.4197]],
+                            [[1.6964, -0.2340, 0.4197], [1.6964, -0.2340, 0.4197]],
+                        ],
+                        [
+                            [[1.6964, -0.2340, 0.4197], [1.6964, -0.2340, 0.4197]],
+                            [[1.6964, -0.2340, 0.4197], [1.6964, -0.2340, 0.4197]],
+                        ],
+                    ],
+                ],
+            ]
+        )
+        expected_v = torch.tensor(
+            [
+                [
+                    [
+                        [
+                            [[-1.6807, 0.7984, -0.4054], [-1.6807, 0.7984, -0.4054]],
+                            [[-1.6807, 0.7984, -0.4054], [-1.6807, 0.7984, -0.4054]],
+                        ],
+                        [
+                            [[-1.6807, 0.7984, -0.4054], [-1.6807, 0.7984, -0.4054]],
+                            [[-1.6807, 0.7984, -0.4054], [-1.6807, 0.7984, -0.4054]],
+                        ],
+                    ],
+                ],
+            ]
+        )
+
+        # initially the cache should be empty
+        assert not mha.cache
+        for i in range(2):
+            # pertube the input k, v but cache only once
+            actual = mha(q, k + i, v + i, use_cache=True)
+            assert_expected(mha.cache["k"], expected_k, rtol=0, atol=1e-4)
+            assert_expected(mha.cache["v"], expected_v, rtol=0, atol=1e-4)
+            assert_expected(actual, expected, rtol=0, atol=1e-4)
+            # test that k, v projection is skipped except for the first pass
+            mock_projection_k.assert_called_once()
+            mock_projection_v.assert_called_once()
+
+    def test_multi_head_attention_causal_use_cache(
+        self, input_shape, hidden_dim, multihead_attn, full_attn
+    ):
+        n_heads = 1
+        mha = multihead_attn(n_heads, True, full_attn)
+        seq_len = torch.prod(torch.tensor(input_shape)).item()
+        q = 2 * torch.ones(1, *input_shape, hidden_dim).flatten(start_dim=1, end_dim=-2)
+        k = 2 * torch.ones(1, *input_shape, hidden_dim).flatten(start_dim=1, end_dim=-2)
+        v = 2 * torch.ones(1, *input_shape, hidden_dim).flatten(start_dim=1, end_dim=-2)
+        out = []
+        # initially the cache should be empty
+        assert not mha.cache
+        # decoding is step-wise along the sequence dim
+        for i in range(seq_len):
+            out.append(
+                mha(q[:, i : i + 1], k[:, i : i + 1], v[:, i : i + 1], use_cache=True)
+            )
+            # cached k, v are flattened and augmented by 1 unit at each step
+            expected_kv_shape = torch.Size([1, n_heads, (i + 1), hidden_dim])
+            assert_expected(mha.cache["k"].shape, expected_kv_shape)
+            assert_expected(mha.cache["v"].shape, expected_kv_shape)
+
+        out = torch.cat(out, dim=1)
+        assert_expected(out.shape, torch.Size([1, seq_len, hidden_dim]))
+
+
+def test_scaled_dot_product_attention(q, kv):
+    actual = scaled_dot_product_attention(q, kv, kv)
+    expected = torch.tensor(
+        [
+            [
+                [
+                    [
+                        [[-0.5862, 1.7955, 1.0711], [-0.2718, 1.2177, 1.4946]],
+                        [[-0.0613, 0.1774, 0.4893], [0.6899, -0.0650, 0.2909]],
+                    ],
+                    [
+                        [[0.2950, 1.2029, 1.7035], [0.2735, 0.5582, 0.6797]],
+                        [[-1.1558, 1.0143, 0.1598], [0.7875, 0.0928, -0.7952]],
+                    ],
+                ],
+            ],
+        ]
+    )
+    assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+
+def test_full_attention(full_attn, q, kv):
+    k = v = kv
+    actual = full_attn(q, k, v)
+    # Output of full attention should be same as scaled_dot_product_attention
+    # since input dims are flattened
+    expected = torch.tensor(
+        [
+            [
+                [
+                    [
+                        [[-0.4851, 1.2020, 0.7056], [0.3507, 0.3822, 0.2783]],
+                        [[-0.8302, 1.1415, 0.4297], [-0.0969, 1.0956, 0.9591]],
+                    ],
+                    [
+                        [[-0.0698, 0.9357, 1.4559], [-0.7157, 1.3919, 0.5880]],
+                        [[-0.0598, 1.1194, 1.5332], [0.5494, -0.0489, -0.4454]],
+                    ],
+                ]
+            ]
+        ]
+    )
+    assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+
+def test_axial_attention(axial_attn, q, kv):
+    k = v = kv
+    actual = axial_attn(q, k, v)
+    expected = torch.tensor(
+        [
+            [
+                [
+                    [
+                        [[-0.5869, 1.8958, 0.8688], [0.0299, 0.2098, 1.2741]],
+                        [[-0.6662, 1.9747, 0.8980], [0.1002, 0.2094, 1.5472]],
+                    ],
+                    [
+                        [[0.5902, -0.3275, -0.8727], [-1.0557, 1.0791, 0.3916]],
+                        [[0.6623, -0.3223, -0.8948], [-1.0755, 1.0763, 0.3708]],
+                    ],
+                ]
+            ]
+        ]
+    )
+    assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+
+class TestAxialBlock:
+    @pytest.fixture
+    def axial_block(self, input_shape, hidden_dim):
+        return AxialAttentionBlock(len(input_shape), hidden_dim, 1)
+
+    def test_axial_block_forward(self, axial_block, hidden_dim, input_shape):
         """Test AxialAttentionBlock with sub-components"""
-        x = 2 * torch.ones(1, self.hidden_dim, *self.input_shape)
-        actual = self.block(x)
+        x = 2 * torch.ones(1, hidden_dim, *input_shape)
+        actual = axial_block(x)
         expected = torch.tensor(
             [
                 [
                     [
-                        [[-0.5137, -0.5137], [-0.5137, -0.5137]],
-                        [[-0.5137, -0.5137], [-0.5137, -0.5137]],
+                        [[6.6573, 6.6573], [6.6573, 6.6573]],
+                        [[6.6573, 6.6573], [6.6573, 6.6573]],
                     ],
                     [
-                        [[1.7030, 1.7030], [1.7030, 1.7030]],
-                        [[1.7030, 1.7030], [1.7030, 1.7030]],
+                        [[4.1675, 4.1675], [4.1675, 4.1675]],
+                        [[4.1675, 4.1675], [4.1675, 4.1675]],
                     ],
                     [
-                        [[-5.2132, -5.2132], [-5.2132, -5.2132]],
-                        [[-5.2132, -5.2132], [-5.2132, -5.2132]],
+                        [[7.0048, 7.0048], [7.0048, 7.0048]],
+                        [[7.0048, 7.0048], [7.0048, 7.0048]],
                     ],
-                ]
+                ],
             ]
         )
-        assert_expected(actual, expected, rtol=0, atol=1e-4)
 
-    def test_axial_block_channel_dim(self):
+    def test_axial_block_channel_dim(self, axial_block, hidden_dim, input_shape):
         """Test dim check in forward of AxialAttentionBlock"""
-        x = torch.zeros(1, self.hidden_dim + 1, *self.input_shape)
-        with self.assertRaises(ValueError):
-            _ = self.block(x)
+        x = torch.zeros(1, hidden_dim + 1, *input_shape)
+        with pytest.raises(ValueError):
+            _ = axial_block(x)
