@@ -204,7 +204,7 @@ class TestMultiheadAttention:
 
 
 def test_scaled_dot_product_attention(q, kv):
-    actual = scaled_dot_product_attention(q, kv, kv)
+    actual, _ = scaled_dot_product_attention(q, kv, kv)
     expected = torch.tensor(
         [
             [
@@ -268,19 +268,20 @@ def test_axial_attention(axial_attn, q, kv):
         ]
     )
     assert_expected(actual, expected, rtol=0, atol=1e-4)
-    
-def test_split_multihead(self):
-    x = torch.randn(1, *self.input_shape, 6)
-    n_head = 2
-    out = split_multihead(x, n_head)
+
+
+def test_split_multihead(input_shape):
+    x = torch.randn(1, *input_shape, 6)  # (b, d1, ..., dn, c)
+    out = split_multihead(x, 2)
     actual = torch.tensor(out.shape)
-    expected = torch.tensor((1, 2, *self.input_shape, 3))
+    expected = torch.tensor((1, 2, *input_shape, 3))  # (b, h, d1, ..., dn, c // h)
     assert_expected(actual, expected)
 
-def test_merge_multihead(self):
-    out = merge_multihead(self.q)
+
+def test_merge_multihead(input_shape, hidden_dim, q):
+    out = merge_multihead(q)
     actual = torch.tensor(out.shape)
-    expected = torch.tensor((1, *self.input_shape, self.hidden_dim))
+    expected = torch.tensor((1, *input_shape, hidden_dim))
     assert_expected(actual, expected)
 
 
