@@ -125,7 +125,7 @@ class FLAVAPreTrainingLightningModuleFSDP(LightningModule):
         p = partial(
             transformer_auto_wrap_policy, transformer_layer_cls={FLAVATransformerLayer}
         )
-        self.model = FullyShardedDataParallel(self.model, auto_wrap_policy=p)
+        self.model = FullyShardedDataParallel(self.model, auto_wrap_policy=p, device_id=torch.cuda.current_device())
         print("My fsdp model ", self.model)
 
 
