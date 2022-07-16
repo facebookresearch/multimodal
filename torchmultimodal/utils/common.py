@@ -40,15 +40,10 @@ def get_extended_attention_mask(attention_mask: Tensor) -> Tensor:
             "Wrong shape for attention_mask (shape {})".format(attention_mask.shape)
         )
 
-    # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
-    # masked positions, this operation will create a tensor which is 0.0 for
-    # positions we want to attend and -10000.0 for masked positions.
-    # Since we are adding it to the raw scores before the softmax, this is
-    # effectively the same as removing these entirely.
     extended_attention_mask = extended_attention_mask.to(
         dtype=attention_mask.dtype
     )  # fp16 compatibility
-    extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
+
     return extended_attention_mask
 
 
