@@ -16,8 +16,6 @@ class SelfAttention(nn.Module):
     """Computes attention over the entire n-dimensional input.
 
     Attributes:
-        shape (Tuple[int, ...]): shape of input data (d1, ..., dn)
-        causal (bool): use causal attention or not
         attn_dropout (float): probability of dropout after softmax. Default is ``0.0``.
 
     Args:
@@ -70,6 +68,7 @@ class AxialAttention(nn.Module):
     Attributes:
         axial_dim (int): dimension to compute attention on, index by input dimensions
             (i.e., 0 for first input dimension, 1 for second)
+        attn_dropout (float): probability of dropout after softmax. Default is ``0.0``.
 
     Args:
         q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor where h is the number of attention heads
@@ -314,6 +313,7 @@ def scaled_dot_product_attention(
         head_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
                                       Contains 1s for positions to attend to and 0s for masked positions.
                                       Applied after dropout, before matrix multiplication with values.
+        attn_dropout (float): probability of dropout after softmax. Default is ``0.0``.
     """
 
     # Take the dot product between "query" and "key" and scale to get the raw attention scores.
