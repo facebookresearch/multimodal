@@ -53,7 +53,7 @@ def kv(input_shape, hidden_dim):
 
 @pytest.fixture
 def full_attn(input_shape):
-    return FullAttention(input_shape, causal=False, attn_dropout=0.0)
+    return FullAttention(attn_dropout=0.0)
 
 
 @pytest.fixture
@@ -66,7 +66,7 @@ class TestMultiheadAttention:
     def multihead_attn(self, input_shape, hidden_dim):
         def create_multihead_attn(n_heads, causal, attn_module):
             return MultiHeadAttention(
-                input_shape, hidden_dim, hidden_dim, n_heads, 1, causal, attn_module
+                hidden_dim, hidden_dim, n_heads, 1, causal, attn_module
             )
 
         return create_multihead_attn
