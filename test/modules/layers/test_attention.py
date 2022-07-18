@@ -14,8 +14,10 @@ from torchmultimodal.modules.layers.attention import (
     AxialAttention,
     AxialAttentionBlock,
     FullAttention,
+    merge_multihead,
     MultiHeadAttention,
     scaled_dot_product_attention,
+    split_multihead,
 )
 
 
@@ -70,23 +72,6 @@ class TestMultiheadAttention:
             )
 
         return create_multihead_attn
-
-    def test_split_multihead(self, input_shape, multihead_attn, full_attn):
-        mha = multihead_attn(2, False, full_attn)
-        x = torch.randn(1, *input_shape, 6)  # (b, d1, ..., dn, c)
-        out = mha._split_multihead(x)
-        actual = torch.tensor(out.shape)
-        expected = torch.tensor((1, 2, *input_shape, 3))  # (b, h, d1, ..., dn, c // h)
-        assert_expected(actual, expected)
-
-    def test_combine_multihead(
-        self, input_shape, hidden_dim, multihead_attn, full_attn, q
-    ):
-        mha = multihead_attn(1, False, full_attn)
-        out = mha._combine_multihead(q)
-        actual = torch.tensor(out.shape)
-        expected = torch.tensor((1, *input_shape, hidden_dim))
-        assert_expected(actual, expected)
 
     def test_multi_head_attention(
         self,
@@ -283,6 +268,21 @@ def test_axial_attention(axial_attn, q, kv):
         ]
     )
     assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+
+def test_split_multihead(input_shape):
+    x = torch.randn(1, *input_shape, 6)  # (b, d1, ..., dn, c)
+    out = split_multihead(x, 2)
+    actual = torch.tensor(out.shape)
+    expected = torch.tensor((1, 2, *input_shape, 3))  # (b, h, d1, ..., dn, c // h)
+    assert_expected(actual, expected)
+
+
+def test_merge_multihead(input_shape, hidden_dim, q):
+    out = merge_multihead(q)
+    actual = torch.tensor(out.shape)
+    expected = torch.tensor((1, *input_shape, hidden_dim))
+    assert_expected(actual, expected)
 
 
 class TestAxialBlock:
