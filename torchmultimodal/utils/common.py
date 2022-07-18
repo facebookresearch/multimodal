@@ -21,37 +21,6 @@ def get_current_device() -> Union[str, torch.device]:
         return torch.device("cpu")
 
 
-def get_extended_attention_mask(attention_mask: Tensor) -> Tensor:
-    """
-    Makes broadcastable attention and causal masks so that future and masked tokens are ignored.
-    Arguments:
-        attention_mask (`torch.Tensor`):
-            Mask with ones indicating tokens to attend to, zeros for tokens to ignore.
-
-    Returns:
-        `torch.Tensor` The extended attention mask, with the same dtype as `attention_mask.dtype`.
-    """
-    # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
-    # ourselves in which case we just need to make it broadcastable to all heads,
-    # [batch_size, num_heads, from_seq_length, to_seq_length].
-    if attention_mask.dim() == 3:
-        extended_attention_mask = attention_mask[:, None, :, :]
-    elif attention_mask.dim() == 2:
-        # Provided a padding mask of dimensions [batch_size, seq_length]
-        # - if the model is an encoder, make the mask broadcastable to [batch_size, num_heads, seq_length, seq_length]
-        extended_attention_mask = attention_mask[:, None, None, :]
-    else:
-        raise ValueError(
-            "Wrong shape for attention_mask (shape {})".format(attention_mask.shape)
-        )
-
-    extended_attention_mask = extended_attention_mask.to(
-        dtype=attention_mask.dtype
-    )  # fp16 compatibility
-
-    return extended_attention_mask
-
-
 def shift_dim(
     x: Tensor, src_dim: int = -1, dest_dim: int = -1, make_contiguous: bool = True
 ) -> Tensor:

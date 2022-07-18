@@ -286,7 +286,7 @@ def scaled_dot_product_attention(
     Computes attention as described in Attention Is All You Need (Vaswani et al. 2017)
 
     Args:
-        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor or a flattened tensor of shape [b, d, c]
+        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor or a flattened tensor of shape [b, seq_len, c]
                           where first dim is batch dim and last dim is channel dim
         attention_mask (Optional[Tensor]): tensor containing 1s for positions to attend to and 0s for masked positions.
         head_mask (Optional[Tensor]): tensor containing 1s for positions to keep and 0s for masked positions. Applied after
