@@ -15,7 +15,7 @@ import torch
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.attention import (
     merge_multihead,
-    scaled_dot_product_attention,
+    SelfAttention,
     split_multihead,
 )
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
@@ -33,11 +33,12 @@ FLAVATransformerOutput = namedtuple(
 )
 
 
-class FLAVASelfAttention(nn.Module):
+class FLAVAAttention(nn.Module):
     def __init__(
         self,
         hidden_size: int = 768,
         num_attention_heads: int = 12,
+        hidden_dropout_prob: float = 0.0,
         attention_probs_dropout_prob: float = 0.0,
     ):
         super().__init__()
@@ -55,7 +56,11 @@ class FLAVASelfAttention(nn.Module):
         self.key = nn.Linear(hidden_size, self.all_head_size)
         self.value = nn.Linear(hidden_size, self.all_head_size)
 
-        self.attn_dropout = attention_probs_dropout_prob
+        self.attention = SelfAttention(
+            attn_dropout=attention_probs_dropout_prob,
+        )
+        self.output = nn.Linear(hidden_size, hidden_size)
+        self.dropout = nn.Dropout(hidden_dropout_prob)
 
     def forward(
         self,
@@ -72,56 +77,19 @@ class FLAVASelfAttention(nn.Module):
             self.query(hidden_states), self.num_attention_heads
         )
 
-        context_layer, attention_probs = scaled_dot_product_attention(
+        context, attn_probs = self.attention(
             query_layer,
             key_layer,
             value_layer,
-            attention_mask,
-            head_mask,
-            self.attn_dropout,
-        )
-
-        context_layer = merge_multihead(context_layer)
-
-        outputs = (context_layer, attention_probs)
-        return outputs
-
-
-class FLAVAAttention(nn.Module):
-    def __init__(
-        self,
-        hidden_size: int = 768,
-        num_attention_heads: int = 12,
-        hidden_dropout_prob: float = 0.0,
-        attention_probs_dropout_prob: float = 0.0,
-    ):
-        super().__init__()
-        self.attention = FLAVASelfAttention(
-            hidden_size=hidden_size,
-            num_attention_heads=num_attention_heads,
-            attention_probs_dropout_prob=attention_probs_dropout_prob,
-        )
-        self.output = nn.Linear(hidden_size, hidden_size)
-        self.dropout = nn.Dropout(hidden_dropout_prob)
-
-    def forward(
-        self,
-        hidden_states: Tensor,
-        attention_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
-    ) -> Tuple[Tensor, Tensor]:
-        self_outputs = self.attention(
-            hidden_states,
             attention_mask=attention_mask,
             head_mask=head_mask,
         )
 
-        attention_output = self.dropout(self.output(self_outputs[0]))
+        context = merge_multihead(context)
 
-        outputs = (attention_output,) + self_outputs[
-            1:
-        ]  # add attentions if we output them
-        return outputs
+        output = self.dropout(self.output(context))
+
+        return output, attn_probs
 
 
 class FLAVATransformerLayer(nn.Module):

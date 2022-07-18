@@ -13,7 +13,7 @@ from torch.nn import functional as F
 from torchmultimodal.utils.common import shift_dim
 
 
-class FullAttention(nn.Module):
+class SelfAttention(nn.Module):
     """Computes attention over the entire n-dimensional input.
 
     Attributes:
@@ -159,7 +159,7 @@ class MultiHeadAttention(nn.Module):
         n_head: int,
         n_layer: int,
         causal: bool,
-        attn_module: nn.Module = FullAttention(),
+        attn_module: nn.Module = SelfAttention(),
     ) -> None:
         super().__init__()
         if isinstance(attn_module, AxialAttention) and causal:
