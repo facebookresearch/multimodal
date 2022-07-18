@@ -90,8 +90,8 @@ class AxialAttention(nn.Module):
         if self.axial_dim >= len(q.shape) - 1:
             raise ValueError("axial dim does not match input shape")
 
-        # flatten all dims into batch dimension except chosen axial dim and channel dim 
-        # b, h, d1, ..., dn, c -> b*h*d1*...*dn-1, axial_dim, c
+        # flatten all dims into batch dimension except chosen axial dim and channel dim
+        # b, h, d1, ..., dn, c -> (b, h, d1, ..., dn-1), axial_dim, c
         q = shift_dim(q, self.axial_dim, -2).flatten(end_dim=-3)
         k = shift_dim(k, self.axial_dim, -2).flatten(end_dim=-3)
         v = shift_dim(v, self.axial_dim, -2)
@@ -138,9 +138,12 @@ class MultiHeadAttention(nn.Module):
     Args:
         q, k, v (Tensor): a tensor of shape [b, d1, ..., dn, c] or [b, seq_len, c]
             (for autoregressive decoding it's typical to pass in flattened tensors).
-        attention_mask (Optional[Tensor]): tensor containing 1s for positions to attend to and 0s for masked positions.
-        head_mask (Optional[Tensor]): tensor containing 1s for positions to keep and 0s for masked positions. Applied after
-                                      dropout after scaled dot product attention, before matrix multiplication with values.
+        attention_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
+                                           Contains 1s for positions to attend to and 0s for masked positions.
+                                           Applied before softmax.
+        head_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
+                                      Contains 1s for positions to attend to and 0s for masked positions.
+                                      Applied after dropout, before matrix multiplication with values.
         use_cache (bool): If True, caches past k and v tensors for faster decoding. If False, recompute k and v for each
                           decoding step. Default is False.
 
@@ -304,9 +307,12 @@ def scaled_dot_product_attention(
     Args:
         q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor or a flattened tensor of shape [b, seq_len, c]
                           where first dim is batch dim and last dim is channel dim
-        attention_mask (Optional[Tensor]): tensor containing 1s for positions to attend to and 0s for masked positions.
-        head_mask (Optional[Tensor]): tensor containing 1s for positions to keep and 0s for masked positions. Applied after
-                                      dropout, before matrix multiplication with values.
+        attention_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
+                                           Contains 1s for positions to attend to and 0s for masked positions.
+                                           Applied before softmax.
+        head_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
+                                      Contains 1s for positions to attend to and 0s for masked positions.
+                                      Applied after dropout, before matrix multiplication with values.
     """
 
     # Take the dot product between "query" and "key" and scale to get the raw attention scores.
