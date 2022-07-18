@@ -11,7 +11,7 @@ from torch import nn, Tensor
 from torchmultimodal.modules.encoders.albef_text_encoder import (
     ALBEFTransformerAttention,
 )
-from torchmultimodal.utils.common import get_extended_attention_mask
+from torchmultimodal.utils.attention import get_extended_attention_mask
 
 
 class ALBEFMultimodalEncoder(nn.Module):

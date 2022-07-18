@@ -13,7 +13,7 @@ from torchmultimodal.modules.layers.attention import (
     scaled_dot_product_attention,
     split_multihead,
 )
-from torchmultimodal.utils.common import get_extended_attention_mask
+from torchmultimodal.utils.attention import get_extended_attention_mask
 
 
 class ALBEFTextEncoder(nn.Module):
