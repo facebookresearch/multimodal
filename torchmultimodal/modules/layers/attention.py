@@ -95,6 +95,11 @@ class MultiHeadAttention(nn.Module):
     Args:
         q, k, v (Tensor): a tensor of shape [b, d1, ..., dn, c] or [b, seq_len, c]
             (for autoregressive decoding it's typical to pass in flattened tensors).
+        attention_mask (Optional[Tensor]): tensor containing 1s for positions to attend to and 0s for masked positions.
+        head_mask (Optional[Tensor]): tensor containing 1s for positions to keep and 0s for masked positions. Applied after
+                                      dropout after scaled dot product attention, before matrix multiplication with values.
+        use_cache (bool): If True, caches past k and v tensors for faster decoding. If False, recompute k and v for each
+                          decoding step. Default is False.
 
     Raises:
         TypeError: an error occurred when ``causal`` is ``True`` and ``attn_module`` is
@@ -144,6 +149,8 @@ class MultiHeadAttention(nn.Module):
         q: Tensor,
         k: Tensor,
         v: Tensor,
+        attention_mask: Optional[Tensor] = None,
+        head_mask: Optional[Tensor] = None,
         use_cache: bool = False,
     ) -> Tensor:
         # compute k, q, v
@@ -171,17 +178,15 @@ class MultiHeadAttention(nn.Module):
                 # override the present k, v with the cache
                 k, v = self.cache["k"], self.cache["v"]
 
-        a = self.attn(q, k, v)
+        a = self.attn(q, k, v, attention_mask, head_mask)
         a = merge_multihead(a)
         a = self.fc(a)
 
         return a
 
 
-# TODO: retire causal once mask generation is moved out of FullAttention
-#   causal inside FullAttention does not affect caching of k, v
 class FullAttention(nn.Module):
-    """Computes attention over the entire flattened input.
+    """Computes attention over the entire n-dimensional input.
 
     Attributes:
         shape (Tuple[int, ...]): shape of input data (d1, ..., dn)
@@ -191,29 +196,24 @@ class FullAttention(nn.Module):
     Args:
         q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor where h is the number of attention
             heads
+        attention_mask (Optional[Tensor]): tensor containing 1s for positions to attend to and 0s for masked positions.
+        head_mask (Optional[Tensor]): tensor containing 1s for positions to keep and 0s for masked positions. Applied after
+                                      dropout after scaled dot product attention, before matrix multiplication with values.
 
     """
 
-    def __init__(
-        self, shape: Tuple[int, ...], causal: bool = False, attn_dropout: float = 0.0
-    ) -> None:
+    def __init__(self, attn_dropout: float = 0.0) -> None:
         super().__init__()
-        self.causal = causal
         self.attn_dropout = attn_dropout
-
-        if self.causal:
-            seq_len = int(torch.prod(torch.tensor(shape)).item())
-            self.register_buffer("mask", torch.tril(torch.ones(seq_len, seq_len)))
 
     def forward(
         self,
         q: Tensor,
         k: Tensor,
         v: Tensor,
+        attention_mask: Optional[Tensor] = None,
+        head_mask: Optional[Tensor] = None,
     ) -> Tensor:
-        mask = torch.Tensor(self.mask) if self.causal else None
-        if mask is not None and q.size(2) < mask.size(0):
-            mask = mask[range(q.size(2)), :][:, range(q.size(2))]
 
         _, _, *shape, _ = q.shape
 
@@ -226,7 +226,8 @@ class FullAttention(nn.Module):
             q,
             k,
             v,
-            attention_mask=mask,
+            attention_mask=attention_mask,
+            head_mask=head_mask,
             attn_dropout=self.attn_dropout if self.training else 0.0,
         )
 
@@ -244,6 +245,9 @@ class AxialAttention(nn.Module):
     Args:
         q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor where h is the number of attention
             heads
+        attention_mask (Optional[Tensor]): tensor containing 1s for positions to attend to and 0s for masked positions.
+        head_mask (Optional[Tensor]): tensor containing 1s for positions to keep and 0s for masked positions. Applied after
+                                      dropout after scaled dot product attention, before matrix multiplication with values.
 
     """
 
@@ -252,13 +256,20 @@ class AxialAttention(nn.Module):
         self.attn_dropout = attn_dropout
         self.axial_dim = axial_dim + 2  # account for batch, head
 
-    def forward(self, q: Tensor, k: Tensor, v: Tensor) -> Tensor:
+    def forward(
+        self,
+        q: Tensor,
+        k: Tensor,
+        v: Tensor,
+        attention_mask: Optional[Tensor] = None,
+        head_mask: Optional[Tensor] = None,
+    ) -> Tensor:
         # Ensure axial dim is within right dimensions, should be between head dim and embedding dim
         if self.axial_dim >= len(q.shape) - 1:
             raise ValueError("axial dim does not match input shape")
 
-        # flatten all except chosen axial dimension and channel dimension to batch dimension
-        # b, h, d1, ..., dn, c -> b*h*d1*..., axial_dim, c
+        # flatten all dims into batch dimension except chosen axial dim and channel dim
+        # b, h, d1, ..., dn, c -> b*h*d1*...*dn-1, axial_dim, c
         q = shift_dim(q, self.axial_dim, -2).flatten(end_dim=-3)
         k = shift_dim(k, self.axial_dim, -2).flatten(end_dim=-3)
         v = shift_dim(v, self.axial_dim, -2)
@@ -266,7 +277,12 @@ class AxialAttention(nn.Module):
         v = v.flatten(end_dim=-3)
 
         out, _ = scaled_dot_product_attention(
-            q, k, v, attn_dropout=self.attn_dropout if self.training else 0.0
+            q,
+            k,
+            v,
+            attention_mask=attention_mask,
+            head_mask=head_mask,
+            attn_dropout=self.attn_dropout if self.training else 0.0,
         )
         out = out.view(*old_shape)
         out = shift_dim(out, -2, self.axial_dim)
@@ -286,7 +302,7 @@ def scaled_dot_product_attention(
     Computes attention as described in Attention Is All You Need (Vaswani et al. 2017)
 
     Args:
-        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor or a flattened tensor of shape [b, d, c]
+        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor or a flattened tensor of shape [b, seq_len, c]
                           where first dim is batch dim and last dim is channel dim
         attention_mask (Optional[Tensor]): tensor containing 1s for positions to attend to and 0s for masked positions.
         head_mask (Optional[Tensor]): tensor containing 1s for positions to keep and 0s for masked positions. Applied after

@@ -55,7 +55,7 @@ def kv(input_shape, hidden_dim):
 
 @pytest.fixture
 def full_attn(input_shape):
-    return FullAttention(input_shape, causal=False, attn_dropout=0.0)
+    return FullAttention(attn_dropout=0.0)
 
 
 @pytest.fixture
