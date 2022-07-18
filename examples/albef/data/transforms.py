@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import re
-from typing import Tuple
+from typing import List, Tuple, Union
 
 import torch
 
@@ -33,6 +33,8 @@ class ALBEFTextTransform:
     Args:
         vocab_file (str): Local or URL path to pre-trained vocab file.
             Defaults to HuggingFace BERT base (uncased) model's vocab file.
+        do_pre_process (bool): Whether to pre-process input text.
+            Defaults to True.
         do_lower_case (bool): Whether to convert input text to lowercase.
             Defaults to True.
         truncate (bool): Whether to truncate input text to max_seq_length.
@@ -49,12 +51,13 @@ class ALBEFTextTransform:
             Defaults to 0, Hugging Face's BERT pad token id.
 
     Inputs:
-        text (str): Input text to transform.
+        text (Union[List[str], str]): Input text to transform.
     """
 
     def __init__(
         self,
         vocab_file: str = "https://huggingface.co/bert-base-uncased/resolve/main/vocab.txt",
+        do_pre_process: bool = True,
         do_lower_case: bool = True,
         truncate: bool = False,
         add_end_token: bool = True,
@@ -63,6 +66,7 @@ class ALBEFTextTransform:
         sep_token_id: int = 102,
         pad_token_id: int = 0,
     ):
+        self.do_pre_process = do_pre_process
         self.cls_token_id = cls_token_id
         self.sep_token_id = sep_token_id
         self.pad_token_id = pad_token_id
@@ -97,8 +101,12 @@ class ALBEFTextTransform:
 
         return text
 
-    def __call__(self, text: str) -> torch.Tensor:
-        text = self.pre_process(text)
+    def __call__(self, text: Union[List[str], str]) -> torch.Tensor:
+        if self.do_pre_process:
+            if isinstance(text, str):
+                text = self.pre_process(text)
+            else:
+                text = [self.pre_process(t) for t in text]
         input_ids = self.tokenizer(text)
         return input_ids
 

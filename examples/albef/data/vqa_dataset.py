@@ -8,6 +8,8 @@ import json
 import os
 from typing import Callable, List, Tuple, Union
 
+import torch
+
 from PIL import Image
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -46,8 +48,8 @@ class VQADataset(Dataset):
         vqa_root: str,
         vg_root: str,
         image_transform: Callable[[Image.Image], Tensor],
-        question_transform: Callable[[str], Tensor],
-        answer_transform: Callable[[str], Tensor],
+        question_transform: Callable[[Union[List[str], str]], Tensor],
+        answer_transform: Callable[[Union[List[str], str]], Tensor],
         split: str = "train",
         answer_list: str = None,
     ) -> None:
@@ -63,8 +65,9 @@ class VQADataset(Dataset):
         self.split = split
 
         if split == "test":
-            answer_list = json.load(open(answer_list, "r"))
-            self.answer_list = [self.answer_transform(a) for a in answer_list]
+            self.answer_list = json.load(open(answer_list, "r"))
+            self.answer_input_ids = self.answer_transform(self.answer_list)
+            self.answer_attention_mask = (self.answer_input_ids != 0).type(torch.long)
 
     def __len__(self) -> int:
         return len(self.ann)
@@ -104,7 +107,7 @@ class VQADataset(Dataset):
                 answers = [ann["answer"]]
                 answer_weights = [0.5]
 
-            answers = [self.answer_transform(a) for a in answers]
+            answers = list(self.answer_transform(answers))
 
             return image, question, answers, answer_weights
 

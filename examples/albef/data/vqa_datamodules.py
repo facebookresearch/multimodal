@@ -52,7 +52,7 @@ class VQADataModule(LightningDataModule):
             question_transform=ALBEFTextTransform(
                 truncate=True, max_seq_len=25, add_end_token=False
             ),
-            answer_transform=ALBEFTextTransform(),
+            answer_transform=ALBEFTextTransform(do_pre_process=False),
             split="train",
         )
 
@@ -62,7 +62,7 @@ class VQADataModule(LightningDataModule):
             vg_root,
             image_transform=testing_image_transform(),
             question_transform=ALBEFTextTransform(add_end_token=False),
-            answer_transform=ALBEFTextTransform(),
+            answer_transform=ALBEFTextTransform(do_pre_process=False),
             split="test",
             answer_list=answer_list,
         )
