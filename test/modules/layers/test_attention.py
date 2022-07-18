@@ -205,25 +205,106 @@ class TestMultiheadAttention:
         assert_expected(out.shape, torch.Size([1, seq_len, hidden_dim]))
 
 
-def test_scaled_dot_product_attention(q, kv):
-    actual, _ = scaled_dot_product_attention(q, kv, kv)
-    expected = torch.tensor(
-        [
+class TestScaledDotProductAttention:
+    def test_scaled_dot_product_attention(self, q, kv):
+        actual, _ = scaled_dot_product_attention(q, kv, kv)
+        expected = torch.tensor(
             [
                 [
                     [
-                        [[-0.5862, 1.7955, 1.0711], [-0.2718, 1.2177, 1.4946]],
-                        [[-0.0613, 0.1774, 0.4893], [0.6899, -0.0650, 0.2909]],
-                    ],
-                    [
-                        [[0.2950, 1.2029, 1.7035], [0.2735, 0.5582, 0.6797]],
-                        [[-1.1558, 1.0143, 0.1598], [0.7875, 0.0928, -0.7952]],
+                        [
+                            [[-0.5862, 1.7955, 1.0711], [-0.2718, 1.2177, 1.4946]],
+                            [[-0.0613, 0.1774, 0.4893], [0.6899, -0.0650, 0.2909]],
+                        ],
+                        [
+                            [[0.2950, 1.2029, 1.7035], [0.2735, 0.5582, 0.6797]],
+                            [[-1.1558, 1.0143, 0.1598], [0.7875, 0.0928, -0.7952]],
+                        ],
                     ],
                 ],
-            ],
-        ]
-    )
-    assert_expected(actual, expected, rtol=0, atol=1e-4)
+            ]
+        )
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+    def test_scaled_dot_product_attention_with_attention_mask(self, q, kv):
+        attn_shape = torch.Size([1, 1, 2, 2, 2, 2])
+        mask = torch.tensor([1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1]).view(
+            attn_shape
+        )
+        actual, _ = scaled_dot_product_attention(q, kv, kv, attention_mask=mask)
+        expected = torch.tensor(
+            [
+                [
+                    [
+                        [
+                            [[-0.7042, 2.0126, 0.9120], [-0.2718, 1.2177, 1.4946]],
+                            [[-0.1652, 0.2109, 0.5167], [1.7146, -0.3956, 0.0204]],
+                        ],
+                        [
+                            [[0.2950, 1.2029, 1.7035], [0.2973, 1.2710, 1.8117]],
+                            [[1.5320, -0.2602, -1.1611], [0.7875, 0.0928, -0.7952]],
+                        ],
+                    ]
+                ]
+            ]
+        )
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+    def test_scaled_dot_product_attention_with_head_mask(self, q, kv):
+        attn_shape = torch.Size([1, 1, 2, 2, 2, 2])
+        mask = torch.tensor([1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1]).view(
+            attn_shape
+        )
+        actual, _ = scaled_dot_product_attention(q, kv, kv, head_mask=mask)
+        expected = torch.tensor(
+            [
+                [
+                    [
+                        [
+                            [[-0.6195, 1.7705, 0.8023], [-0.2718, 1.2177, 1.4946]],
+                            [[-0.1561, 0.1993, 0.4882], [0.7800, -0.1800, 0.0093]],
+                        ],
+                        [
+                            [[0.2950, 1.2029, 1.7035], [0.1668, 0.7129, 1.0162]],
+                            [[0.0455, -0.0077, -0.0345], [0.7875, 0.0928, -0.7952]],
+                        ],
+                    ]
+                ]
+            ]
+        )
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+    def test_scaled_dot_product_attention_with_dropout(self, q, kv):
+        actual, _ = scaled_dot_product_attention(q, kv, kv, attn_dropout=0.3)
+        expected = torch.tensor(
+            [
+                [
+                    [
+                        [
+                            [
+                                [0.0000e00, 0.0000e00, 0.0000e00],
+                                [-5.6284e-01, 1.6085e00, 7.2891e-01],
+                            ],
+                            [
+                                [1.3536e-01, -3.1232e-02, 1.6106e-03],
+                                [9.8563e-01, -9.2847e-02, 4.1562e-01],
+                            ],
+                        ],
+                        [
+                            [
+                                [4.2149e-01, 1.7184e00, 2.4336e00],
+                                [2.3824e-01, 1.0184e00, 1.4517e00],
+                            ],
+                            [
+                                [-1.6511e00, 1.4490e00, 2.2828e-01],
+                                [1.1250e00, 1.3256e-01, -1.1361e00],
+                            ],
+                        ],
+                    ]
+                ]
+            ]
+        )
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
 
 
 def test_full_attention(full_attn, q, kv):
