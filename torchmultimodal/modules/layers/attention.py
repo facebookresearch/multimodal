@@ -90,8 +90,8 @@ class AxialAttention(nn.Module):
         if self.axial_dim >= len(q.shape) - 1:
             raise ValueError("axial dim does not match input shape")
 
-        # flatten all dims into batch dimension except chosen axial dim and channel dim 
-        # b, h, d1, ..., dn, c -> b*h*d1*...*dn-1, axial_dim, c
+        # flatten all dims into batch dimension except chosen axial dim and channel dim
+        # b, h, d1, ..., dn, c -> (b, h, d1, ..., dn-1), axial_dim, c
         q = shift_dim(q, self.axial_dim, -2).flatten(end_dim=-3)
         k = shift_dim(k, self.axial_dim, -2).flatten(end_dim=-3)
         v = shift_dim(v, self.axial_dim, -2)
@@ -321,14 +321,14 @@ def scaled_dot_product_attention(
         attn = attn.masked_fill(attention_mask == 0, float("-inf"))
     # Normalize the attention scores to probabilities
     attn_float = F.softmax(attn, dim=-1)
-    attn = attn_float.type_as(attn)  # b, h, (d1, ..., dn), c
+    attn = attn_float.type_as(attn)  # b, h, d1, ..., dn, c
     # This is actually dropping out entire tokens to attend to, which might
     # seem a bit unusual, but is taken from the original Transformer paper.
     attn = F.dropout(attn, p=attn_dropout)
     # Mask heads if we want to
     if head_mask is not None:
         attn = attn * head_mask
-    a = torch.matmul(attn, v)  # b, h, (d1, ..., dn), c
+    a = torch.matmul(attn, v)  # b, h, d1, ..., dn, c
 
     return a, attn
 
