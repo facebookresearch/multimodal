@@ -14,7 +14,7 @@ def get_causal_attention_mask(
     tgt_seq_len: int, src_seq_len: Optional[int] = None
 ) -> Tensor:
     """
-    Generates causal attention masks of dimensions (target_seq_len, src_seq_len).
+    Generates causal attention masks of dimensions (target_sequence_length, source_sequence_length).
     """
     if src_seq_len is None:
         src_seq_len = tgt_seq_len
