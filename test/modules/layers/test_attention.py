@@ -54,7 +54,7 @@ def kv(input_shape, hidden_dim):
 
 
 @pytest.fixture
-def full_attn(input_shape):
+def full_attn():
     return SelfAttention(attn_dropout=0.0)
 
 
@@ -65,10 +65,10 @@ def axial_attn():
 
 class TestMultiheadAttention:
     @pytest.fixture
-    def multihead_attn(self, input_shape, hidden_dim):
+    def multihead_attn(self, hidden_dim):
         def create_multihead_attn(n_heads, causal, attn_module):
             return MultiHeadAttention(
-                input_shape, hidden_dim, hidden_dim, n_heads, 1, causal, attn_module
+                hidden_dim, hidden_dim, n_heads, causal, attn_module
             )
 
         return create_multihead_attn
@@ -81,10 +81,8 @@ class TestMultiheadAttention:
         full_attn,
     ):
         mha = multihead_attn(1, False, full_attn)
-        q = 2 * torch.ones(1, *input_shape, hidden_dim)
-        k = 2 * torch.ones(1, *input_shape, hidden_dim)
-        v = 2 * torch.ones(1, *input_shape, hidden_dim)
-        actual, _ = mha(q, k, v)
+        qkv = 2 * torch.ones(1, *input_shape, hidden_dim)
+        actual, _ = mha(qkv)
         expected = torch.tensor(
             [
                 [
@@ -113,8 +111,7 @@ class TestMultiheadAttention:
         )
 
         q = 2 * torch.ones(1, *input_shape, hidden_dim)
-        k = 2 * torch.ones(1, *input_shape, hidden_dim)
-        v = 2 * torch.ones(1, *input_shape, hidden_dim)
+        kv = 2 * torch.ones(1, *input_shape, hidden_dim)
 
         expected = torch.tensor(
             [
@@ -169,7 +166,7 @@ class TestMultiheadAttention:
         assert not mha.cache
         for i in range(2):
             # pertube the input k, v but cache only once
-            actual, _ = mha(q, k + i, v + i, use_cache=True)
+            actual, _ = mha(q, kv + i, use_cache=True)
             assert_expected(mha.cache["k"], expected_k, rtol=0, atol=1e-4)
             assert_expected(mha.cache["v"], expected_v, rtol=0, atol=1e-4)
             assert_expected(actual, expected, rtol=0, atol=1e-4)
@@ -184,18 +181,15 @@ class TestMultiheadAttention:
         mha = multihead_attn(n_heads, True, full_attn)
         seq_len = torch.prod(torch.tensor(input_shape)).item()
         q = 2 * torch.ones(1, *input_shape, hidden_dim).flatten(start_dim=1, end_dim=-2)
-        k = 2 * torch.ones(1, *input_shape, hidden_dim).flatten(start_dim=1, end_dim=-2)
-        v = 2 * torch.ones(1, *input_shape, hidden_dim).flatten(start_dim=1, end_dim=-2)
+        kv = 2 * torch.ones(1, *input_shape, hidden_dim).flatten(
+            start_dim=1, end_dim=-2
+        )
         out = []
         # initially the cache should be empty
         assert not mha.cache
         # decoding is step-wise along the sequence dim
         for i in range(seq_len):
-            out.append(
-                mha(q[:, i : i + 1], k[:, i : i + 1], v[:, i : i + 1], use_cache=True)[
-                    0
-                ]
-            )
+            out.append(mha(q[:, i : i + 1], kv[:, i : i + 1], use_cache=True)[0])
             # cached k, v are flattened and augmented by 1 unit at each step
             expected_kv_shape = torch.Size([1, n_heads, (i + 1), hidden_dim])
             assert_expected(mha.cache["k"].shape, expected_kv_shape)
