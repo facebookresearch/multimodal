@@ -10,6 +10,7 @@ import torch
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.attention import (
     merge_multihead,
+    MultiHeadAttention,
     SelfAttention,
     split_multihead,
 )
@@ -163,25 +164,32 @@ class ALBEFTransformerLayer(nn.Module):
         transform_act_fn: Callable[[Tensor], Tensor],
     ) -> None:
         super().__init__()
-        self.attention = ALBEFTransformerAttention(
-            hidden_size, num_attention_heads, layer_norm_eps
+        self.attention = MultiHeadAttention(
+            dim_q=hidden_size,
+            dim_kv=hidden_size,
+            n_head=num_attention_heads,
+            causal=False,
         )
+        self.attention_layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
         self.dense1 = nn.Linear(hidden_size, intermediate_size)
         self.transform_act_fn = transform_act_fn
         self.dense2 = nn.Linear(intermediate_size, hidden_size)
-        self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
+        self.ffn_layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
 
     def forward(
         self,
         hidden_states: Tensor,
         attention_mask: Tensor,
     ) -> Tensor:
-        attention_output = self.attention(hidden_states, attention_mask)
-        dense1_output = self.dense1(attention_output)
+        attention_output, _ = self.attention(
+            hidden_states, attention_mask=attention_mask
+        )
+        norm1_output = self.attention_layer_norm(attention_output + hidden_states)
+        dense1_output = self.dense1(norm1_output)
         act_output = self.transform_act_fn(dense1_output)
         dense2_output = self.dense2(act_output)
-        norm_output = self.layer_norm(dense2_output + attention_output)
-        return norm_output
+        norm2_output = self.ffn_layer_norm(dense2_output + norm1_output)
+        return norm2_output
 
 
 class ALBEFTransformerAttention(nn.Module):
@@ -192,11 +200,6 @@ class ALBEFTransformerAttention(nn.Module):
         layer_norm_eps: float,
     ) -> None:
         super().__init__()
-        if hidden_size % num_attention_heads != 0:
-            raise ValueError(
-                "The hidden size (%d) is not a multiple of the number of attention "
-                "heads (%d)" % (hidden_size, num_attention_heads)
-            )
 
         self.num_attention_heads = num_attention_heads
         self.attention_head_size = int(hidden_size / num_attention_heads)
