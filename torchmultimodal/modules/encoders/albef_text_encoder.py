@@ -10,7 +10,7 @@ import torch
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.attention import (
     merge_multihead,
-    scaled_dot_product_attention,
+    SelfAttention,
     split_multihead,
 )
 from torchmultimodal.utils.attention import get_extended_attention_mask
@@ -192,33 +192,6 @@ class ALBEFTransformerAttention(nn.Module):
         layer_norm_eps: float,
     ) -> None:
         super().__init__()
-        self.self_attention = ALBEFTransformerSelfAttention(
-            hidden_size, num_attention_heads
-        )
-        self.dense = nn.Linear(hidden_size, hidden_size)
-        self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
-
-    def forward(
-        self,
-        hidden_states: Tensor,
-        attention_mask: Tensor,
-        encoder_hidden_states: Optional[Tensor] = None,
-    ) -> Tensor:
-        self_output = self.self_attention(
-            hidden_states, attention_mask, encoder_hidden_states
-        )
-        dense_output = self.dense(self_output)
-        attention_output = self.layer_norm(dense_output + hidden_states)
-        return attention_output
-
-
-class ALBEFTransformerSelfAttention(nn.Module):
-    def __init__(
-        self,
-        hidden_size: int,
-        num_attention_heads: int,
-    ) -> None:
-        super().__init__()
         if hidden_size % num_attention_heads != 0:
             raise ValueError(
                 "The hidden size (%d) is not a multiple of the number of attention "
@@ -232,6 +205,10 @@ class ALBEFTransformerSelfAttention(nn.Module):
         self.query = nn.Linear(hidden_size, self.all_head_size)
         self.key = nn.Linear(hidden_size, self.all_head_size)
         self.value = nn.Linear(hidden_size, self.all_head_size)
+
+        self.self_attention = SelfAttention()
+        self.dense = nn.Linear(hidden_size, hidden_size)
+        self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
 
     def forward(
         self,
@@ -255,10 +232,15 @@ class ALBEFTransformerSelfAttention(nn.Module):
         key_layer = split_multihead(mixed_key_layer, self.num_attention_heads)
         value_layer = split_multihead(mixed_value_layer, self.num_attention_heads)
 
-        context_layer, _ = scaled_dot_product_attention(
-            query_layer, key_layer, value_layer, attention_mask
+        context, _ = self.self_attention(
+            query_layer,
+            key_layer,
+            value_layer,
+            attention_mask=attention_mask,
         )
 
-        context_layer = merge_multihead(context_layer)
+        context = merge_multihead(context)
 
-        return context_layer
+        dense_output = self.dense(context)
+        attention_output = self.layer_norm(dense_output + hidden_states)
+        return attention_output
