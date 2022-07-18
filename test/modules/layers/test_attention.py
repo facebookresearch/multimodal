@@ -55,7 +55,7 @@ def kv(input_shape, hidden_dim):
 
 @pytest.fixture
 def full_attn(input_shape):
-    return FullAttention(input_shape, causal=False, attn_dropout=0.0)
+    return FullAttention(attn_dropout=0.0)
 
 
 @pytest.fixture
@@ -204,7 +204,8 @@ class TestMultiheadAttention:
 
 
 def test_scaled_dot_product_attention(q, kv):
-    actual, _ = scaled_dot_product_attention(q, kv, kv)
+    output, weights = scaled_dot_product_attention(q, kv, kv)
+    actual = output
     expected = torch.tensor(
         [
             [
@@ -222,11 +223,29 @@ def test_scaled_dot_product_attention(q, kv):
         ]
     )
     assert_expected(actual, expected, rtol=0, atol=1e-4)
+    actual = weights
+    expected = torch.tensor(
+        [
+            [
+                [
+                    [
+                        [[0.8797, 0.1203], [0.5595, 0.4405]],
+                        [[0.0553, 0.9447], [0.4549, 0.5451]],
+                    ],
+                    [
+                        [[0.0419, 0.9581], [0.4391, 0.5609]],
+                        [[0.0297, 0.9703], [0.7313, 0.2687]],
+                    ],
+                ]
+            ]
+        ]
+    )
+    assert_expected(actual, expected, rtol=0, atol=1e-4)
 
 
 def test_full_attention(full_attn, q, kv):
     k = v = kv
-    actual = full_attn(q, k, v)
+    actual, _ = full_attn(q, k, v)
     # Output of full attention should be same as scaled_dot_product_attention
     # since input dims are flattened
     expected = torch.tensor(
@@ -250,7 +269,7 @@ def test_full_attention(full_attn, q, kv):
 
 def test_axial_attention(axial_attn, q, kv):
     k = v = kv
-    actual = axial_attn(q, k, v)
+    actual, _ = axial_attn(q, k, v)
     expected = torch.tensor(
         [
             [
@@ -312,6 +331,7 @@ class TestAxialBlock:
                 ],
             ]
         )
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_axial_block_channel_dim(self, axial_block, hidden_dim, input_shape):
         """Test dim check in forward of AxialAttentionBlock"""
