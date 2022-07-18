@@ -153,9 +153,7 @@ class TextTransformer(nn.Module):
         # We can provide a self-attention mask of dimensions
         # [batch_size, from_seq_length, to_seq_length]
         # ourselves in which case we just need to make it broadcastable to all heads.
-        extended_attention_mask: torch.Tensor = get_extended_attention_mask(
-            attention_mask
-        )
+        extended_attention_mask = get_extended_attention_mask(attention_mask)
 
         embedding_output = self.embeddings(
             input_ids=input_ids,
