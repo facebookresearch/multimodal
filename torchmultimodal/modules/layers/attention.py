@@ -22,8 +22,13 @@ class FullAttention(nn.Module):
         attn_dropout (float): probability of dropout after softmax. Default is ``0.0``.
 
     Args:
-        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor where h is the number of attention
-            heads
+        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor where h is the number of attention heads
+        attention_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
+                                           Contains 1s for positions to attend to and 0s for masked positions.
+                                           Applied before softmax.
+        head_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
+                                      Contains 1s for positions to attend to and 0s for masked positions.
+                                      Applied after dropout, before matrix multiplication with values.
 
     """
 
@@ -68,8 +73,13 @@ class AxialAttention(nn.Module):
             (i.e., 0 for first input dimension, 1 for second)
 
     Args:
-        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor where h is the number of attention
-            heads
+        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor where h is the number of attention heads
+        attention_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
+                                           Contains 1s for positions to attend to and 0s for masked positions.
+                                           Applied before softmax.
+        head_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
+                                      Contains 1s for positions to attend to and 0s for masked positions.
+                                      Applied after dropout, before matrix multiplication with values.
 
     """
 
