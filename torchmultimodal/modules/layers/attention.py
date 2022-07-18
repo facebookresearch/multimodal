@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, Union
 
 import torch
 from torch import nn, Tensor
@@ -133,13 +133,15 @@ class MultiHeadAttention(nn.Module):
         dim_kv (int): dimensionality of key/value embedding vector
         n_head (int): number of attention heads
         causal (bool): use causal attention or not
-        attn_module (nn.Module): module of attention mechanism to use. Should have interface of:
-            (q: Tensor,
-             k: Tensor,
-             v: Tensor,
-             attention_mask: Optional[Tensor],
-             head_mask: Optional[Tensor]
-             )
+        attn_module (nn.Module): module of attention mechanism to use. Default is ``FullAttention``.
+                                 Should have interface of:
+                                    (q: Tensor,
+                                    k: Tensor,
+                                    v: Tensor,
+                                    attention_mask: Optional[Tensor],
+                                    head_mask: Optional[Tensor],
+                                    )
+                                 and returns output Tensor and attn weights Tensor
 
     Args:
         q (Tensor): a tensor of shape [b, d1, ..., dn, c] or [b, seq_len, c]
@@ -199,8 +201,9 @@ class MultiHeadAttention(nn.Module):
         kv: Optional[Tensor] = None,
         attention_mask: Optional[Tensor] = None,
         head_mask: Optional[Tensor] = None,
+        return_attn_weights: bool = False,
         use_cache: bool = False,
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         # If kv is specified use those inputs for cross-attention, otherwise use q
         k = v = q if kv is None else kv
         # compute q
@@ -232,7 +235,10 @@ class MultiHeadAttention(nn.Module):
         a = merge_multihead(a)
         a = self.fc(a)
 
-        return a, attn_probs
+        if return_attn_weights:
+            return a, attn_probs
+        else:
+            return a
 
 
 class AxialAttentionBlock(nn.Module):
@@ -286,7 +292,7 @@ class AxialAttentionBlock(nn.Module):
         h = shift_dim(x, 1, -1)  # (b, c, d1, ..., dn) -> (b, d1, ..., dn, c)
         attn_out = torch.zeros_like(h)
         for mha_attn in self.mha_attns:
-            attn_out += mha_attn(h)[0]
+            attn_out += mha_attn(h)
         h = attn_out
         h = shift_dim(h, -1, 1)  # (b, d1, ..., dn, c) -> (b, c, d1, ..., dn)
         return h
