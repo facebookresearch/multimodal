@@ -321,16 +321,3 @@ def scaled_dot_product_attention(
     a = torch.matmul(attn, v)  # b x n_head x (d1, ..., dn) x c
 
     return a, attn
-
-
-# TODO: Move to utils/attention.py
-def get_causal_attention_masks(
-    tgt_seq_len: int, src_seq_len: Optional[int] = None
-) -> Tensor:
-    """
-    Generates causal attention masks of dimensions (target_seq_len, src_seq_len).
-    """
-    if src_seq_len is None:
-        src_seq_len = tgt_seq_len
-
-    return torch.tril(torch.ones(tgt_seq_len, src_seq_len))
