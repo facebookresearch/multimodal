@@ -95,6 +95,11 @@ class MultiHeadAttention(nn.Module):
     Args:
         q, k, v (Tensor): a tensor of shape [b, d1, ..., dn, c] or [b, seq_len, c]
             (for autoregressive decoding it's typical to pass in flattened tensors).
+        attention_mask (Optional[Tensor]): tensor containing 1s for positions to attend to and 0s for masked positions.
+        head_mask (Optional[Tensor]): tensor containing 1s for positions to keep and 0s for masked positions. Applied after
+                                      dropout after scaled dot product attention, before matrix multiplication with values.
+        use_cache (bool): If True, caches past k and v tensors for faster decoding. If False, recompute k and v for each
+                          decoding step. Default is False.
 
     Raises:
         TypeError: an error occurred when ``causal`` is ``True`` and ``attn_module`` is
@@ -191,6 +196,9 @@ class FullAttention(nn.Module):
     Args:
         q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor where h is the number of attention
             heads
+        attention_mask (Optional[Tensor]): tensor containing 1s for positions to attend to and 0s for masked positions.
+        head_mask (Optional[Tensor]): tensor containing 1s for positions to keep and 0s for masked positions. Applied after
+                                      dropout after scaled dot product attention, before matrix multiplication with values.
 
     """
 
@@ -209,7 +217,7 @@ class FullAttention(nn.Module):
 
         _, _, *shape, _ = q.shape
 
-        # flatten
+        # flatten to b, h, (d1, ..., dn), c
         q = q.flatten(start_dim=2, end_dim=-2)
         k = k.flatten(start_dim=2, end_dim=-2)
         v = v.flatten(start_dim=2, end_dim=-2)
@@ -237,6 +245,9 @@ class AxialAttention(nn.Module):
     Args:
         q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor where h is the number of attention
             heads
+        attention_mask (Optional[Tensor]): tensor containing 1s for positions to attend to and 0s for masked positions.
+        head_mask (Optional[Tensor]): tensor containing 1s for positions to keep and 0s for masked positions. Applied after
+                                      dropout after scaled dot product attention, before matrix multiplication with values.
 
     """
 
@@ -257,7 +268,8 @@ class AxialAttention(nn.Module):
         if self.axial_dim >= len(q.shape) - 1:
             raise ValueError("axial dim does not match input shape")
 
-        # Flatten all other dims into batch dimension except specified axis and channel dim
+        # flatten all dims into batch dimension except chosen axial dim and channel dim
+        # b, h, d1, ..., dn, c -> b*h*d1*...*dn-1, axial_dim, c
         q = shift_dim(q, self.axial_dim, -2).flatten(end_dim=-3)
         k = shift_dim(k, self.axial_dim, -2).flatten(end_dim=-3)
         v = shift_dim(v, self.axial_dim, -2)
@@ -290,7 +302,8 @@ def scaled_dot_product_attention(
     Computes attention as described in Attention Is All You Need (Vaswani et al. 2017)
 
     Args:
-        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor
+        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor or a flattened tensor of shape [b, seq_len, c]
+                          where first dim is batch dim and last dim is channel dim
         attention_mask (Optional[Tensor]): tensor containing 1s for positions to attend to and 0s for masked positions.
         head_mask (Optional[Tensor]): tensor containing 1s for positions to keep and 0s for masked positions. Applied after
                                       dropout, before matrix multiplication with values.
@@ -308,28 +321,28 @@ def scaled_dot_product_attention(
         attn = attn.masked_fill(attention_mask == 0, float("-inf"))
     # Normalize the attention scores to probabilities
     attn_float = F.softmax(attn, dim=-1)
-    attn = attn_float.type_as(attn)  # b x n_head x (d1, ..., dn) x c
+    attn = attn_float.type_as(attn)  # b, h, (d1, ..., dn), c
     # This is actually dropping out entire tokens to attend to, which might
     # seem a bit unusual, but is taken from the original Transformer paper.
     attn = F.dropout(attn, p=attn_dropout)
     # Mask heads if we want to
     if head_mask is not None:
         attn = attn * head_mask
-    a = torch.matmul(attn, v)  # b x n_head x (d1, ..., dn) x c
+    a = torch.matmul(attn, v)  # b, h, (d1, ..., dn), c
 
     return a, attn
 
 
 def split_multihead(x: Tensor, n_head: int) -> Tensor:
-    """Splits input tensor of size (b x (d1, ..., dn) x hidden)
-    into (b x (d1...dn) x n_head x emb_dim)"""
+    """Splits channel dimension of input tensor of size (b, d1, ..., dn, c)
+    into multiple heads, (b, n_head, d1, ..., dn, c // n_head)"""
     x = x.unflatten(-1, (n_head, -1))
-    # Rearrange to put head dim first, (b x n_head x (d1, ..., dn) x emb_dim)
+    # Rearrange to put head dim first, (b, n_head, d1, ..., dn, c // n_head)
     x = shift_dim(x, -2, 1)
     return x
 
 
 def merge_multihead(x: Tensor) -> Tensor:
-    """Moves head dim back to original location and concatenates heads"""
-    # (b x n_head x (d1, ..., dn) x emb_dim) -> (b x (d1, ..., dn) x hidden)
+    """Moves head dim back to original location and concatenates heads
+    (b, n_head, d1, ..., dn, c // n_head) -> (b, d1, ..., dn, c)"""
     return shift_dim(x, 1, -2).flatten(start_dim=-2)
