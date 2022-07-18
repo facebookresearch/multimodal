@@ -48,9 +48,11 @@ class VQADataModule(LightningDataModule):
             train_files,
             vqa_root,
             vg_root,
-            training_image_transform(),
-            ALBEFTextTransform(truncate=True, max_seq_len=25, add_end_token=False),
-            ALBEFTextTransform(),
+            image_transform=training_image_transform(),
+            question_transform=ALBEFTextTransform(
+                truncate=True, max_seq_len=25, add_end_token=False
+            ),
+            answer_transform=ALBEFTextTransform(),
             split="train",
         )
 
@@ -58,9 +60,9 @@ class VQADataModule(LightningDataModule):
             test_files,
             vqa_root,
             vg_root,
-            testing_image_transform(),
-            ALBEFTextTransform(add_end_token=False),
-            ALBEFTextTransform(),
+            image_transform=testing_image_transform(),
+            question_transform=ALBEFTextTransform(add_end_token=False),
+            answer_transform=ALBEFTextTransform(),
             split="test",
             answer_list=answer_list,
         )
@@ -88,6 +90,7 @@ class VQADataModule(LightningDataModule):
         is_distributed: bool = False,
         num_tasks: int = 0,
         global_rank: int = 0,
+        drop_last: bool = True,
     ) -> DataLoader:
         """
         DataLoader Outputs:
@@ -117,7 +120,7 @@ class VQADataModule(LightningDataModule):
             sampler=sampler,
             shuffle=shuffle,
             collate_fn=vqa_train_collate_fn,
-            drop_last=True,
+            drop_last=drop_last,
         )
 
     def test_dataloader(
@@ -125,6 +128,7 @@ class VQADataModule(LightningDataModule):
         is_distributed: bool = False,
         num_tasks: int = 0,
         global_rank: int = 0,
+        drop_last=False,
     ) -> DataLoader:
         """
         DataLoader Outputs:
@@ -148,7 +152,7 @@ class VQADataModule(LightningDataModule):
             sampler=sampler,
             shuffle=False,
             collate_fn=vqa_test_collate_fn,
-            drop_last=False,
+            drop_last=drop_last,
         )
 
 

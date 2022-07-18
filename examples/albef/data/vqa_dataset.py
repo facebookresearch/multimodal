@@ -6,14 +6,11 @@
 
 import json
 import os
-from typing import List, Tuple, Union
-
-from examples.albef.data.transforms import ALBEFTextTransform
+from typing import Callable, List, Tuple, Union
 
 from PIL import Image
 from torch import Tensor
 from torch.utils.data import Dataset
-from torchvision import transforms
 
 
 class VQADataset(Dataset):
@@ -48,9 +45,9 @@ class VQADataset(Dataset):
         ann_file: List[str],
         vqa_root: str,
         vg_root: str,
-        image_transform: transforms,
-        question_transform: ALBEFTextTransform,
-        answer_transform: ALBEFTextTransform,
+        image_transform: Callable[[Image.Image], Tensor],
+        question_transform: Callable[[str], Tensor],
+        answer_transform: Callable[[str], Tensor],
         split: str = "train",
         answer_list: str = None,
     ) -> None:
@@ -110,3 +107,6 @@ class VQADataset(Dataset):
             answers = [self.answer_transform(a) for a in answers]
 
             return image, question, answers, answer_weights
+
+        else:
+            raise ValueError("dataset split should be train or test")
