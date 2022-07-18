@@ -23,9 +23,9 @@ class VQADataset(Dataset):
         ann_file (List[str]): The paths to annotation json files.
         vqa_root (str): The path to vqa data directory.
         vg_root (str): The path to vg data directory.
-        image_transform (transforms): image data transform.
-        question_transform (ALBEFTextTransform): text data transform for questions.
-        answer_transform (ALBEFTextTransform): text data transform for answers.
+        image_transform (Callable[[Image.Image], Tensor]): image data transform.
+        question_transform (Callable[[Union[List[str], str]], Tensor]): text data transform for questions.
+        answer_transform (Callable[[Union[List[str], str]], Tensor]): text data transform for answers.
         split (str): Indicates train or test. Default is train.
         answer_list (str): The path to the answers list. Required for test split.
 
