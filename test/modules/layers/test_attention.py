@@ -82,7 +82,7 @@ class TestMultiheadAttention:
     ):
         mha = multihead_attn(1, False, full_attn)
         qkv = 2 * torch.ones(1, *input_shape, hidden_dim)
-        actual, _ = mha(qkv)
+        actual = mha(qkv)
         expected = torch.tensor(
             [
                 [
@@ -166,7 +166,7 @@ class TestMultiheadAttention:
         assert not mha.cache
         for i in range(2):
             # pertube the input k, v but cache only once
-            actual, _ = mha(q, kv + i, use_cache=True)
+            actual = mha(q, kv + i, use_cache=True)
             assert_expected(mha.cache["k"], expected_k, rtol=0, atol=1e-4)
             assert_expected(mha.cache["v"], expected_v, rtol=0, atol=1e-4)
             assert_expected(actual, expected, rtol=0, atol=1e-4)
@@ -189,7 +189,9 @@ class TestMultiheadAttention:
         assert not mha.cache
         # decoding is step-wise along the sequence dim
         for i in range(seq_len):
-            out.append(mha(q[:, i : i + 1], kv[:, i : i + 1], use_cache=True)[0])
+            out.append(
+                mha(q[:, i : i + 1], kv[:, i : i + 1], use_cache=True)
+            )
             # cached k, v are flattened and augmented by 1 unit at each step
             expected_kv_shape = torch.Size([1, n_heads, (i + 1), hidden_dim])
             assert_expected(mha.cache["k"].shape, expected_kv_shape)
@@ -201,7 +203,8 @@ class TestMultiheadAttention:
 
 class TestScaledDotProductAttention:
     def test_scaled_dot_product_attention(self, q, kv):
-        actual, _ = scaled_dot_product_attention(q, kv, kv)
+        output, weights = scaled_dot_product_attention(q, kv, kv)
+        actual = output
         expected = torch.tensor(
             [
                 [
@@ -216,6 +219,24 @@ class TestScaledDotProductAttention:
                         ],
                     ],
                 ],
+            ]
+        )
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
+        actual = weights
+        expected = torch.tensor(
+            [
+                [
+                    [
+                        [
+                            [[0.8797, 0.1203], [0.5595, 0.4405]],
+                            [[0.0553, 0.9447], [0.4549, 0.5451]],
+                        ],
+                        [
+                            [[0.0419, 0.9581], [0.4391, 0.5609]],
+                            [[0.0297, 0.9703], [0.7313, 0.2687]],
+                        ],
+                    ]
+                ]
             ]
         )
         assert_expected(actual, expected, rtol=0, atol=1e-4)
