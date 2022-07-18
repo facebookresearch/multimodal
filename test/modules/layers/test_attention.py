@@ -84,7 +84,7 @@ class TestMultiheadAttention:
         q = 2 * torch.ones(1, *input_shape, hidden_dim)
         k = 2 * torch.ones(1, *input_shape, hidden_dim)
         v = 2 * torch.ones(1, *input_shape, hidden_dim)
-        actual = mha(q, k, v)
+        actual, _ = mha(q, k, v)
         expected = torch.tensor(
             [
                 [
@@ -169,7 +169,7 @@ class TestMultiheadAttention:
         assert not mha.cache
         for i in range(2):
             # pertube the input k, v but cache only once
-            actual = mha(q, k + i, v + i, use_cache=True)
+            actual, _ = mha(q, k + i, v + i, use_cache=True)
             assert_expected(mha.cache["k"], expected_k, rtol=0, atol=1e-4)
             assert_expected(mha.cache["v"], expected_v, rtol=0, atol=1e-4)
             assert_expected(actual, expected, rtol=0, atol=1e-4)
@@ -192,7 +192,9 @@ class TestMultiheadAttention:
         # decoding is step-wise along the sequence dim
         for i in range(seq_len):
             out.append(
-                mha(q[:, i : i + 1], k[:, i : i + 1], v[:, i : i + 1], use_cache=True)
+                mha(q[:, i : i + 1], k[:, i : i + 1], v[:, i : i + 1], use_cache=True)[
+                    0
+                ]
             )
             # cached k, v are flattened and augmented by 1 unit at each step
             expected_kv_shape = torch.Size([1, n_heads, (i + 1), hidden_dim])
@@ -226,7 +228,7 @@ def test_scaled_dot_product_attention(q, kv):
 
 def test_full_attention(full_attn, q, kv):
     k = v = kv
-    actual = full_attn(q, k, v)
+    actual, _ = full_attn(q, k, v)
     # Output of full attention should be same as scaled_dot_product_attention
     # since input dims are flattened
     expected = torch.tensor(
@@ -250,7 +252,7 @@ def test_full_attention(full_attn, q, kv):
 
 def test_axial_attention(axial_attn, q, kv):
     k = v = kv
-    actual = axial_attn(q, k, v)
+    actual, _ = axial_attn(q, k, v)
     expected = torch.tensor(
         [
             [
@@ -312,6 +314,7 @@ class TestAxialBlock:
                 ],
             ]
         )
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_axial_block_channel_dim(self, axial_block, hidden_dim, input_shape):
         """Test dim check in forward of AxialAttentionBlock"""
