@@ -21,8 +21,13 @@ class SelfAttention(nn.Module):
         attn_dropout (float): probability of dropout after softmax. Default is ``0.0``.
 
     Args:
-        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor where h is the number of attention
-            heads
+        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor where h is the number of attention heads
+        attention_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
+                                           Contains 1s for positions to attend to and 0s for masked positions.
+                                           Applied before softmax.
+        head_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
+                                      Contains 1s for positions to attend to and 0s for masked positions.
+                                      Applied after dropout, before matrix multiplication with values.
 
     """
 
@@ -67,8 +72,13 @@ class AxialAttention(nn.Module):
             (i.e., 0 for first input dimension, 1 for second)
 
     Args:
-        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor where h is the number of attention
-            heads
+        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor where h is the number of attention heads
+        attention_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
+                                           Contains 1s for positions to attend to and 0s for masked positions.
+                                           Applied before softmax.
+        head_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
+                                      Contains 1s for positions to attend to and 0s for masked positions.
+                                      Applied after dropout, before matrix multiplication with values.
 
     """
 
@@ -135,12 +145,14 @@ class MultiHeadAttention(nn.Module):
     Args:
         q (Tensor): a tensor of shape [b, d1, ..., dn, c] or [b, seq_len, c]
             (for autoregressive decoding it's typical to pass in flattened tensors).
-            For normal self-attention, this argument is used for k and v as well.
         kv (Optional[Tensor]): a tensor of shape [b, d1, ..., dn, c] or [b, seq_len, c].
                                If this argument is specified, this module become multiheaded cross-attention.
-        attention_mask (Optional[Tensor]): tensor containing 1s for positions to attend to and 0s for masked positions.
-        head_mask (Optional[Tensor]): tensor containing 1s for positions to keep and 0s for masked positions. Applied after
-                                      dropout after scaled dot product attention, before matrix multiplication with values.
+        attention_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
+                                           Contains 1s for positions to attend to and 0s for masked positions.
+                                           Applied before softmax.
+        head_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
+                                      Contains 1s for positions to attend to and 0s for masked positions.
+                                      Applied after dropout, before matrix multiplication with values.
         use_cache (bool): If True, caches past k and v tensors for faster decoding. If False, recompute k and v for each
                           decoding step. Default is False.
 
@@ -296,9 +308,12 @@ def scaled_dot_product_attention(
     Args:
         q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor or a flattened tensor of shape [b, seq_len, c]
                           where first dim is batch dim and last dim is channel dim
-        attention_mask (Optional[Tensor]): tensor containing 1s for positions to attend to and 0s for masked positions.
-        head_mask (Optional[Tensor]): tensor containing 1s for positions to keep and 0s for masked positions. Applied after
-                                      dropout, before matrix multiplication with values.
+        attention_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
+                                           Contains 1s for positions to attend to and 0s for masked positions.
+                                           Applied before softmax.
+        head_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
+                                      Contains 1s for positions to attend to and 0s for masked positions.
+                                      Applied after dropout, before matrix multiplication with values.
     """
 
     # Take the dot product between "query" and "key" and scale to get the raw attention scores.
