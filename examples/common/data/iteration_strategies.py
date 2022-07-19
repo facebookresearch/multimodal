@@ -8,6 +8,19 @@ from torch.utils.data import DataLoader
 
 
 class IterationStrategy:
+    """
+    Base class for defining iteration strategies that will be used
+    for iterating over multiple datasets.
+
+    An IterationStrategy implementation `__call__` method
+    which returns index of dataset from which next batch must be
+    pulled.
+
+    Args:
+        config (DictConfig): Object of type DictConfig which contains configuration parameters.
+        dataloaders (Dict[str, DataLoader]): A dictionary containing mapping from dataset key to its dataloader.
+    """
+
     def __init__(
         self, config: DictConfig, dataloaders: Dict[str, DataLoader], *args, **kwargs
     ):
@@ -29,6 +42,13 @@ class IterationStrategyFactory:
 
 
 class ConstantIterationStrategy(IterationStrategy):
+    """
+    Always returns a constant number. Can be used for single dataset training.
+
+    Config Parameters:
+        idx: index to be returned
+    """
+
     def __init__(
         self, config: DictConfig, dataloaders: Dict[str, DataLoader], *args, **kwargs
     ):
@@ -45,6 +65,13 @@ class ConstantIterationStrategyFactory(IterationStrategyFactory):
 
 
 class RoundRobinIterationStrategy(IterationStrategy):
+    """
+    Samples datasets one by one in round robin fashion.
+
+    Config Parameters:
+        start_idx: index of the dataset to be returned first
+    """
+
     def __init__(
         self, config: DictConfig, dataloaders: Dict[str, DataLoader], *args, **kwargs
     ):
@@ -63,6 +90,10 @@ class RoundRobinIterationStrategyFactory(IterationStrategyFactory):
 
 
 class RandomIterationStrategy(IterationStrategy):
+    """
+    Samples random number each time when sampled.
+    """
+
     def __init__(
         self, config: DictConfig, dataloaders: Dict[str, DataLoader], *args, **kwargs
     ):
@@ -79,6 +110,10 @@ class RandomIterationStrategyFactory(IterationStrategyFactory):
 
 
 class SizeProportionalIterationStrategy(IterationStrategy):
+    """
+    Samples index based on size of each dataset. Bigger datasets are sampled more.
+    """
+
     def __init__(
         self, config: DictConfig, dataloaders: Dict[str, DataLoader], *args, **kwargs
     ):
@@ -91,7 +126,7 @@ class SizeProportionalIterationStrategy(IterationStrategy):
             self._per_dataloader_lengths.append(n)
             self._total_length += n
 
-        self._dataloader_probabilities = self._per_dataloader_lengths[:]
+        self._dataloader_probabilities = self._per_dataloader_lengths
         self._dataloader_probabilities = [
             prob / self._total_length for prob in self._dataloader_probabilities
         ]
@@ -109,6 +144,13 @@ class SizeProportionalIterationStrategyFactory(IterationStrategyFactory):
 
 
 class RatiosIterationStrategy(IterationStrategy):
+    """
+    Samples based on ratios specified as `sampling_ratios` parameter in the config.
+
+    Config Parameters:
+        sampling_ratios: defines a dictionary pointing from dataset key to a floating ration specifying how much the dataset should be sampled. Floats together should sum to one.
+    """
+
     def __init__(
         self, config: DictConfig, dataloaders: Dict[str, DataLoader], *args, **kwargs
     ):
@@ -131,8 +173,7 @@ class RatiosIterationStrategy(IterationStrategy):
         self._probabilities = [prob / prob_sum for prob in probabilities]
 
     def __call__(self, *args, **kwargs):
-        choice = np.random.choice(len(self.dataloaders), 1, p=self._probabilities)[0]
-        return choice
+        return np.random.choice(len(self.dataloaders), 1, p=self._probabilities)[0]
 
 
 class RatiosIterationStrategyFactory(IterationStrategyFactory):
