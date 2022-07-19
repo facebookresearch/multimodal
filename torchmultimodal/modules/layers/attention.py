@@ -47,7 +47,6 @@ class AxialAttentionBlock(nn.Module):
                     dim_kv=qkv_dim,
                     n_head=n_head,
                     n_layer=1,
-                    causal=False,
                     attn_module=AxialAttention(d),
                 )
                 for d in range(n_dims)
@@ -84,12 +83,12 @@ class MultiHeadAttention(nn.Module):
         dim_kv (int): dimensionality of key/value embedding vector
         n_head (int): number of attention heads
         n_layer (int): number of attention layers being used in higher level stack
-        causal (bool): use causal attention or not
         attn_module (nn.Module): module of attention mechanism to use
 
     Args:
         q, k, v (Tensor): a tensor of shape [b, d1, ..., dn, c] or [b, seq_len, c]
             (for autoregressive decoding it's typical to pass in flattened tensors).
+        causal (bool): use causal attention or not. Defualt to ``False``.
 
     Raises:
         TypeError: an error occurred when ``causal`` is ``True`` and ``attn_module`` is
@@ -104,14 +103,9 @@ class MultiHeadAttention(nn.Module):
         dim_kv: int,
         n_head: int,
         n_layer: int,
-        causal: bool,
         attn_module: nn.Module,
     ) -> None:
         super().__init__()
-        if isinstance(attn_module, AxialAttention) and causal:
-            raise TypeError("Causal axial attention is not supported.")
-
-        self.causal = causal
 
         self.d_k = dim_q // n_head
         self.d_v = dim_kv // n_head
@@ -153,13 +147,17 @@ class MultiHeadAttention(nn.Module):
         attention_mask: Optional[Tensor] = None,
         head_mask: Optional[Tensor] = None,
         use_cache: bool = False,
+        causal: bool = False,
     ) -> Tensor:
+        if isinstance(self.attn, AxialAttention) and causal:
+            raise TypeError("Causal axial attention is not supported.")
+
         # compute k, q, v
         q = self._split_multihead(self.w_qs(q))
 
         # For causal k, v are provided step-wise so we should always compute them
         # For non-causal skip computing k, v if they have been cached
-        if self.causal or not self.cache:
+        if causal or not self.cache:
             k = self._split_multihead(self.w_ks(k))
             v = self._split_multihead(self.w_vs(v))
 
@@ -169,7 +167,7 @@ class MultiHeadAttention(nn.Module):
                 # initialize the cache with the present k, v
                 self.cache = dict(k=k.clone(), v=v.clone())
             else:
-                if self.causal:
+                if causal:
                     # append present k, v to past k, v
                     # for autoregressive decoding inputs are flattened as 1D sequences
                     # so are the cached tensors: (b, n_heads, seq_len, c)
