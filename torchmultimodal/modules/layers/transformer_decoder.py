@@ -4,15 +4,18 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import typing
 import warnings
 
+from torch import nn
 from torch.utils.checkpoint import checkpoint
 
 
-def checkpoint_wrapper(fn):
+@typing.no_type_check
+def checkpoint_wrapper(fn: nn.Module):
     """Decorator to render a function in checkpointing mode to save memory in the forward pass"""
 
-    def inner(cls, *inputs, **kwargs):
+    def inner(cls: nn.Module, *inputs, **kwargs):
         if cls.training:
             # By default the checkpoint API stashes and restores the RNG state during each checkpointed
             # segment such that checkpointed passes making use of RNG (e.g., through dropout, batch norm)
@@ -25,7 +28,7 @@ def checkpoint_wrapper(fn):
                 )
                 kwargs["use_cache"] = False
 
-            def create_custom_forward(fn):
+            def create_custom_forward(fn: nn.Module):
                 # Specifies what should the checkpoint API run in forward pass
                 def custom_forward(*inputs):
                     return fn(cls, *inputs, **kwargs)
