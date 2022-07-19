@@ -24,10 +24,10 @@ def main():
 
     # also needed for the imagenet eval callback
     imagenet_datamodule = ImageDataModule(
-       **build_datamodule_kwargs(config.datasets.image, config.training)
+        **build_datamodule_kwargs(config.datasets.image, config.training)
     )
     if "image" in config.datasets.selected:
-       datamodules["image"] = imagenet_datamodule
+        datamodules["image"] = imagenet_datamodule
 
     if "text" in config.datasets.selected:
         mlm_datamodule = MLMDataModule(
