@@ -9,8 +9,8 @@ from typing import List
 
 import torch
 from torch import nn, Tensor
-from torchmultimodal.architectures.late_fusion import LateFusionArchitecture
-from torchmultimodal.architectures.two_tower import TwoTower
+from torchmultimodal.models.late_fusion import LateFusion
+from torchmultimodal.models.two_tower import TwoTower
 from torchmultimodal.modules.fusions.concat_fusion import ConcatFusionModule
 
 
@@ -21,12 +21,12 @@ class Concat(nn.Module):
 
 class TestTwoTower(unittest.TestCase):
     def setUp(self):
-        self.tower_1 = LateFusionArchitecture(
+        self.tower_1 = LateFusion(
             {"c1": nn.Identity(), "c2": nn.Identity()},
             ConcatFusionModule(),
             nn.Identity(),
         )
-        self.tower_2 = LateFusionArchitecture(
+        self.tower_2 = LateFusion(
             {"c3": nn.Identity(), "c4": nn.Identity()},
             ConcatFusionModule(),
             nn.Identity(),
