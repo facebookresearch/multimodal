@@ -84,15 +84,15 @@ class ALBEFTextEncoder(nn.Module):
 class ALBEFTextEmbeddings(nn.Module):
     def __init__(
         self,
-        vocab_size: int,
-        hidden_size: int,
-        padding_idx: int,
-        max_position_embeddings: int,
-        type_vocab_size: int,
-        layer_norm_eps: float,
+        vocab_size: int = 30522,
+        hidden_size: int = 768,
+        pad_token_id: int = 0,
+        max_position_embeddings: int = 512,
+        type_vocab_size: int = 2,
+        layer_norm_eps: float = 1e-12,
     ) -> None:
         super().__init__()
-        self.word_embeddings = nn.Embedding(vocab_size, hidden_size, padding_idx)
+        self.word_embeddings = nn.Embedding(vocab_size, hidden_size, pad_token_id)
         self.position_embeddings = nn.Embedding(max_position_embeddings, hidden_size)
         self.token_type_embeddings = nn.Embedding(type_vocab_size, hidden_size)
         self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
