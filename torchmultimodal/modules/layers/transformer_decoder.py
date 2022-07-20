@@ -7,15 +7,14 @@
 import typing
 import warnings
 
-from torch import nn
 from torch.utils.checkpoint import checkpoint
 
 
 @typing.no_type_check
 def checkpoint_wrapper(fn):
-    """Decorator to render an nn.Module method in checkpointing mode to save memory for training"""
+    """Decorator to render an nn.Module instance method in checkpointing mode to save memory for training"""
 
-    def inner(cls: nn.Module, *inputs, **kwargs):
+    def inner(cls, *inputs, **kwargs):
         if cls.training:
             # By default the checkpoint API stashes and restores the RNG state during each checkpointed
             # segment such that checkpointed passes making use of RNG (e.g., through dropout, batch norm)
@@ -28,7 +27,7 @@ def checkpoint_wrapper(fn):
                 )
                 kwargs["use_cache"] = False
 
-            def create_custom_forward(fn: nn.Module):
+            def create_custom_forward(fn):
                 # Specifies what should the checkpoint API run in forward pass
                 def custom_forward(*inputs):
                     return fn(cls, *inputs, **kwargs)
