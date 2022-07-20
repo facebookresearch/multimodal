@@ -14,8 +14,10 @@ from torchmultimodal.modules.layers.attention import (
     AxialAttention,
     AxialAttentionBlock,
     FullAttention,
+    merge_multihead,
     MultiHeadAttention,
     scaled_dot_product_attention,
+    split_multihead,
 )
 
 
@@ -68,23 +70,6 @@ class TestMultiheadAttention:
             return MultiHeadAttention(hidden_dim, hidden_dim, n_heads, 1, attn_module)
 
         return create_multihead_attn
-
-    def test_split_multihead(self, input_shape, multihead_attn, full_attn):
-        mha = multihead_attn(2, full_attn)
-        x = torch.randn(1, *input_shape, 6)  # (b, d1, ..., dn, c)
-        out = mha._split_multihead(x)
-        actual = torch.tensor(out.shape)
-        expected = torch.tensor((1, 2, *input_shape, 3))  # (b, h, d1, ..., dn, c // h)
-        assert_expected(actual, expected)
-
-    def test_combine_multihead(
-        self, input_shape, hidden_dim, multihead_attn, full_attn, q
-    ):
-        mha = multihead_attn(1, full_attn)
-        out = mha._combine_multihead(q)
-        actual = torch.tensor(out.shape)
-        expected = torch.tensor((1, *input_shape, hidden_dim))
-        assert_expected(actual, expected)
 
     def test_multi_head_attention(
         self,
@@ -223,7 +208,8 @@ class TestMultiheadAttention:
 
 
 def test_scaled_dot_product_attention(q, kv):
-    actual, _ = scaled_dot_product_attention(q, kv, kv)
+    output, weights = scaled_dot_product_attention(q, kv, kv)
+    actual = output
     expected = torch.tensor(
         [
             [
@@ -241,11 +227,29 @@ def test_scaled_dot_product_attention(q, kv):
         ]
     )
     assert_expected(actual, expected, rtol=0, atol=1e-4)
+    actual = weights
+    expected = torch.tensor(
+        [
+            [
+                [
+                    [
+                        [[0.8797, 0.1203], [0.5595, 0.4405]],
+                        [[0.0553, 0.9447], [0.4549, 0.5451]],
+                    ],
+                    [
+                        [[0.0419, 0.9581], [0.4391, 0.5609]],
+                        [[0.0297, 0.9703], [0.7313, 0.2687]],
+                    ],
+                ]
+            ]
+        ]
+    )
+    assert_expected(actual, expected, rtol=0, atol=1e-4)
 
 
 def test_full_attention(full_attn, q, kv):
     k = v = kv
-    actual = full_attn(q, k, v)
+    actual, _ = full_attn(q, k, v)
     # Output of full attention should be same as scaled_dot_product_attention
     # since input dims are flattened
     expected = torch.tensor(
@@ -269,7 +273,7 @@ def test_full_attention(full_attn, q, kv):
 
 def test_axial_attention(axial_attn, q, kv):
     k = v = kv
-    actual = axial_attn(q, k, v)
+    actual, _ = axial_attn(q, k, v)
     expected = torch.tensor(
         [
             [
@@ -287,6 +291,21 @@ def test_axial_attention(axial_attn, q, kv):
         ]
     )
     assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+
+def test_split_multihead(input_shape):
+    x = torch.randn(1, *input_shape, 6)  # (b, d1, ..., dn, c)
+    out = split_multihead(x, 2)
+    actual = torch.tensor(out.shape)
+    expected = torch.tensor((1, 2, *input_shape, 3))  # (b, h, d1, ..., dn, c // h)
+    assert_expected(actual, expected)
+
+
+def test_merge_multihead(input_shape, hidden_dim, q):
+    out = merge_multihead(q)
+    actual = torch.tensor(out.shape)
+    expected = torch.tensor((1, *input_shape, hidden_dim))
+    assert_expected(actual, expected)
 
 
 class TestAxialBlock:
@@ -316,6 +335,7 @@ class TestAxialBlock:
                 ],
             ]
         )
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_axial_block_channel_dim(self, axial_block, hidden_dim, input_shape):
         """Test dim check in forward of AxialAttentionBlock"""
