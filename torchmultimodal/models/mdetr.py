@@ -9,7 +9,6 @@ from copy import deepcopy
 from typing import Callable, List, NamedTuple, Optional, Tuple
 
 import torch
-import torch.nn.functional as F
 from torch import nn, Tensor
 from torchmultimodal.modules.encoders.mdetr_image_encoder import (
     mdetr_resnet101_backbone,
@@ -27,11 +26,10 @@ class MDETRTransformerOutput(NamedTuple):
     text_memory: torch.Tensor
 
 
-class MDETROutput(NamedTuple):
-    pred_logits: torch.Tensor
-    pred_boxes: torch.Tensor
-    projected_queries: torch.Tensor
-    projected_tokens: torch.Tensor
+class MDETRModelOutput(NamedTuple):
+    transformer_output: MDETRTransformerOutput
+    pred_logits: Optional[torch.Tensor]
+    pred_boxes: Optional[torch.Tensor]
 
 
 class MDETR(nn.Module):
@@ -55,9 +53,9 @@ class MDETR(nn.Module):
                 prior to the multimodal transformer.
             query_embed (nn.Module): Learned object query embeddings (used in
                 transformer decoder).
-            bbox_embed (nn.Module): Embedding mapping transformer outputs to
+            bbox_embed (Optional[nn.Module]): Embedding mapping transformer outputs to
                 bounding boxes.
-            class_embed (nn.Module): Embedding mapping transformer outputs to classes.
+            class_embed (Optional[nn.Module]): Embedding mapping transformer outputs to classes.
 
 
     Inputs: images (List[Tensor]): A list of image Tensors (possibly of different sizes).
@@ -82,10 +80,8 @@ class MDETR(nn.Module):
         text_projection: nn.Module,
         image_projection: nn.Module,
         query_embed: nn.Module,
-        bbox_embed: nn.Module,
-        class_embed: nn.Module,
-        contrastive_alignment_image_projection: nn.Module,
-        contrastive_alignment_text_projection: nn.Module,
+        bbox_embed: Optional[nn.Module],
+        class_embed: Optional[nn.Module],
     ):
         super().__init__()
         self.image_backbone = image_backbone
@@ -97,12 +93,6 @@ class MDETR(nn.Module):
         self.query_embed = query_embed
         self.bbox_embed = bbox_embed
         self.class_embed = class_embed
-        self.contrastive_alignment_image_projection = (
-            contrastive_alignment_image_projection
-        )
-        self.contrastive_alignment_text_projection = (
-            contrastive_alignment_text_projection
-        )
 
     def _pad_images(self, images: List[Tensor]) -> Tuple[Tensor, Tensor]:
         max_size = tuple(max(s) for s in zip(*[img.shape for img in images]))
@@ -127,7 +117,7 @@ class MDETR(nn.Module):
         mask = padded_text == padding_idx
         return padded_text, mask
 
-    def forward(self, images: List[Tensor], text: List[Tensor]) -> MDETROutput:
+    def forward(self, images: List[Tensor], text: List[Tensor]) -> MDETRModelOutput:
 
         images, image_mask = self._pad_images(images)
         text, text_attention_mask = self._pad_text(text)
@@ -142,7 +132,7 @@ class MDETR(nn.Module):
 
         text_memory_resized = self.text_projection(text_memory)
 
-        transformer_outputs = self.transformer(
+        transformer_output = self.transformer(
             self.image_projection(image_embeddings),
             image_mask,
             query_embed,
@@ -150,27 +140,21 @@ class MDETR(nn.Module):
             text_memory=text_memory_resized,
             text_attention_mask=text_attention_mask,
         )
-        final_hidden_state = transformer_outputs.decoder_hidden_states[-1]
-        outputs_class = self.class_embed(final_hidden_state)
-        outputs_coord = self.bbox_embed(final_hidden_state).sigmoid()
-        projected_queries = F.normalize(
-            self.contrastive_alignment_image_projection(final_hidden_state),
-            p=2,
-            dim=-1,
-        )
-        projected_tokens = F.normalize(
-            self.contrastive_alignment_text_projection(
-                transformer_outputs.text_memory
-            ).transpose(0, 1),
-            p=2,
-            dim=-1,
-        )
+        final_hidden_state = transformer_output.decoder_hidden_states[-1]
 
-        return MDETROutput(
-            pred_logits=outputs_class,
-            pred_boxes=outputs_coord,
-            projected_queries=projected_queries,
-            projected_tokens=projected_tokens,
+        if self.class_embed is not None:
+            outputs_class = self.class_embed(final_hidden_state)
+        else:
+            outputs_class = None
+
+        if self.bbox_embed is not None:
+            outputs_coord = self.bbox_embed(final_hidden_state).sigmoid()
+        else:
+            outputs_coord = None
+        return MDETRModelOutput(
+            transformer_output,
+            outputs_class,
+            outputs_coord,
         )
 
 
@@ -674,7 +658,6 @@ def mdetr_resnet101(
     transformer_dim_feedforward: int = 2048,
     transformer_dropout: float = 0.1,
     return_intermediate_dec: bool = True,
-    contrastive_dim: int = 64,
 ) -> MDETR:
     image_backbone = resnet101()
     image_backbone = mdetr_resnet101_backbone()
@@ -700,8 +683,6 @@ def mdetr_resnet101(
     bbox_embed = MLP(hidden_dim, 4, [hidden_dim] * 2, dropout=0.0)
     # The + 1 here corresponds to the "no class" label
     class_embed = nn.Linear(hidden_dim, num_classes + 1)
-    contrastive_alignment_image_projection = nn.Linear(hidden_dim, contrastive_dim)
-    contrastive_alignment_text_projection = nn.Linear(hidden_dim, contrastive_dim)
     mdetr = MDETR(
         image_backbone,
         text_encoder,
@@ -712,7 +693,5 @@ def mdetr_resnet101(
         query_embed,
         bbox_embed,
         class_embed,
-        contrastive_alignment_image_projection,
-        contrastive_alignment_text_projection,
     )
     return mdetr
