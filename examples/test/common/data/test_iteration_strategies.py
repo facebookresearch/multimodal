@@ -11,8 +11,8 @@ from typing import Dict, List, Optional
 
 import numpy
 import torch
-from omegaconf import DictConfig
 from common.data import iteration_strategy_factory
+from omegaconf import DictConfig
 
 
 class EmptyTensorDataset(torch.utils.data.Dataset):
