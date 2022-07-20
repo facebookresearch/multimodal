@@ -5,11 +5,11 @@
 # LICENSE file in the root directory of this source tree.
 
 import random
-import unittest
 from collections import Counter
 from typing import Dict, List, Optional
 
 import numpy
+import pytest
 import torch
 from common.data import iteration_strategy_factory
 from omegaconf import DictConfig
@@ -30,11 +30,14 @@ def _dataloader_empty_tensor_dataset(size: int):
     return torch.utils.data.DataLoader(EmptyTensorDataset(size), batch_size=1)
 
 
-class TestIterationStrategies(unittest.TestCase):
-    def setUp(self):
-        random.seed(0)
-        numpy.random.seed(0)
+@pytest.fixture(autouse=True)
+def rng():
+    random.seed(0)
+    numpy.random.seed(0)
+    yield "rng"
 
+
+class TestIterationStrategies:
     def test(self):
         def fn(
             self,
@@ -51,11 +54,11 @@ class TestIterationStrategies(unittest.TestCase):
                 x = iter_strat()
                 counter[x] += 1
                 if expected_idxs is not None:
-                    self.assertEqual(x, expected_idxs[i])
+                    assert x == expected_idxs[i]
 
             if expected_count is not None:
                 for idx, cnt in counter.items():
-                    self.assertEqual(cnt, expected_count[idx])
+                    assert cnt == expected_count[idx]
 
         fn(
             self,
