@@ -1,4 +1,8 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+# All rights reserved.
+#
+# This source code is licensed under the BSD-style license found in the
+# LICENSE file in the root directory of this source tree.
 
 from typing import Dict
 
@@ -18,7 +22,8 @@ class IterationStrategy:
 
     Args:
         config (DictConfig): Object of type DictConfig which contains configuration parameters.
-        dataloaders (Dict[str, DataLoader]): A dictionary containing mapping from dataset key to its dataloader.
+        dataloaders (Dict[str, DataLoader]): A dictionary containing mapping from dataset key
+            to its dataloader.
     """
 
     def __init__(
@@ -148,7 +153,8 @@ class RatiosIterationStrategy(IterationStrategy):
     Samples based on ratios specified as `sampling_ratios` parameter in the config.
 
     Config Parameters:
-        sampling_ratios: defines a dictionary pointing from dataset key to a floating ration specifying how much the dataset should be sampled. Floats together should sum to one.
+        sampling_ratios: defines a dictionary pointing from dataset key to a floating ration
+            specifying how much the dataset should be sampled. Floats together should sum to one.
     """
 
     def __init__(
