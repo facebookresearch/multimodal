@@ -10,7 +10,7 @@ import torch
 from torch import nn
 
 
-class LateFusionArchitecture(nn.Module):
+class LateFusion(nn.Module):
     """A generic architecture for late fusion multimodal models.
 
     A late fusion model contains separate encoders for each modality,
