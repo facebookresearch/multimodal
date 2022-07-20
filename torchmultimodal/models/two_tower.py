@@ -8,7 +8,7 @@ from collections import OrderedDict
 from typing import Dict, List, NamedTuple, Optional
 
 from torch import nn, Tensor
-from torchmultimodal.architectures.late_fusion import LateFusionArchitecture
+from torchmultimodal.models.late_fusion import LateFusion
 
 
 class TwoTowerOutput(NamedTuple):
@@ -21,7 +21,7 @@ class TwoTower(nn.Module):
     A two tower architecture with a pair of late fusion models
     (for now, can be extended) followed by a fusion for output of each tower.
     Args:
-        tower_id_to_tower (Dict[str, LateFusionArchitecture]): mapping of tower id
+        tower_id_to_tower (Dict[str, LateFusion]): mapping of tower id
         to tower model. Size should be 2, same tower should be passed in
         for shared towers
         tower fusion (nn.Module): Module fusing list of tensors (tower outputs)
@@ -35,7 +35,7 @@ class TwoTower(nn.Module):
 
     def __init__(
         self,
-        tower_id_to_tower: Dict[str, LateFusionArchitecture],
+        tower_id_to_tower: Dict[str, LateFusion],
         tower_fusion: nn.Module,
         shared_tower_id_to_channel_mapping: Optional[Dict[str, Dict[str, str]]] = None,
     ):
