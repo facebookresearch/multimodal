@@ -51,7 +51,9 @@ FLAVAOutput.__annotations__ = {
 
 
 FLAVA_FOR_PRETRAINED_MAPPING = {
-    "flava_full": "https://huggingface.co/aps/flava_full_pretrained_encoders_torchmm/resolve/main/pytorch_model.bin",
+    # This will no longer load with the updated model, but keeping here just in case
+    # "flava_full": "https://huggingface.co/aps/flava_full_pretrained_encoders_torchmm/resolve/main/pytorch_model.bin",
+    "flava_full": "https://download.pytorch.org/models/multimodal/flava_self_attn.bin",
 }
 
 
