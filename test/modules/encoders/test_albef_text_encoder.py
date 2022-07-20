@@ -16,7 +16,7 @@ def set_seed():
     set_rng_seed(0)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def text_encoder():
     return ALBEFTextEncoder(hidden_size=3, num_attention_heads=1)
 
@@ -25,13 +25,9 @@ def test_text_encoder(text_encoder):
     input_ids = torch.randint(10, (2, 2))
     text_atts = Tensor([[1, 1], [1, 0]])
     output = text_encoder(input_ids, text_atts)
-    expected = Tensor(
-        [
-            [[-0.846098, -0.558322, 1.404420], [-0.337862, 1.358211, -1.020349]],
-            [[-0.911407, -0.480780, 1.392188], [-1.404428, 0.846044, 0.558384]],
-        ]
-    )
-    assert_expected(output, expected, rtol=0, atol=1e-4)
+    actual = output.shape
+    expected = torch.Size([2, 2, 3])
+    assert_expected(actual, expected)
 
 
 def test_invalid_input_length(text_encoder):

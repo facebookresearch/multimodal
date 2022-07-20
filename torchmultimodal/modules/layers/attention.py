@@ -150,10 +150,11 @@ class MultiHeadAttention(nn.Module):
                                If this argument is specified, this module become multiheaded cross-attention.
         attention_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
                                            Contains 1s for positions to attend to and 0s for masked positions.
-                                           Applied before softmax.
+                                           Applied before softmax. h is the number of attention heads
         head_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
                                       Contains 1s for positions to attend to and 0s for masked positions.
                                       Applied after dropout, before matrix multiplication with values.
+                                      h is the number of heads, q_dn is the last dim of q, k_dn is the last dim of k
         use_cache (bool): If True, caches past k and v tensors for faster decoding. If False, recompute k and v for each
                           decoding step. Default is False.
 
@@ -206,7 +207,7 @@ class MultiHeadAttention(nn.Module):
     ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         # If kv is specified use those inputs for cross-attention, otherwise use q
         k = v = q if kv is None else kv
-        # compute q
+        # b, d1, ..., dn, c -> b, h, d1, ..., dn, c // h
         q = split_multihead(self.w_qs(q), self.n_head)
 
         # For causal k, v are provided step-wise so we should always compute them

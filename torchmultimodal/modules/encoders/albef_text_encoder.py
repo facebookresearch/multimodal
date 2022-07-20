@@ -181,9 +181,7 @@ class ALBEFTransformerLayer(nn.Module):
         hidden_states: Tensor,
         attention_mask: Tensor,
     ) -> Tensor:
-        attention_output, _ = self.attention(
-            hidden_states, attention_mask=attention_mask
-        )
+        attention_output = self.attention(hidden_states, attention_mask=attention_mask)
         norm1_output = self.attention_layer_norm(attention_output + hidden_states)
         dense1_output = self.dense1(norm1_output)
         act_output = self.transform_act_fn(dense1_output)
