@@ -153,8 +153,8 @@ class MultiHeadAttention(nn.Module):
                                       Contains 1s for positions to attend to and 0s for masked positions.
                                       Applied after dropout, before matrix multiplication with values.
         use_cache (bool): If True, caches past k and v tensors for faster decoding. If False, recompute k and v for each
-                          decoding step. Default is False.
-        causal (bool): use causal attention or not. Defualt to ``False``.
+                          decoding step. Default is ``False``.
+        causal (bool): use causal attention or not. Default is ``False``.
 
     Raises:
         TypeError: an error occurred when ``causal`` is ``True`` and ``attn_module`` is
