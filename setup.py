@@ -48,7 +48,7 @@ LONG_DESCRIPTION_CONTENT_TYPE = "text/markdown"
 AUTHOR = "PyTorch Multimodal"
 AUTHOR_EMAIL = "kartikayk@fb.com"
 # Need to exclude folders in test as well so as they don't create an extra package
-EXCLUDES = ("examples", "test")
+EXCLUDES = ("examples*", "test*")
 
 
 if __name__ == "__main__":
