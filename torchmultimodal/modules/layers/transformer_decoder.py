@@ -12,8 +12,8 @@ from torch.utils.checkpoint import checkpoint
 
 
 @typing.no_type_check
-def checkpoint_wrapper(fn: nn.Module):
-    """Decorator to render a function in checkpointing mode to save memory in the forward pass"""
+def checkpoint_wrapper(fn):
+    """Decorator to render an nn.Module method in checkpointing mode to save memory for training"""
 
     def inner(cls: nn.Module, *inputs, **kwargs):
         if cls.training:
