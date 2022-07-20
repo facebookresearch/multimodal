@@ -8,11 +8,12 @@ from typing import Callable, Optional
 
 import torch
 from torch import nn, Tensor
-from torchmultimodal.modules.layers.attention import scaled_dot_product_attention
-from torchmultimodal.utils.common import (
-    get_extended_attention_mask,
-    transpose_for_scores,
+from torchmultimodal.modules.layers.attention import (
+    merge_multihead,
+    scaled_dot_product_attention,
+    split_multihead,
 )
+from torchmultimodal.utils.attention import get_extended_attention_mask
 
 
 class ALBEFTextEncoder(nn.Module):
@@ -250,22 +251,14 @@ class ALBEFTransformerSelfAttention(nn.Module):
             mixed_value_layer = self.value(encoder_hidden_states)
             attention_mask = None
 
-        query_layer = transpose_for_scores(
-            self.num_attention_heads, self.attention_head_size, mixed_query_layer
-        )
-        key_layer = transpose_for_scores(
-            self.num_attention_heads, self.attention_head_size, mixed_key_layer
-        )
-        value_layer = transpose_for_scores(
-            self.num_attention_heads, self.attention_head_size, mixed_value_layer
-        )
+        query_layer = split_multihead(mixed_query_layer, self.num_attention_heads)
+        key_layer = split_multihead(mixed_key_layer, self.num_attention_heads)
+        value_layer = split_multihead(mixed_value_layer, self.num_attention_heads)
 
         context_layer, _ = scaled_dot_product_attention(
             query_layer, key_layer, value_layer, attention_mask
         )
 
-        context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[:-2] + (self.all_head_size,)
-        context_layer = context_layer.view(*new_context_layer_shape)
+        context_layer = merge_multihead(context_layer)
 
         return context_layer
