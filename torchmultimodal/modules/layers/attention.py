@@ -133,7 +133,7 @@ class MultiHeadAttention(nn.Module):
         dim_kv (int): dimensionality of key/value embedding vector
         n_head (int): number of attention heads
         n_layer (int): number of attention layers being used in higher level stack
-        attn_module (nn.Module): module of attention mechanism to use. Default is ``FullAttention``.
+        attn_module (nn.Module): module of attention mechanism to use. Default is ``SelfAttention``.
                                  Should have interface of:
                                     (q: Tensor,
                                     k: Tensor,
@@ -169,7 +169,7 @@ class MultiHeadAttention(nn.Module):
         dim_kv: int,
         n_head: int,
         n_layer: int,
-        attn_module: nn.Module = FullAttention(),
+        attn_module: nn.Module = SelfAttention(),
     ) -> None:
         super().__init__()
 
