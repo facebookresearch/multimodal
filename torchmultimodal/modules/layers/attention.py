@@ -4,7 +4,6 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from itertools import repeat
 from typing import Dict, Optional, Tuple, Union
 
 import torch
@@ -130,12 +129,10 @@ class MultiHeadAttention(nn.Module):
     as described in Attention Is All You Need (Vaswani et al. 2017).
 
     Attributes:
-        shape (Tuple[int]): shape of input data (d1, ..., dn)
         dim_q (int): dimensionality of query embedding vector
         dim_kv (int): dimensionality of key/value embedding vector
         n_head (int): number of attention heads
         n_layer (int): number of attention layers being used in higher level stack
-        causal (bool): use causal attention or not
         attn_module (nn.Module): module of attention mechanism to use. Default is ``FullAttention``.
                                  Should have interface of:
                                     (q: Tensor,
@@ -156,7 +153,8 @@ class MultiHeadAttention(nn.Module):
                                       Contains 1s for positions to attend to and 0s for masked positions.
                                       Applied after dropout, before matrix multiplication with values.
         use_cache (bool): If True, caches past k and v tensors for faster decoding. If False, recompute k and v for each
-                          decoding step. Default is False.
+                          decoding step. Default is ``False``.
+        causal (bool): use causal attention or not. Default is ``False``.
 
     Raises:
         TypeError: an error occurred when ``causal`` is ``True`` and ``attn_module`` is
@@ -167,20 +165,13 @@ class MultiHeadAttention(nn.Module):
 
     def __init__(
         self,
-        shape: Tuple[int, ...],
         dim_q: int,
         dim_kv: int,
         n_head: int,
         n_layer: int,
-        causal: bool,
         attn_module: nn.Module = FullAttention(),
     ) -> None:
         super().__init__()
-        if isinstance(attn_module, AxialAttention) and causal:
-            raise TypeError("Causal axial attention is not supported.")
-
-        self.causal = causal
-        self.shape = shape
 
         self.d_k = dim_q // n_head
         self.d_v = dim_kv // n_head
@@ -210,13 +201,17 @@ class MultiHeadAttention(nn.Module):
         head_mask: Optional[Tensor] = None,
         return_attn_weights: bool = False,
         use_cache: bool = False,
+        causal: bool = False,
     ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+        if isinstance(self.attn, AxialAttention) and causal:
+            raise TypeError("Causal axial attention is not supported.")
+
         # compute k, q, v
         q = split_multihead(self.w_qs(q), self.n_head)
 
         # For causal k, v are provided step-wise so we should always compute them
         # For non-causal skip computing k, v if they have been cached
-        if self.causal or not self.cache:
+        if causal or not self.cache:
             k = split_multihead(self.w_ks(k), self.n_head)
             v = split_multihead(self.w_vs(v), self.n_head)
 
@@ -226,7 +221,7 @@ class MultiHeadAttention(nn.Module):
                 # initialize the cache with the present k, v
                 self.cache = dict(k=k.clone(), v=v.clone())
             else:
-                if self.causal:
+                if causal:
                     # append present k, v to past k, v
                     # for autoregressive decoding inputs are flattened as 1D sequences
                     # so are the cached tensors: (b, n_heads, seq_len, c)
@@ -277,14 +272,10 @@ class AxialAttentionBlock(nn.Module):
         self.mha_attns = nn.ModuleList(
             [
                 MultiHeadAttention(
-                    shape=tuple(
-                        repeat(0, n_dims)
-                    ),  # dummy value for shape since we are not using causal
                     dim_q=qkv_dim,
                     dim_kv=qkv_dim,
                     n_head=n_head,
                     n_layer=1,
-                    causal=False,
                     attn_module=AxialAttention(d),
                 )
                 for d in range(n_dims)
@@ -335,8 +326,8 @@ def scaled_dot_product_attention(
     attn = torch.matmul(q, k.transpose(-1, -2))
     attn = attn / torch.sqrt(torch.tensor(q.shape[-1]))
     # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
-    # masked positions, this operation will create a tensor which is 0.0 for
-    # positions we want to attend and -inf for masked positions.
+    # masked positions, this operation will create a tensor with the computed attention weights
+    # at the positions we want to attend and -inf for masked positions.
     # Since we are adding it to the raw scores before the softmax, this is
     # effectively the same as removing these entirely.
     if attention_mask is not None:
