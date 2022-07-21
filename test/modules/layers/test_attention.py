@@ -54,7 +54,7 @@ def kv(input_shape, hidden_dim):
 
 
 @pytest.fixture
-def full_attn(input_shape):
+def full_attn():
     return SelfAttention(attn_dropout=0.0)
 
 
@@ -65,11 +65,9 @@ def axial_attn():
 
 class TestMultiheadAttention:
     @pytest.fixture
-    def multihead_attn(self, input_shape, hidden_dim):
-        def create_multihead_attn(n_heads, causal, attn_module):
-            return MultiHeadAttention(
-                input_shape, hidden_dim, hidden_dim, n_heads, 1, causal, attn_module
-            )
+    def multihead_attn(self, hidden_dim):
+        def create_multihead_attn(n_heads, attn_module):
+            return MultiHeadAttention(hidden_dim, hidden_dim, n_heads, 1, attn_module)
 
         return create_multihead_attn
 
@@ -80,7 +78,7 @@ class TestMultiheadAttention:
         multihead_attn,
         full_attn,
     ):
-        mha = multihead_attn(1, False, full_attn)
+        mha = multihead_attn(1, full_attn)
         q = 2 * torch.ones(1, *input_shape, hidden_dim)
         k = 2 * torch.ones(1, *input_shape, hidden_dim)
         v = 2 * torch.ones(1, *input_shape, hidden_dim)
@@ -104,7 +102,7 @@ class TestMultiheadAttention:
     def test_multi_head_attention_use_cache(
         self, input_shape, hidden_dim, multihead_attn, full_attn, mocker
     ):
-        mha = multihead_attn(1, False, full_attn)
+        mha = multihead_attn(1, full_attn)
         mock_projection_k = mocker.patch.object(
             mha.w_ks, "forward", wraps=mha.w_ks.forward
         )
@@ -181,7 +179,7 @@ class TestMultiheadAttention:
         self, input_shape, hidden_dim, multihead_attn, full_attn
     ):
         n_heads = 1
-        mha = multihead_attn(n_heads, True, full_attn)
+        mha = multihead_attn(n_heads, full_attn)
         seq_len = torch.prod(torch.tensor(input_shape)).item()
         q = 2 * torch.ones(1, *input_shape, hidden_dim).flatten(start_dim=1, end_dim=-2)
         k = 2 * torch.ones(1, *input_shape, hidden_dim).flatten(start_dim=1, end_dim=-2)
@@ -192,7 +190,13 @@ class TestMultiheadAttention:
         # decoding is step-wise along the sequence dim
         for i in range(seq_len):
             out.append(
-                mha(q[:, i : i + 1], k[:, i : i + 1], v[:, i : i + 1], use_cache=True)
+                mha(
+                    q[:, i : i + 1],
+                    k[:, i : i + 1],
+                    v[:, i : i + 1],
+                    use_cache=True,
+                    causal=True,
+                )
             )
             # cached k, v are flattened and augmented by 1 unit at each step
             expected_kv_shape = torch.Size([1, n_heads, (i + 1), hidden_dim])
