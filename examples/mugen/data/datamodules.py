@@ -4,14 +4,12 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Callable, NamedTuple
+from typing import Callable, NamedTuple, Optional
 
 import pytorch_lightning as pl
 import torch
 import torch.distributed as dist
 import torch.utils.data as data
-from torchmultimodal.transforms.bert_text_transform import BertTextTransform
-from torchmultimodal.transforms.video_transform import VideoTransform
 
 from .mugen_data import MUGENDataset, MUGENDatasetArgs
 
@@ -21,26 +19,38 @@ class DataModuleArgs(NamedTuple):
     num_workers: int = 4
 
 
-class MUGENDataModuleBase(pl.LightningDataModule):
+class MUGENDataModule(pl.LightningDataModule):
     """General lightning data module for MUGEN dataset.
 
     Args:
         mugen_dataset_args (MUGENDatasetArgs): arguments for MUGENDataset.
         datamodule_args (DataModuleArgs): arguments for this LightningDataModule.
             See DataModuleArgs definition for defaults.
+        text_transform (Optional[Callable]): transform for text batches.
+            Defaults to ``None``.
+        video_transform (Optional[Callable]): transform for video batches.
+            Defaults to ``None``.
+        audio_transform (Optional[Callable]): transform for audio batches.
+            Defaults to ``None``.
         shuffle (bool): whether to reshuffle data after each epoch.
-            Defaults to True.
+            Defaults to ``True``.
     """
 
     def __init__(
         self,
         mugen_dataset_args: MUGENDatasetArgs,
         data_module_args: DataModuleArgs = DataModuleArgs(),
+        text_transform: Optional[Callable] = None,
+        video_transform: Optional[Callable] = None,
+        audio_transform: Optional[Callable] = None,
         shuffle=True,
     ):
         super().__init__()
         self.data_module_args = data_module_args
         self.mugen_dataset_args = mugen_dataset_args
+        self.text_transform = text_transform
+        self.video_transform = video_transform
+        self.audio_transform = audio_transform
         self.shuffle = shuffle
 
     @property
@@ -48,8 +58,24 @@ class MUGENDataModuleBase(pl.LightningDataModule):
         dataset = self._dataset(True)
         return dataset.n_classes
 
-    def _collate_fn(self):
-        return data.default_collate
+    def _custom_collate_fn(self, batch):
+        collated_batch = {}
+        if self.mugen_dataset_args.get_game_frame:
+            video = [elem["video"] for elem in batch]
+            video = torch.stack(video)
+            video = self.video_transform(video) if self.video_transform else video
+            collated_batch["video"] = video
+        if self.mugen_dataset_args.get_text_desc:
+            text = [elem["text"] for elem in batch]
+            # cannot be torch.stack'ed because still in raw text form, not Tensor
+            text = self.text_transform(text) if self.text_transform else text
+            collated_batch["text"] = text
+        if self.mugen_dataset_args.get_audio:
+            audio = [elem["audio"] for elem in batch]
+            audio = torch.stack(audio)
+            audio = self.audio_transform(audio) if self.audio_transform else audio
+            collated_batch["audio"] = audio
+        return collated_batch
 
     def _dataset(self, split):
         dataset = MUGENDataset(args=self.mugen_dataset_args, split=split)
@@ -70,7 +96,7 @@ class MUGENDataModuleBase(pl.LightningDataModule):
             pin_memory=True,
             sampler=sampler,
             shuffle=sampler is None and self.shuffle is True,
-            collate_fn=self._collate_fn(),
+            collate_fn=self._custom_collate_fn,
         )
         return dataloader
 
@@ -82,48 +108,3 @@ class MUGENDataModuleBase(pl.LightningDataModule):
 
     def test_dataloader(self):
         return self._dataloader("test")
-
-
-class VideoCLIPDataModule(MUGENDataModuleBase):
-    """Lightning data module for MUGEN dataset texts and videos.
-
-    Args:
-        datamodule_args (DataModuleArgs): arguments for this LightningDataModule.
-            See DataModuleArgs definition for defaults.
-        shuffle (bool): whether to reshuffle data after each epoch.
-            Defaults to True.
-        text_transform (Callable): transform for text batches.
-            Defaults to ``BertTextTransform()``
-        video_transform (Callable): transform for video batches.
-            Defaults to ``VideoTransform()``.
-        **mugen_dataset_kwargs (Any): additional keyword arguments for MUGENDatasetArgs.
-            Cannot contain args ``get_game_frame``, ``get_text_desc``.
-    """
-
-    def __init__(
-        self,
-        data_module_args: DataModuleArgs = DataModuleArgs(),
-        shuffle: bool = True,
-        text_transform: Callable = BertTextTransform(),
-        video_transform: Callable = VideoTransform(),
-        **mugen_dataset_kwargs,
-    ):
-        # Must get video and text when loading MUGEN dataset
-        mugen_dataset_args = MUGENDatasetArgs(
-            get_game_frame=True, get_text_desc=True, **mugen_dataset_kwargs
-        )
-
-        super().__init__(mugen_dataset_args, data_module_args, shuffle)
-        self.text_transform = text_transform
-        self.video_transform = video_transform
-
-    def _collate_fn(self):
-        def collate_with_transform(batch):
-            video = [elem["video"] for elem in batch]
-            video = torch.stack(video)
-            video = self.video_transform(video)
-            text = [elem["text"] for elem in batch]
-            text = self.text_transform(text)
-            return {"video": video, "text": text}
-
-        return collate_with_transform
