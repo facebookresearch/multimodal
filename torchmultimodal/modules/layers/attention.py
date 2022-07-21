@@ -133,7 +133,6 @@ class MultiHeadAttention(nn.Module):
         dim_kv (int): dimensionality of key/value embedding vector
         n_head (int): number of attention heads
         n_layer (int): number of attention layers being used in higher level stack
-        causal (bool): use causal attention or not
         attn_module (nn.Module): module of attention mechanism to use. Default is ``FullAttention``.
                                  Should have interface of:
                                     (q: Tensor,
@@ -154,7 +153,8 @@ class MultiHeadAttention(nn.Module):
                                       Contains 1s for positions to attend to and 0s for masked positions.
                                       Applied after dropout, before matrix multiplication with values.
         use_cache (bool): If True, caches past k and v tensors for faster decoding. If False, recompute k and v for each
-                          decoding step. Default is False.
+                          decoding step. Default is ``False``.
+        causal (bool): use causal attention or not. Default is ``False``.
 
     Raises:
         TypeError: an error occurred when ``causal`` is ``True`` and ``attn_module`` is
@@ -169,14 +169,9 @@ class MultiHeadAttention(nn.Module):
         dim_kv: int,
         n_head: int,
         n_layer: int,
-        causal: bool,
         attn_module: nn.Module = FullAttention(),
     ) -> None:
         super().__init__()
-        if isinstance(attn_module, AxialAttention) and causal:
-            raise TypeError("Causal axial attention is not supported.")
-
-        self.causal = causal
 
         self.d_k = dim_q // n_head
         self.d_v = dim_kv // n_head
@@ -206,13 +201,17 @@ class MultiHeadAttention(nn.Module):
         head_mask: Optional[Tensor] = None,
         return_attn_weights: bool = False,
         use_cache: bool = False,
+        causal: bool = False,
     ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+        if isinstance(self.attn, AxialAttention) and causal:
+            raise TypeError("Causal axial attention is not supported.")
+
         # compute k, q, v
         q = split_multihead(self.w_qs(q), self.n_head)
 
         # For causal k, v are provided step-wise so we should always compute them
         # For non-causal skip computing k, v if they have been cached
-        if self.causal or not self.cache:
+        if causal or not self.cache:
             k = split_multihead(self.w_ks(k), self.n_head)
             v = split_multihead(self.w_vs(v), self.n_head)
 
@@ -222,7 +221,7 @@ class MultiHeadAttention(nn.Module):
                 # initialize the cache with the present k, v
                 self.cache = dict(k=k.clone(), v=v.clone())
             else:
-                if self.causal:
+                if causal:
                     # append present k, v to past k, v
                     # for autoregressive decoding inputs are flattened as 1D sequences
                     # so are the cached tensors: (b, n_heads, seq_len, c)
@@ -277,7 +276,6 @@ class AxialAttentionBlock(nn.Module):
                     dim_kv=qkv_dim,
                     n_head=n_head,
                     n_layer=1,
-                    causal=False,
                     attn_module=AxialAttention(d),
                 )
                 for d in range(n_dims)
