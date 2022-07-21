@@ -142,6 +142,7 @@ class MultiHeadAttention(nn.Module):
                                     head_mask: Optional[Tensor],
                                     )
                                  and returns output Tensor and attn weights Tensor
+        add_bias (bool): add bias to the q, k, v, linear layers or not. Default is ``True``.
 
     Args:
         q (Tensor): a tensor of shape [b, d1, ..., dn, c] or [b, seq_len, c]
@@ -169,6 +170,7 @@ class MultiHeadAttention(nn.Module):
         n_head: int,
         causal: bool,
         attn_module: nn.Module = SelfAttention(),
+        add_bias: bool = True,
     ) -> None:
         super().__init__()
         if isinstance(attn_module, AxialAttention) and causal:
@@ -179,17 +181,10 @@ class MultiHeadAttention(nn.Module):
         self.d_qk = dim_q // n_head
         self.d_v = dim_kv // n_head
         self.n_head = n_head
-        self.w_qs = nn.Linear(dim_q, n_head * self.d_qk, bias=False)  # q
-        self.w_qs.weight.data.normal_(std=1.0 / torch.sqrt(torch.tensor(dim_q)))
-
-        self.w_ks = nn.Linear(dim_kv, n_head * self.d_qk, bias=False)  # k
-        self.w_ks.weight.data.normal_(std=1.0 / torch.sqrt(torch.tensor(dim_kv)))
-
-        self.w_vs = nn.Linear(dim_kv, n_head * self.d_v, bias=False)  # v
-        self.w_vs.weight.data.normal_(std=1.0 / torch.sqrt(torch.tensor(dim_kv)))
-
+        self.w_qs = nn.Linear(dim_q, n_head * self.d_qk, bias=add_bias)  # q
+        self.w_ks = nn.Linear(dim_kv, n_head * self.d_qk, bias=add_bias)  # k
+        self.w_vs = nn.Linear(dim_kv, n_head * self.d_v, bias=add_bias)  # v
         self.fc = nn.Linear(n_head * self.d_v, dim_q, bias=True)  # c
-        self.fc.weight.data.normal_(std=1.0 / torch.sqrt(torch.tensor(dim_q)))
 
         self.attn = attn_module
 
@@ -277,6 +272,7 @@ class AxialAttentionBlock(nn.Module):
                     n_head=n_head,
                     causal=False,
                     attn_module=AxialAttention(d),
+                    add_bias=False,
                 )
                 for d in range(n_dims)
             ]
