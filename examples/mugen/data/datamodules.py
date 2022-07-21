@@ -21,7 +21,7 @@ class DataModuleArgs(NamedTuple):
     num_workers: int = 4
 
 
-class MUGENLDataModuleBase(pl.LightningDataModule):
+class MUGENDataModuleBase(pl.LightningDataModule):
     """General lightning data module for MUGEN dataset.
 
     Args:
@@ -84,7 +84,7 @@ class MUGENLDataModuleBase(pl.LightningDataModule):
         return self._dataloader("test")
 
 
-class VideoCLIPDataModule(MUGENLDataModuleBase):
+class VideoCLIPDataModule(MUGENDataModuleBase):
     """Lightning data module for MUGEN dataset texts and videos.
 
     Args:
