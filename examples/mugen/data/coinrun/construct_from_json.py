@@ -10,8 +10,6 @@ import os
 import numpy as np
 from PIL import Image
 
-dirname = os.path.dirname(__file__)
-ASSET_ROOT = os.path.join(dirname, "assets")
 DEATH_ANIM_LENGTH = 30
 FINISHED_LEVEL_ANIM_LENGTH = 20
 MONSTER_DEATH_ANIM_LENGTH = 3
@@ -188,6 +186,7 @@ class Asset:
         self,
         name,
         file,
+        asset_root,
         kind="world",
         kx=80,
         ky=80,
@@ -197,6 +196,7 @@ class Asset:
     ):
         self.name = name
         self.file = file
+        self.asset_root = asset_root
         self.kind = kind
         self.kx = kx
         self.ky = ky
@@ -207,7 +207,7 @@ class Asset:
         self.load_asset()
 
     def load_asset(self):
-        asset_path = os.path.join(ASSET_ROOT, self.file)
+        asset_path = os.path.join(self.asset_root, self.file)
         if not os.path.isfile(asset_path):
             # basically remove the '_walk1' postfix
             fallback_path = (
@@ -248,7 +248,9 @@ class Asset:
             self.asset = binarize_alpha_channel(self.asset)
 
 
-def load_assets(asset_files, semantic_color_map, kx=80, ky=80, gen_original=False):
+def load_assets(
+    asset_files, asset_root, semantic_color_map, kx=80, ky=80, gen_original=False
+):
     asset_map = {}
 
     for kind in asset_files.keys():
@@ -263,6 +265,7 @@ def load_assets(asset_files, semantic_color_map, kx=80, ky=80, gen_original=Fals
             asset_map[kind] = Asset(
                 name=kind,
                 file=asset_files[kind],
+                asset_root=asset_root,
                 kind=kind,
                 kx=kx,
                 ky=ky,
@@ -277,6 +280,7 @@ def load_assets(asset_files, semantic_color_map, kx=80, ky=80, gen_original=Fals
                 asset_map[key] = Asset(
                     name=key,
                     file=asset_files[kind][key],
+                    asset_root=asset_root,
                     kind=kind,
                     kx=kx,
                     ky=ky,
@@ -293,6 +297,7 @@ def load_assets(asset_files, semantic_color_map, kx=80, ky=80, gen_original=Fals
                         asset_map[a_key] = Asset(
                             name=a_key,
                             file=asset_files[kind][key][pose],
+                            asset_root=asset_root,
                             kind=kind,
                             kx=kx,
                             ky=ky,
@@ -316,6 +321,7 @@ def load_assets(asset_files, semantic_color_map, kx=80, ky=80, gen_original=Fals
                         asset_map[m_key] = Asset(
                             name=m_key,
                             file=file_name,
+                            asset_root=asset_root,
                             kind="monster",
                             kx=kx,
                             ky=ky,
@@ -330,11 +336,12 @@ def load_assets(asset_files, semantic_color_map, kx=80, ky=80, gen_original=Fals
 
 
 # load background asset, zoom is different so need a separate function
-def load_bg_asset(asset_files, semantic_color_map, zx, zy):
+def load_bg_asset(asset_files, asset_root, semantic_color_map, zx, zy):
     kind = "background"
     bg_asset = Asset(
         name=kind,
         file=asset_files[kind],
+        asset_root=asset_root,
         kind=kind,
         kx=zx,
         ky=zy,

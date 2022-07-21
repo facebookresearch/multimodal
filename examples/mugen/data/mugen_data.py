@@ -26,6 +26,7 @@ from .audio_utils import AUDIO_SAMPLE_LENGTH, AUDIO_SAMPLE_RATE, load_audio
 
 class MUGENDatasetArgs(NamedTuple):
     data_path: str = "datasets/coinrun/coinrun_dataset_jsons/release"
+    asset_path: str = "datasets/coinrun/assets"
     sample_every_n_frames: int = 3
     sequence_length: int = 32
     resolution: int = 256
@@ -133,12 +134,17 @@ class MUGENDataset(data.Dataset):
             # TODO: is it worth to load assets separately for game frame and label?
             # this way game frame will has smoother character boundary
             self.asset_map[world_theme_n] = load_assets(
-                asset_files, semantic_color_map, self.kx, self.ky, gen_original=False
+                asset_files,
+                self.args.asset_path,
+                semantic_color_map,
+                self.kx,
+                self.ky,
+                gen_original=False,
             )
 
             # background asset is loaded separately due to not following the grid
             self.asset_map[world_theme_n]["background"] = load_bg_asset(
-                asset_files, semantic_color_map, zx, zy
+                asset_files, self.args.asset_path, semantic_color_map, zx, zy
             )
 
     def __len__(self):
