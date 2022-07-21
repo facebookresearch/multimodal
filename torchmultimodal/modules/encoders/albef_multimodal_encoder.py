@@ -8,9 +8,7 @@
 from typing import Callable
 
 from torch import nn, Tensor
-from torchmultimodal.modules.encoders.albef_text_encoder import (
-    ALBEFTransformerAttention,
-)
+from torchmultimodal.modules.layers.attention import MultiHeadAttention
 from torchmultimodal.utils.attention import get_extended_attention_mask
 
 
@@ -87,17 +85,25 @@ class ALBEFTransformerLayerWithCrossAttention(nn.Module):
     ) -> None:
         super().__init__()
         # the attention block computes the self attention on text embeddings
-        self.attention = ALBEFTransformerAttention(
-            hidden_size, num_attention_heads, layer_norm_eps
+        self.attention = MultiHeadAttention(
+            dim_q=hidden_size,
+            dim_kv=hidden_size,
+            n_head=num_attention_heads,
+            causal=False,
         )
         # the cross_attention block computes the cross attention on image and text embeddings
-        self.cross_attention = ALBEFTransformerAttention(
-            hidden_size, num_attention_heads, layer_norm_eps
+        self.cross_attention = MultiHeadAttention(
+            dim_q=hidden_size,
+            dim_kv=hidden_size,
+            n_head=num_attention_heads,
+            causal=False,
         )
+        self.attention_layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
+        self.cross_attention_layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
         self.dense1 = nn.Linear(hidden_size, intermediate_size)
         self.transform_act_fn = transform_act_fn
         self.dense2 = nn.Linear(intermediate_size, hidden_size)
-        self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
+        self.ffn_layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
 
     def forward(
         self,
@@ -105,12 +111,20 @@ class ALBEFTransformerLayerWithCrossAttention(nn.Module):
         attention_mask: Tensor,
         encoder_hidden_states: Tensor,
     ) -> Tensor:
-        attention_output = self.attention(hidden_states, attention_mask)
-        attention_output = self.cross_attention(
-            attention_output, attention_mask, encoder_hidden_states
+        attention_output = self.attention(hidden_states, attention_mask=attention_mask)
+        attention_norm_output = self.attention_layer_norm(
+            attention_output + hidden_states
         )
-        dense1_output = self.dense1(attention_output)
+        cross_attention_output = self.cross_attention(
+            attention_norm_output,
+            kv=encoder_hidden_states,
+            attention_mask=attention_mask,
+        )
+        cross_attention_norm_output = self.attention_layer_norm(
+            cross_attention_output + attention_norm_output
+        )
+        dense1_output = self.dense1(cross_attention_norm_output)
         act_output = self.transform_act_fn(dense1_output)
         dense2_output = self.dense2(act_output)
-        norm_output = self.layer_norm(dense2_output + attention_output)
+        norm_output = self.ffn_layer_norm(dense2_output + cross_attention_norm_output)
         return norm_output
