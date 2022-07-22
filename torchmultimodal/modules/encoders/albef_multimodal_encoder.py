@@ -89,14 +89,12 @@ class ALBEFTransformerLayerWithCrossAttention(nn.Module):
             dim_q=hidden_size,
             dim_kv=hidden_size,
             n_head=num_attention_heads,
-            causal=False,
         )
         # the cross_attention block computes the cross attention on image and text embeddings
         self.cross_attention = MultiHeadAttention(
             dim_q=hidden_size,
             dim_kv=hidden_size,
             n_head=num_attention_heads,
-            causal=False,
         )
         self.attention_layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
         self.cross_attention_layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
@@ -118,9 +116,8 @@ class ALBEFTransformerLayerWithCrossAttention(nn.Module):
         cross_attention_output = self.cross_attention(
             attention_norm_output,
             kv=encoder_hidden_states,
-            attention_mask=attention_mask,
         )
-        cross_attention_norm_output = self.attention_layer_norm(
+        cross_attention_norm_output = self.cross_attention_layer_norm(
             cross_attention_output + attention_norm_output
         )
         dense1_output = self.dense1(cross_attention_norm_output)
