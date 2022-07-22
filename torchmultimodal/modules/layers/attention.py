@@ -178,6 +178,7 @@ class MultiHeadAttention(nn.Module):
                 "The hidden size of q, k, v must be a multiple of the number of attention heads."
             )
 
+        self.d_qk = dim_q // n_head
         self.d_v = dim_kv // n_head
         self.n_head = n_head
         self.w_qs = nn.Linear(dim_q, n_head * self.d_qk, bias=add_bias)  # q

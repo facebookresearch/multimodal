@@ -168,7 +168,6 @@ class ALBEFTransformerLayer(nn.Module):
             dim_q=hidden_size,
             dim_kv=hidden_size,
             n_head=num_attention_heads,
-            causal=False,
         )
         self.attention_layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
         self.dense1 = nn.Linear(hidden_size, intermediate_size)
