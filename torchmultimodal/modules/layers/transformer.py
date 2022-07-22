@@ -45,7 +45,6 @@ class FLAVATransformerLayer(nn.Module):
             dim_q=hidden_size,
             dim_kv=hidden_size,
             n_head=num_attention_heads,
-            causal=False,
             attn_module=SelfAttention(attention_probs_dropout_prob),
         )
         self.attention_dropout = nn.Dropout(hidden_dropout_prob)
