@@ -132,7 +132,7 @@ class MultiHeadAttention(nn.Module):
         dim_q (int): dimensionality of query embedding vector
         dim_kv (int): dimensionality of key/value embedding vector
         n_head (int): number of attention heads
-        attn_module (nn.Module): module of attention mechanism to use. Default is ``FullAttention``.
+        attn_module (nn.Module): module of attention mechanism to use. Default is ``SelfAttention``.
                                  Should have interface of:
                                     (q: Tensor,
                                     k: Tensor,
