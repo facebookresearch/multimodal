@@ -4,16 +4,11 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Callable, Optional
+from typing import Callable
 
 import torch
 from torch import nn, Tensor
-from torchmultimodal.modules.layers.attention import (
-    merge_multihead,
-    MultiHeadAttention,
-    SelfAttention,
-    split_multihead,
-)
+from torchmultimodal.modules.layers.attention import MultiHeadAttention
 from torchmultimodal.utils.attention import get_extended_attention_mask
 
 
@@ -187,60 +182,3 @@ class ALBEFTransformerLayer(nn.Module):
         dense2_output = self.dense2(act_output)
         norm2_output = self.ffn_layer_norm(dense2_output + norm1_output)
         return norm2_output
-
-
-class ALBEFTransformerAttention(nn.Module):
-    def __init__(
-        self,
-        hidden_size: int,
-        num_attention_heads: int,
-        layer_norm_eps: float,
-    ) -> None:
-        super().__init__()
-
-        self.num_attention_heads = num_attention_heads
-        self.attention_head_size = int(hidden_size / num_attention_heads)
-        self.all_head_size = self.num_attention_heads * self.attention_head_size
-
-        self.query = nn.Linear(hidden_size, self.all_head_size)
-        self.key = nn.Linear(hidden_size, self.all_head_size)
-        self.value = nn.Linear(hidden_size, self.all_head_size)
-
-        self.self_attention = SelfAttention()
-        self.dense = nn.Linear(hidden_size, hidden_size)
-        self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
-
-    def forward(
-        self,
-        hidden_states: Tensor,
-        attention_mask: Tensor,
-        encoder_hidden_states: Optional[Tensor] = None,
-    ) -> Tensor:
-        mixed_query_layer = self.query(hidden_states)
-
-        # If encoder_hidden_states is not passed, then compute the self attention on hidden_states
-        # Otherwise, compute the cross attention on hidden_states and encoder_hidden_states
-        if encoder_hidden_states is None:
-            mixed_key_layer = self.key(hidden_states)
-            mixed_value_layer = self.value(hidden_states)
-        else:
-            mixed_key_layer = self.key(encoder_hidden_states)
-            mixed_value_layer = self.value(encoder_hidden_states)
-            attention_mask = None
-
-        query_layer = split_multihead(mixed_query_layer, self.num_attention_heads)
-        key_layer = split_multihead(mixed_key_layer, self.num_attention_heads)
-        value_layer = split_multihead(mixed_value_layer, self.num_attention_heads)
-
-        context, _ = self.self_attention(
-            query_layer,
-            key_layer,
-            value_layer,
-            attention_mask=attention_mask,
-        )
-
-        context = merge_multihead(context)
-
-        dense_output = self.dense(context)
-        attention_output = self.layer_norm(dense_output + hidden_states)
-        return attention_output
