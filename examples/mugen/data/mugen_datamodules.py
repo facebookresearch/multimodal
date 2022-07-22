@@ -14,7 +14,7 @@ import torch.utils.data as data
 from .mugen_dataset import MUGENDataset, MUGENDatasetArgs
 
 
-class DataModuleArgs(NamedTuple):
+class MUGENDataModuleArgs(NamedTuple):
     batch_size: int = 16
     num_workers: int = 4
 
@@ -24,13 +24,16 @@ class MUGENDataModule(pl.LightningDataModule):
 
     Args:
         mugen_dataset_args (MUGENDatasetArgs): arguments for MUGENDataset.
-        datamodule_args (DataModuleArgs): arguments for this LightningDataModule.
-            See DataModuleArgs definition for defaults.
+        datamodule_args (MUGENDataModuleArgs): arguments for this LightningDataModule.
+            See MUGENDataModuleArgs definition for defaults.
         text_transform (Optional[Callable]): transform for text batches.
+            Only used when not ``None`` and when ``mugen_dataset_args.get_text_desc = True``.
             Defaults to ``None``.
         video_transform (Optional[Callable]): transform for video batches.
+            Only used when not ``None`` and when ``mugen_dataset_args.get_game_frame = True``.
             Defaults to ``None``.
         audio_transform (Optional[Callable]): transform for audio batches.
+            Only used when not ``None`` and when ``mugen_dataset_args.get_audio = True``.
             Defaults to ``None``.
         shuffle (bool): whether to reshuffle data after each epoch.
             Defaults to ``True``.
@@ -39,7 +42,7 @@ class MUGENDataModule(pl.LightningDataModule):
     def __init__(
         self,
         mugen_dataset_args: MUGENDatasetArgs,
-        data_module_args: DataModuleArgs = DataModuleArgs(),
+        data_module_args: MUGENDataModuleArgs = MUGENDataModuleArgs(),
         text_transform: Optional[Callable] = None,
         video_transform: Optional[Callable] = None,
         audio_transform: Optional[Callable] = None,

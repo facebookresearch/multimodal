@@ -44,9 +44,9 @@ class MUGENDatasetArgs(NamedTuple):
         False  # if True will only use downsampled training set
     )
     fixed_start_idx: bool = True  # fx starting game frame idx to 0
-    get_game_frame: bool = True
-    get_seg_map: bool = True
-    get_text_desc: bool = True
+    get_game_frame: bool = True  # load video data
+    get_seg_map: bool = True  # load semantic map
+    get_text_desc: bool = True  # load text data
     get_audio: bool = (
         True  # load full mix audio for each video, for audio generation models
     )
