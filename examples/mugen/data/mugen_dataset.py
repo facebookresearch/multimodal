@@ -10,8 +10,7 @@ from typing import NamedTuple
 
 import numpy as np
 import torch
-import torch.utils.data as data
-from data.coinrun.construct_from_json import (
+from examples.mugen.data.coinrun.construct_from_json import (
     define_semantic_color_map,
     draw_game_frame,
     generate_asset_paths,
@@ -19,7 +18,8 @@ from data.coinrun.construct_from_json import (
     load_bg_asset,
 )
 
-from data.coinrun.game import Game
+from examples.mugen.data.coinrun.game import Game
+from torch.utils.data import Dataset
 
 from .audio_utils import AUDIO_SAMPLE_LENGTH, AUDIO_SAMPLE_RATE, load_audio
 
@@ -53,7 +53,7 @@ class MUGENDatasetArgs(NamedTuple):
     debug: bool = False
 
 
-class MUGENDataset(data.Dataset):
+class MUGENDataset(Dataset):
     """Dataset class to interface the MUGEN dataset.
 
     Args:

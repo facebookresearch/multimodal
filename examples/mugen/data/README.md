@@ -1,4 +1,4 @@
-This folder contains code for interfacing the MUGEN dataset (https://mugen-org.github.io/data).
+This folder contains code for interfacing the MUGEN dataset (https://mugen-org.github.io). The MUGEN dataset contains over 300k videos, each with corresponding audio and text, from the game CoinRun.
 
 Before using this code,
 

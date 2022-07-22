@@ -11,7 +11,7 @@ import torch
 import torch.distributed as dist
 import torch.utils.data as data
 
-from .mugen_data import MUGENDataset, MUGENDatasetArgs
+from .mugen_dataset import MUGENDataset, MUGENDatasetArgs
 
 
 class DataModuleArgs(NamedTuple):
