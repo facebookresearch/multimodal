@@ -108,9 +108,7 @@ class TestCheckpointWrapper:
                 return self.attention(x, y, attn_mask, use_cache)
 
             def forward(self, x, y, attn_mask=None, use_cache=False):
-                out = self._layer_to_wrap(
-                    x, y, attn_mask=attn_mask, use_cache=use_cache
-                )
+                out = self._layer_to_wrap(x, y, attn_mask, use_cache=use_cache)
                 out = self.identity(out)
                 return out
 
