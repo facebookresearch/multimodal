@@ -145,7 +145,10 @@ class FLAVAModel(nn.Module, PretrainedMixin):
             partial(self.encode_image, projection=True),
         )
         if len(image_encoding_out) == 2:
-            image_outputs, projected_image_embeddings = image_encoding_out
+            image_outputs, projected_image_embeddings = (
+                image_encoding_out[0],
+                image_encoding_out[1],
+            )
         else:
             image_outputs = image_encoding_out
             projected_image_embeddings = None
@@ -157,7 +160,10 @@ class FLAVAModel(nn.Module, PretrainedMixin):
             partial(self.encode_text, projection=True),
         )
         if len(text_encoding_out) == 2:
-            text_outputs, projected_text_embeddings = text_encoding_out
+            text_outputs, projected_text_embeddings = (
+                text_encoding_out[0],
+                text_encoding_out[1],
+            )
         else:
             text_outputs = text_encoding_out
             projected_text_embeddings = None
@@ -168,12 +174,14 @@ class FLAVAModel(nn.Module, PretrainedMixin):
             ["image", "mm"],
             partial(self.encode_image, image_patches_mask=image_patches_mask),
         )
+        assert type(image_masked_outputs) == FLAVATransformerOutput
         text_masked_outputs = self._encode_data_to_embeddings(
             text_masked,
             required_embedding,
             ["text", "mm"],
             self.encode_text,
         )
+        assert type(text_masked_outputs) == FLAVATransformerOutput
 
         multimodal_outputs = FLAVATransformerOutput()
         multimodal_masked_outputs = FLAVATransformerOutput()
@@ -216,7 +224,7 @@ class FLAVAModel(nn.Module, PretrainedMixin):
         image: Tensor,
         image_patches_mask: Optional[Tensor] = None,
         projection: bool = False,
-    ) -> Optional[FLAVATransformerOutput]:
+    ) -> Union[Tuple[FLAVATransformerOutput, Tensor], Optional[FLAVATransformerOutput]]:
         if image_patches_mask is not None:
             encoded_image = self.image_encoder(image, image_patches_mask)
         else:
@@ -230,7 +238,7 @@ class FLAVAModel(nn.Module, PretrainedMixin):
 
     def encode_text(
         self, text: Tensor, text_mask: Optional[Tensor] = None, projection: bool = False
-    ) -> Optional[FLAVATransformerOutput]:
+    ) -> Union[Tuple[FLAVATransformerOutput, Tensor], Optional[FLAVATransformerOutput]]:
         # TODO(asg): Give proper parameter names when implementing text encoder
         encoded_text = self.text_encoder(
             input_ids=text,
@@ -248,9 +256,16 @@ class FLAVAModel(nn.Module, PretrainedMixin):
         data: Optional[Tensor],
         selected_head_encoder: EMBEDDING_OPTIONS,
         encoder_options: List[EMBEDDING_OPTIONS],
-        encode_callable: Callable[..., FLAVATransformerOutput],
-    ) -> Optional[FLAVATransformerOutput]:
-        output = FLAVATransformerOutput()
+        encode_callable: Callable[
+            ...,
+            Union[
+                Tuple[FLAVATransformerOutput, Tensor], Optional[FLAVATransformerOutput]
+            ],
+        ],
+    ) -> Union[Tuple[FLAVATransformerOutput, Tensor], Optional[FLAVATransformerOutput]]:
+        output: Union[
+            Tuple[FLAVATransformerOutput, Tensor], FLAVATransformerOutput
+        ] = FLAVATransformerOutput()
 
         if data is not None and selected_head_encoder in encoder_options:
             output = encode_callable(data)
@@ -289,8 +304,9 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
         self,
         image: Tensor,
         cls_index: int = 0,
-    ):
-        _, encoded_image = self.model.encode_image(image, projection=True)
+    ) -> Tensor:
+        encoded_result = self.model.encode_image(image, projection=True)
+        encoded_image = encoded_result[1]
         return encoded_image
 
     def encode_text(
@@ -298,8 +314,9 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
         text: Tensor,
         text_mask: Optional[Tensor] = None,
         cls_index: int = 0,
-    ):
-        _, encoded_text = self.model.encode_text(text, text_mask, projection=True)
+    ) -> Tensor:
+        encoded_result = self.model.encode_text(text, text_mask, projection=True)
+        encoded_text = encoded_result[1]
         return encoded_text
 
     # TODO: Add options to enable losses selectively
