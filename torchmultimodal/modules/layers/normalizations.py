@@ -4,14 +4,16 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from torch import nn
+from typing import Any
+
+from torch import nn, Tensor
 
 
 class Fp32LayerNorm(nn.LayerNorm):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         output = nn.functional.layer_norm(
             x.float(),
             self.normalized_shape,

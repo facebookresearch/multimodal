@@ -6,10 +6,11 @@
 
 from typing import List
 
+from examples.cnn_lstm.cnn_encoder import CNNEncoder
+from examples.cnn_lstm.lstm_encoder import LSTMEncoder
+
 from torch import nn
-from torchmultimodal.architectures.late_fusion import LateFusionArchitecture
-from torchmultimodal.modules.encoders.cnn_encoder import CNNEncoder
-from torchmultimodal.modules.encoders.lstm_encoder import LSTMEncoder
+from torchmultimodal.models.late_fusion import LateFusion
 from torchmultimodal.modules.fusions.concat_fusion import ConcatFusionModule
 from torchmultimodal.modules.layers.mlp import MLP
 
@@ -34,7 +35,7 @@ def cnn_lstm_classifier(
     # parameters for the classifier
     classifier_in_dim: int = 450,
     num_classes: int = 2,
-) -> LateFusionArchitecture:
+) -> LateFusion:
     """
     A simple example to show the composability in TorchMultimodal, and how to
     make use of builder functions to build a given model from an
@@ -42,11 +43,11 @@ def cnn_lstm_classifier(
     building the individual layers and simplifies the interface for the
     architecture. In this example, we are explicitly working with the "text"
     and "image" modalities. This is reflected in the ModuleDict passed to the
-    LateFusionArchitecture's init function. Note that these keys should match up
+    LateFusion's init function. Note that these keys should match up
     with the input of the forward function, which will raise an error in case there's
     a mismatch.
 
-    We use the LateFusionArchitecture to build a multimodal classifier
+    We use the LateFusion to build a multimodal classifier
     which uses a CNN to encode images, an LSTM to encode text and a
     simple MLP as a classifier. The output is raw scores.
 
@@ -97,7 +98,7 @@ def cnn_lstm_classifier(
 
     # The use of builder functions allows us to keep the architecture
     # interfaces clean and intuitive
-    return LateFusionArchitecture(
+    return LateFusion(
         encoders=nn.ModuleDict({"image": image_encoder, "text": text_encoder}),
         fusion_module=fusion_module,
         head_module=classifier,

@@ -4,11 +4,10 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import collections
 import math
 import warnings
 from functools import partial
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Dict, Optional, Tuple
 
 import torch
 from torch import nn, Tensor
@@ -21,9 +20,7 @@ from torchmultimodal.modules.layers.transformer import (
 from torchmultimodal.modules.losses.flava import Pooler
 
 
-def to_2tuple(x):
-    if isinstance(x, collections.abc.Iterable):
-        return x
+def to_2tuple(x: int) -> Tuple[int, int]:
     return (x, x)
 
 
@@ -34,7 +31,13 @@ class PatchEmbeddings(nn.Module):
     Image to Patch Embedding.
     """
 
-    def __init__(self, image_size=224, patch_size=16, num_channels=3, embed_dim=768):
+    def __init__(
+        self,
+        image_size: int = 224,
+        patch_size: int = 16,
+        num_channels: int = 3,
+        embed_dim: int = 768,
+    ) -> None:
         super().__init__()
         image_size = to_2tuple(image_size)
         patch_size = to_2tuple(patch_size)
@@ -46,10 +49,12 @@ class PatchEmbeddings(nn.Module):
         self.num_patches = num_patches
 
         self.projection = nn.Conv2d(
-            num_channels, embed_dim, kernel_size=patch_size, stride=patch_size
+            num_channels, embed_dim, kernel_size=self.patch_size, stride=self.patch_size
         )
 
-    def forward(self, pixel_values, interpolate_pos_encoding=False):
+    def forward(
+        self, pixel_values: Tensor, interpolate_pos_encoding: bool = False
+    ) -> Tensor:
         _, _, height, width = pixel_values.shape
         if not interpolate_pos_encoding:
             if height != self.image_size[0] or width != self.image_size[1]:
@@ -73,7 +78,7 @@ class ImageEmbeddings(nn.Module):
         hidden_size: int = 768,
         hidden_dropout_prob: float = 0.0,
         use_image_masking: bool = True,
-    ):
+    ) -> None:
         super().__init__()
 
         self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size))
@@ -94,7 +99,9 @@ class ImageEmbeddings(nn.Module):
         else:
             self.mask_token = None
 
-    def interpolate_pos_encoding(self, embeddings, height, width):
+    def interpolate_pos_encoding(
+        self, embeddings: Tensor, height: int, width: int
+    ) -> Tensor:
         """
         This method allows to interpolate the pre-trained position encodings, to be able to use the model on higher
         resolution images.
@@ -109,8 +116,8 @@ class ImageEmbeddings(nn.Module):
         class_pos_embed = self.position_embeddings[:, 0]
         patch_pos_embed = self.position_embeddings[:, 1:]
         dim = embeddings.shape[-1]
-        h0 = height // self.patch_embeddings.patch_size
-        w0 = width // self.patch_embeddings.patch_size
+        h0 = height // self.patch_embeddings.patch_size[0]
+        w0 = width // self.patch_embeddings.patch_size[1]
         # we add a small number to avoid floating point error in the interpolation
         # see discussion at https://github.com/facebookresearch/dino/issues/8
         h0, w0 = h0 + 0.1, w0 + 0.1
@@ -134,7 +141,7 @@ class ImageEmbeddings(nn.Module):
         pixel_values: Tensor,
         image_patches_mask: Optional[Tensor] = None,
         interpolate_pos_encoding: bool = False,
-    ):
+    ) -> Tensor:
         batch_size, num_channels, height, width = pixel_values.shape
         embeddings = self.patch_embeddings(
             pixel_values, interpolate_pos_encoding=interpolate_pos_encoding
@@ -179,7 +186,7 @@ class ImageTransformer(nn.Module):
         weight_init_fn: Optional[Callable] = None,
         initializer_range: float = 0.02,
         **kwargs: Any,
-    ):
+    ) -> None:
         super().__init__()
 
         self.embeddings = embeddings
@@ -199,7 +206,7 @@ class ImageTransformer(nn.Module):
         pixel_values: Optional[Tensor] = None,
         image_patches_mask: Optional[Tensor] = None,
         attention_mask: Optional[Tensor] = None,
-    ):
+    ) -> FLAVATransformerOutput:
         if pixel_values is None:
             raise ValueError("You have to specify pixel_values")
 
@@ -238,7 +245,7 @@ def flava_image_encoder(
     image_size: int = 224,
     patch_size: int = 16,
     num_channels: int = 3,
-):
+) -> ImageTransformer:
 
     embeddings = ImageEmbeddings(
         image_size=image_size,
@@ -275,8 +282,8 @@ class ImageTransformerWithVAE(nn.Module):
         self,
         image_transformer: nn.Module,
         vae: nn.Module,
-        **kwargs,
-    ):
+        **kwargs: Dict[str, Any],
+    ) -> None:
         super().__init__()
 
         self.image_transformer = image_transformer
@@ -287,7 +294,7 @@ class ImageTransformerWithVAE(nn.Module):
         pixel_values: Optional[Tensor] = None,
         image_patches_mask: Optional[Tensor] = None,
         attention_mask: Optional[Tensor] = None,
-    ):
+    ) -> FLAVATransformerOutput:
         image_labels = self.vae(pixel_values).flatten(1)
         image_patches_mask = image_patches_mask.flatten(1).to(torch.bool)
         image_labels[image_patches_mask == False] = -1  # noqa
