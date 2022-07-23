@@ -6,7 +6,7 @@
 
 import warnings
 from itertools import repeat
-from typing import Tuple, Union
+from typing import Any, Tuple, Union
 
 from torch import nn, Size, Tensor
 from torch.nn import functional as F
@@ -37,7 +37,7 @@ class SamePadConv3d(nn.Module):
         kernel_size: Union[int, Tuple[int, int, int]],
         stride: Union[int, Tuple[int, int, int]] = 1,
         bias: bool = True,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__()
 
@@ -94,7 +94,7 @@ class SamePadConvTranspose3d(nn.Module):
         kernel_size: Union[int, Tuple[int, int, int]],
         stride: Union[int, Tuple[int, int, int]] = 1,
         bias: bool = True,
-        **kwargs,
+        **kwargs: Any,
     ) -> None:
         super().__init__()
 
