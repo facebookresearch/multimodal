@@ -85,7 +85,7 @@ def shifted_window_attention_3d(
     dropout: float = 0.0,
     qkv_bias: Optional[Tensor] = None,
     proj_bias: Optional[Tensor] = None,
-):
+) -> Tensor:
     """
     Window based multi-head self attention (W-MSA) module with relative position bias.
     It supports both of shifted and non-shifted window.
@@ -256,7 +256,7 @@ class ShiftedWindowAttention3d(nn.Module):
 
         nn.init.trunc_normal_(self.relative_position_bias_table, std=0.02)
 
-    def forward(self, x: Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         _, d, h, w, _ = x.shape
         size_dhw = (d, h, w)
         window_size, shift_size = self.window_size.copy(), self.shift_size.copy()
@@ -324,7 +324,7 @@ class PatchEmbed3d(nn.Module):
         else:
             self.norm = None
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         """Forward function."""
         # padding
         _, _, d, h, w = x.size()
@@ -442,7 +442,7 @@ class SwinTransformer3d(nn.Module):
                 if m.bias is not None:
                     nn.init.zeros_(m.bias)
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         # x: B C D H W
         x = self.patch_embed(x)  # B _D _H _W C
         x = self.pos_drop(x)

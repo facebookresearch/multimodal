@@ -10,7 +10,7 @@ import torch
 from torch import nn
 
 
-class LateFusionArchitecture(nn.Module):
+class LateFusion(nn.Module):
     """A generic architecture for late fusion multimodal models.
 
     A late fusion model contains separate encoders for each modality,
@@ -32,8 +32,6 @@ class LateFusionArchitecture(nn.Module):
         encoders: nn.ModuleDict,
         fusion_module: nn.Module,
         head_module: nn.Module,
-        *args,
-        **kwargs,
     ):
         super().__init__()
         # Sort encoders by key on init for consistency
