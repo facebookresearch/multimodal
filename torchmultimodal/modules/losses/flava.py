@@ -258,7 +258,7 @@ class FLAVAGlobalContrastiveLoss(nn.Module):
         image_sequence: Tensor,
         text_sequence: Tensor,
         mask: Tensor,
-    ):
+    ) -> FLAVAGlobalContrastiveLossOutput:
 
         text_embedding = nn.functional.normalize(text_sequence, dim=-1)
         image_embedding = nn.functional.normalize(
