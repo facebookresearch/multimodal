@@ -8,7 +8,7 @@ import unittest
 
 import torch
 from test.test_utils import assert_expected
-from torchmultimodal.architectures.late_fusion import LateFusionArchitecture
+from torchmultimodal.models.late_fusion import LateFusion
 from torchmultimodal.modules.fusions.concat_fusion import ConcatFusionModule
 
 
@@ -19,7 +19,7 @@ class TestLateFusion(unittest.TestCase):
         )
         self.fusion_module = ConcatFusionModule()
         self.head_module = torch.nn.Identity()
-        self.late_fusion = LateFusionArchitecture(
+        self.late_fusion = LateFusion(
             self.encoders,
             self.fusion_module,
             self.head_module,
