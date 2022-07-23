@@ -25,13 +25,13 @@ cd examples
 pip install -r flava/requirements.txt
 ```
 
-### Get ImageNet
+### Access ImageNet
 
-Get the ImageNet dataset's tar file by following the steps [here](https://huggingface.co/datasets/aps/imagenet2012#dataset-summary) and set the path to ImageNet tar file by `export IMAGENET_TAR=/path/to/imagenet_object_localization_patched2019.tar.gz`. Rest of the datasets required for a debug run should be automatically downloaded on first launch.
+To access the ImageNet dataset, you must first create an account at [HuggingFace](https://huggingface.co/join). Once your account is created and your email is confirmed, log in, click on your profile, and go to Settings -> Access Tokens. Create a new token with READ access and copy it to clipboard. Then run `huggingface-cli login` in your terminal and paste the access token there. It should create an auth token at `~/.huggingface/token` that will be used to authenticate the dataset download request. Finally, visit the [dataset page](https://huggingface.co/datasets/imagenet-1k) and accept the terms and conditions of the dataset while logged into your account.
 
 ### Launching and test pretraining
 
-Launch your FLAVA debug pretraining job after making sure `IMAGENET_TAR` variable has been exported by running the following command:
+After making sure your access token was saved to `~/.huggingface/token`, launch your FLAVA debug pretraining job by running the following command:
 
 ```
 python -m flava.train config=flava/configs/pretraining/debug.yaml

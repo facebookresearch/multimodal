@@ -40,7 +40,6 @@ class MLP(nn.Module):
         dropout: float = 0.5,
         activation: Callable[..., nn.Module] = nn.ReLU,
         normalization: Optional[Callable[..., nn.Module]] = None,
-        **kwargs,
     ) -> None:
         super().__init__()
 
