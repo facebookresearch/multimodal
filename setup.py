@@ -48,7 +48,7 @@ LONG_DESCRIPTION_CONTENT_TYPE = "text/markdown"
 AUTHOR = "PyTorch Multimodal"
 AUTHOR_EMAIL = "kartikayk@fb.com"
 # Need to exclude folders in test as well so as they don't create an extra package
-EXCLUDES = ("examples", "test")
+EXCLUDES = ("examples*", "test*")
 
 
 if __name__ == "__main__":
@@ -57,7 +57,7 @@ if __name__ == "__main__":
         name=DISTNAME,
         include_package_data=True,
         packages=find_packages(exclude=EXCLUDES),
-        python_requires=">=3.8",
+        python_requires=">=3.7",
         install_requires=read_requirements("requirements.txt"),
         version=_get_version(),
         description=DESCRIPTION,
