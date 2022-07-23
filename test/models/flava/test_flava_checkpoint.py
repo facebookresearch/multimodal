@@ -88,21 +88,22 @@ class TestFLAVACheckpoint:
             assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_flava_model_for_classification(
-        self, classification_model, inputs_classification
+        self, inputs_classification, classification_model
     ):
+        classification_model.eval()
         output = classification_model(*inputs_classification("mm"))
         actual = output.loss
-        expected = torch.tensor(1.1017)
+        expected = torch.tensor(1.0836)
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
         output = classification_model(*inputs_classification("image"))
         actual = output.loss
-        expected = torch.tensor(1.0912)
+        expected = torch.tensor(1.0861)
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
         output = classification_model(*inputs_classification("text"))
         actual = output.loss
-        expected = torch.tensor(1.1136)
+        expected = torch.tensor(1.0857)
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_flava_model_for_pretraining(self, pretraining_model, inputs_pretraining):
