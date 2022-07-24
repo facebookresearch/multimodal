@@ -6,6 +6,7 @@
 
 # Based on https://github.com/pytorch/vision/blob/main/references/classification/train.py
 
+import argparse
 import datetime
 import logging
 import os
@@ -302,13 +303,13 @@ def main(args):
         args.weight_decay,
     )
 
-    if args.opt.startswith("sgd"):
+    if args.opt in ["sgd", "sgd_nesterov"]:
         optimizer = torch.optim.SGD(
             parameters,
             lr=args.lr,
             momentum=args.momentum,
             weight_decay=args.weight_decay,
-            nesterov="nesterov" in args.opt,
+            nesterov=(args.opt == "sgd_nesterov"),
         )
     elif args.opt == "rmsprop":
         optimizer = torch.optim.RMSprop(
@@ -429,7 +430,7 @@ def main(args):
             scaler,
         )
         lr_scheduler.step()
-        if epoch % args.num_epoch_per_eval == args.num_epoch_per_eval - 1:
+        if epoch % args.eval_every_num_epoch == args.eval_every_num_epoch - 1:
             evaluate(model, criterion, val_data_loader, device=device, args=args)
             if model_ema:
                 evaluate(
@@ -465,8 +466,6 @@ def main(args):
 
 
 def get_args_parser(add_help=True):
-    import argparse
-
     parser = argparse.ArgumentParser(
         description="Torchmultimodal Omnivore Training", add_help=add_help
     )
@@ -737,7 +736,7 @@ def get_args_parser(add_help=True):
         help="number of additional video data loader workers (default=8)",
     )
     parser.add_argument(
-        "--num-epoch-per-eval",
+        "--eval-every-num-epoch",
         default=5,
         type=int,
         help="Number of epoch between each evaluation on validation dataset",
