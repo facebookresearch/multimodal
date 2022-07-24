@@ -7,6 +7,7 @@
 # Based on https://github.com/pytorch/vision/blob/main/references/classification/train.py
 
 import datetime
+import logging
 import os
 import time
 
@@ -75,7 +76,7 @@ def train_one_epoch(
     metric_logger.add_meter("lr", utils.SmoothedValue(window_size=1, fmt="{value}"))
     metric_logger.add_meter("img/s", utils.SmoothedValue(window_size=10, fmt="{value}"))
 
-    data_loader.init_indices(epoch=epoch, shuffle=True)
+    data_loader.set_epoch(epoch, is_distributed=args.distributed)
 
     header = f"Epoch: [{epoch}]"
     for i, (batch_data, input_type) in enumerate(
@@ -169,7 +170,6 @@ def evaluate(
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = f"Test: {log_suffix}"
 
-    data_loader.init_indices(epoch=0, shuffle=False)
     for i, modality in enumerate(args.modalities):
         if modality == "video":
             # We aggregate predictions of all clips per video to get video-level accuracy
@@ -249,10 +249,12 @@ def evaluate(
                     agg_targets, op=torch.distributed.ReduceOp.MAX
                 )
                 agg_acc1, agg_acc5 = utils.accuracy(agg_preds, agg_targets, topk=(1, 5))
-                print(f"{header} Clip Acc@1 {acc1:.3f} Clip Acc@5 {acc5:.3f}")
-                print(f"{header} Video Acc@1 {agg_acc1:.3f} Video Acc@5 {agg_acc5:.3f}")
+                logger.info(f"{header} Clip Acc@1 {acc1:.3f} Clip Acc@5 {acc5:.3f}")
+                logger.info(
+                    f"{header} Video Acc@1 {agg_acc1:.3f} Video Acc@5 {agg_acc5:.3f}"
+                )
             else:
-                print(
+                logger.info(
                     f"{header} {modality} Acc@1 {acc1:.3f} {modality} Acc@5 {acc5:.3f}"
                 )
         except Exception:
@@ -260,11 +262,18 @@ def evaluate(
 
 
 def main(args):
+    log_numeric_level = getattr(logging, args.log_level.upper(), None)
+    if not isinstance(log_numeric_level, int):
+        raise ValueError(f"Invalid log level: {log_leve}")
+    log_format = "[%(asctime)s] %(levelname)s - %(message)s"
+    logging.basicConfig(format=log_format, level=log_numeric_level)
+    logger = logging.getLogger(__name__)
+
     if args.output_dir:
         utils.mkdir(args.output_dir)
 
     utils.init_distributed_mode(args)
-    print(args)
+    logger.info(args)
 
     device = torch.device(args.device)
 
@@ -274,9 +283,7 @@ def main(args):
     else:
         torch.backends.cudnn.benchmark = True
 
-    train_data_loader, val_data_loader = data_builder.get_omnivore_data_loader(args)
-
-    print(f"Creating model: {args.model}")
+    logger.info(f"Creating model: {args.model}")
     model = getattr(omnivore, args.model)()
     model.to(device)
 
@@ -397,6 +404,7 @@ def main(args):
         if scaler:
             scaler.load_state_dict(checkpoint["scaler"])
 
+    val_data_loader = data_builder.get_omnivore_data_loader(mode="val", args=args)
     if args.test_only:
         # We disable the cudnn benchmarking because it can noticeably affect the accuracy
         torch.backends.cudnn.benchmark = False
@@ -414,7 +422,8 @@ def main(args):
             evaluate(model, criterion, val_data_loader, device=device, args=args)
         return
 
-    print("Start training")
+    logger.info("Start training")
+    train_data_loader = data_builder.get_omnivore_data_loader(mode="train", args=args)
     start_time = time.time()
     for epoch in range(args.start_epoch, args.epochs):
         train_one_epoch(
@@ -461,7 +470,7 @@ def main(args):
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-    print(f"Training time {total_time_str}")
+    logger.info(f"Training time {total_time_str}")
 
 
 def get_args_parser(add_help=True):
@@ -502,7 +511,7 @@ def get_args_parser(add_help=True):
         default=16,
         type=int,
         metavar="N",
-        help="number of data loading workers (default: 16)",
+        help="number of training data loading workers (default: 16)",
     )
     parser.add_argument("--opt", default="sgd", type=str, help="optimizer")
     parser.add_argument("--lr", default=0.1, type=float, help="initial learning rate")
@@ -723,13 +732,13 @@ def get_args_parser(add_help=True):
         "--kinetics-dataset-workers",
         default=4,
         type=int,
-        help="number of kinetics dataset reader workers (default=4)",
+        help="number of worker to build kinetics dataset (default=4)",
     )
     parser.add_argument(
-        "--extra-kinetics-dataloader-workers",
+        "--extra-video-dataloader-workers",
         default=8,
         type=int,
-        help="number of kinetics data loader workers (default=8)",
+        help="number of additional video data loader workers (default=8)",
     )
     parser.add_argument(
         "--num-epoch-per-eval",
@@ -781,6 +790,13 @@ def get_args_parser(add_help=True):
         action="store_true",
         help="Drop last parameter in DataLoader",
     )
+    parser.add_argument(
+        "--val-num-worker-ratio",
+        default=0.5,
+        type=float,
+        help="Ratio between evaluation and training data loader workers number",
+    )
+    parser.add_argument("--log-level", default="INFO", type=str, help="Log level")
     return parser
 
 

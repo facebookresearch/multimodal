@@ -6,8 +6,9 @@
 
 # This file, data_builder.py, consists of functions to build the dataset
 # for training in torchmultimodal/examples/omnivore/train.py
-# Since there are a lot of parameters, we will pass it with args
+# Since there are a lot of parameters, we allow to pass args here
 
+import logging
 import os
 import datetime
 import time
@@ -15,51 +16,57 @@ import torch
 import torchvision
 import torchvision.datasets.samplers as video_samplers
 import examples.omnivore.utils as utils
-from examples.omnivore.data import datasets, presets, transforms, sampler
+from examples.omnivore.data import datasets, presets, transforms, samplers
 from torch.utils.data.dataloader import default_collate
 from torchvision.transforms.functional import InterpolationMode
 
 
-def lprint(*x):
-    print(f"[{datetime.datetime.now()}]", *x)
+logger = logging.getLogger(__name__)
 
 
-def get_sampler(train_dataset, val_dataset, dataset_name, args):
-    if dataset_name == "kinetics":
-        train_sampler = video_samplers.RandomClipSampler(
-            train_dataset.video_clips, args.train_clips_per_video
-        )
-        val_sampler = video_samplers.UniformClipSampler(
-            val_dataset.video_clips, args.val_clips_per_video
-        )
-        if args.distributed:
-            train_sampler = video_samplers.DistributedSampler(train_sampler)
-            val_sampler = video_samplers.DistributedSampler(val_sampler)
-    else:
-        if args.distributed:
+def get_video_sampler(dataset, mode, args):
+    # Get sampler for video dataset
+    if mode == "train":
+        sampler_class = video_samplers.RandomClipSampler
+        clips_per_video = args.train_clips_per_video
+    elif mode == "val":
+        sampler_class = video_samplers.UniformClipSampler
+        clips_per_video = args.val_clips_per_video
+
+    sampler = sampler_class(dataset.video_clips, clips_per_video)
+
+    if args.distributed:
+        sampler = video_samplers.DistributedSampler(sampler)
+    return sampler
+
+
+def get_image_sampler(dataset, mode, args):
+    # Get sampler for image with rgb or rgbd channel dataset
+    if args.distributed:
+        if mode == "train":
             if hasattr(args, "ra_sampler") and args.ra_sampler:
-                train_sampler = sampler.RASampler(
-                    train_dataset, shuffle=True, repetitions=args.ra_reps
+                sampler = sampler.RASampler(
+                    dataset, shuffle=True, repetitions=args.ra_reps
                 )
             else:
-                train_sampler = torch.utils.data.distributed.DistributedSampler(
-                    train_dataset
+                sampler = torch.utils.data.distributed.DistributedSampler(
+                    dataset, shuffle=True
                 )
-            val_sampler = torch.utils.data.distributed.DistributedSampler(
-                val_dataset, shuffle=False
+        elif mode == "val":
+            sampler = torch.utils.data.distributed.DistributedSampler(
+                dataset, shuffle=False
             )
-        else:
-            train_sampler = torch.utils.data.RandomSampler(train_dataset)
-            val_sampler = torch.utils.data.SequentialSampler(val_dataset)
-    return train_sampler, val_sampler
+    else:
+        if mode == "train":
+            sampler = torch.utils.data.RandomSampler(dataset)
+        elif mode == "val":
+            sampler = torch.utils.data.SequentialSampler(dataset)
+    return sampler
 
 
-def get_single_data_loader_from_dataset(train_dataset, val_dataset, dataset_name, args):
-    train_sampler, val_sampler = get_sampler(
-        train_dataset, val_dataset, dataset_name, args
-    )
+def construct_data_loader(dataset, sampler, num_workers, args, drop_last=False):
     collate_fn = None
-    num_classes = len(train_dataset.classes)
+    num_classes = len(dataset.classes)
     mixup_transforms = []
     if args.mixup_alpha > 0.0:
         mixup_transforms.append(
@@ -75,49 +82,16 @@ def get_single_data_loader_from_dataset(train_dataset, val_dataset, dataset_name
         # first two elements that assumed to be image/video and label
         collate_fn = lambda batch: mixupcutmix(*(default_collate(batch)[:2]))  # noqa: E731
 
-    num_train_workers = args.workers
-    num_val_workers = args.workers
-    modality_dataset_match = {
-        "image": "imagenet",
-        "video": "kinetics",
-        "rgbd": "sunrgbd",
-    }
-    for i, modality in enumerate(args.modalities):
-        if dataset_name == modality_dataset_match.get(modality):
-            if dataset_name == "kinetics":
-                # Have extra workers for kinetics
-                num_train_workers += args.extra_kinetics_dataloader_workers
-                num_val_workers += args.extra_kinetics_dataloader_workers
-            # Reduce worker to 1 if sampling factor is 0
-            if args.train_data_sampling_factor[i] == 0:
-                num_train_workers = 1
-            if args.val_data_sampling_factor[i] == 0:
-                num_val_workers = 1
-
-
-    # Reduce the amount of validation workers
-    num_val_workers = (num_val_workers // 2) + 1
-
-    print(f"dataset {dataset_name} have {num_train_workers} train_workers and {num_val_workers} val_workers")
-
-    train_data_loader = torch.utils.data.DataLoader(
-        train_dataset,
+    data_loader = torch.utils.data.DataLoader(
+        dataset,
         batch_size=args.batch_size,
-        sampler=train_sampler,
-        num_workers=num_train_workers,
+        sampler=sampler,
+        num_workers=num_workers,
         pin_memory=args.loader_pin_memory,
         collate_fn=collate_fn,
-        drop_last=args.loader_drop_last,
+        drop_last=drop_last,
     )
-    val_data_loader = torch.utils.data.DataLoader(
-        val_dataset,
-        batch_size=args.batch_size,
-        sampler=val_sampler,
-        num_workers=num_val_workers,
-        pin_memory=args.loader_pin_memory,
-        drop_last=args.loader_drop_last,
-    )
-    return train_data_loader, val_data_loader
+    return data_loader
 
 
 def _get_cache_path(filepath):
@@ -142,17 +116,17 @@ def get_kinetics_dataset(
 ):
     data_dir = os.path.join(kinetics_path, split)
     cache_path = _get_cache_path(data_dir)
-    lprint(f"cache_path: {cache_path}")
+    logger.info(f"cache_path: {cache_path}")
     if args.cache_video_dataset and os.path.exists(cache_path):
-        lprint(f"Loading {split} dataset from {cache_path}")
+        logger.info(f"Loading {split} dataset from {cache_path}")
         dataset, _ = torch.load(cache_path)
         dataset.transform = transform
     else:
         if args.distributed:
-            print(
+            logger.info(
                 "It is recommended to pre-compute the dataset cache on a single-gpu first, it will be faster!"
             )
-        lprint("Building kinetics dataset")
+        logger.info("Building kinetics dataset")
         dataset = datasets.OmnivoreKinetics(
             kinetics_path,
             num_classes="400",
@@ -166,145 +140,144 @@ def get_kinetics_dataset(
             num_workers=args.kinetics_dataset_workers,
         )
         if args.cache_video_dataset:
-            print(f"Saving {split} dataset to {cache_path}")
+            logger.info(f"Saving {split} dataset to {cache_path}")
             utils.mkdir(os.path.dirname(cache_path))
             utils.save_on_master((dataset, data_dir), cache_path)
     return dataset
 
 
-def get_imagenet_data_loader(args):
+def get_imagenet_data_loader(mode, num_workers, args):
+    logger.info(f"Start getting {mode} imagenet data_loader")
     # Get imagenet data
     imagenet_path = args.imagenet_data_path
-    lprint("Start getting imagenet dataset")
 
-    imagenet_train_preset = presets.ImageNetClassificationPresetTrain(
-        crop_size=args.train_crop_size,
-        interpolation=InterpolationMode.BICUBIC,
-        auto_augment_policy="ra",
-        random_erase_prob=args.random_erase,
-        color_jitter_factor=args.color_jitter_factor,
-    )
-    imagenet_val_preset = presets.ImageNetClassificationPresetEval(
-        crop_size=args.val_crop_size, interpolation=InterpolationMode.BICUBIC
-    )
+    if mode == "train":
+        preset = presets.ImageNetClassificationPresetTrain(
+            crop_size=args.train_crop_size,
+            interpolation=InterpolationMode.BICUBIC,
+            auto_augment_policy="ra",
+            random_erase_prob=args.random_erase,
+            color_jitter_factor=args.color_jitter_factor,
+        )
+        drop_last = args.loader_drop_last
+    elif mode == "val":
+        preset = presets.ImageNetClassificationPresetEval(
+            crop_size=args.val_crop_size, interpolation=InterpolationMode.BICUBIC
+        )
+        drop_last = False
 
-    imagenet_train_dataset = torchvision.datasets.folder.ImageFolder(
-        os.path.join(imagenet_path, "train"), imagenet_train_preset
-    )
-    imagenet_val_dataset = torchvision.datasets.folder.ImageFolder(
-        os.path.join(imagenet_path, "val"), imagenet_val_preset
-    )
+    dataset_dir = os.path.join(imagenet_path, mode)
+    dataset = torchvision.datasets.folder.ImageFolder(dataset_dir, preset)
+    sampler = get_image_sampler(dataset, mode, args)
+    data_loader = construct_data_loader(dataset, sampler, num_workers, args, drop_last=drop_last)
 
-    (
-        imagenet_train_data_loader,
-        imagenet_val_data_loader,
-    ) = get_single_data_loader_from_dataset(
-        imagenet_train_dataset, imagenet_val_dataset, "imagenet", args
-    )
-    lprint("Finish getting imagenet dataset")
-    return imagenet_train_data_loader, imagenet_val_data_loader
+    logger.info(f"Finish getting {mode} imagenet data_loader")
+    return data_loader
 
 
-def get_kinetics_data_loader(args):
+def get_kinetics_data_loader(mode, num_workers, args):
+    logger.info(f"Start getting {mode} video data_loader")
     # Get kinetics data
     kinetics_path = args.kinetics_data_path
-    video_train_preset = presets.VideoClassificationPresetTrain(
-        crop_size=args.train_crop_size,
-        resize_size=args.train_resize_size,
-    )
-    video_val_preset = presets.VideoClassificationPresetEval(
-        crop_size=args.val_crop_size,
-        resize_size=args.val_resize_size,
-    )
+    if mode == "train":
+        preset = presets.VideoClassificationPresetTrain(
+            crop_size=args.train_crop_size,
+            resize_size=args.train_resize_size,
+        )
+        drop_last = args.loader_drop_last
+    elif mode == "val":
+        preset = presets.VideoClassificationPresetEval(
+            crop_size=args.val_crop_size,
+            resize_size=args.val_resize_size,
+        )
+        drop_last = False
 
     start_time = time.time()
-    lprint("Start getting video dataset")
-    video_train_dataset = get_kinetics_dataset(
+    logger.info(f"Start getting {mode} video dataset")
+    dataset = get_kinetics_dataset(
         kinetics_path,
-        split="train",
-        transform=video_train_preset,
+        split=mode,
+        transform=preset,
         step_between_clips=1,
         args=args,
     )
-    video_val_dataset = get_kinetics_dataset(
-        kinetics_path,
-        split="val",
-        transform=video_val_preset,
-        step_between_clips=1,
-        args=args,
-    )
-    lprint(f"Took {time.time() - start_time} seconds to get video dataset")
+    logger.info(f"Took {time.time() - start_time} seconds to get {mode} video dataset")
 
-    (
-        video_train_data_loader,
-        video_val_data_loader,
-    ) = get_single_data_loader_from_dataset(
-        video_train_dataset, video_val_dataset, "kinetics", args
-    )
-    return video_train_data_loader, video_val_data_loader
+    sampler = get_video_sampler(dataset, mode, args)
+    data_loader = construct_data_loader(dataset, sampler, num_workers, args, drop_last=drop_last)
+    logger.info(f"Finish getting {mode} video data_loader")
+    return data_loader
 
 
-def get_sunrgbd_data_loader(args):
+def get_sunrgbd_data_loader(mode, num_workers, args):
+    logger.info(f"Start creating {mode} depth dataset")
     # Get sunrgbd data
     sunrgbd_path = args.sunrgbd_data_path
-    lprint("Start creating depth dataset")
-    depth_train_preset = presets.DepthClassificationPresetTrain(
-        crop_size=args.train_crop_size,
-        interpolation=InterpolationMode.BILINEAR,
-        random_erase_prob=args.random_erase,
-        max_depth=75.0,
-        mean=(0.485, 0.456, 0.406, 0.0418),
-        std=(0.229, 0.224, 0.225, 0.0295),
-        color_jitter_factor=args.color_jitter_factor,
-    )
-    depth_val_preset = presets.DepthClassificationPresetEval(
-        crop_size=args.val_crop_size,
-        interpolation=InterpolationMode.BILINEAR,
-        max_depth=75.0,
-        mean=(0.485, 0.456, 0.406, 0.0418),
-        std=(0.229, 0.224, 0.225, 0.0295),
-    )
+    if mode == "train":
+        preset = presets.DepthClassificationPresetTrain(
+            crop_size=args.train_crop_size,
+            interpolation=InterpolationMode.BILINEAR,
+            random_erase_prob=args.random_erase,
+            max_depth=75.0,
+            mean=(0.485, 0.456, 0.406, 0.0418),
+            std=(0.229, 0.224, 0.225, 0.0295),
+            color_jitter_factor=args.color_jitter_factor,
+        )
+        drop_last = args.loader_drop_last
+    elif mode == "val":
+        preset = presets.DepthClassificationPresetEval(
+            crop_size=args.val_crop_size,
+            interpolation=InterpolationMode.BILINEAR,
+            max_depth=75.0,
+            mean=(0.485, 0.456, 0.406, 0.0418),
+            std=(0.229, 0.224, 0.225, 0.0295),
+        )
+        drop_last = False
 
-    depth_train_dataset = datasets.OmnivoreSunRgbdDatasets(
-        root=sunrgbd_path, split="train", transform=depth_train_preset
+    dataset = datasets.OmnivoreSunRgbdDatasets(
+        root=sunrgbd_path, split=mode, transform=preset
     )
-    depth_val_dataset = datasets.OmnivoreSunRgbdDatasets(
-        root=sunrgbd_path, split="val", transform=depth_val_preset
-    )
-
-    (
-        depth_train_data_loader,
-        depth_val_data_loader,
-    ) = get_single_data_loader_from_dataset(
-        depth_train_dataset, depth_val_dataset, "sunrgbd", args
-    )
-
-    lprint("Finish getting depth dataset")
-    return depth_train_data_loader, depth_val_data_loader
+    sampler = get_image_sampler(dataset, mode, args)
+    data_loader = construct_data_loader(dataset, sampler, num_workers, args, drop_last=drop_last)
+    logger.info(f"Finish getting {mode} depth dataset")
+    return data_loader
 
 
-def get_omnivore_data_loader(args):
+def get_omnivore_data_loader(mode, args):
     modalities = args.modalities
-    train_data_loader_list = []
-    val_data_loader_list = []
-    for modality in modalities:
-        if modality == "image":
-            train_data_loader, val_data_loader = get_imagenet_data_loader(args)
-        elif modality == "video":
-            train_data_loader, val_data_loader = get_kinetics_data_loader(args)
-        elif modality == "rgbd":
-            train_data_loader, val_data_loader = get_sunrgbd_data_loader(args)
-        train_data_loader_list.append(train_data_loader)
-        val_data_loader_list.append(val_data_loader)
+    data_loader_list = []
+    data_loader_builder_map = {
+        "image": get_imagenet_data_loader,
+        "video": get_kinetics_data_loader,
+        "rgbd": get_sunrgbd_data_loader,
+    }
+    if mode == "train":
+        data_sampling_factor = args.train_data_sampling_factor
+        shuffle = True
+    elif mode == "val":
+        data_sampling_factor = args.val_data_sampling_factor
+        shuffle = False
 
-    train_data_loader = datasets.ConcatIterable(
-        train_data_loader_list,
+    for i, modality in enumerate(modalities):
+        # Determine the number of workers
+        num_workers = args.workers
+        if modality == "video":
+            # Have extra workers for video data loader
+            num_workers += args.extra_video_dataloader_workers
+        if mode == "val":
+            # Adjust num val workers with args.val_num_worker_ratio
+            num_workers = max(int(num_workers * args.val_num_worker_ratio), 1)
+        # Sampling factor 0 means the modality produce no data, hence no need for worker
+        if data_sampling_factor[i] == 0:
+            num_workers = 0
+        # Build data_loader
+        data_loader = data_loader_builder_map[modality](mode, num_workers, args)
+        data_loader_list.append(data_loader)
+
+    omnivore_data_loader = datasets.ConcatDataLoader(
+        data_loader_list,
         modalities,
-        args.train_data_sampling_factor,
+        data_sampling_factor,
+        shuffle=shuffle,
     )
-    val_data_loader = datasets.ConcatIterable(
-        val_data_loader_list,
-        modalities,
-        args.val_data_sampling_factor,
-    )
-    return train_data_loader, val_data_loader
+    return omnivore_data_loader
