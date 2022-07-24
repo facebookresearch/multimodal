@@ -20,6 +20,9 @@ import torchmultimodal.models.omnivore as omnivore
 from torch import nn
 
 
+logger = None
+
+
 def _chunk_forward_backward(
     model,
     image,
@@ -257,8 +260,9 @@ def evaluate(
                 logger.info(
                     f"{header} {modality} Acc@1 {acc1:.3f} {modality} Acc@5 {acc5:.3f}"
                 )
-        except Exception:
-            pass
+        except Exception as e:
+            # Handle edge case of modality with sampling_factor 0
+            logger.warning(str(e))
 
 
 def main(args):
@@ -267,6 +271,7 @@ def main(args):
         raise ValueError(f"Invalid log level: {log_leve}")
     log_format = "[%(asctime)s] %(levelname)s - %(message)s"
     logging.basicConfig(format=log_format, level=log_numeric_level)
+    global logger
     logger = logging.getLogger(__name__)
 
     if args.output_dir:
@@ -297,16 +302,15 @@ def main(args):
         args.weight_decay,
     )
 
-    opt_name = args.opt.lower()
-    if opt_name.startswith("sgd"):
+    if args.opt.startswith("sgd"):
         optimizer = torch.optim.SGD(
             parameters,
             lr=args.lr,
             momentum=args.momentum,
             weight_decay=args.weight_decay,
-            nesterov="nesterov" in opt_name,
+            nesterov="nesterov" in args.opt,
         )
-    elif opt_name == "rmsprop":
+    elif args.opt == "rmsprop":
         optimizer = torch.optim.RMSprop(
             parameters,
             lr=args.lr,
@@ -315,18 +319,13 @@ def main(args):
             eps=0.0316,
             alpha=0.9,
         )
-    elif opt_name == "adamw":
+    elif args.opt == "adamw":
         optimizer = torch.optim.AdamW(
             parameters, lr=args.lr, weight_decay=args.weight_decay
-        )
-    else:
-        raise RuntimeError(
-            f"Invalid optimizer {args.opt}. Only SGD, RMSprop and AdamW are supported."
         )
 
     scaler = torch.cuda.amp.GradScaler() if args.amp else None
 
-    args.lr_scheduler = args.lr_scheduler.lower()
     if args.lr_scheduler == "steplr":
         main_lr_scheduler = torch.optim.lr_scheduler.StepLR(
             optimizer, step_size=args.lr_step_size, gamma=args.lr_gamma
@@ -338,11 +337,6 @@ def main(args):
     elif args.lr_scheduler == "exponentiallr":
         main_lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(
             optimizer, gamma=args.lr_gamma
-        )
-    else:
-        raise RuntimeError(
-            f"Invalid lr scheduler '{args.lr_scheduler}'. Only StepLR, CosineAnnealingLR and ExponentialLR "
-            "are supported."
         )
 
     if args.lr_warmup_epochs > 0:
@@ -357,10 +351,6 @@ def main(args):
                 optimizer,
                 factor=args.lr_warmup_decay,
                 total_iters=args.lr_warmup_epochs,
-            )
-        else:
-            raise RuntimeError(
-                f"Invalid warmup lr method '{args.lr_warmup_method}'. Only linear and constant are supported."
             )
         lr_scheduler = torch.optim.lr_scheduler.SequentialLR(
             optimizer,
@@ -392,13 +382,14 @@ def main(args):
             model_without_ddp, device=device, decay=1.0 - alpha
         )
 
+    start_epoch = 0
     if args.resume:
         checkpoint = torch.load(args.resume, map_location="cpu")
         model_without_ddp.load_state_dict(checkpoint["model"])
         if not args.test_only:
             optimizer.load_state_dict(checkpoint["optimizer"])
             lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
-        args.start_epoch = checkpoint["epoch"] + 1
+        start_epoch = checkpoint["epoch"] + 1
         if model_ema:
             model_ema.load_state_dict(checkpoint["model_ema"])
         if scaler:
@@ -425,7 +416,7 @@ def main(args):
     logger.info("Start training")
     train_data_loader = data_builder.get_omnivore_data_loader(mode="train", args=args)
     start_time = time.time()
-    for epoch in range(args.start_epoch, args.epochs):
+    for epoch in range(start_epoch, args.epochs):
         train_one_epoch(
             model,
             criterion,
@@ -494,13 +485,13 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "-b",
         "--batch-size",
-        default=32,
+        default=64,
         type=int,
-        help="images per gpu, the total batch size is $NGPU x batch_size",
+        help="images per gpu, the total batch size is $NGPU x batch_size (default: 64)",
     )
     parser.add_argument(
         "--epochs",
-        default=90,
+        default=500,
         type=int,
         metavar="N",
         help="number of total epochs to run",
@@ -513,18 +504,24 @@ def get_args_parser(add_help=True):
         metavar="N",
         help="number of training data loading workers (default: 16)",
     )
-    parser.add_argument("--opt", default="sgd", type=str, help="optimizer")
-    parser.add_argument("--lr", default=0.1, type=float, help="initial learning rate")
+    parser.add_argument(
+        "--opt",
+        default="adamw",
+        choices=["sgd", "sgd_nesterov", "rmsprop", "adamw"],
+        type=str,
+        help="optimizer",
+    )
+    parser.add_argument("--lr", default=0.02, type=float, help="initial learning rate")
     parser.add_argument(
         "--momentum", default=0.9, type=float, metavar="M", help="momentum"
     )
     parser.add_argument(
         "--wd",
         "--weight-decay",
-        default=1e-4,
+        default=0.05,
         type=float,
         metavar="W",
-        help="weight decay (default: 1e-4)",
+        help="weight decay (default: 0.05)",
         dest="weight_decay",
     )
     parser.add_argument(
@@ -542,9 +539,10 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--lr-scheduler",
-        default="steplr",
+        default="cosineannealinglr",
+        choices=["steplr", "cosineannealinglr", "exponentiallr"],
         type=str,
-        help="the lr scheduler (default: steplr)",
+        help="the lr scheduler (default: cosineannealinglr)",
     )
     parser.add_argument(
         "--lr-warmup-epochs",
@@ -554,9 +552,10 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--lr-warmup-method",
-        default="constant",
+        default="linear",
+        choices=["linear", "constant"],
         type=str,
-        help="the warmup method (default: constant)",
+        help="the warmup method (default: linear)",
     )
     parser.add_argument(
         "--lr-warmup-decay", default=0.01, type=float, help="the decay for lr"
@@ -584,9 +583,6 @@ def get_args_parser(add_help=True):
         "--output-dir", default=".", type=str, help="path to save outputs"
     )
     parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
-    parser.add_argument(
-        "--start-epoch", default=0, type=int, metavar="N", help="start epoch"
-    )
     parser.add_argument(
         "--cache-dataset",
         dest="cache_dataset",
@@ -643,14 +639,14 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "--model-ema-steps",
         type=int,
-        default=32,
-        help="the number of iterations that controls how often to update the EMA model (default: 32)",
+        default=1,
+        help="the number of iterations that controls how often to update the EMA model (default: 1)",
     )
     parser.add_argument(
         "--model-ema-decay",
         type=float,
-        default=0.99998,
-        help="decay factor for Exponential Moving Average of model parameters (default: 0.99998)",
+        default=0.9999,
+        help="decay factor for Exponential Moving Average of model parameters (default: 0.9999)",
     )
     parser.add_argument(
         "--use-deterministic-algorithms",
@@ -730,9 +726,9 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--kinetics-dataset-workers",
-        default=4,
+        default=24,
         type=int,
-        help="number of worker to build kinetics dataset (default=4)",
+        help="number of worker to build kinetics dataset (default=24)",
     )
     parser.add_argument(
         "--extra-video-dataloader-workers",
@@ -782,7 +778,7 @@ def get_args_parser(add_help=True):
     parser.add_argument(
         "--video-grad-accum-iter",
         type=int,
-        default=1,
+        default=32,
         help="Number of gradient accumulation iteration to reduce batch size for video",
     )
     parser.add_argument(
