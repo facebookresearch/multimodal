@@ -18,7 +18,6 @@ from examples.mdetr.data.flickr_eval import FlickrEvaluator
 from examples.mdetr.data.postprocessors import PostProcessFlickr
 from examples.mdetr.model import mdetr_for_phrase_grounding
 from examples.mdetr.utils.args_parse import get_args_parser
-from examples.mdetr.utils.checkpoint import map_mdetr_state_dict
 from examples.mdetr.utils.metrics import MetricLogger
 from examples.mdetr.utils.misc import targets_to
 
@@ -36,7 +35,6 @@ def evaluate(
 
     metric_logger = MetricLogger(delimiter="  ")
     header = "Test:"
-
     for batch_dict in metric_logger.log_every(data_loader, 10, header):
         samples = [x.to(device) for x in batch_dict["samples"]]
         targets = batch_dict["targets"]
@@ -47,9 +45,12 @@ def evaluate(
             if "positive_map" in batch_dict
             else None
         )
-        outputs, _ = model(
+        outputs = model(
             samples, text, targets, positive_map, batch_dict["batch_encoding"]
         )
+        loss_dict = outputs.loss
+        loss_dict_reduced = dist.reduce_dict(loss_dict)
+        metric_logger.update(**loss_dict_reduced)
 
         orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
         flickr_res = []
@@ -58,8 +59,8 @@ def evaluate(
         phrases_per_sample = [t["nb_eval"] for t in targets]
         positive_map_eval = batch_dict["positive_map_eval"].to(device)
         flickr_results = postprocessor(
-            outputs.pred_logits,
-            outputs.pred_boxes,
+            outputs.model_output.pred_logits,
+            outputs.model_output.pred_boxes,
             orig_target_sizes,
             positive_map_eval,
             phrases_per_sample,
@@ -95,7 +96,6 @@ def main(args):
         d.update(cfg)
 
     device = torch.device(args.device)
-    output_dir = Path(args.output_dir)
 
     if torch.distributed.is_available() and torch.distributed.is_initialized():
         rank = torch.distributed.get_rank()
@@ -141,22 +141,14 @@ def main(args):
     else:
         checkpoint = torch.load(args.resume, map_location="cpu")
 
-    mapped_state_dict = map_mdetr_state_dict(
-        checkpoint["model"],
-        model.state_dict(),
-        prefix="model",
-        include_contrastive=True,
-    )
-    model_without_ddp.load_state_dict(mapped_state_dict)
+    model_without_ddp.load_state_dict(checkpoint["model"])
+
     # Load EMA model
     if "model_ema" not in checkpoint:
         print("WARNING: ema model not found in checkpoint, resetting to current model")
         model_ema = deepcopy(model_without_ddp)
     else:
-        ema_mapped_state_dict = map_mdetr_state_dict(
-            checkpoint["model_ema"], model.state_dict()
-        )
-        model_ema.load_state_dict(ema_mapped_state_dict)
+        model_ema.load_state_dict(checkpoint["model_ema"])
 
     test_model = model_ema if model_ema is not None else model
 

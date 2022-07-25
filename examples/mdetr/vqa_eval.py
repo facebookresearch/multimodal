@@ -17,13 +17,14 @@ from examples.mdetr.data.datamodule import GQADataModule
 from examples.mdetr.loss import build_weight_dict
 from examples.mdetr.model import mdetr_for_vqa
 from examples.mdetr.utils.args_parse import get_args_parser
-from examples.mdetr.utils.checkpoint import map_mdetr_state_dict
 from examples.mdetr.utils.metrics import MetricLogger
 from examples.mdetr.utils.misc import targets_to
 
 
 @torch.no_grad()
-def evaluate(model, data_loader, device, weight_dict):
+def evaluate(
+    model, data_loader, device, weight_dict, include_contrastive_loss: bool = False
+):
 
     model.eval()
     metric_logger = MetricLogger(delimiter="  ")
@@ -43,12 +44,34 @@ def evaluate(model, data_loader, device, weight_dict):
             else None
         )
         outputs = model(
-            samples, text, targets, positive_map, answers, answer_types, weight_dict
+            samples,
+            text,
+            targets,
+            positive_map,
+            answers,
+            answer_types,
+            batch_dict["batch_encoding"],
+            weight_dict,
+            include_contrastive_loss,
         )
 
         loss_dict = outputs.loss
         loss_dict_reduced = dist.reduce_dict(loss_dict)
         metric_logger.update(**loss_dict_reduced)
+
+        loss_dict_reduced_scaled = {
+            k: v * weight_dict[k]
+            for k, v in loss_dict_reduced.items()
+            if k in weight_dict
+        }
+        loss_dict_reduced_unscaled = {
+            f"{k}_unscaled": v for k, v in loss_dict_reduced.items()
+        }
+        metric_logger.update(
+            loss=sum(loss_dict_reduced_scaled.values()),
+            **loss_dict_reduced_scaled,
+            **loss_dict_reduced_unscaled,
+        )
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
@@ -93,8 +116,9 @@ def main(args):
     model.to(device)
 
     # Loss weights
-    # TODO: move into a build function
-    weight_dict = build_weight_dict(args, model.vqa_heads.heads.keys())
+    weight_dict = build_weight_dict(
+        args, model.vqa_heads.heads.keys(), include_contrastive_loss=False
+    )
 
     model_ema = deepcopy(model) if args.ema else None
     model_without_ddp = model
@@ -112,22 +136,13 @@ def main(args):
     else:
         checkpoint = torch.load(args.resume, map_location="cpu")
 
-    mapped_state_dict = map_mdetr_state_dict(
-        checkpoint["model"],
-        model.state_dict(),
-        prefix="model",
-        include_contrastive=False,
-    )
-    model_without_ddp.load_state_dict(mapped_state_dict)
+    model_without_ddp.load_state_dict(checkpoint["model"])
     # Load EMA model
     if "model_ema" not in checkpoint:
         print("WARNING: ema model not found in checkpoint, resetting to current model")
         model_ema = deepcopy(model_without_ddp)
     else:
-        ema_mapped_state_dict = map_mdetr_state_dict(
-            checkpoint["model_ema"], model_ema.state_dict()
-        )
-        model_ema.load_state_dict(ema_mapped_state_dict)
+        model_ema.load_state_dict(checkpoint["model_ema"])
 
     test_model = model_ema if model_ema is not None else model
 
