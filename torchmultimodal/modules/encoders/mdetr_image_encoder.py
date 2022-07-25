@@ -142,12 +142,16 @@ class MaskedIntermediateLayer(nn.Module):
 def mdetr_resnet101_backbone(
     weights: Weights = ResNet101_Weights.IMAGENET1K_V1,
     norm_layer: Callable[..., nn.Module] = FrozenBatchNorm2d,
+    freeze_weights: bool = True,
 ) -> MaskedIntermediateLayer:
     body = resnet101(
         replace_stride_with_dilation=[False, False, False],
         weights=weights,
         norm_layer=norm_layer,
     )
-
+    if freeze_weights:
+        for name, parameter in body.named_parameters():
+            if "layer2" not in name and "layer3" not in name and "layer4" not in name:
+                parameter.requires_grad_(False)
     backbone = MaskedIntermediateLayer(body, intermediate_layer="layer4")
     return backbone

@@ -119,8 +119,8 @@ class TestFlickrPostProcessor:
     ):
         with pytest.raises(TypeError):
             _ = transform(
-                pred_logits,
-                pred_boxes,
+                output_logits=pred_logits,
+                output_bbox=pred_boxes,
                 target_sizes=target_sizes,
                 positive_map=pos_map,
                 phrases_per_sample=phrases_per_sample,
@@ -129,8 +129,8 @@ class TestFlickrPostProcessor:
             incorrect_phrases_per_sample = deepcopy(phrases_per_sample)
             incorrect_phrases_per_sample[-1] -= 1
             _ = transform(
-                pred_logits,
-                pred_boxes,
+                output_logits=pred_logits,
+                output_bbox=pred_boxes,
                 target_sizes=target_sizes,
                 positive_map=batched_pos_map,
                 phrases_per_sample=incorrect_phrases_per_sample,
