@@ -31,6 +31,7 @@ def collate_fn(tokenizer, batch):
             cur_count += len(cur_pos)
 
         assert cur_count == len(batched_pos_map)
+        # assert batched_pos_map.sum().item() == sum([v["positive_map"].sum().item() for v in batch[1]])
         final_batch["positive_map"] = batched_pos_map.float()
     if "positive_map_eval" in batch[1][0]:
         # we batch the positive maps here
@@ -48,6 +49,7 @@ def collate_fn(tokenizer, batch):
             cur_count += len(cur_pos)
 
         assert cur_count == len(batched_pos_map)
+        # assert batched_pos_map.sum().item() == sum([v["positive_map"].sum().item() for v in batch[1]])
         final_batch["positive_map_eval"] = batched_pos_map.float()
     if "answer_type_mask" in batch[1][0]:
         answer_types = {
@@ -65,9 +67,10 @@ def collate_fn(tokenizer, batch):
                 continue
             answers[f] = torch.stack([b[f] for b in batch[1]])
         final_batch["answers"] = answers
-    final_batch["batch_encoding"] = tokenizer.batch_encode_plus(
+    batch_encoding = tokenizer.batch_encode_plus(
         [v["caption"] for v in batch[1]], padding="longest", return_tensors="pt"
     ).to(batched_pos_map.device)
+    final_batch["batch_encoding"] = batch_encoding._encodings
     return final_batch
 
 
