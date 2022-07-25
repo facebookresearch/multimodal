@@ -1,0 +1,1114 @@
+/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torchvision/io/image.py:13: UserWarning: Failed to load image Python extension: /fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torchvision/image.so: undefined symbol: _ZNK3c1010TensorImpl36is_contiguous_nondefault_policy_implENS_12MemoryFormatE
+  warn(f"Failed to load image Python extension: {e}")
+Reusing dataset wikitext (/data/home/rvarm1/.cache/huggingface/datasets/wikitext/wikitext-103-raw-v1/1.0.0/a241db52902eaf2c6aa732210bead40c090019a499ceb13bcbfa3f8ab646a126)
+Reusing dataset wikitext (/data/home/rvarm1/.cache/huggingface/datasets/wikitext/wikitext-103-raw-v1/1.0.0/a241db52902eaf2c6aa732210bead40c090019a499ceb13bcbfa3f8ab646a126)
+Reusing dataset red_caps (/data/home/rvarm1/.cache/huggingface/datasets/red_caps/jellyfish/1.0.0/d0d70a901e22f5e3b9a7af1f96f31c6243589705a5ab782b9ac69fcf727d97be)
+Parameter 'function'=<function fetch_images at 0x7fdac797e820> of the transform datasets.arrow_dataset.Dataset._map_single couldn't be hashed properly, a random hash was used instead. Make sure your transforms and parameters are serializable with pickle or dill for the dataset fingerprinting and caching to work. If you reuse this transform, the caching mechanism will consider it to be different from the previous calls and recompute everything. This warning is only showed once. Subsequent hashing failures won't be showed.
+  0%|          | 0/15 [00:00<?, ?ba/s]  7%|▋         | 1/15 [00:02<00:31,  2.22s/ba] 13%|█▎        | 2/15 [00:04<00:26,  2.06s/ba] 20%|██        | 3/15 [00:07<00:29,  2.48s/ba] 27%|██▋       | 4/15 [00:09<00:28,  2.58s/ba] 33%|███▎      | 5/15 [00:19<00:50,  5.03s/ba] 40%|████      | 6/15 [00:27<00:54,  6.10s/ba] 47%|████▋     | 7/15 [00:36<00:55,  6.91s/ba] 53%|█████▎    | 8/15 [00:51<01:07,  9.62s/ba] 60%|██████    | 9/15 [00:57<00:51,  8.62s/ba] 67%|██████▋   | 10/15 [01:04<00:40,  8.06s/ba] 73%|███████▎  | 11/15 [01:12<00:32,  8.09s/ba] 80%|████████  | 12/15 [01:18<00:22,  7.35s/ba] 87%|████████▋ | 13/15 [01:24<00:13,  6.88s/ba] 93%|█████████▎| 14/15 [01:30<00:06,  6.72s/ba]100%|██████████| 15/15 [01:32<00:00,  5.37s/ba]100%|██████████| 15/15 [01:32<00:00,  6.19s/ba]
+  0%|          | 0/1 [00:00<?, ?ba/s]100%|██████████| 1/1 [00:09<00:00,  9.73s/ba]100%|██████████| 1/1 [00:09<00:00,  9.73s/ba]
+  0%|          | 0/1 [00:00<?, ?ba/s]100%|██████████| 1/1 [00:00<00:00,  4.47ba/s]100%|██████████| 1/1 [00:00<00:00,  4.47ba/s]
+Reusing dataset red_caps (/data/home/rvarm1/.cache/huggingface/datasets/red_caps/jellyfish/1.0.0/d0d70a901e22f5e3b9a7af1f96f31c6243589705a5ab782b9ac69fcf727d97be)
+  0%|          | 0/15 [00:00<?, ?ba/s]  7%|▋         | 1/15 [00:01<00:20,  1.47s/ba] 13%|█▎        | 2/15 [00:03<00:22,  1.71s/ba] 20%|██        | 3/15 [00:05<00:25,  2.13s/ba] 27%|██▋       | 4/15 [00:08<00:25,  2.29s/ba] 33%|███▎      | 5/15 [00:18<00:49,  4.98s/ba] 40%|████      | 6/15 [00:26<00:54,  6.06s/ba] 47%|████▋     | 7/15 [00:34<00:54,  6.79s/ba] 53%|█████▎    | 8/15 [00:49<01:06,  9.44s/ba] 60%|██████    | 9/15 [00:55<00:50,  8.41s/ba] 67%|██████▋   | 10/15 [01:02<00:39,  7.85s/ba] 73%|███████▎  | 11/15 [01:10<00:31,  7.89s/ba] 80%|████████  | 12/15 [01:16<00:21,  7.19s/ba] 87%|████████▋ | 13/15 [01:21<00:13,  6.73s/ba] 93%|█████████▎| 14/15 [01:27<00:06,  6.55s/ba]100%|██████████| 15/15 [01:30<00:00,  5.29s/ba]100%|██████████| 15/15 [01:30<00:00,  6.02s/ba]
+  0%|          | 0/1 [00:00<?, ?ba/s]100%|██████████| 1/1 [00:09<00:00,  9.95s/ba]100%|██████████| 1/1 [00:09<00:00,  9.95s/ba]
+  0%|          | 0/1 [00:00<?, ?ba/s]100%|██████████| 1/1 [00:00<00:00,  4.50ba/s]100%|██████████| 1/1 [00:00<00:00,  4.49ba/s]
+/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/trainer/connectors/accelerator_connector.py:429: LightningDeprecationWarning: Setting `Trainer(gpus=-1)` is deprecated in v1.7 and will be removed in v2.0. Please use `Trainer(accelerator='gpu', devices=-1)` instead.
+  rank_zero_deprecation(
+GPU available: True, used: True
+TPU available: False, using: 0 TPU cores
+IPU available: False, using: 0 IPUs
+HPU available: False, using: 0 HPUs
+Initializing distributed: GLOBAL_RANK: 0, MEMBER: 1/1
+----------------------------------------------------------------------------------------------------
+distributed_backend=nccl
+All distributed processes registered. Starting with 1 processes
+----------------------------------------------------------------------------------------------------
+
+Missing logger folder: /fsx/users/rvarm1/rvarm1/repos/torchmultimodal/examples/flava/lightning_logs
+Reusing dataset wikitext (/data/home/rvarm1/.cache/huggingface/datasets/wikitext/wikitext-103-raw-v1/1.0.0/a241db52902eaf2c6aa732210bead40c090019a499ceb13bcbfa3f8ab646a126)
+Reusing dataset wikitext (/data/home/rvarm1/.cache/huggingface/datasets/wikitext/wikitext-103-raw-v1/1.0.0/a241db52902eaf2c6aa732210bead40c090019a499ceb13bcbfa3f8ab646a126)
+Reusing dataset red_caps (/data/home/rvarm1/.cache/huggingface/datasets/red_caps/jellyfish/1.0.0/d0d70a901e22f5e3b9a7af1f96f31c6243589705a5ab782b9ac69fcf727d97be)
+  0%|          | 0/15 [00:00<?, ?ba/s]  7%|▋         | 1/15 [00:01<00:22,  1.63s/ba] 13%|█▎        | 2/15 [00:03<00:24,  1.85s/ba] 20%|██        | 3/15 [00:06<00:27,  2.30s/ba] 27%|██▋       | 4/15 [00:09<00:26,  2.40s/ba] 33%|███▎      | 5/15 [00:17<00:47,  4.77s/ba] 40%|████      | 6/15 [00:26<00:53,  5.92s/ba] 47%|████▋     | 7/15 [00:34<00:53,  6.65s/ba] 53%|█████▎    | 8/15 [00:49<01:05,  9.37s/ba] 60%|██████    | 9/15 [00:55<00:49,  8.32s/ba] 67%|██████▋   | 10/15 [01:01<00:38,  7.67s/ba] 73%|███████▎  | 11/15 [01:09<00:30,  7.65s/ba] 80%|████████  | 12/15 [01:14<00:20,  6.93s/ba] 87%|████████▋ | 13/15 [01:19<00:12,  6.46s/ba] 93%|█████████▎| 14/15 [01:25<00:06,  6.23s/ba]100%|██████████| 15/15 [01:27<00:00,  5.02s/ba]100%|██████████| 15/15 [01:27<00:00,  5.86s/ba]
+  0%|          | 0/1 [00:00<?, ?ba/s]100%|██████████| 1/1 [00:10<00:00, 10.23s/ba]100%|██████████| 1/1 [00:10<00:00, 10.23s/ba]
+  0%|          | 0/1 [00:00<?, ?ba/s]100%|██████████| 1/1 [00:00<00:00,  4.58ba/s]100%|██████████| 1/1 [00:00<00:00,  4.57ba/s]
+Reusing dataset red_caps (/data/home/rvarm1/.cache/huggingface/datasets/red_caps/jellyfish/1.0.0/d0d70a901e22f5e3b9a7af1f96f31c6243589705a5ab782b9ac69fcf727d97be)
+  0%|          | 0/15 [00:00<?, ?ba/s]  7%|▋         | 1/15 [00:01<00:20,  1.50s/ba] 13%|█▎        | 2/15 [00:03<00:22,  1.74s/ba] 20%|██        | 3/15 [00:06<00:26,  2.18s/ba] 27%|██▋       | 4/15 [00:08<00:25,  2.36s/ba] 33%|███▎      | 5/15 [00:17<00:47,  4.73s/ba] 40%|████      | 6/15 [00:25<00:52,  5.84s/ba] 47%|████▋     | 7/15 [00:33<00:51,  6.50s/ba] 53%|█████▎    | 8/15 [00:48<01:03,  9.11s/ba] 60%|██████    | 9/15 [00:54<00:48,  8.14s/ba] 67%|██████▋   | 10/15 [01:00<00:37,  7.59s/ba] 73%|███████▎  | 11/15 [01:08<00:30,  7.68s/ba] 80%|████████  | 12/15 [01:13<00:20,  6.95s/ba] 87%|████████▋ | 13/15 [01:19<00:12,  6.45s/ba] 93%|█████████▎| 14/15 [01:24<00:06,  6.24s/ba]100%|██████████| 15/15 [01:27<00:00,  5.02s/ba]100%|██████████| 15/15 [01:27<00:00,  5.80s/ba]
+  0%|          | 0/1 [00:00<?, ?ba/s]100%|██████████| 1/1 [00:10<00:00, 10.01s/ba]100%|██████████| 1/1 [00:10<00:00, 10.01s/ba]
+  0%|          | 0/1 [00:00<?, ?ba/s]100%|██████████| 1/1 [00:00<00:00,  4.62ba/s]100%|██████████| 1/1 [00:00<00:00,  4.61ba/s]
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0,1,2,3,4,5,6,7]
+DDPFullyShardedNativeStrategy: moving model to device [cuda:0]...
+
+  | Name  | Type                     | Params
+---------------------------------------------------
+0 | model | FullyShardedDataParallel | 357 M 
+---------------------------------------------------
+357 M     Trainable params
+0         Non-trainable params
+357 M     Total params
+1,430.581 Total estimated model params size (MB)
+My fsdp model  FullyShardedDataParallel(
+  (_fsdp_wrapped_module): FlattenParamsWrapper(
+    (_fpw_module): FLAVAForPreTraining(
+      (model): FLAVAModel(
+        (image_encoder): ImageTransformer(
+          (embeddings): ImageEmbeddings(
+            (patch_embeddings): PatchEmbeddings(
+              (projection): Conv2d(3, 768, kernel_size=(16, 16), stride=(16, 16))
+            )
+            (dropout): Dropout(p=0.0, inplace=False)
+          )
+          (encoder): FLAVATransformerEncoder(
+            (layer): ModuleList(
+              (0): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (1): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (2): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (3): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (4): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (5): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (6): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (7): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (8): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (9): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (10): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (11): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+            )
+          )
+          (layernorm): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+          (pooler): Pooler(
+            (dense): Linear(in_features=768, out_features=768, bias=True)
+            (activation): Tanh()
+          )
+        )
+        (text_encoder): TextTransformer(
+          (embeddings): TextEmbeddings(
+            (word_embeddings): Embedding(30522, 768, padding_idx=0)
+            (position_embeddings): Embedding(512, 768)
+            (token_type_embeddings): Embedding(2, 768)
+            (LayerNorm): LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+            (dropout): Dropout(p=0.0, inplace=False)
+          )
+          (encoder): FLAVATransformerEncoder(
+            (layer): ModuleList(
+              (0): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (1): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (2): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (3): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (4): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (5): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (6): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (7): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (8): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (9): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (10): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (11): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+            )
+          )
+          (layernorm): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+          (pooler): Pooler(
+            (dense): Linear(in_features=768, out_features=768, bias=True)
+            (activation): Tanh()
+          )
+        )
+        (mm_encoder): FLAVATransformerWithoutEmbeddings(
+          (encoder): FLAVATransformerEncoder(
+            (layer): ModuleList(
+              (0): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (1): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (2): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (3): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (4): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+              (5): FullyShardedDataParallel(
+                (_fsdp_wrapped_module): FlattenParamsWrapper(
+                  (_fpw_module): FLAVATransformerLayer(
+                    (attention): FLAVAAttention(
+                      (attention): FLAVASelfAttention(
+                        (query): Linear(in_features=768, out_features=768, bias=True)
+                        (key): Linear(in_features=768, out_features=768, bias=True)
+                        (value): Linear(in_features=768, out_features=768, bias=True)
+                        (dropout): Dropout(p=0.0, inplace=False)
+                      )
+                      (output): Linear(in_features=768, out_features=768, bias=True)
+                      (dropout): Dropout(p=0.0, inplace=False)
+                    )
+                    (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+                    (output): Linear(in_features=3072, out_features=768, bias=True)
+                    (dropout): Dropout(p=0.0, inplace=False)
+                    (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                    (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+                  )
+                )
+              )
+            )
+          )
+          (layernorm): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+          (pooler): Pooler(
+            (dense): Linear(in_features=768, out_features=768, bias=True)
+            (activation): Tanh()
+          )
+        )
+        (image_to_mm_projection): Linear(in_features=768, out_features=768, bias=True)
+        (text_to_mm_projection): Linear(in_features=768, out_features=768, bias=True)
+      )
+      (image_codebook): DalleVAEEncoder(
+        (encoder): DalleEncoder(
+          (blocks): Sequential(
+            (input): DalleConv2d()
+            (group_1): Sequential(
+              (block_1): DalleEncoderBlock(
+                (id_path): Identity()
+                (res_path): Sequential(
+                  (relu_1): ReLU()
+                  (conv_1): DalleConv2d()
+                  (relu_2): ReLU()
+                  (conv_2): DalleConv2d()
+                  (relu_3): ReLU()
+                  (conv_3): DalleConv2d()
+                  (relu_4): ReLU()
+                  (conv_4): DalleConv2d()
+                )
+              )
+              (block_2): DalleEncoderBlock(
+                (id_path): Identity()
+                (res_path): Sequential(
+                  (relu_1): ReLU()
+                  (conv_1): DalleConv2d()
+                  (relu_2): ReLU()
+                  (conv_2): DalleConv2d()
+                  (relu_3): ReLU()
+                  (conv_3): DalleConv2d()
+                  (relu_4): ReLU()
+                  (conv_4): DalleConv2d()
+                )
+              )
+              (pool): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+            )
+            (group_2): Sequential(
+              (block_1): DalleEncoderBlock(
+                (id_path): DalleConv2d()
+                (res_path): Sequential(
+                  (relu_1): ReLU()
+                  (conv_1): DalleConv2d()
+                  (relu_2): ReLU()
+                  (conv_2): DalleConv2d()
+                  (relu_3): ReLU()
+                  (conv_3): DalleConv2d()
+                  (relu_4): ReLU()
+                  (conv_4): DalleConv2d()
+                )
+              )
+              (block_2): DalleEncoderBlock(
+                (id_path): Identity()
+                (res_path): Sequential(
+                  (relu_1): ReLU()
+                  (conv_1): DalleConv2d()
+                  (relu_2): ReLU()
+                  (conv_2): DalleConv2d()
+                  (relu_3): ReLU()
+                  (conv_3): DalleConv2d()
+                  (relu_4): ReLU()
+                  (conv_4): DalleConv2d()
+                )
+              )
+              (pool): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+            )
+            (group_3): Sequential(
+              (block_1): DalleEncoderBlock(
+                (id_path): DalleConv2d()
+                (res_path): Sequential(
+                  (relu_1): ReLU()
+                  (conv_1): DalleConv2d()
+                  (relu_2): ReLU()
+                  (conv_2): DalleConv2d()
+                  (relu_3): ReLU()
+                  (conv_3): DalleConv2d()
+                  (relu_4): ReLU()
+                  (conv_4): DalleConv2d()
+                )
+              )
+              (block_2): DalleEncoderBlock(
+                (id_path): Identity()
+                (res_path): Sequential(
+                  (relu_1): ReLU()
+                  (conv_1): DalleConv2d()
+                  (relu_2): ReLU()
+                  (conv_2): DalleConv2d()
+                  (relu_3): ReLU()
+                  (conv_3): DalleConv2d()
+                  (relu_4): ReLU()
+                  (conv_4): DalleConv2d()
+                )
+              )
+              (pool): MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
+            )
+            (group_4): Sequential(
+              (block_1): DalleEncoderBlock(
+                (id_path): DalleConv2d()
+                (res_path): Sequential(
+                  (relu_1): ReLU()
+                  (conv_1): DalleConv2d()
+                  (relu_2): ReLU()
+                  (conv_2): DalleConv2d()
+                  (relu_3): ReLU()
+                  (conv_3): DalleConv2d()
+                  (relu_4): ReLU()
+                  (conv_4): DalleConv2d()
+                )
+              )
+              (block_2): DalleEncoderBlock(
+                (id_path): Identity()
+                (res_path): Sequential(
+                  (relu_1): ReLU()
+                  (conv_1): DalleConv2d()
+                  (relu_2): ReLU()
+                  (conv_2): DalleConv2d()
+                  (relu_3): ReLU()
+                  (conv_3): DalleConv2d()
+                  (relu_4): ReLU()
+                  (conv_4): DalleConv2d()
+                )
+              )
+            )
+            (output): Sequential(
+              (relu): ReLU()
+              (conv): DalleConv2d()
+            )
+          )
+        )
+      )
+      (loss): FLAVAPretrainingLoss(
+        (contrastive_loss): FLAVAGlobalContrastiveLoss(
+          (image_projection): Linear(in_features=768, out_features=768, bias=True)
+          (text_projection): Linear(in_features=768, out_features=768, bias=True)
+        )
+        (mlm_loss): MaskedPredictionLoss(
+          (cls): MaskedPredictionHead(
+            (dense): Linear(in_features=768, out_features=768, bias=True)
+            (layer_norm): Fp32LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+            (decoder): Linear(in_features=768, out_features=30522, bias=True)
+          )
+          (ce_loss): CrossEntropyLoss()
+        )
+        (mim_loss): MaskedPredictionLoss(
+          (cls): MaskedPredictionHead(
+            (dense): Linear(in_features=768, out_features=768, bias=True)
+            (layer_norm): Fp32LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+            (decoder): Linear(in_features=768, out_features=8192, bias=True)
+          )
+          (ce_loss): CrossEntropyLoss()
+        )
+        (mmm_loss): ModuleDict(
+          (mlm): MaskedPredictionLoss(
+            (cls): MaskedPredictionHead(
+              (dense): Linear(in_features=768, out_features=768, bias=True)
+              (layer_norm): Fp32LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+              (decoder): Linear(in_features=768, out_features=30522, bias=True)
+            )
+            (ce_loss): CrossEntropyLoss()
+          )
+          (mim): MaskedPredictionLoss(
+            (cls): MaskedPredictionHead(
+              (dense): Linear(in_features=768, out_features=768, bias=True)
+              (layer_norm): Fp32LayerNorm((768,), eps=1e-05, elementwise_affine=True)
+              (decoder): Linear(in_features=768, out_features=8192, bias=True)
+            )
+            (ce_loss): CrossEntropyLoss()
+          )
+        )
+        (itm_loss): ITMLoss(
+          (pooler): Pooler(
+            (dense): Linear(in_features=768, out_features=768, bias=True)
+            (activation): Tanh()
+          )
+          (cls): TwoWayHead(
+            (seq_relationship): Linear(in_features=768, out_features=2, bias=True)
+          )
+          (ce_loss): CrossEntropyLoss()
+        )
+      )
+    )
+  )
+)
+Training: 0it [00:00, ?it/s]Training: 0it [00:00, ?it/s]Epoch 0: : 0it [00:00, ?it/s]  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/autograd/grad_mode.py", line 27, in decorate_context
+    return func(*args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/distributed/fsdp/fully_sharded_data_parallel.py", line 3109, in _wait_for_post_backward
+    m._assert_state(TrainingState_.BACKWARD_POST)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/distributed/fsdp/fully_sharded_data_parallel.py", line 3490, in _assert_state
+    traceback.print_stack()
+DDPFullyShardedNativeStrategy: tearing down strategy...
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/runpy.py", line 194, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/runpy.py", line 87, in _run_code
+    exec(code, run_globals)
+  File "/fsx/users/rvarm1/rvarm1/repos/torchmultimodal/examples/flava/train.py", line 71, in <module>
+    main()
+  File "/fsx/users/rvarm1/rvarm1/repos/torchmultimodal/examples/flava/train.py", line 66, in main
+    trainer.fit(model, datamodule=datamodule)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 695, in fit
+    self._call_and_handle_interrupt(
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 663, in _call_and_handle_interrupt
+    self._teardown()
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 1225, in _teardown
+    self.strategy.teardown()
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/strategies/fully_sharded_native.py", line 231, in teardown
+    super().teardown()
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/strategies/parallel.py", line 135, in teardown
+    super().teardown()
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/strategies/strategy.py", line 451, in teardown
+    self.lightning_module.cpu()
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/core/mixins/device_dtype_mixin.py", line 147, in cpu
+    self.__update_properties(device=torch.device("cpu"))
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/core/mixins/device_dtype_mixin.py", line 202, in __update_properties
+    self.apply(apply_fn)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/nn/modules/module.py", line 669, in apply
+    module.apply(fn)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/distributed/fsdp/fully_sharded_data_parallel.py", line 1210, in apply
+    ret = super().apply(fn)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/nn/modules/module.py", line 669, in apply
+    module.apply(fn)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/nn/modules/module.py", line 669, in apply
+    module.apply(fn)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/nn/modules/module.py", line 669, in apply
+    module.apply(fn)
+  [Previous line repeated 4 more times]
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/distributed/fsdp/fully_sharded_data_parallel.py", line 1208, in apply
+    self._assert_state(TrainingState_.IDLE)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/distributed/fsdp/fully_sharded_data_parallel.py", line 3490, in _assert_state
+    traceback.print_stack()
+Traceback (most recent call last):
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 648, in _call_and_handle_interrupt
+    return trainer_fn(*args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 736, in _fit_impl
+    results = self._run(model, ckpt_path=self.ckpt_path)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 1161, in _run
+    results = self._run_stage()
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 1248, in _run_stage
+    return self._run_train()
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 1278, in _run_train
+    self.fit_loop.run()
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/loops/loop.py", line 204, in run
+    self.advance(*args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/loops/fit_loop.py", line 269, in advance
+    self._outputs = self.epoch_loop.run(self._data_fetcher)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/loops/loop.py", line 204, in run
+    self.advance(*args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/loops/epoch/training_epoch_loop.py", line 209, in advance
+    batch_output = self.batch_loop.run(kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/loops/loop.py", line 204, in run
+    self.advance(*args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/loops/batch/training_batch_loop.py", line 87, in advance
+    outputs = self.optimizer_loop.run(optimizers, kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/loops/loop.py", line 204, in run
+    self.advance(*args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/loops/optimization/optimizer_loop.py", line 201, in advance
+    result = self._run_optimization(kwargs, self._optimizers[self.optim_progress.optimizer_position])
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/loops/optimization/optimizer_loop.py", line 248, in _run_optimization
+    self._optimizer_step(optimizer, opt_idx, kwargs.get("batch_idx", 0), closure)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/loops/optimization/optimizer_loop.py", line 358, in _optimizer_step
+    self.trainer._call_lightning_module_hook(
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 1545, in _call_lightning_module_hook
+    output = fn(*args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/core/module.py", line 1639, in optimizer_step
+    optimizer.step(closure=optimizer_closure)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/core/optimizer.py", line 168, in step
+    step_output = self._strategy.optimizer_step(self._optimizer, self._optimizer_idx, closure, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/strategies/strategy.py", line 196, in optimizer_step
+    return self.precision_plugin.optimizer_step(model, optimizer, opt_idx, closure, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/plugins/precision/precision_plugin.py", line 155, in optimizer_step
+    return optimizer.step(closure=closure, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/optim/lr_scheduler.py", line 65, in wrapper
+    return wrapped(*args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/optim/optimizer.py", line 109, in wrapper
+    return func(*args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/autograd/grad_mode.py", line 27, in decorate_context
+    return func(*args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/optim/adamw.py", line 119, in step
+    loss = closure()
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/plugins/precision/precision_plugin.py", line 140, in _wrap_closure
+    closure_result = closure()
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/loops/optimization/optimizer_loop.py", line 146, in __call__
+    self._result = self.closure(*args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/loops/optimization/optimizer_loop.py", line 141, in closure
+    self._backward_fn(step_output.closure_loss)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/loops/optimization/optimizer_loop.py", line 304, in backward_fn
+    self.trainer._call_strategy_hook("backward", loss, optimizer, opt_idx)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 1699, in _call_strategy_hook
+    output = fn(*args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/strategies/strategy.py", line 171, in backward
+    self.precision_plugin.backward(self.lightning_module, closure_loss, *args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/plugins/precision/precision_plugin.py", line 80, in backward
+    model.backward(closure_loss, optimizer, *args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/core/module.py", line 1384, in backward
+    loss.backward(*args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/_tensor.py", line 401, in backward
+    torch.autograd.backward(self, gradient, retain_graph, create_graph, inputs=inputs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/autograd/__init__.py", line 191, in backward
+    Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+SystemError: <built-in method run_backward of torch._C._EngineBase object at 0x7fdaf6e99950> returned NULL without setting an error
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/runpy.py", line 194, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/runpy.py", line 87, in _run_code
+    exec(code, run_globals)
+  File "/fsx/users/rvarm1/rvarm1/repos/torchmultimodal/examples/flava/train.py", line 71, in <module>
+    main()
+  File "/fsx/users/rvarm1/rvarm1/repos/torchmultimodal/examples/flava/train.py", line 66, in main
+    trainer.fit(model, datamodule=datamodule)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 695, in fit
+    self._call_and_handle_interrupt(
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 663, in _call_and_handle_interrupt
+    self._teardown()
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/trainer/trainer.py", line 1225, in _teardown
+    self.strategy.teardown()
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/strategies/fully_sharded_native.py", line 231, in teardown
+    super().teardown()
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/strategies/parallel.py", line 135, in teardown
+    super().teardown()
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/strategies/strategy.py", line 451, in teardown
+    self.lightning_module.cpu()
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/core/mixins/device_dtype_mixin.py", line 147, in cpu
+    self.__update_properties(device=torch.device("cpu"))
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/pytorch_lightning/core/mixins/device_dtype_mixin.py", line 202, in __update_properties
+    self.apply(apply_fn)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/nn/modules/module.py", line 669, in apply
+    module.apply(fn)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/distributed/fsdp/fully_sharded_data_parallel.py", line 1210, in apply
+    ret = super().apply(fn)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/nn/modules/module.py", line 669, in apply
+    module.apply(fn)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/nn/modules/module.py", line 669, in apply
+    module.apply(fn)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/nn/modules/module.py", line 669, in apply
+    module.apply(fn)
+  [Previous line repeated 4 more times]
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/distributed/fsdp/fully_sharded_data_parallel.py", line 1208, in apply
+    self._assert_state(TrainingState_.IDLE)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torch/distributed/fsdp/fully_sharded_data_parallel.py", line 3491, in _assert_state
+    raise ValueError(msg)
+ValueError: expected to be in states [<TrainingState_.IDLE: 1>] but current state is TrainingState_.BACKWARD_POST
+Asserting FSDP instance is: FullyShardedDataParallel(
+  (_fsdp_wrapped_module): FlattenParamsWrapper(
+    (_fpw_module): FLAVATransformerLayer(
+      (attention): FLAVAAttention(
+        (attention): FLAVASelfAttention(
+          (query): Linear(in_features=768, out_features=768, bias=True)
+          (key): Linear(in_features=768, out_features=768, bias=True)
+          (value): Linear(in_features=768, out_features=768, bias=True)
+          (dropout): Dropout(p=0.0, inplace=False)
+        )
+        (output): Linear(in_features=768, out_features=768, bias=True)
+        (dropout): Dropout(p=0.0, inplace=False)
+      )
+      (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+      (output): Linear(in_features=3072, out_features=768, bias=True)
+      (dropout): Dropout(p=0.0, inplace=False)
+      (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+      (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+    )
+  )
+)
+ERROR: expected to be in states [<TrainingState_.BACKWARD_POST: 4>] but current state is TrainingState_.IDLE
+Asserting FSDP instance is: FullyShardedDataParallel(
+  (_fsdp_wrapped_module): FlattenParamsWrapper(
+    (_fpw_module): FLAVATransformerLayer(
+      (attention): FLAVAAttention(
+        (attention): FLAVASelfAttention(
+          (query): Linear(in_features=768, out_features=768, bias=True)
+          (key): Linear(in_features=768, out_features=768, bias=True)
+          (value): Linear(in_features=768, out_features=768, bias=True)
+          (dropout): Dropout(p=0.0, inplace=False)
+        )
+        (output): Linear(in_features=768, out_features=768, bias=True)
+        (dropout): Dropout(p=0.0, inplace=False)
+      )
+      (intermediate): Linear(in_features=768, out_features=3072, bias=True)
+      (output): Linear(in_features=3072, out_features=768, bias=True)
+      (dropout): Dropout(p=0.0, inplace=False)
+      (layernorm_before): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+      (layernorm_after): Fp32LayerNorm((768,), eps=1e-12, elementwise_affine=True)
+    )
+  )
+)
+ERROR: expected to be in states [<TrainingState_.IDLE: 1>] but current state is TrainingState_.BACKWARD_POST
+Epoch 0: : 0it [00:03, ?it/s]

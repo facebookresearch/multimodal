@@ -37,8 +37,6 @@ datasets:
       - _target_: flava.definitions.HFDatasetInfo
         key: imagenet-1k
         subset: default
-        extra_kwargs:
-          data_dir: ${oc.env:IMAGENET_TAR}
   text:
     _target_: flava.definitions.TrainingSingleDatasetInfo
     train:

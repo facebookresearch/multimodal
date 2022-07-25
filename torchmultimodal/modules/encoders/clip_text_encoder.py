@@ -4,19 +4,25 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+
 import torch
-from torch import nn
-from torchtext.models.roberta.modules import TransformerEncoder
+from torch import nn, Tensor
+
+from torch.nn import TransformerEncoder, TransformerEncoderLayer
+
+# Taken from original clip implementation https://github.com/openai/CLIP/blob/main/clip/model.py#L167
+def quick_gelu(x: Tensor) -> Tensor:
+    return x * torch.sigmoid(1.702 * x)
 
 
 class CLIPTextEncoder(nn.Module):
     """CLIP text encoder class. Should be instantiated and passed to
-    CLIPArchitecture (architectures/clip.py)
+    CLIP (models/clip.py)
 
     As in CLIP, the text encoder follows a Transformer architecture.
 
     Args:
-        embedding_dim (int): Embedding dimension for text and image encoders.
+        embedding_dim (int): Embedding dimension for text and image encoders projections.
         context_length (int): Maximum sequence length for Transforer.
         vocab_size (int): Vocab size.
         width (int): Embedding dimension for Transformer encoder.
@@ -41,16 +47,18 @@ class CLIPTextEncoder(nn.Module):
         use_clip_init: bool = True,
     ):
         super().__init__()
-        self.encoder = TransformerEncoder(
-            vocab_size=vocab_size,
-            embedding_dim=width,
-            padding_idx=-1,
-            max_seq_len=context_length,
-            num_encoder_layers=layers,
-            num_attention_heads=heads,
-            dropout=0.0,
-            normalize_before=True,
+        self.token_embedding = torch.nn.Embedding(vocab_size, width)
+        self.positional_embedding = torch.nn.Parameter(
+            torch.empty(context_length, width)
         )
+        encoder_layer = TransformerEncoderLayer(
+            d_model=width,
+            nhead=heads,
+            dropout=0.0,
+            activation=quick_gelu,
+            norm_first=True,
+        )
+        self.encoder = TransformerEncoder(encoder_layer, num_layers=layers)
 
         self.width = width
         self.context_length = context_length
@@ -63,18 +71,18 @@ class CLIPTextEncoder(nn.Module):
 
     def initialize_parameters(self) -> None:
         # Initialize token and positional embeddings
+        nn.init.normal_(self.token_embedding.weight, std=self.TOKEN_EMBEDDING_INIT_STD)
         nn.init.normal_(
-            self.encoder.token_embedding.weight, std=self.TOKEN_EMBEDDING_INIT_STD
-        )
-        nn.init.normal_(
-            self.encoder.positional_embedding.embedding.weight,
+            self.positional_embedding,
             std=self.POS_EMBEDDING_INIT_STD,
         )
 
-        proj_std = (self.width**-0.5) * ((2 * self.encoder.layers.num_layers) ** -0.5)
+        proj_std = (self.width**-0.5) * ((2 * self.encoder.num_layers) ** -0.5)
         attn_std = self.width**-0.5
+
         fc_std = (2 * self.width) ** -0.5
-        for layer in self.encoder.layers.layers:
+
+        for layer in self.encoder.layers:
             nn.init.normal_(layer.self_attn.in_proj_weight, std=attn_std)
             nn.init.normal_(layer.self_attn.out_proj.weight, std=proj_std)
             # c_fc in CLIP corresponds to the first residual MLP layer
@@ -87,14 +95,23 @@ class CLIPTextEncoder(nn.Module):
 
     def build_attention_mask(self) -> torch.Tensor:
         # To support torchscripting, we have to pass an int as fill_value
-        mask = torch.full((self.context_length, self.context_length), int(True)).triu(1)
-        return mask.to(device=None, dtype=torch.bool)
+        mask = torch.full(
+            (self.context_length, self.context_length), float("-inf")
+        ).triu(1)
+        return mask
 
     def forward(self, text: torch.Tensor) -> torch.Tensor:
-        embeddings = self.encoder(text, attn_mask=self.build_attention_mask())
-        # To support torchscripting, embeddings must explicitly be a Tensor and not List[Tensor]
-        if not isinstance(embeddings, torch.Tensor):
-            raise TypeError("`embeddings` must be of type Tensor.")
+        if text.size(1) != self.context_length:
+            raise ValueError(
+                f"length of input should be {self.context_length} but found {text.size(1)}"
+            )
+        embeddings = self.token_embedding(text)
+        embeddings = embeddings + self.positional_embedding
+        embeddings = embeddings.permute(1, 0, 2)
+        embeddings = self.encoder(
+            embeddings, mask=self.build_attention_mask().to(device=text.device)
+        )
+
         # [n_ctx, bs, transformer.width] -> [bs, n_ctx, transformer.width]
         embeddings = torch.permute(embeddings, (1, 0, 2))
         embeddings = self.ln_final(embeddings)
