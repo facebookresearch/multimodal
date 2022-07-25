@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Callable, NamedTuple, Optional
+from typing import Callable, Optional
 
 import pytorch_lightning as pl
 import torch
@@ -14,18 +14,11 @@ import torch.utils.data as data
 from .mugen_dataset import MUGENDataset, MUGENDatasetArgs
 
 
-class MUGENDataModuleArgs(NamedTuple):
-    batch_size: int = 16
-    num_workers: int = 4
-
-
 class MUGENDataModule(pl.LightningDataModule):
     """General lightning data module for MUGEN dataset.
 
     Args:
         mugen_dataset_args (MUGENDatasetArgs): arguments for MUGENDataset.
-        datamodule_args (MUGENDataModuleArgs): arguments for this LightningDataModule.
-            See MUGENDataModuleArgs definition for defaults.
         text_transform (Optional[Callable]): transform for text batches.
             Only used when not ``None`` and when ``mugen_dataset_args.get_text_desc = True``.
             Defaults to ``None``.
@@ -35,6 +28,10 @@ class MUGENDataModule(pl.LightningDataModule):
         audio_transform (Optional[Callable]): transform for audio batches.
             Only used when not ``None`` and when ``mugen_dataset_args.get_audio = True``.
             Defaults to ``None``.
+        batch_size (int): number of samples per batch.
+            Defaults to ``16``.
+        num_workers (int): number of subprocesses for data loading.
+            Defaults to ``0``, meaning data is loaded in the main process.
         shuffle (bool): whether to reshuffle data after each epoch.
             Defaults to ``True``.
     """
@@ -42,18 +39,20 @@ class MUGENDataModule(pl.LightningDataModule):
     def __init__(
         self,
         mugen_dataset_args: MUGENDatasetArgs,
-        data_module_args: MUGENDataModuleArgs = MUGENDataModuleArgs(),
         text_transform: Optional[Callable] = None,
         video_transform: Optional[Callable] = None,
         audio_transform: Optional[Callable] = None,
-        shuffle=True,
+        batch_size: int = 16,
+        num_workers: int = 0,
+        shuffle: bool = True,
     ):
         super().__init__()
-        self.data_module_args = data_module_args
         self.mugen_dataset_args = mugen_dataset_args
         self.text_transform = text_transform
         self.video_transform = video_transform
         self.audio_transform = audio_transform
+        self.batch_size = batch_size
+        self.num_workers = num_workers
         self.shuffle = shuffle
 
     @property
@@ -94,8 +93,8 @@ class MUGENDataModule(pl.LightningDataModule):
             sampler = None
         dataloader = data.DataLoader(
             dataset,
-            batch_size=self.data_module_args.batch_size,
-            num_workers=self.data_module_args.num_workers,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
             pin_memory=True,
             sampler=sampler,
             shuffle=sampler is None and self.shuffle is True,
