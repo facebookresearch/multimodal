@@ -9,7 +9,13 @@ from torchvision.datasets import CocoDetection
 
 
 class ModulatedDetection(CocoDetection):
-    """The base dataset class for most MDETR datasets."""
+    """
+    The base dataset class for most MDETR datasets.
+
+    Follows the API for the COCO dataset. In addition to the usual image and captions,
+    this class returns bounding boxes and their relationship to tokens in the caption
+    as part of the target.
+    """
 
     def __init__(
         self,
