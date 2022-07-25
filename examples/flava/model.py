@@ -8,6 +8,7 @@ from typing import Any, Tuple
 
 import torch
 from pytorch_lightning import LightningModule
+from torchmetrics import Accuracy
 from torchmultimodal.models.flava.flava_model import (
     flava_model_for_classification,
     flava_model_for_pretraining,
@@ -139,17 +140,32 @@ class FLAVAClassificationLightningModule(LightningModule):
         self.warmup_steps = warmup_steps
         self.max_steps = max_steps
         self.adam_betas = adam_betas
+        self.metrics = Accuracy()
 
     def training_step(self, batch, batch_idx):
-        output = self._step(batch, batch_idx)
+        output, accuracy = self._step(batch, batch_idx)
         self.log("train/losses/classification", output.loss, prog_bar=True, logger=True)
+        self.log(
+            "train/accuracy/classification",
+            accuracy,
+            prog_bar=True,
+            logger=True,
+            sync_dist=True,
+        )
 
         return output.loss
 
     def validation_step(self, batch, batch_idx):
-        output = self._step(batch, batch_idx)
+        output, accuracy = self._step(batch, batch_idx)
         self.log(
             "validation/losses/classification", output.loss, prog_bar=True, logger=True
+        )
+        self.log(
+            "validation/accuracy/classification",
+            accuracy,
+            prog_bar=True,
+            logger=True,
+            sync_dist=True,
         )
 
         return output.loss
@@ -164,15 +180,17 @@ class FLAVAClassificationLightningModule(LightningModule):
         else:
             raise RuntimeError("Batch needs to have either or both 'image' and 'text'.")
 
+        labels = batch["labels"]
         output = self.model(
             image=batch.get("image", None),
             text=batch.get("text", None),
             required_embedding=required_embedding,
-            labels=batch.get("labels", None),
+            labels=labels,
         )
 
-        # TODO: Add accuracy metric to this later.
-        return output
+        accuracy = self.metrics(output.logits, labels)
+
+        return output, accuracy
 
     def configure_optimizers(self):
         return get_optimizers_for_lightning(

@@ -5,31 +5,34 @@
 # LICENSE file in the root directory of this source tree.
 
 import itertools
-from typing import List, Optional, Tuple
+from typing import Tuple
 
 import torch
 from torch import nn, Tensor
-from torchmultimodal.utils.common import tensor_slice
 
 
-# Reference:
-# https://github.com/wilson1yan/VideoGPT/blob/c21cc7e2579f820cb2b90097406d72cf69a46474/videogpt/attention.py#L458
 class BroadcastedPositionEmbedding(nn.Module):
     r"""Spatiotemporal broadcasted positional embeddings.
 
-    Each embedding vector of the ``i``-th dim is repeated by ``N`` times, where
+    Based on broadcasted position embedding algorithm in codebase:
+        https://github.com/wilson1yan/VideoGPT/blob/c21cc7e2579f820cb2b90097406d72cf69a46474/videogpt/attention.py#L458
+
+        Each embedding vector of the ``i``-th dim is repeated by ``N`` times, where
     :math:`N = \prod_{j>i}\text{dim}[j]`.
 
-    Args:
+    Attributes:
         shape (Tuple[int, ...]): shape of raw data before batching and embedding
         embedding_dim (int): the size of each embedding vector
 
     Raises:
         ValueError: if ``embedding_dim`` is not an integer multiple of ``len(shape)``
 
-    Inputs:
-        x (Optional[Tensor]): flattened input data, e.g., ``(batch, time * height * width, embedding_dim)``.
-        decode_step (Optional[int]): position of the data that requires decoding.
+    Args:
+        position_ids (Tensor): batches of of 1D integer tensors indicating locations of the broadcasted
+            position embeddings to be returned.
+
+    Returns:
+        A tensor with the position embeddings selected by position ids.
     """
 
     def __init__(
@@ -57,20 +60,22 @@ class BroadcastedPositionEmbedding(nn.Module):
         )
 
     @property
-    def seq_len(self) -> int:
-        """Dimension of flattened data, e.g., time * height * width"""
-        return int(torch.prod(torch.tensor(self.shape)).item())
+    def indices(self) -> Tensor:
+        """Returns broadcasted indices of the data
 
-    @property
-    def decode_idxs(self) -> List:
-        """Indices along the dims of data, e.g., ``(time, height, width)``."""
-        return list(itertools.product(*[range(s) for s in self.shape]))
+        For example::
+
+            >>> pos_emb = BroadcastedPositionEmbedding(shape=(2, 3), embedding_dim=6)
+            >>> pos_emb.indices
+            tensor([[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2]])
+        """
+        return torch.cartesian_prod(*[torch.arange(s) for s in self.shape])
 
     def _broadcast(self, i: int) -> Tensor:
         """Broadcasts the ``i``-th embedding matrix ``(self.shape[i], self.embedding_dim // n_dim)`` along the other
         dims of ``self.shape``. The embedding dim is not touched.
 
-                For example::
+        For example::
 
             >>> pos_emb = BroadcastedPositionEmbedding(shape=(2, 4), embedding_dim=6)
             >>> print(pos_emb.embedding["d_0"].shape)
@@ -78,55 +83,42 @@ class BroadcastedPositionEmbedding(nn.Module):
             >>> pos_emb.embedding["d_0"] = nn.Parameter(torch.tensor([[0., 0., 0.], [0., 0., 1.]]))
             >>> out = pos_emb._broadcast(i=0)
             >>> print(out)
-            tensor([[[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
-                    [[0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]]]])
+            tensor([[[0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]],
+                    [[0, 0, 1], [0, 0, 1], [0, 0, 1], [0, 0, 1]]])
             >>> print(out.shape)
-            (1, 2, 4, 3)
+            (2, 4, 3)
 
         The input is broadcasted along the second dim ``4`` since it's the ``0``-th embedding constructed w.r.t the
         first dim ``2``.
         """
         emb = self.embedding[f"d_{i}"]
-        # (1, 1, ..., 1, self.shape[i], 1, ..., -1)
+        # (1, ..., 1, self.shape[i], 1, ..., embedding_dim)
         emb = emb.view(
-            1,
             *itertools.repeat(1, i),
             self.shape[i],
             *itertools.repeat(1, (self.n_dim - i - 1)),
             -1,
         )
-        # (1, *self.shape, -1)
-        emb = emb.expand(1, *self.shape, -1)
+        # (*self.shape, embedding_dim)
+        emb = emb.expand(*self.shape, -1)
 
         return emb
 
-    def _decode(
-        self, decode_step: int, embeddings: Tensor, x_shape: Tuple[int, ...]
-    ) -> Tensor:
-        """Returns the embedding vector immediately before the decoding location."""
-        decode_idx = self.decode_idxs[decode_step - 1]
-        embeddings = tensor_slice(
-            embeddings,
-            [0, *decode_idx, 0],
-            [x_shape[0], *itertools.repeat(1, self.n_dim), x_shape[-1]],
-        )
+    def forward(self, position_ids: Tensor) -> Tensor:
+        if torch.max(position_ids) >= len(self.indices) or torch.min(position_ids) < -1:
+            raise IndexError(f"Invalid position ids: {position_ids}")
 
-        return embeddings
-
-    def forward(
-        self, x: Optional[Tensor] = None, decode_step: Optional[int] = None
-    ) -> Tensor:
         embeddings = []
         for i in range(self.n_dim):
             emb = self._broadcast(i)
             embeddings.append(emb)
 
-        embeddings = torch.cat(
-            embeddings, dim=-1
-        )  # concatenated embeddings: (1, *(shape), embedding_dim)
+        # concatenated embeddings: (*(shape), embedding_dim)
+        embeddings = torch.cat(embeddings, dim=-1)
 
-        if decode_step is not None:
-            embeddings = self._decode(decode_step, embeddings, tuple(x.shape))
-            # decoded embedding: (1, *repeat(1, len(shape)), embedding_dim)
+        # expand the permuted tensor to form a list of size `n_dim`
+        # where each elm is a tensor of shape (pos_ids, batch)
+        indices = [*self.indices[position_ids].permute(2, 1, 0)]
+        embeddings = embeddings[indices].transpose(0, 1)  # (batch, pos_ids, emb_dim)
 
-        return embeddings.flatten(start_dim=1, end_dim=-2)
+        return embeddings

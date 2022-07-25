@@ -4,23 +4,58 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import unittest
-
+import pytest
 import torch
-from torchmultimodal.architectures.clip import CLIPArchitecture
+from test.test_utils import assert_expected, set_rng_seed
+from torchmultimodal.models.clip import CLIP
 from torchmultimodal.modules.encoders.clip_resnet_encoder import ResNetForCLIP
 from torchmultimodal.modules.encoders.clip_text_encoder import CLIPTextEncoder
-from torchmultimodal.utils.common import get_current_device
 from torchvision.models.vision_transformer import VisionTransformer
 
 
-class TestCLIPModule(unittest.TestCase):
-    def setUp(self):
-        torch.manual_seed(1234)
-        self.device = get_current_device()
-        self.context_length = 77
+@pytest.fixture(autouse=True)
+def random():
+    set_rng_seed(1234)
 
-    def test_clip_resnet_forward(self):
+
+class TestCLIP:
+    @pytest.fixture(scope="class")
+    def context_length(self):
+        return 77
+
+    def test_clip_forward(self):
+        encoder_a = torch.nn.Linear(5, 3)
+        encoder_b = torch.nn.Linear(4, 3)
+        clip = CLIP(encoder_a, encoder_b)
+
+        input_a = torch.randint(1, 8, (2, 5), dtype=torch.float)
+        input_b = torch.randint(1, 8, (2, 4), dtype=torch.float)
+
+        assert isinstance(clip, torch.nn.Module)
+
+        out = clip(input_a, input_b)
+        assert (
+            hasattr(out, "embeddings_a")
+            and hasattr(out, "embeddings_b")
+            and len(out) == 2
+        )
+
+        actual_a_embedding = out.embeddings_a
+        actual_b_embedding = out.embeddings_b
+        expected_a_embedding = torch.Tensor(
+            [[-0.8066, -0.1749, 0.5647], [-0.7709, -0.1118, 0.6271]]
+        )
+        expected_b_embedding = torch.Tensor(
+            [[-0.1719, 0.7932, 0.5842], [-0.2805, 0.8761, -0.3921]]
+        )
+        assert_expected(
+            actual=actual_a_embedding, expected=expected_a_embedding, rtol=0, atol=1e-4
+        )
+        assert_expected(
+            actual=actual_b_embedding, expected=expected_b_embedding, rtol=0, atol=1e-4
+        )
+
+    def test_clip_resnet_forward(self, context_length):
         resnet_encoder = ResNetForCLIP(
             layers=(3, 4, 6, 3),
             output_dim=12,
@@ -29,29 +64,31 @@ class TestCLIPModule(unittest.TestCase):
         )
         text_encoder = CLIPTextEncoder(
             embedding_dim=12,
-            context_length=self.context_length,
+            context_length=context_length,
             vocab_size=100,
             width=512,
             heads=8,
             layers=12,
         )
-        clip_resnet = CLIPArchitecture(
+        clip_resnet = CLIP(
             encoder_a=resnet_encoder,
             encoder_b=text_encoder,
         )
-        clip_resnet = clip_resnet.to(self.device)
-        self.assertTrue(isinstance(clip_resnet, torch.nn.Module))
 
-        text = torch.randint(1, 79, (self.context_length,), dtype=torch.long).unsqueeze(
-            0
-        )
+        assert isinstance(clip_resnet, torch.nn.Module)
+
+        text = torch.randint(1, 79, (context_length,), dtype=torch.long).unsqueeze(0)
         image = torch.randn(3, 224, 224).unsqueeze(0)
 
         clip_resnet_scores = clip_resnet(features_a=image, features_b=text)
-        self.assertEqual(clip_resnet_scores.embeddings_a.size(), torch.Size((1, 12)))
-        self.assertEqual(clip_resnet_scores.embeddings_b.size(), torch.Size((1, 12)))
+        assert_expected(
+            torch.tensor(clip_resnet_scores.embeddings_a.size()), torch.tensor((1, 12))
+        )
+        assert_expected(
+            torch.tensor(clip_resnet_scores.embeddings_b.size()), torch.tensor((1, 12))
+        )
 
-    def test_clip_vit_forward(self):
+    def test_clip_vit_forward(self, context_length):
         vit_encoder = VisionTransformer(
             image_size=224,
             patch_size=16,
@@ -63,21 +100,23 @@ class TestCLIPModule(unittest.TestCase):
         )
         text_encoder = CLIPTextEncoder(
             embedding_dim=12,
-            context_length=self.context_length,
+            context_length=context_length,
             vocab_size=100,
             width=512,
             heads=8,
             layers=12,
         )
 
-        text = torch.randint(1, 79, (self.context_length,), dtype=torch.long).unsqueeze(
-            0
-        )
+        text = torch.randint(1, 79, (context_length,), dtype=torch.long).unsqueeze(0)
         image = torch.randn(3, 224, 224).unsqueeze(0)
-        clip_vit = CLIPArchitecture(encoder_a=vit_encoder, encoder_b=text_encoder)
-        clip_vit = clip_vit.to(self.device)
-        self.assertTrue(isinstance(clip_vit, torch.nn.Module))
+        clip_vit = CLIP(encoder_a=vit_encoder, encoder_b=text_encoder)
+
+        assert isinstance(clip_vit, torch.nn.Module)
 
         clip_vit_scores = clip_vit(features_a=image, features_b=text)
-        self.assertEqual(clip_vit_scores.embeddings_a.size(), torch.Size((1, 12)))
-        self.assertEqual(clip_vit_scores.embeddings_b.size(), torch.Size((1, 12)))
+        assert_expected(
+            torch.tensor(clip_vit_scores.embeddings_a.size()), torch.tensor((1, 12))
+        )
+        assert_expected(
+            torch.tensor(clip_vit_scores.embeddings_b.size()), torch.tensor((1, 12))
+        )
