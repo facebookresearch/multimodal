@@ -161,6 +161,7 @@ class MultiHeadAttention(nn.Module):
     Raises:
         TypeError: an error occurred when ``causal`` is ``True`` and ``attn_module`` is
             ``AxialAttention``.
+        ValueError: when dim_q or dim_kv is not divisible by n_head
     """
 
     def __init__(
@@ -172,6 +173,10 @@ class MultiHeadAttention(nn.Module):
         add_bias: bool = True,
     ) -> None:
         super().__init__()
+        if dim_q % n_head != 0 or dim_kv % n_head != 0:
+            raise ValueError(
+                "The hidden size of q, k, v must be a multiple of the number of attention heads."
+            )
 
         self.d_qk = dim_q // n_head
         self.d_v = dim_kv // n_head
