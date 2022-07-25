@@ -14,8 +14,18 @@ from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 from torchmultimodal.models.flava.flava_model import (
     flava_model_for_classification,
     flava_model_for_pretraining,
+    DalleVAEEncoder,
 )
-from torchmultimodal.modules.layers.transformer import FLAVATransformerLayer
+
+from torchmultimodal.modules.losses.flava import FLAVAPretrainingLoss
+from torchmultimodal.models.flava.flava_text_encoder import (
+    TextTransformer,
+)
+from torchmultimodal.models.flava.flava_image_encoder import (
+    ImageEmbeddings,
+    ImageTransformer,
+)
+from torchmultimodal.modules.layers.transformer import FLAVATransformerLayer,FLAVATransformerWithoutEmbeddings 
 from transformers.optimization import get_cosine_schedule_with_warmup
 
 
@@ -123,10 +133,11 @@ class FLAVAPreTrainingLightningModuleFSDP(LightningModule):
 
     def configure_sharded_model(self) -> None:
         p = partial(
-            transformer_auto_wrap_policy, transformer_layer_cls={FLAVATransformerLayer}
+            transformer_auto_wrap_policy, transformer_layer_cls={FLAVATransformerLayer, TextTransformer, DalleVAEEncoder, ImageTransformer, FLAVATransformerWithoutEmbeddings, FLAVAPretrainingLoss}
         )
         self.model = FullyShardedDataParallel(self.model, auto_wrap_policy=p, device_id=torch.cuda.current_device())
-        print("My fsdp model ", self.model)
+        if torch.distributed.get_rank() == 0:
+            print("My fsdp model ", self.model)
 
 
 class FLAVAPreTrainingLightningModule(LightningModule):
