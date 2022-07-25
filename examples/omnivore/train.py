@@ -510,7 +510,7 @@ def get_args_parser(add_help=True):
         type=str,
         help="optimizer",
     )
-    parser.add_argument("--lr", default=0.02, type=float, help="initial learning rate")
+    parser.add_argument("--lr", default=0.002, type=float, help="initial learning rate")
     parser.add_argument(
         "--momentum", default=0.9, type=float, metavar="M", help="momentum"
     )
@@ -599,12 +599,6 @@ def get_args_parser(add_help=True):
         dest="test_only",
         help="Only test the model",
         action="store_true",
-    )
-    parser.add_argument(
-        "--auto-augment",
-        default=None,
-        type=str,
-        help="auto augment policy (default: None)",
     )
     parser.add_argument(
         "--random-erase",
@@ -737,7 +731,7 @@ def get_args_parser(add_help=True):
     )
     parser.add_argument(
         "--eval-every-num-epoch",
-        default=5,
+        default=1,
         type=int,
         help="Number of epoch between each evaluation on validation dataset",
     )

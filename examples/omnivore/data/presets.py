@@ -21,33 +21,15 @@ class ImageNetClassificationPresetTrain:
         std=(0.229, 0.224, 0.225),
         interpolation=InterpolationMode.BICUBIC,
         hflip_prob=0.5,
-        auto_augment_policy=None,
         random_erase_prob=0.0,
         color_jitter_factor=(0.1, 0.1, 0.1, 0.1),
     ):
         transform_list = [T.RandomResizedCrop(crop_size, interpolation=interpolation)]
         if hflip_prob > 0:
             transform_list.append(T.RandomHorizontalFlip(hflip_prob))
-        if auto_augment_policy is not None:
-            if auto_augment_policy == "ra":
-                transform_list.append(
-                    T.autoaugment.RandAugment(interpolation=interpolation)
-                )
-            elif auto_augment_policy == "ta_wide":
-                transform_list.append(
-                    T.autoaugment.TrivialAugmentWide(interpolation=interpolation)
-                )
-            elif auto_augment_policy == "augmix":
-                transform_list.append(T.autoaugment.AugMix(interpolation=interpolation))
-            else:
-                aa_policy = T.autoaugment.AutoAugmentPolicy(auto_augment_policy)
-                transform_list.append(
-                    T.autoaugment.AutoAugment(
-                        policy=aa_policy, interpolation=interpolation
-                    )
-                )
         transform_list.extend(
             [
+                T.autoaugment.RandAugment(interpolation=interpolation),
                 T.ColorJitter(*color_jitter_factor),
                 T.PILToTensor(),
                 T.ConvertImageDtype(torch.float),

@@ -155,7 +155,6 @@ def get_imagenet_data_loader(mode, num_workers, args):
         preset = presets.ImageNetClassificationPresetTrain(
             crop_size=args.train_crop_size,
             interpolation=InterpolationMode.BICUBIC,
-            auto_augment_policy="ra",
             random_erase_prob=args.random_erase,
             color_jitter_factor=args.color_jitter_factor,
         )
