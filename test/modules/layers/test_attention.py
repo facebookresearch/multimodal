@@ -13,10 +13,10 @@ from test.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.modules.layers.attention import (
     AxialAttention,
     AxialAttentionBlock,
-    FullAttention,
     merge_multihead,
     MultiHeadAttention,
     scaled_dot_product_attention,
+    SelfAttention,
     split_multihead,
 )
 
@@ -55,7 +55,7 @@ def kv(input_shape, hidden_dim):
 
 @pytest.fixture
 def full_attn():
-    return FullAttention(attn_dropout=0.0)
+    return SelfAttention(attn_dropout=0.0)
 
 
 @pytest.fixture
