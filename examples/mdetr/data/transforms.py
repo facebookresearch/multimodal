@@ -22,7 +22,6 @@ def crop(image, target, region):
     target = target.copy()
     i, j, h, w = region
 
-    # should we do something wrt the original size?
     target["size"] = torch.tensor([h, w])
 
     fields = ["labels", "area", "iscrowd", "positive_map", "isfinal"]
@@ -39,7 +38,6 @@ def crop(image, target, region):
         fields.append("boxes")
 
     if "masks" in target:
-        # FIXME should we update the area here if there are no boxes?
         target["masks"] = target["masks"][:, i : i + h, j : j + w]
         fields.append("masks")
 

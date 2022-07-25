@@ -67,9 +67,10 @@ def collate_fn(tokenizer, batch):
                 continue
             answers[f] = torch.stack([b[f] for b in batch[1]])
         final_batch["answers"] = answers
-    final_batch["batch_encoding"] = tokenizer.batch_encode_plus(
+    batch_encoding = tokenizer.batch_encode_plus(
         [v["caption"] for v in batch[1]], padding="longest", return_tensors="pt"
     ).to(batched_pos_map.device)
+    final_batch["batch_encoding"] = batch_encoding._encodings
     return final_batch
 
 

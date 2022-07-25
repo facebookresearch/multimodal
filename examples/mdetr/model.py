@@ -5,11 +5,9 @@
 # LICENSE file in the root directory of this source tree.
 
 from collections import OrderedDict
-from copy import deepcopy
 from functools import partial
 from typing import Dict, List, NamedTuple, Optional
 
-import torch
 import torch.nn.functional as F
 from examples.mdetr.loss import (
     contrastive_alignment_loss,
@@ -73,50 +71,40 @@ class MDETRForVQA(nn.Module):
     def __init__(
         self,
         model: MDETR,
-        vqa_embed: nn.Embedding,
         vqa_heads: MultiHead,
         matcher: HungarianMatcher,
         loss: MDETRLoss,
+        contrastive_alignment_image_projection: Optional[nn.Module] = None,
+        contrastive_alignment_text_projection: Optional[nn.Module] = None,
     ):
         super().__init__()
         self.model = model
-        self.vqa_embed = vqa_embed
-        self.num_vqa_embeddings = self.vqa_embed.num_embeddings
-        self.matcher = matcher
         self.vqa_heads = vqa_heads
-        self.loss = loss
-        if self.num_vqa_embeddings != len(self.vqa_heads.heads.keys()):
+        if self.model.extra_query_embeddings is None:
+            raise ValueError("MDETRForVQA requires extra query embeddings ")
+        if self.model.extra_query_embeddings.num_embeddings != len(
+            self.vqa_heads.heads.keys()
+        ):
             raise ValueError("Number of heads must match number of QA embeddings")
-        self.is_preprocessed = False
 
-    def _pre_mdetr_forward(self) -> None:
-        if not self.is_preprocessed:
-            concat_embedding_weights = nn.Parameter(
-                torch.cat(
-                    [self.model.query_embed.weight, self.vqa_embed.weight], axis=0
-                )
-            )
-            self.model.query_embed = nn.Embedding(
-                self.model.query_embed.num_embeddings + self.vqa_embed.num_embeddings,
-                self.vqa_embed.embedding_dim,
-            )
-            self.model.query_embed.weight = concat_embedding_weights
-            self.bbox_embed = deepcopy(self.model.bbox_embed)
-            self.class_embed = deepcopy(self.model.class_embed)
-            self.model.bbox_embed = None
-            self.model.class_embed = None
-            self.is_preprocessed = True
-
-    def _post_mdetr_forward(self, model_output: MDETRModelOutput) -> None:
-        final_hidden_state = model_output.transformer_output.decoder_hidden_states[
-            -1, :, : -self.num_vqa_embeddings
-        ]
-        pred_logits = self.class_embed(final_hidden_state)
-        pred_boxes = self.bbox_embed(final_hidden_state).sigmoid()
-        model_output = model_output._replace(
-            pred_logits=pred_logits, pred_boxes=pred_boxes
+        self.matcher = matcher
+        self.loss = loss
+        self.contrastive_alignment_image_projection = (
+            contrastive_alignment_image_projection
         )
-        return model_output
+        self.contrastive_alignment_text_projection = (
+            contrastive_alignment_text_projection
+        )
+
+    def _is_eligible_for_contrastive(self, tokenized: Optional[BatchEncoding]):
+        if (
+            self.contrastive_alignment_image_projection is None
+            or self.contrastive_alignment_text_projection is None
+            or self.loss.contrastive_alignment_loss is None
+            or tokenized is None
+        ):
+            return False
+        return True
 
     def forward(
         self,
@@ -126,18 +114,34 @@ class MDETRForVQA(nn.Module):
         positive_map,
         answers,
         answer_types: Dict[str, Tensor],
+        tokenized: Optional[BatchEncoding],  # TODO: change data type here
         weight_dict: Optional[Dict[str, float]] = None,
+        include_contrastive: bool = True,
     ) -> MDETRVQAOutput:
-        self._pre_mdetr_forward()
         model_output = self.model(images, text)
-        model_output = self._post_mdetr_forward(model_output)
 
-        answer_embeddings = model_output.transformer_output.decoder_hidden_states[
-            0, :, -self.num_vqa_embeddings :
-        ].transpose(
-            0, 1
-        )  # (num_qa_embeddings, batch_size, embedding_dim)
-        answer_preds = self.vqa_heads(answer_embeddings)
+        final_hidden_state = model_output.transformer_output.decoder_hidden_states[-1]
+        if include_contrastive:
+            if not self._is_eligible_for_contrastive(tokenized):
+                raise ValueError(
+                    "Module is not eligible to calculate contrastive alignment loss"
+                )
+
+            contrastive_query_embeddings = F.normalize(
+                self.contrastive_alignment_image_projection(final_hidden_state),
+                p=2,
+                dim=-1,
+            )
+            contrastive_token_embeddings = F.normalize(
+                self.contrastive_alignment_text_projection(
+                    model_output.transformer_output.text_memory
+                ).transpose(0, 1),
+                p=2,
+                dim=-1,
+            )
+        else:
+            contrastive_query_embeddings, contrastive_token_embeddings = None, None
+        answer_preds = self.vqa_heads(model_output.extra_embeddings.transpose(0, 1))
         target_boxes = [t["boxes"] for t in targets]
         indices = self.matcher(
             model_output.pred_logits,
@@ -151,10 +155,13 @@ class MDETRForVQA(nn.Module):
             targets,
             positive_map,
             indices,
-            vqa_preds=answer_preds,
-            vqa_labels=answers,
-            vqa_masks=answer_types,
-            weight_dict=weight_dict,
+            contrastive_query_embeddings,
+            contrastive_token_embeddings,
+            tokenized,
+            answer_preds,
+            answers,
+            answer_types,
+            weight_dict,
         )
 
         return MDETRVQAOutput(model_output, answer_preds, loss)
@@ -175,7 +182,13 @@ def mdetr_for_vqa(
     matcher_cost_bbox: int = 5,
     matcher_cost_giou: int = 2,
     no_object_weight: float = 0.1,
+    contrastive_dim: Optional[int] = None,
+    temperature: Optional[float] = None,
 ):
+    hidden_dim = transformer_d_model
+    vqa_heads = mdetr_gqa_heads()
+    num_heads = len(vqa_heads.heads.keys())
+
     model = mdetr_resnet101(
         num_queries,
         num_classes,
@@ -187,24 +200,45 @@ def mdetr_for_vqa(
         transformer_dim_feedforward,
         transformer_dropout,
         return_intermediate_dec,
+        num_extra_query_embeddings=num_heads,
     )
-    hidden_dim = transformer_d_model
-    vqa_heads = mdetr_gqa_heads()
-    num_heads = len(vqa_heads.heads.keys())
-    vqa_embedding = nn.Embedding(num_heads, hidden_dim)
+    if contrastive_dim is not None:
+        contrastive_alignment_image_projection = nn.Linear(hidden_dim, contrastive_dim)
+        contrastive_alignment_text_projection = nn.Linear(hidden_dim, contrastive_dim)
+        contrastive_loss = partial(contrastive_alignment_loss, temperature=temperature)
+    else:
+        (
+            contrastive_alignment_image_projection,
+            contrastive_alignment_text_projection,
+            contrastive_loss,
+        ) = (None, None, None)
 
     matcher = HungarianMatcher(matcher_cost_class, matcher_cost_bbox, matcher_cost_giou)
 
     soft_token_loss = partial(
         soft_token_prediction_loss, no_object_weight=no_object_weight
     )
+
     loss = MDETRLoss(
         soft_token_loss=soft_token_loss,
         box_losses=box_losses,
+        contrastive_alignment_loss=contrastive_loss,
         vqa_losses=[masked_dict_cross_entropy, masked_dict_accuracy],
     )
 
-    return MDETRForVQA(model, vqa_embedding, vqa_heads, matcher, loss)
+    return MDETRForVQA(
+        model,
+        vqa_heads,
+        matcher,
+        loss,
+        contrastive_alignment_image_projection,
+        contrastive_alignment_text_projection,
+    )
+
+
+class MDETRPhraseGroundingOutput(NamedTuple):
+    model_output: MDETRModelOutput
+    loss: Dict[str, Tensor]
 
 
 class MDETRForPhraseGrounding(nn.Module):
@@ -271,7 +305,7 @@ class MDETRForPhraseGrounding(nn.Module):
             tokenized,
             weight_dict=weight_dict,
         )
-        return model_output, loss
+        return MDETRPhraseGroundingOutput(model_output, loss)
 
 
 def mdetr_for_phrase_grounding(
