@@ -181,10 +181,10 @@ class MultiHeadAttention(nn.Module):
         self.d_qk = dim_q // n_head
         self.d_v = dim_kv // n_head
         self.n_head = n_head
-        self.w_qs = nn.Linear(dim_q, n_head * self.d_qk, bias=add_bias)  # q
-        self.w_ks = nn.Linear(dim_kv, n_head * self.d_qk, bias=add_bias)  # k
-        self.w_vs = nn.Linear(dim_kv, n_head * self.d_v, bias=add_bias)  # v
-        self.fc = nn.Linear(n_head * self.d_v, dim_q, bias=True)  # c
+        self.query = nn.Linear(dim_q, n_head * self.d_qk, bias=add_bias)  # q
+        self.key = nn.Linear(dim_kv, n_head * self.d_qk, bias=add_bias)  # k
+        self.value = nn.Linear(dim_kv, n_head * self.d_v, bias=add_bias)  # v
+        self.output = nn.Linear(n_head * self.d_v, dim_q, bias=True)  # c
 
         self.attn = attn_module
 
@@ -206,13 +206,13 @@ class MultiHeadAttention(nn.Module):
         # If kv is specified use those inputs for cross-attention, otherwise use q
         k = v = q if kv is None else kv
         # compute q
-        q = split_multihead(self.w_qs(q), self.n_head)
+        q = split_multihead(self.query(q), self.n_head)
 
         # For causal k, v are provided step-wise so we should always compute them
         # For non-causal skip computing k, v if they have been cached
         if causal or not self.cache:
-            k = split_multihead(self.w_ks(k), self.n_head)
-            v = split_multihead(self.w_vs(v), self.n_head)
+            k = split_multihead(self.key(k), self.n_head)
+            v = split_multihead(self.value(v), self.n_head)
 
         # fast decoding by caching past key, value tensors
         if use_cache:
@@ -232,7 +232,7 @@ class MultiHeadAttention(nn.Module):
 
         a, attn_probs = self.attn(q, k, v, attention_mask, head_mask)
         a = merge_multihead(a)
-        a = self.fc(a)
+        a = self.output(a)
 
         if return_attn_weights:
             return a, attn_probs

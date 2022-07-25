@@ -141,10 +141,10 @@ class TestMultiheadAttention:
     ):
         mha = multihead_attn(1, self_attn)
         mock_projection_k = mocker.patch.object(
-            mha.w_ks, "forward", wraps=mha.w_ks.forward
+            mha.key, "forward", wraps=mha.key.forward
         )
         mock_projection_v = mocker.patch.object(
-            mha.w_vs, "forward", wraps=mha.w_vs.forward
+            mha.value, "forward", wraps=mha.value.forward
         )
 
         q = 2 * torch.ones(1, *input_shape, hidden_dim)
