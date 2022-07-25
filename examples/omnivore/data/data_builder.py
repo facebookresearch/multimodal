@@ -16,7 +16,7 @@ import torch
 import torchvision
 import torchvision.datasets.samplers as video_samplers
 import examples.omnivore.utils as utils
-from examples.omnivore.data import datasets, presets, transforms, samplers
+from examples.omnivore.data import datasets, presets, transforms
 from torch.utils.data.dataloader import default_collate
 from torchvision.transforms.functional import InterpolationMode
 
@@ -44,18 +44,12 @@ def get_image_sampler(dataset, mode, args):
     # Get sampler for image with rgb or rgbd channel dataset
     if args.distributed:
         if mode == "train":
-            if hasattr(args, "ra_sampler") and args.ra_sampler:
-                sampler = sampler.RASampler(
-                    dataset, shuffle=True, repetitions=args.ra_reps
-                )
-            else:
-                sampler = torch.utils.data.distributed.DistributedSampler(
-                    dataset, shuffle=True
-                )
+            shuffle = True
         elif mode == "val":
-            sampler = torch.utils.data.distributed.DistributedSampler(
-                dataset, shuffle=False
-            )
+            shuffle = False
+        sampler = torch.utils.data.distributed.DistributedSampler(
+            dataset, shuffle=False
+        )
     else:
         if mode == "train":
             sampler = torch.utils.data.RandomSampler(dataset)

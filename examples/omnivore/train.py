@@ -671,17 +671,6 @@ def get_args_parser(add_help=True):
         help="the maximum gradient norm (default None)",
     )
     parser.add_argument(
-        "--ra-sampler",
-        action="store_true",
-        help="whether to use Repeated Augmentation in training",
-    )
-    parser.add_argument(
-        "--ra-reps",
-        default=3,
-        type=int,
-        help="number of repetitions for Repeated Augmentation (default: 3)",
-    )
-    parser.add_argument(
         "--weights", default=None, type=str, help="the weights enum name to load"
     )
     parser.add_argument(
