@@ -542,7 +542,7 @@ def draw_game_frame(
     win_h = game.video_res
 
     # convert eaten coins to a set for faster checking coordinates
-    coins_eaten_set = set([tuple(coin_coord) for coin_coord in frame.coins_eaten])
+    coins_eaten_set = {tuple(coin_coord) for coin_coord in frame.coins_eaten}
 
     if not skip_background and not only_mugen:
         for y in range(y_start, y_end):
