@@ -16,6 +16,7 @@ from torchmetrics import Recall
 from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
     ContrastiveLossWithTemperature,
 )
+from torchmultimodal.utils.common import get_current_device
 
 
 class VideoCLIPLightningModule(LightningModule):
@@ -67,7 +68,7 @@ class VideoCLIPLightningModule(LightningModule):
     def _compute_recall(self, text_embedding, video_embedding):
         similarity_matrix = text_embedding @ video_embedding.T
         num_samples = similarity_matrix.shape[0]
-        target_matrix = torch.diag(torch.ones(num_samples)).to(dtype=int)
+        target_matrix = torch.eye(n=num_samples, dtype=int, device=get_current_device())
 
         for k in self.recall_ks:
             v2t_recall = self.metrics[f"v2t_recall_{k}"]
