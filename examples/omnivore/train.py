@@ -178,8 +178,8 @@ def evaluate(
         if modality == "video":
             # We aggregate predictions of all clips per video to get video-level accuracy
             # For this, we prepare a tensor to contain the aggregation
-            num_videos = len(data_loader.iterables[i].dataset.samples)
-            num_video_classes = len(data_loader.iterables[i].dataset.classes)
+            num_videos = len(data_loader.data_loaders[i].dataset.samples)
+            num_video_classes = len(data_loader.data_loaders[i].dataset.classes)
             agg_preds = torch.zeros(
                 (num_videos, num_video_classes), dtype=torch.float32, device=device
             )

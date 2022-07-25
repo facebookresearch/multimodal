@@ -219,11 +219,11 @@ class ConcatDataLoader:
     With repeat_factors, user can do upsampling or downsampling the data loader.
 
     Args:
-        iterables: the iterable objects that will be grouped
+        data_loaders: the iterable objects that will be grouped
         output_keys: List of keys that is used to identify the iterable output.
-            The list length should be the same as number of iterables.
+            The list length should be the same as number of data_loaders.
         repeat_factors: List of numbers that represent the upsampling / downsampling factor
-            to the coresponding iterables. Should have same length as iterables.
+            to the coresponding data_loaders. Should have same length as data_loaders.
         shuffle: Boolean that determine whether we should shuffle the ordering of the
             data loaders (default: ``False``)
         seed: the seed for randomness (default: ``42``)
