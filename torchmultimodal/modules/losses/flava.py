@@ -11,7 +11,6 @@ from typing import Any, Callable, Optional, Union
 
 import torch
 from torch import nn, Tensor
-from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
     contrastive_loss_with_temperature,
     ContrastiveLossOutput,
@@ -130,45 +129,6 @@ class ITMLoss(nn.Module):
         return ITMLossOutput(logits=scores, loss=loss)
 
 
-class MaskedPredictionHead(nn.Module):
-    def __init__(
-        self,
-        hidden_size: int = 768,
-        vocab_size: int = 30522,
-        transform_act_fn: Callable[[Tensor], Tensor] = nn.functional.gelu,
-        layer_norm_eps: float = 1e-5,
-        use_fp32_layer_norm: bool = True,
-        **kwargs: Any,
-    ):
-        super().__init__()
-
-        self.dense = nn.Linear(hidden_size, hidden_size)
-        self.transform_act_fn = transform_act_fn
-
-        self.layer_norm: nn.LayerNorm
-        if use_fp32_layer_norm:
-            self.layer_norm = Fp32LayerNorm(hidden_size, eps=layer_norm_eps)
-        else:
-            self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
-
-        # The output weights are the same as the input embeddings, but there is
-        # an output-only bias for each token.
-        self.decoder = nn.Linear(hidden_size, vocab_size, bias=False)
-
-        self.bias = nn.Parameter(torch.zeros(vocab_size))
-
-        # Need a link between the two variables so that the bias is
-        # correctly resized with `resize_token_embeddings`
-        self.decoder.bias = self.bias
-
-    def forward(self, hidden_states: Tensor) -> Tensor:
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.transform_act_fn(hidden_states)
-        hidden_states = self.layer_norm(hidden_states)
-        hidden_states = self.decoder(hidden_states)
-        return hidden_states
-
-
 class MaskedPredictionLoss(nn.Module):
     def __init__(
         self,
@@ -181,36 +141,29 @@ class MaskedPredictionLoss(nn.Module):
         **kwargs: Any,
     ):
         super().__init__()
-
-        self.cls = MaskedPredictionHead(
-            hidden_size=hidden_size,
-            vocab_size=vocab_size,
-            transform_act_fn=transform_act_fn,
-            layer_norm_eps=layer_norm_eps,
-        )
         self.ignore_index = ignore_index
         self.vocab_size = vocab_size
         self.ce_loss = nn.CrossEntropyLoss(ignore_index=ignore_index)
         self.ignore_nan = ignore_nan
 
     def forward(
-        self, hidden_states: Tensor, masked_labels: Optional[Tensor] = None
+        self,
+        prediction: Tensor,
+        masked_labels: Optional[Tensor] = None,
+        pos_mask: Optional[Tensor] = None,
     ) -> MaskedPredictionLossOutput:
-        if self.training:
-            assert_labels_are_present(masked_labels, "masked labels")
 
-        if masked_labels is not None:
-            masked_tokens = masked_labels.ne(self.ignore_index)
-            masked_labels = masked_labels[masked_tokens]
-            sequence_output = hidden_states[masked_tokens, :]
-        else:
-            sequence_output = hidden_states
-
-        prediction = self.cls(sequence_output)
+        if pos_mask is not None:
+            masked_labels = masked_labels[pos_mask]
+        masked_tokens = masked_labels.ne(self.ignore_index)
+        masked_labels = masked_labels[masked_tokens]
 
         if masked_labels is None:
             masked_loss = prediction.sum() * 0
         else:
+            if pos_mask is not None:
+                prediction = prediction[pos_mask]
+            prediction = prediction[masked_tokens, :]
             masked_loss = self.ce_loss(
                 prediction.view(-1, self.vocab_size),
                 masked_labels.view(-1),
@@ -371,6 +324,10 @@ class FLAVAPretrainingLoss(nn.Module):
         projected_image_embeddings: Optional[Tensor] = None,
         projected_text_embeddings: Optional[Tensor] = None,
         itm_logits: Optional[Tensor] = None,
+        mlm_head_output: Optional[Tensor] = None,
+        mim_head_output: Optional[Tensor] = None,
+        mmm_mlm_head_output: Optional[Tensor] = None,
+        mmm_mim_head_output: Optional[Tensor] = None,
     ) -> FLAVAPretrainingLossOutput:
         outputs = FLAVAPretrainingLossOutput()
         pos_mask = None
@@ -380,28 +337,28 @@ class FLAVAPretrainingLoss(nn.Module):
         # text, but that is a research question :)
 
         if (
-            image_masked_sequence is not None
+            mim_head_output is not None
             and self.mim_weight > 0
             and multimodal_masked_sequence is None
         ):
             # Remove CLS token from image_masked_sequence
-
             start_index = -mim_labels.size(1) if mim_labels is not None else 1
             outputs.mim_output = self.mim_loss(
-                image_masked_sequence[:, start_index:, :], mim_labels
+                mim_head_output[:, start_index:, :], mim_labels
             )
             outputs.mim_output.loss *= self.mim_weight
             outputs.losses.mim_loss = outputs.mim_output.loss
 
         # Check multimodal_masked_sequence to make sure this is unimodal case
+
         if (
-            text_masked_sequence is not None
+            mlm_head_output is not None
             and self.mlm_weight > 0
             and multimodal_masked_sequence is None
         ):
             start_index = -mlm_labels.size(1) if mlm_labels is not None else 1
             outputs.mlm_output = self.mlm_loss(
-                text_masked_sequence[:, start_index:, :], mlm_labels
+                mlm_head_output[:, start_index:, :], mlm_labels
             )
             outputs.mlm_output.loss *= self.mlm_weight
             outputs.losses.mlm_loss = outputs.mlm_output.loss
@@ -422,27 +379,14 @@ class FLAVAPretrainingLoss(nn.Module):
             outputs.itm_output.loss *= self.itm_loss_weight
             outputs.losses.itm_loss = outputs.itm_output.loss
 
-            multimodal_masked_sequence = multimodal_masked_sequence[pos_mask]
-            if mlm_labels is not None:
-                mlm_labels = mlm_labels[pos_mask]
-            if mim_labels is not None:
-                mim_labels = mim_labels[pos_mask]
-
-        if multimodal_masked_sequence is not None and self.mmm_text_loss_weight > 0:
-            start_index = (
-                -mlm_labels.size(1)
-                if mlm_labels is not None
-                else -(text_masked_sequence.size(1) - 1)
-            )
-            sequence_for_text = multimodal_masked_sequence[:, start_index:, :]
+        if mmm_mlm_head_output is not None and self.mmm_text_loss_weight > 0:
             outputs.mmm_text_output = self.mmm_loss.mlm(
-                sequence_for_text,
-                mlm_labels,
+                mmm_mlm_head_output, mlm_labels, pos_mask
             )  # type: ignore
             outputs.mmm_text_output.loss *= self.mmm_text_loss_weight
             outputs.losses.mmm_text_loss = outputs.mmm_text_output.loss
 
-        if multimodal_masked_sequence is not None and self.mmm_image_loss_weight > 0:
+        if mmm_mim_head_output is not None and self.mmm_image_loss_weight > 0:
             # Starts from 2 because of 2 CLS, one for multimodal encoder and one
             # that comes from image encoder.
             total_indices = (
@@ -450,10 +394,8 @@ class FLAVAPretrainingLoss(nn.Module):
                 if mlm_labels is not None
                 else (image_masked_sequence.size(1) - 1)
             )
-            sequence_for_image = multimodal_masked_sequence[:, 2 : 2 + total_indices, :]
             outputs.mmm_image_output = self.mmm_loss.mim(
-                sequence_for_image,
-                mim_labels,
+                mmm_mim_head_output, mim_labels, pos_mask
             )  # type: ignore
             outputs.mmm_image_output.loss *= self.mmm_image_loss_weight
             outputs.losses.mmm_image_loss = outputs.mmm_image_output.loss

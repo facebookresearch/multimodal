@@ -60,7 +60,7 @@ FLAVAOutput.__annotations__ = {
 
 
 FLAVA_FOR_PRETRAINED_MAPPING = {
-    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_for_pretraining_cl_itm.pt"
+    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_mp.pt"
 }
 
 
@@ -309,6 +309,45 @@ class ITMHead(nn.Module):
         return logits
 
 
+class MaskedPredictionHead(nn.Module):
+    def __init__(
+        self,
+        hidden_size: int = 768,
+        vocab_size: int = 30522,
+        transform_act_fn: Callable[[Tensor], Tensor] = nn.functional.gelu,
+        layer_norm_eps: float = 1e-5,
+        use_fp32_layer_norm: bool = True,
+        **kwargs: Any,
+    ):
+        super().__init__()
+
+        self.dense = nn.Linear(hidden_size, hidden_size)
+        self.transform_act_fn = transform_act_fn
+
+        self.layer_norm: nn.LayerNorm
+        if use_fp32_layer_norm:
+            self.layer_norm = Fp32LayerNorm(hidden_size, eps=layer_norm_eps)
+        else:
+            self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
+
+        # The output weights are the same as the input embeddings, but there is
+        # an output-only bias for each token.
+        self.decoder = nn.Linear(hidden_size, vocab_size, bias=False)
+
+        self.bias = nn.Parameter(torch.zeros(vocab_size))
+
+        # Need a link between the two variables so that the bias is
+        # correctly resized with `resize_token_embeddings`
+        self.decoder.bias = self.bias
+
+    def forward(self, hidden_states: Tensor) -> Tensor:
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.transform_act_fn(hidden_states)
+        hidden_states = self.layer_norm(hidden_states)
+        hidden_states = self.decoder(hidden_states)
+        return hidden_states
+
+
 class FLAVAForPreTraining(nn.Module, PretrainedMixin):
     # TODOs:
     # 1. Expose logit scale
@@ -320,12 +359,20 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
         image_codebook: nn.Module,
         loss: nn.Module,
         itm_head: nn.Module,
+        mlm_head: nn.Module,
+        mim_head: nn.Module,
+        mmm_mlm_head: nn.Module,
+        mmm_mim_head: nn.Module,
     ):
         super().__init__()
         self.model = model
         self.image_codebook = image_codebook
         self.loss = loss
         self.itm_head = itm_head
+        self.mlm_head = mlm_head
+        self.mim_head = mim_head
+        self.mmm_mlm_head = mmm_mlm_head
+        self.mmm_mim_head = mmm_mim_head
 
     def encode_image(
         self,
@@ -378,6 +425,25 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
         if multimodal_masked_sequence is not None:
             itm_logits = self.itm_head(multimodal_masked_sequence)
 
+        image_masked_sequence = flava_output.image_masked.last_hidden_state
+        text_masked_sequence = flava_output.text_masked.last_hidden_state
+        mlm_head_output = (
+            mim_head_output
+        ) = mmm_mlm_head_output = mmm_mim_head_output = None
+
+        if image_masked_sequence is not None and multimodal_masked_sequence is None:
+            mim_head_output = self.mim_head(image_masked_sequence)
+        if text_masked_sequence is not None and multimodal_masked_sequence is None:
+            mlm_head_output = self.mlm_head(text_masked_sequence)
+        if multimodal_masked_sequence is not None:
+            start_index = -(text_masked_sequence.size(1))
+            mmm_text_sequence = multimodal_masked_sequence[:, start_index:, :]
+            mmm_mlm_head_output = self.mmm_mlm_head(mmm_text_sequence)
+        if multimodal_masked_sequence is not None:
+            total_indices = image_masked_sequence.size(1) - 1
+            mmm_image_sequence = multimodal_masked_sequence[:, 2 : 2 + total_indices, :]
+            mmm_mim_head_output = self.mmm_mim_head(mmm_image_sequence)
+
         return self.loss(
             image_sequence=flava_output.image.last_hidden_state,
             text_sequence=flava_output.text.last_hidden_state,
@@ -393,6 +459,10 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
             projected_image_embeddings=flava_output.projected_image_embeddings,
             projected_text_embeddings=flava_output.projected_text_embeddings,
             itm_logits=itm_logits,
+            mlm_head_output=mlm_head_output,
+            mim_head_output=mim_head_output,
+            mmm_mlm_head_output=mmm_mlm_head_output,
+            mmm_mim_head_output=mmm_mim_head_output,
         )
 
 
@@ -544,17 +614,36 @@ def flava_model(
 def flava_model_for_pretraining(
     codebook_image_size: int = 112,
     pretrained_model_key: Optional[str] = None,
+    image_vocab_size: int = 8192,
     **flava_model_kwargs: Any,
     # TODO: Add parameters for loss here
 ) -> FLAVAForPreTraining:
     model = flava_model(**flava_model_kwargs)
     hidden_size = flava_model_kwargs.get("hidden_size") or 768
+    text_vocab_size = flava_model_kwargs.get("vocab_size") or 30522
     itm_head = ITMHead(hidden_size)
+    mlm_head = MaskedPredictionHead(hidden_size=hidden_size, vocab_size=text_vocab_size)
+    mim_head = MaskedPredictionHead(
+        hidden_size=hidden_size, vocab_size=image_vocab_size
+    )
+    mmm_mlm_head = MaskedPredictionHead(
+        hidden_size=hidden_size, vocab_size=text_vocab_size
+    )
+    mmm_mim_head = MaskedPredictionHead(
+        hidden_size=hidden_size, vocab_size=image_vocab_size
+    )
     losses = FLAVAPretrainingLoss()
     codebook = DalleVAEEncoder(image_size=codebook_image_size)
 
     flava = FLAVAForPreTraining(
-        model=model, image_codebook=codebook, loss=losses, itm_head=itm_head
+        model=model,
+        image_codebook=codebook,
+        loss=losses,
+        itm_head=itm_head,
+        mlm_head=mlm_head,
+        mim_head=mim_head,
+        mmm_mlm_head=mmm_mlm_head,
+        mmm_mim_head=mmm_mim_head,
     )
 
     if pretrained_model_key is not None:
