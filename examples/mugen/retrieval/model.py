@@ -9,8 +9,6 @@ from typing import Any, Tuple
 
 import torch
 
-import torch
-
 from examples.mugen.retrieval.video_clip import videoclip
 from pytorch_lightning import LightningModule
 from torchmetrics import Recall
@@ -55,7 +53,7 @@ class VideoCLIPLightningModule(LightningModule):
         )
         self.lr = learning_rate
         self.weight_decay = weight_decay
-        
+
         self.recall_ks = set(recall_ks)
         if len(self.recall_ks) != len(recall_ks):
             warnings.warn("Duplicate `k` values in `recall_ks` are ignored.")
