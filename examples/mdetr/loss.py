@@ -80,6 +80,20 @@ def contrastive_alignment_loss(
     return tot_loss / num_boxes
 
 
+def char_to_token(
+    encodings,
+    batch_or_char_index: int,
+    char_index: Optional[int] = None,
+    sequence_index: int = 0,
+):
+    if char_index is not None:
+        batch_index = batch_or_char_index
+    else:
+        batch_index = 0
+        char_index = batch_or_char_index
+    return encodings[batch_index].char_to_token(char_index, sequence_index)
+
+
 def construct_positive_map(
     logits: Tensor,
     target_tokens: List[List[List[int]]],
@@ -93,8 +107,8 @@ def construct_positive_map(
         cur_tokens = [tgt[j] for j in idx_tgt]
         for j, tok_list in enumerate(cur_tokens):
             for (beg, end) in tok_list:
-                beg_pos = tokenized.char_to_token(i, beg)
-                end_pos = tokenized.char_to_token(i, end - 1)
+                beg_pos = char_to_token(tokenized, i, beg)
+                end_pos = char_to_token(tokenized, i, end - 1)
 
                 if beg_pos is None and end_pos is None:
                     raise ValueError(
@@ -149,10 +163,10 @@ def masked_dict_cross_entropy(
             mask = torch.ones_like(pred_dict[k])
         else:
             mask = mask_dict[k]
+        norm_factor = mask.sum() if mask.any() else 1.0
         losses[f"{k}_loss"] = (
-            F.cross_entropy(pred_dict[k][mask], label_dict[k][mask])
-            if mask.any()
-            else torch.as_tensor(0.0, device=mask.device)
+            F.cross_entropy(pred_dict[k], label_dict[k]).masked_fill(~mask, 0).sum()
+            / norm_factor
         )
 
     return losses
@@ -269,7 +283,11 @@ class MDETRLoss(nn.Module):
         return loss_dict
 
 
-def build_weight_dict(args, vqa_keys: Optional[Iterable[str]] = None):
+def build_weight_dict(
+    args,
+    vqa_keys: Optional[Iterable[str]] = None,
+    include_contrastive_loss: bool = True,
+):
     weight_dict = {
         "soft_token_loss": args.ce_loss_coef,
         "l1_loss": args.bbox_loss_coef,
@@ -278,4 +296,6 @@ def build_weight_dict(args, vqa_keys: Optional[Iterable[str]] = None):
     if vqa_keys is not None:
         for k in vqa_keys:
             weight_dict.update({f"{k}_loss": args.qa_loss_coef})
+    if include_contrastive_loss:
+        weight_dict.update(contrastive_alignment_loss=args.contrastive_align_loss_coef)
     return weight_dict
