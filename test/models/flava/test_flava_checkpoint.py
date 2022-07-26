@@ -32,7 +32,7 @@ class TestFLAVACheckpoint:
     @pytest.fixture
     def inputs_classification(self, image_input, text_input):
         def gather_inputs(required_embedding):
-            labels = torch.randint(0, 2, (2,), dtype=torch.long)
+            labels = torch.tensor((0, 1), dtype=torch.long)
             return image_input, text_input, required_embedding, labels
 
         return gather_inputs
@@ -88,21 +88,25 @@ class TestFLAVACheckpoint:
             assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_flava_model_for_classification(
-        self, classification_model, inputs_classification
+        self, inputs_classification, classification_model
     ):
-        output = classification_model(*inputs_classification("mm"))
+        mm_input = inputs_classification("mm")
+        image_input = inputs_classification("image")
+        text_input = inputs_classification("text")
+        classification_model.eval()
+        output = classification_model(*mm_input)
         actual = output.loss
-        expected = torch.tensor(1.1017)
+        expected = torch.tensor(1.0827)
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
-        output = classification_model(*inputs_classification("image"))
+        output = classification_model(*image_input)
         actual = output.loss
-        expected = torch.tensor(1.0912)
+        expected = torch.tensor(1.0849)
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
-        output = classification_model(*inputs_classification("text"))
+        output = classification_model(*text_input)
         actual = output.loss
-        expected = torch.tensor(1.1136)
+        expected = torch.tensor(1.0822)
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_flava_model_for_pretraining(self, pretraining_model, inputs_pretraining):
