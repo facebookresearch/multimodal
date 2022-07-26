@@ -48,7 +48,7 @@ def get_image_sampler(dataset, mode, args):
         elif mode == "val":
             shuffle = False
         sampler = torch.utils.data.distributed.DistributedSampler(
-            dataset, shuffle=False
+            dataset, shuffle=shuffle
         )
     else:
         if mode == "train":

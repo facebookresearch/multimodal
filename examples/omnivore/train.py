@@ -385,6 +385,7 @@ def main(args):
 
     start_epoch = 0
     if args.resume:
+        logger.info(f"Resuming from checkpoint: {args.resume}")
         checkpoint = torch.load(args.resume, map_location="cpu")
         model_without_ddp.load_state_dict(checkpoint["model"])
         if not args.test_only:
@@ -582,12 +583,6 @@ def get_args_parser(add_help=True):
         "--output-dir", default=".", type=str, help="path to save outputs"
     )
     parser.add_argument("--resume", default="", type=str, help="path of checkpoint")
-    parser.add_argument(
-        "--cache-dataset",
-        dest="cache_dataset",
-        help="Cache the datasets for quicker initialization. It also serializes the transforms",
-        action="store_true",
-    )
     parser.add_argument(
         "--sync-bn",
         dest="sync_bn",
