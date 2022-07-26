@@ -8,10 +8,14 @@ import av
 import numpy as np
 
 
+# Audio constants are from MUGEN's audio VQVAE implementation
+# (https://github.com/mugen-org/MUGEN_baseline/blob/b60d229/lib/models/audio_vqvae/hparams.py)
 AUDIO_SAMPLE_RATE = 22050
 AUDIO_SAMPLE_LENGTH = AUDIO_SAMPLE_RATE * 3.2  # each video is 3.2 seconds
 
 
+# `load_audio` function is from OpenAI's jukebox library
+# (https://github.com/openai/jukebox/blob/08efbbc/jukebox/utils/io.py)
 def load_audio(
     file,
     sr,
