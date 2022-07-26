@@ -79,7 +79,7 @@ class MDETR(nn.Module):
         pos_embed: nn.Module,
         text_projection: nn.Module,
         image_projection: nn.Module,
-        query_embed: nn.Module,
+        query_embed: nn.Embedding,
         bbox_embed: nn.Module,
         class_embed: nn.Module,
         extra_query_embeddings: Optional[nn.Embedding] = None,
@@ -673,7 +673,7 @@ def mdetr_resnet101(
     pos_embed = PositionEmbedding2D(128, scale=2 * math.pi)
     # Size of layer4 output in ResNet101. See
     # https://github.com/pytorch/vision/blob/main/torchvision/models/resnet.py#L204
-    image_backbone.num_channels = 2048
+    image_backbone_num_channels = 2048
     text_encoder = mdetr_roberta_text_encoder()
     transformer = mdetr_transformer(
         transformer_d_model,
@@ -686,7 +686,7 @@ def mdetr_resnet101(
     )
     hidden_dim = transformer_d_model
     text_projection = FeatureResizer(embedding_dim, hidden_dim)
-    image_projection = nn.Conv2d(image_backbone.num_channels, hidden_dim, kernel_size=1)
+    image_projection = nn.Conv2d(image_backbone_num_channels, hidden_dim, kernel_size=1)
     query_embed = nn.Embedding(num_queries, hidden_dim)
     # 4 gives the number of coordinates that represent the bounding box
     bbox_embed = MLP(hidden_dim, 4, [hidden_dim] * 2, dropout=0.0)
