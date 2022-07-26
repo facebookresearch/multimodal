@@ -334,14 +334,15 @@ def scaled_dot_product_attention(
         attn = attn.masked_fill(attention_mask == 0, float("-inf"))
     # Normalize the attention scores to probabilities
     attn_float = F.softmax(attn, dim=-1)
-    attn = attn_float.type_as(attn)  # b, h, (d1, ..., dn), c
+    attn = attn_float.type_as(attn)  # b, h, d1, ..., q_dn, k_dn
     # This is actually dropping out entire tokens to attend to, which might
     # seem a bit unusual, but is taken from the original Transformer paper.
     attn = F.dropout(attn, p=attn_dropout)
     # Mask heads if we want to
     if head_mask is not None:
         attn = attn * head_mask
-    a = torch.matmul(attn, v)  # b, h, (d1, ..., dn), c
+    # For each query sum over the key/value dim with attention weights
+    a = torch.matmul(attn, v)  # b, h, d1, ..., q_dn, c
 
     return a, attn
 
