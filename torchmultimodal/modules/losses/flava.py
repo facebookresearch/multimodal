@@ -110,20 +110,15 @@ class ITMLoss(nn.Module):
         **kwargs: Any,
     ):
         super().__init__()
-        self.pooler = Pooler(hidden_size=hidden_size)
-        self.cls = TwoWayHead(hidden_size=hidden_size)
         self.ce_loss = nn.CrossEntropyLoss(ignore_index=ignore_index)
 
     def forward(
         self,
-        hidden_states: Tensor,
+        scores: Tensor,
         labels: Tensor,
     ) -> ITMLossOutput:
         if self.training:
             assert_labels_are_present(labels, "itm labels")
-
-        pooled_output = self.pooler(hidden_states)
-        scores = self.cls(pooled_output)
 
         if labels is None:
             loss = pooled_output.sum() * 0
@@ -375,6 +370,7 @@ class FLAVAPretrainingLoss(nn.Module):
         mlm_labels: Optional[Tensor] = None,
         projected_image_embeddings: Optional[Tensor] = None,
         projected_text_embeddings: Optional[Tensor] = None,
+        itm_logits: Optional[Tensor] = None,
     ) -> FLAVAPretrainingLossOutput:
         outputs = FLAVAPretrainingLossOutput()
         pos_mask = None
@@ -411,6 +407,7 @@ class FLAVAPretrainingLoss(nn.Module):
             outputs.losses.mlm_loss = outputs.mlm_output.loss
 
         if multimodal_masked_sequence is not None and self.itm_loss_weight > 0:
+            assert itm_logits is not None
             if itm_labels is not None:
                 pos_pairs = itm_labels.ne(0)
                 pos_mask = torch.where(
@@ -421,7 +418,7 @@ class FLAVAPretrainingLoss(nn.Module):
                     multimodal_masked_sequence.size(0),
                     device=multimodal_masked_sequence.device,
                 ).bool()
-            outputs.itm_output = self.itm_loss(multimodal_masked_sequence, itm_labels)
+            outputs.itm_output = self.itm_loss(itm_logits, itm_labels)
             outputs.itm_output.loss *= self.itm_loss_weight
             outputs.losses.itm_loss = outputs.itm_output.loss
 
