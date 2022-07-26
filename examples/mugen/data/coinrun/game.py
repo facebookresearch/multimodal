@@ -149,7 +149,7 @@ class Agent:
         collected_coin=False,
         collected_gem=False,
         power_up_mode=False,
-        **kwargs
+        **kwargs,
     ):
         self.x = x
         self.y = y
@@ -248,7 +248,7 @@ class Monster:
         time=0,
         anim_freq=1,
         monster_dying_frame_cnt=0,
-        **kwargs
+        **kwargs,
     ):
         self.m_id = m_id
         self.x = x
