@@ -18,6 +18,59 @@ from torchmultimodal.utils.common import checkpoint_wrapper
 
 # TODO: Add docstring
 
+# TODO: add right shift
+
+# TODO: Implement generation utility in common util with RightShift
+# TODO: Add text_video_gpt.py
+
+"""
+Old MUGEN implementation
+class P2QAttentionStack:
+
+    def __init__(self, embedding_dim):
+        super().__init__()
+
+        self.right_shift = RightShift(embedding_dim)
+
+def forward(self, in_modality, out_modality, decode_step):
+    if out_modality is None:
+        # Skip inferencing if ``decode_step = 0`` as decoding requires previous data point.
+        # ``decode_step`` ranges between ``(0, in_seq_len]`` controlled by the GPT model.
+        # When ``decode_step = in_seq_len``, the first output modality is generated from the last input
+        # modality.
+        if decode_step > 0:
+            in_modality = self._get_inference_embeddings(
+                in_modality, self.in_pos_emb, decode_step
+            )
+        x = in_modality
+    elif in_modality is None:
+        # Continue to generate output-modality sequence from ``in_seq_len + 1``(inclusive) to
+        # ``in_seq_len + out_seq_len - 1``(inclusive).
+        x = self._get_inference_embeddings(
+            out_modality,
+            self.out_pos_emb,
+            decode_step - self.in_seq_len,
+        )
+    # Trigger training mode if both input/output-modality sequences are present as we know the ground
+    # truth at each point.
+    else:
+        in_modality = self._get_training_embeddings(
+            in_modality, self.in_pos_emb
+        )
+        out_modality = self._get_training_embeddings(
+            out_modality, self.out_pos_emb
+        )
+        x = torch.cat((in_modality, out_modality), 1)
+    # Prepend start-of-sentence token to decode from
+    if decode_step is not None and decode_step == 0:
+        x = self.right_shift(x, decode_step)
+
+    for net in self.attention_nets:
+        x = net(x, decode_step, decode_idx)
+
+    return x
+"""
+
 
 class TransformerDecoderOutput(NamedTuple):
     last_hidden_states: Tensor
