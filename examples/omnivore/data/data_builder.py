@@ -58,23 +58,24 @@ def get_image_sampler(dataset, mode, args):
     return sampler
 
 
-def construct_data_loader(dataset, sampler, num_workers, args, drop_last=False):
+def construct_data_loader(dataset, sampler, num_workers, mode, args, drop_last=False):
     collate_fn = None
-    num_classes = len(dataset.classes)
-    mixup_transforms = []
-    if args.mixup_alpha > 0.0:
-        mixup_transforms.append(
-            transforms.RandomMixup(num_classes, p=1.0, alpha=args.mixup_alpha)
-        )
-    if args.cutmix_alpha > 0.0:
-        mixup_transforms.append(
-            transforms.RandomCutmix(num_classes, p=1.0, alpha=args.cutmix_alpha)
-        )
-    if mixup_transforms:
-        mixupcutmix = torchvision.transforms.RandomChoice(mixup_transforms)
-        # Since not all dataset return tuple of same length, we take the
-        # first two elements that assumed to be image/video and label
-        collate_fn = lambda batch: mixupcutmix(*(default_collate(batch)[:2]))  # noqa: E731
+    if mode == "train":
+        num_classes = len(dataset.classes)
+        mixup_transforms = []
+        if args.mixup_alpha > 0.0:
+            mixup_transforms.append(
+                transforms.RandomMixup(num_classes, p=1.0, alpha=args.mixup_alpha)
+            )
+        if args.cutmix_alpha > 0.0:
+            mixup_transforms.append(
+                transforms.RandomCutmix(num_classes, p=1.0, alpha=args.cutmix_alpha)
+            )
+        if mixup_transforms:
+            mixupcutmix = torchvision.transforms.RandomChoice(mixup_transforms)
+            # Since not all dataset return tuple of same length, we take the
+            # first two elements for mixupcutmix during training
+            collate_fn = lambda batch: mixupcutmix(*(default_collate(batch)[:2]))  # noqa: E731
 
     data_loader = torch.utils.data.DataLoader(
         dataset,
@@ -162,7 +163,7 @@ def get_imagenet_data_loader(mode, num_workers, args):
     dataset_dir = os.path.join(imagenet_path, mode)
     dataset = torchvision.datasets.folder.ImageFolder(dataset_dir, preset)
     sampler = get_image_sampler(dataset, mode, args)
-    data_loader = construct_data_loader(dataset, sampler, num_workers, args, drop_last=drop_last)
+    data_loader = construct_data_loader(dataset, sampler, num_workers, mode, args, drop_last=drop_last)
 
     logger.info(f"Finish getting {mode} imagenet data_loader")
     return data_loader
@@ -197,7 +198,7 @@ def get_kinetics_data_loader(mode, num_workers, args):
     logger.info(f"Took {time.time() - start_time} seconds to get {mode} video dataset")
 
     sampler = get_video_sampler(dataset, mode, args)
-    data_loader = construct_data_loader(dataset, sampler, num_workers, args, drop_last=drop_last)
+    data_loader = construct_data_loader(dataset, sampler, num_workers, mode, args, drop_last=drop_last)
     logger.info(f"Finish getting {mode} video data_loader")
     return data_loader
 
@@ -231,7 +232,7 @@ def get_sunrgbd_data_loader(mode, num_workers, args):
         root=sunrgbd_path, split=mode, transform=preset
     )
     sampler = get_image_sampler(dataset, mode, args)
-    data_loader = construct_data_loader(dataset, sampler, num_workers, args, drop_last=drop_last)
+    data_loader = construct_data_loader(dataset, sampler, num_workers, mode, args, drop_last=drop_last)
     logger.info(f"Finish getting {mode} depth dataset")
     return data_loader
 
