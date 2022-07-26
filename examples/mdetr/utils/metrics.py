@@ -10,6 +10,7 @@ Various utilities related to track and report metrics
 import datetime
 import time
 from collections import defaultdict, deque
+from typing import Dict, Sequence
 
 import torch
 import torch.distributed as dist
@@ -187,20 +188,44 @@ class MetricLogger(object):
         )
 
 
-@torch.no_grad()
-def accuracy(output, target, topk=(1,)):
-    """Computes the precision@k for the specified values of k"""
-    if target.numel() == 0:
-        return [torch.zeros([], device=output.device)]
-    maxk = max(topk)
-    batch_size = target.size(0)
+class RecallTracker:
+    """Utility class to track recall@k for various k, split by categories"""
 
-    _, pred = output.topk(maxk, 1, True, True)
-    pred = pred.t()
-    correct = pred.eq(target.view(1, -1).expand_as(pred))
+    def __init__(self, topk: Sequence[int]):
+        """
+        Parameters:
+           - topk : tuple of ints corresponding to the recalls being tracked (eg, recall@1, recall@10, ...)
+        """
 
-    res = []
-    for k in topk:
-        correct_k = correct[:k].view(-1).float().sum(0)
-        res.append(correct_k.mul_(100.0 / batch_size))
-    return res
+        self.total_byk_bycat: Dict[int, Dict[str, int]] = {
+            k: defaultdict(int) for k in topk
+        }
+        self.positives_byk_bycat: Dict[int, Dict[str, int]] = {
+            k: defaultdict(int) for k in topk
+        }
+
+    def add_positive(self, k: int, category: str):
+        """Log a positive hit @k for given category"""
+        if k not in self.total_byk_bycat:
+            raise RuntimeError(f"{k} is not a valid recall threshold")
+        self.total_byk_bycat[k][category] += 1
+        self.positives_byk_bycat[k][category] += 1
+
+    def add_negative(self, k: int, category: str):
+        """Log a negative hit @k for given category"""
+        if k not in self.total_byk_bycat:
+            raise RuntimeError(f"{k} is not a valid recall threshold")
+        self.total_byk_bycat[k][category] += 1
+
+    def report(self) -> Dict[int, Dict[str, float]]:
+        """Return a condensed report of the results as a dict of dict.
+        report[k][cat] is the recall@k for the given category
+        """
+        report: Dict[int, Dict[str, float]] = {}
+        for k in self.total_byk_bycat:
+            assert k in self.positives_byk_bycat
+            report[k] = {
+                cat: self.positives_byk_bycat[k][cat] / self.total_byk_bycat[k][cat]
+                for cat in self.total_byk_bycat[k]
+            }
+        return report

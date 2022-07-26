@@ -6,7 +6,7 @@
 
 from collections import OrderedDict
 from functools import partial
-from typing import Dict, List, NamedTuple, Optional
+from typing import Any, Dict, List, NamedTuple, Optional
 
 import torch.nn.functional as F
 from examples.mdetr.loss import (
@@ -19,8 +19,6 @@ from examples.mdetr.matcher import HungarianMatcher
 from torch import nn, Tensor
 from torchmultimodal.models.mdetr import MDETR, mdetr_resnet101, MDETRModelOutput
 from torchmultimodal.modules.losses.mdetr import box_losses, soft_token_prediction_loss
-
-from transformers import BatchEncoding
 
 
 class MultiHead(nn.Module):
@@ -96,7 +94,7 @@ class MDETRForVQA(nn.Module):
             contrastive_alignment_text_projection
         )
 
-    def _is_eligible_for_contrastive(self, tokenized: Optional[BatchEncoding]):
+    def _is_eligible_for_contrastive(self, tokenized: Optional[Any]):
         if (
             self.contrastive_alignment_image_projection is None
             or self.contrastive_alignment_text_projection is None
@@ -114,13 +112,17 @@ class MDETRForVQA(nn.Module):
         positive_map,
         answers,
         answer_types: Dict[str, Tensor],
-        tokenized: Optional[BatchEncoding],  # TODO: change data type here
+        tokenized: Optional[Any],
         weight_dict: Optional[Dict[str, float]] = None,
         include_contrastive: bool = True,
     ) -> MDETRVQAOutput:
+        # Calculate MDETR model outputs
         model_output = self.model(images, text)
 
         final_hidden_state = model_output.transformer_output.decoder_hidden_states[-1]
+
+        # Contrastive loss is optional for VQA.
+        # If it's being calculated we perform the projections here
         if include_contrastive:
             if not self._is_eligible_for_contrastive(tokenized):
                 raise ValueError(
@@ -141,14 +143,20 @@ class MDETRForVQA(nn.Module):
             )
         else:
             contrastive_query_embeddings, contrastive_token_embeddings = None, None
+
+        # Apply VQA heads to get answer predictions
         answer_preds = self.vqa_heads(model_output.extra_embeddings.transpose(0, 1))
+
         target_boxes = [t["boxes"] for t in targets]
+        # Get the matching between predicted and target boxes
         indices = self.matcher(
             model_output.pred_logits,
             model_output.pred_boxes,
             target_boxes,
             positive_map,
         )
+
+        # Calculate MDETR loss with VQA losses
         loss = self.loss(
             model_output.pred_logits,
             model_output.pred_boxes,
@@ -267,7 +275,7 @@ class MDETRForPhraseGrounding(nn.Module):
         text: List[Tensor],
         targets,
         positive_map,
-        tokenized: BatchEncoding,
+        tokenized: Any,
         weight_dict: Optional[Dict[str, float]] = None,
     ):
         model_output = self.model(images, text)
