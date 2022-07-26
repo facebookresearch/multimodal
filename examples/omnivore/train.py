@@ -290,7 +290,7 @@ def main(args):
         torch.backends.cudnn.benchmark = True
 
     logger.info(f"Creating model: {args.model}")
-    model = getattr(omnivore, args.model)()
+    model = getattr(omnivore, args.model)(pretrained=args.pretrained)
     model.to(device)
 
     if args.distributed and args.sync_bn:
@@ -775,6 +775,9 @@ def get_args_parser(add_help=True):
         help="Ratio between evaluation and training data loader workers number",
     )
     parser.add_argument("--log-level", default="INFO", type=str, help="Log level")
+    parser.add_argument(
+        "--pretrained", action="store_true", help="Start model with pretrained weight"
+    )
     return parser
 
 
