@@ -6,7 +6,6 @@
 
 """ Evaluator for Flickr30k """
 import xml.etree.ElementTree as Et
-from collections import defaultdict
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Union
 
@@ -14,6 +13,7 @@ import numpy as np
 
 import torch
 import utils.dist as dist
+from examples.mdetr.utils.metrics import RecallTracker
 from prettytable import PrettyTable
 from torch import Tensor
 from torchvision.ops.boxes import box_iou
@@ -173,49 +173,6 @@ def _merge_boxes(boxes: List[List[int]]) -> List[List[int]]:
             np_boxes[:, 3].max(),
         ]
     ]
-
-
-class RecallTracker:
-    """Utility class to track recall@k for various k, split by categories"""
-
-    def __init__(self, topk: Sequence[int]):
-        """
-        Parameters:
-           - topk : tuple of ints corresponding to the recalls being tracked (eg, recall@1, recall@10, ...)
-        """
-
-        self.total_byk_bycat: Dict[int, Dict[str, int]] = {
-            k: defaultdict(int) for k in topk
-        }
-        self.positives_byk_bycat: Dict[int, Dict[str, int]] = {
-            k: defaultdict(int) for k in topk
-        }
-
-    def add_positive(self, k: int, category: str):
-        """Log a positive hit @k for given category"""
-        if k not in self.total_byk_bycat:
-            raise RuntimeError(f"{k} is not a valid recall threshold")
-        self.total_byk_bycat[k][category] += 1
-        self.positives_byk_bycat[k][category] += 1
-
-    def add_negative(self, k: int, category: str):
-        """Log a negative hit @k for given category"""
-        if k not in self.total_byk_bycat:
-            raise RuntimeError(f"{k} is not a valid recall threshold")
-        self.total_byk_bycat[k][category] += 1
-
-    def report(self) -> Dict[int, Dict[str, float]]:
-        """Return a condensed report of the results as a dict of dict.
-        report[k][cat] is the recall@k for the given category
-        """
-        report: Dict[int, Dict[str, float]] = {}
-        for k in self.total_byk_bycat:
-            assert k in self.positives_byk_bycat
-            report[k] = {
-                cat: self.positives_byk_bycat[k][cat] / self.total_byk_bycat[k][cat]
-                for cat in self.total_byk_bycat[k]
-            }
-        return report
 
 
 class Flickr30kEntitiesRecallEvaluator:
@@ -382,9 +339,6 @@ class FlickrEvaluator(object):
         )
         self.predictions = []
         self.results = None
-
-    def accumulate(self):
-        pass
 
     def update(self, predictions):
         self.predictions += predictions

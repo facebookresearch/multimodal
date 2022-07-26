@@ -4,7 +4,6 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-# Copyright (c) Aishwarya Kamath & Nicolas Carion. Licensed under the Apache License 2.0. All Rights Reserved
 """Collections of utilities related to optimization."""
 from bisect import bisect_right
 
@@ -13,6 +12,7 @@ import torch
 
 def update_ema(model, model_ema, decay):
     """Apply exponential moving average update.
+    Based on the implementation in the MDETR repo: https://bit.ly/3J5fspI.
 
     The  weights are updated in-place as follow:
     w_ema = w_ema * decay + (1 - decay) * w
@@ -39,6 +39,7 @@ def adjust_learning_rate(
     args,
 ):
     """Adjust the lr according to the schedule.
+    Based on the implementation in the MDETR repo: https://bit.ly/3J5fspI.
 
     Args:
         Optimizer: torch optimizer to update.
