@@ -11,7 +11,6 @@ import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
 from torchmultimodal.modules.losses.mdetr import BoxLosses
-from transformers.tokenization_utils_base import BatchEncoding
 
 
 def contrastive_alignment_loss(
@@ -20,7 +19,7 @@ def contrastive_alignment_loss(
     target_tokens: List[List[List[int]]],
     indices: List[Tuple[Tensor, Tensor]],
     num_boxes: int,
-    tokenized: BatchEncoding,
+    tokenized: Any,
     temperature: float = 0.07,
 ) -> Tensor:
     """Contrastive alignment loss.
@@ -43,7 +42,7 @@ def contrastive_alignment_loss(
                     len(index_i) = len(index_j) = min(num_queries, num_target_boxes)
             num_boxes (int): Normalization factor. Should equal the average number of
                 boxes per local batch.
-            tokenized (BatchEncoding): Tokenized output from a transformers fast tokenizer.
+            tokenized (Any): Tokenized output from a transformers fast tokenizer.
                 Used for token lookup based on character positions.
             temperature (float): Scaling factor used in calculating the logits.
                 Default: 0.07
@@ -98,7 +97,7 @@ def construct_positive_map(
     logits: Tensor,
     target_tokens: List[List[List[int]]],
     indices: List[Tuple[Tensor, Tensor]],
-    tokenized: BatchEncoding,
+    tokenized: Any,
 ):
     # construct a map such that positive_map[k, i,j] = True iff query i is associated to token j in batch item k
     # For efficency, the construction happens on CPU, then the whole matrix is transferred to GPU in one go.
@@ -217,7 +216,7 @@ class MDETRLoss(nn.Module):
         indices: List[Tuple[Tensor, Tensor]],
         contrastive_query_embeddings: Optional[Tensor] = None,
         contrastive_token_embeddings: Optional[Tensor] = None,
-        tokenized: Optional[BatchEncoding] = None,
+        tokenized: Optional[Any] = None,
         vqa_preds: Optional[Dict[str, Tensor]] = None,
         vqa_labels: Optional[Dict[str, Tensor]] = None,
         vqa_masks: Optional[Dict[str, Tensor]] = None,

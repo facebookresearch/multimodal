@@ -53,10 +53,11 @@ class MDETR(nn.Module):
                 prior to the multimodal transformer.
             query_embed (nn.Module): Learned object query embeddings (used in
                 transformer decoder).
-            bbox_embed (Optional[nn.Module]): Embedding mapping transformer outputs to
+            bbox_embed (nn.Module): Embedding mapping transformer outputs to
                 bounding boxes.
-            class_embed (Optional[nn.Module]): Embedding mapping transformer outputs to classes.
-
+            class_embed (nn.Module): Embedding mapping transformer outputs to classes.
+            extra_query_embeddings (Optiona[nn.Embedding]): Additional query embeddings,
+                as used in e.g. VQA. Default: None
 
     Inputs: images (List[Tensor]): A list of image Tensors (possibly of different sizes).
             text (List[Tensor]): A list of Tensors of tokenized texts (possibly of different lengths).
@@ -132,6 +133,8 @@ class MDETR(nn.Module):
         pos = self.pos_embed(image_mask).to(image_embeddings.dtype)
         query_embed = self.query_embed.weight
 
+        # If extra embeddings are provided for VQA, we concatenate them with
+        # the other query embeddings prior to the transformer
         if self.extra_query_embeddings is not None:
             n_extra_embeddings = self.extra_query_embeddings.num_embeddings
             query_embed = torch.cat([query_embed, self.extra_query_embeddings.weight])
@@ -147,14 +150,16 @@ class MDETR(nn.Module):
             text_attention_mask=text_attention_mask,
         )
 
+        # Detach the extra embeddings from the hidden states returned by the decoder
         if self.extra_query_embeddings is not None:
             extra_embeddings = transformer_output.decoder_hidden_states[
                 0, :, -n_extra_embeddings:
             ]
+            decoder_hidden_states_truncated = transformer_output.decoder_hidden_states[
+                :, :, :-n_extra_embeddings
+            ]
             transformer_output = transformer_output._replace(
-                decoder_hidden_states=transformer_output.decoder_hidden_states[
-                    :, :, :-n_extra_embeddings
-                ]
+                decoder_hidden_states=decoder_hidden_states_truncated
             )
         else:
             extra_embeddings = None
