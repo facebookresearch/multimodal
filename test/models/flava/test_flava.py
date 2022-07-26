@@ -167,6 +167,8 @@ class TestFLAVAModel(unittest.TestCase):
             mm_encoder=mm_encoder,
             image_to_mm_projection=image_to_mm_projection,
             text_to_mm_projection=text_to_mm_projection,
+            text_projection=nn.Identity(),
+            image_projection=nn.Identity(),
         )
 
     def _assert_empty(self, field):
