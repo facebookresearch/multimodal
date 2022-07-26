@@ -253,22 +253,16 @@ class FLAVAGlobalContrastiveLoss(nn.Module):
         else:
             self.logit_scale = nn.Parameter(logit_scale * torch.ones([]))
 
-        self.image_projection = nn.Linear(image_embedding_size, projection_size)
-        self.text_projection = nn.Linear(text_embedding_size, projection_size)
-        self.image_embedding_index = image_embedding_index
-        self.text_embedding_index = text_embedding_index
-
     def forward(
         self,
         image_sequence: Tensor,
         text_sequence: Tensor,
         mask: Tensor,
     ) -> FLAVAGlobalContrastiveLossOutput:
-        text_embedding = nn.functional.normalize(
-            self.text_projection(text_sequence[:, self.text_embedding_index, :]), dim=-1
-        )
+
+        text_embedding = nn.functional.normalize(text_sequence, dim=-1)
         image_embedding = nn.functional.normalize(
-            self.image_projection(image_sequence[:, self.image_embedding_index, :]),
+            image_sequence,
             dim=-1,
         )
 
@@ -380,6 +374,8 @@ class FLAVAPretrainingLoss(nn.Module):
         itm_labels: Optional[Tensor] = None,
         mim_labels: Optional[Tensor] = None,
         mlm_labels: Optional[Tensor] = None,
+        projected_image_embeddings: Optional[Tensor] = None,
+        projected_text_embeddings: Optional[Tensor] = None,
     ) -> FLAVAPretrainingLossOutput:
         outputs = FLAVAPretrainingLossOutput()
         pos_mask = None
@@ -387,6 +383,7 @@ class FLAVAPretrainingLoss(nn.Module):
         # Check multimodal_masked_sequence to make sure this is unimodal case
         # This specific case can though be backpropagated directly as MIM is independent of
         # text, but that is a research question :)
+
         if (
             image_masked_sequence is not None
             and self.mim_weight > 0
@@ -466,13 +463,13 @@ class FLAVAPretrainingLoss(nn.Module):
             outputs.losses.mmm_image_loss = outputs.mmm_image_output.loss
 
         if (
-            image_sequence is not None
-            and text_sequence is not None
+            projected_image_embeddings is not None
+            and projected_text_embeddings is not None
             and self.contrastive_loss_weight > 0
         ):
             outputs.global_contrastive_output = self.contrastive_loss(
-                image_sequence,
-                text_sequence,
+                projected_image_embeddings,
+                projected_text_embeddings,
                 pos_mask,
             )
             outputs.global_contrastive_output.loss *= self.contrastive_loss_weight
