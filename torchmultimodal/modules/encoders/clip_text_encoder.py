@@ -70,6 +70,7 @@ class CLIPTextEncoder(nn.Module):
             self.initialize_parameters()
 
     def initialize_parameters(self) -> None:
+        print("HI")
         # Initialize token and positional embeddings
         nn.init.normal_(self.token_embedding.weight, std=self.TOKEN_EMBEDDING_INIT_STD)
         nn.init.normal_(
