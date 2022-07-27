@@ -33,6 +33,7 @@ from .transforms import (
     VLTransform,
 )
 from .utils import build_datasets_from_info, fetch_images
+from torch.utils.data.distributed import DistributedSampler
 
 
 def transform_image(transform, sample):
@@ -95,8 +96,7 @@ class ImageDataModule(LightningDataModule):
             self.train_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            sampler=None,
-            shuffle=True,
+            sampler=DistributedSampler(self.train_dataset),
             # uneven batches can cause distributed issues,
             # drop last batch to prevent those.
             # ideally, we don't need to drop these for unimodal cases
@@ -186,8 +186,7 @@ class TextDataModule(LightningDataModule):
             dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            sampler=None,
-            shuffle=shuffle,
+            sampler=DistributedSampler(dataset) if shuffle else None,
             collate_fn=self._build_collator(),
             drop_last=drop_last,
         )
@@ -383,8 +382,7 @@ class VLDataModule(LightningDataModule):
             self.train_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            sampler=None,
-            shuffle=True,
+            sampler=DistributedSampler(self.train_dataset),
             collate_fn=self._build_collator(),
             # uneven batches can cause distributed issues,
             # drop last batch to prevent those.
@@ -516,11 +514,14 @@ class TorchVisionDataModule(LightningDataModule):
         return self._build_dataloader(self.test_dataset, shuffle=False)
 
     def _build_dataloader(self, dataset: torch.utils.data.Dataset, shuffle=True):
+        sampler = torch.utils.data.DistributedSampler(dataset)
         return torch.utils.data.DataLoader(
             dataset,
-            shuffle=shuffle,
+            sampler=DistributedSampler(dataset) if shuffle else None,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
+            pin_memory=True,
+            persistent_workers=True,
         )
 
     def on_before_batch_transfer(self, batch, *args):

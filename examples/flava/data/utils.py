@@ -22,10 +22,11 @@ DATASETS_USER_AGENT = get_datasets_user_agent()
 def build_datasets_from_info(dataset_infos: List[HFDatasetInfo], split: str = "train"):
     dataset_list = []
     for dataset_info in dataset_infos:
+        print(f"{dataset_info.key=}, {dataset_info.extra_kwargs=}")
         current_dataset = load_dataset(
             dataset_info.key,
             dataset_info.subset,
-            split=dataset_info.split_key_mapping[split],
+            split=dataset_info.split_key_mapping[split] + "[:3%]",  # speed up loading
             use_auth_token=True,
             **dataset_info.extra_kwargs,
         )

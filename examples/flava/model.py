@@ -14,6 +14,10 @@ from torchmultimodal.models.flava.flava_model import (
     flava_model_for_pretraining,
 )
 from transformers.optimization import get_cosine_schedule_with_warmup
+from rich.console import Console
+
+c = Console()
+print = c.log
 
 
 def get_optimizers_for_lightning(
@@ -60,31 +64,7 @@ class FLAVAPreTrainingLightningModule(LightningModule):
         self.warmup_steps = warmup_steps
         self.max_steps = max_steps
 
-    def training_step(self, batch, batch_idx):
-        output = self._step(batch, batch_idx)
-        losses = output.losses
-        total_loss = 0
-        for key in losses:
-            if losses[key] is not None:
-                total_loss += losses[key]
-                self.log(f"train/losses/{key}", losses[key], prog_bar=True, logger=True)
-
-        return total_loss
-
-    def validation_step(self, batch, batch_idx):
-        output = self._step(batch, batch_idx)
-        losses = output.losses
-        total_loss = 0
-        for key in losses:
-            if losses[key] is not None:
-                total_loss += losses[key]
-                self.log(
-                    f"validation/losses/{key}", losses[key], prog_bar=True, logger=True
-                )
-
-        return total_loss
-
-    def _step(self, batch, batch_idx):
+    def forward(self, batch, batch_idx):
         if "image" in batch and ("text" in batch or "text_masked" in batch):
             required_embedding = "mm"
         elif "image" in batch:
@@ -106,9 +86,9 @@ class FLAVAPreTrainingLightningModule(LightningModule):
         )
         return output
 
-    def configure_optimizers(self):
+    def get_optimizers(self, model):
         return get_optimizers_for_lightning(
-            self.model,
+            model,
             self.learning_rate,
             self.adam_eps,
             self.adam_weight_decay,
@@ -157,17 +137,8 @@ class FLAVAClassificationLightningModule(LightningModule):
 
     def validation_step(self, batch, batch_idx):
         output, accuracy = self._step(batch, batch_idx)
-        self.log(
-            "validation/losses/classification", output.loss, prog_bar=True, logger=True
-        )
-        self.log(
-            "validation/accuracy/classification",
-            accuracy,
-            prog_bar=True,
-            logger=True,
-            sync_dist=True,
-        )
-
+        print("validation/losses/classification", output.loss)
+        print("validation/accuracy/classification", accuracy)
         return output.loss
 
     def _step(self, batch, batch_idx):
@@ -192,9 +163,9 @@ class FLAVAClassificationLightningModule(LightningModule):
 
         return output, accuracy
 
-    def configure_optimizers(self):
+    def get_optimizers(self, model):
         return get_optimizers_for_lightning(
-            self.model,
+            model,
             self.learning_rate,
             self.adam_eps,
             self.adam_weight_decay,
