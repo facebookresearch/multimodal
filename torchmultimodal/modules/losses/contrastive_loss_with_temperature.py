@@ -43,6 +43,7 @@ def _gather_embeddings_and_labels(
     if backprop_in_gather:
         img_embeddings_all_gpus = all_gather_with_backprop(image_embeddings)
         text_embeddings_all_gpus = all_gather_with_backprop(text_embeddings)
+        print("HI HI")
 
     # Otherwise just backprop to the current worker
     # This means that the image gradients on a given worker will only
