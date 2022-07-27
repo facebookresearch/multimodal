@@ -6,16 +6,15 @@
 
 import hashlib
 import os
-import typing
 import warnings
 from collections import OrderedDict
 from dataclasses import fields
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import torch
 from torch import nn, Tensor
-from torchmultimodal import _PATH_MANAGER
 from torch.utils.checkpoint import checkpoint
+from torchmultimodal import _PATH_MANAGER
 
 
 def get_current_device() -> Union[str, torch.device]:
@@ -188,11 +187,10 @@ def to_tuple_tuple(
     return param_fixed
 
 
-@typing.no_type_check
-def checkpoint_wrapper(fn):
+def checkpoint_wrapper(fn: Callable) -> Callable:
     """Decorator to render an nn.Module instance method in checkpointing mode to save memory for training"""
 
-    def inner(cls, *inputs, **kwargs):
+    def inner(cls: nn.Module, *inputs: Any, **kwargs: Any) -> Tensor:
         if cls.training:
             # By default the checkpoint API stashes and restores the RNG state during each checkpointed
             # segment such that checkpointed passes making use of RNG (e.g., through dropout, batch norm)
@@ -205,9 +203,9 @@ def checkpoint_wrapper(fn):
                 )
                 kwargs["use_cache"] = False
 
-            def create_custom_forward(fn):
+            def create_custom_forward(fn: Callable) -> Callable:
                 # Specifies what should the checkpoint API run in forward pass
-                def custom_forward(*inputs):
+                def custom_forward(*inputs: Any) -> Callable:
                     return fn(cls, *inputs, **kwargs)
 
                 return custom_forward
