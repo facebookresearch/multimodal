@@ -168,7 +168,7 @@ class TestMultimodalGPT:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 3, 4]),
-                0.5318,
+                -0.4598,
             ),  # (bs, in_seq_len, emb_dim)
             "hidden_states": None,
             "attention_weights": None,
@@ -181,7 +181,7 @@ class TestMultimodalGPT:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 4, 4]),
-                0.7538,
+                -1.3095,
             ),  # (bs, out_seq_len, emb_dim)
             "hidden_states": None,
             "attention_weights": None,
@@ -199,7 +199,7 @@ class TestMultimodalGPT:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 7, 4]),
-                1.7604,
+                -1.1800,
             ),  # (bs, in_seq_len + out_seq_len, emb_dim)
             "hidden_states": None,
             "attention_weights": None,
@@ -210,7 +210,7 @@ class TestMultimodalGPT:
     def test_encode(self, gpt, in_modality):
         actual = gpt._encode(in_modality, self._pos_ids(in_modality), "in")
         assert_expected(actual.shape, torch.Size([1, 3, 4]))  # (bs, seq_len, emb_dim)
-        assert_expected(actual.sum().item(), 0.1456, rtol=1e-5, atol=1e-4)
+        assert_expected(actual.sum().item(), 4.3185, rtol=1e-5, atol=1e-4)
 
     def test_bad_pos_ids(self, gpt, in_modality, in_seq_len):
         in_pos_ids = torch.arange(
@@ -254,7 +254,7 @@ class TestTransformerDecoderLayer:
         actual = decoder_layer(in_modality)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
-            "hidden_states": (torch.Size([1, 3, 4]), 2.3115),  # (bs, seq_len, emb_dim)
+            "hidden_states": (torch.Size([1, 3, 4]), 0.4808),  # (bs, seq_len, emb_dim)
             "attention_weights": None,
             "past_key_values": None,
         }
@@ -266,7 +266,7 @@ class TestTransformerDecoderLayer:
         actual = decoder_layer(in_modality, self_attn_mask, self_head_mask)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
-            "hidden_states": (torch.Size([1, 3, 4]), 1.4288),  # (bs, seq_len, seq_len)
+            "hidden_states": (torch.Size([1, 3, 4]), 1.5776),  # (bs, seq_len, seq_len)
             "attention_weights": None,
             "past_key_values": None,
         }
@@ -276,14 +276,14 @@ class TestTransformerDecoderLayer:
         actual = decoder_layer(in_modality, use_cache=True, return_attn_weights=True)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
-            "hidden_states": (torch.Size([1, 3, 4]), 2.3115),  # (bs, seq_len, seq_len)
+            "hidden_states": (torch.Size([1, 3, 4]), 0.4808),  # (bs, seq_len, seq_len)
             "attention_weights": (
                 torch.Size([1, 2, 3, 3]),
                 6.0,
             ),  # (bs, h, seq_len, seq_len)
             "past_key_values": {
-                "k": ([1, 2, 3, 2], 1.6034),
-                "v": ([1, 2, 3, 2], 4.6519),
+                "k": ([1, 2, 3, 2], -0.3156),
+                "v": ([1, 2, 3, 2], 5.1630),
             },  # (bs, h, seq_len, emb_dim//h)
         }
         assert_expected_wrapper(actual, expected)
