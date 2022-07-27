@@ -73,8 +73,8 @@ def main():
     for batch_idx, batch in enumerate(dataloader):
         logger.info(f"Batch id {batch_idx}")
         image, text = batch
-        text_emb = flava.encode_text(text.to(device))
-        image_emb = flava.encode_image(image.to(device))
+        _, text_emb = flava.encode_text(text.to(device), projection=True)
+        _, image_emb = flava.encode_image(image.to(device), projection=True)
         text_embeds.append(text_emb.detach().cpu())
         image_embeds.append(image_emb.detach().cpu())
 
