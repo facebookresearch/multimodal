@@ -8,10 +8,7 @@ import unittest
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.modules.layers.transformer import (
-    FLAVASelfAttention,
-    FLAVATransformerEncoder,
-)
+from torchmultimodal.modules.layers.transformer import FLAVATransformerEncoder
 
 
 class TestTransformer(unittest.TestCase):
@@ -25,10 +22,6 @@ class TestTransformer(unittest.TestCase):
             hidden_size=2, num_attention_heads=2, num_hidden_layers=2
         )
         self.test_input = torch.rand((2, 3, 2))
-
-    def test_flava_self_attention_value_error(self):
-        with self.assertRaises(ValueError):
-            _ = FLAVASelfAttention(hidden_size=3, num_attention_heads=2)
 
     def test_flava_encoder_forward(self):
         output = self.encoder(self.test_input)
