@@ -10,13 +10,12 @@ from typing import Callable, Dict, NamedTuple, Optional, Tuple, Union
 import torch
 from torch import nn, Tensor
 
-from torchmultimodal.modules.layers.attention import FullAttention, MultiHeadAttention
+from torchmultimodal.modules.layers.attention import MultiHeadAttention, SelfAttention
 from torchmultimodal.modules.layers.mlp import MLP
 from torchmultimodal.utils.attention import get_extended_attention_mask
 from torchmultimodal.utils.common import checkpoint_wrapper
 
 
-# TODO: Add docstring
 class TransformerDecoderOutput(NamedTuple):
     last_hidden_states: Tensor
     hidden_states: Optional[Tuple[Tensor, ...]] = None
@@ -31,7 +30,47 @@ class TransformerLayerOutput(NamedTuple):
 
 
 class MultimodalGPT(nn.Module):
-    """GPT model for cross-modality generation"""
+    """GPT (Generative Pre-Training) model for cross-modality generation
+
+    This module implements a GPT model template for generation of one modality given another.
+    The transformer decoder follow the paper `"Improving Language Understanding by Generative Pre-Training
+    "<https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf>`_.
+    The token and position embedding layers are per modality:
+        * During training both modalities are fed into the module and concatenated as a single sequence of
+            tokenized embedding vectors
+        * During generation the future data points are predicted step-wise from the past. The input modality
+            is processed before the output modality (see ``torchmultimodal.utils.common.generate``). Therefore,
+            at any point in time the input data contains only one modality.
+
+    Attributes:
+        in_token_emb (nn.Module): input modality token embedding layer.
+        out_token_emb (nn.Module): output modality, i.e., the modality to be generated,
+            token embedding layer.
+        in_pos_emb (nn.Module): input modality position embedding layer.
+        out_pos_emb (nn.Module): output modality position embedding layer.
+        decoder (nn.Module): the transformer decoder (see ``torchmultimodal.models.gpt.TransformerDecoder``)
+
+    Args:
+        in_modality (Tensor, optional): Tensor of dimension ``(bs, d1, ..., dn, c)`` containing data for the
+            input modality. Defaults to ``None``.
+        out_modality (Tensor, optional): Tensor of dimension ``(bs, d1', ..., dn', c')`` containing data for
+            the output modality. Defaults to ``None``.
+        in_pos_ids (Tensor, optional): Tensor of dimension ``(bs, in_seq_len)`` containing indices for the
+            input modality position embeddings. Defaults to ``None``.
+        out_pos_ids (Tensor, optional): Tensor of dimension ``(bs, out_seq_len)`` containing indices for the
+            output modality position embeddings. Defaults to ``None``.
+        attn_mask (Tensor, optional): Tensor of dimension ``(bs, out_seq_len, in_seq_len)``. Contains 1s for
+            positions to attend to and 0s for masked positions. Defaults to ``None``.
+        head_mask (Tensor, optional): Tensor of dimension ``(bs, h, out_seq_len, in_seq_len)``. Contains 1s
+            for attention heads to use and 0s for masked heads. Defaults to ``None``.
+        use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
+            recomputes key and value for each decoding step. Defaults to ``False``.
+        causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
+        return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
+            layer. Defaults to ``False``.
+        return_hidden_states (bool): If ``True``, returns the embeddings of each transformer layer. Defaults to
+            ``False``.
+    """
 
     def __init__(
         self,
@@ -61,7 +100,6 @@ class MultimodalGPT(nn.Module):
         causal: bool = False,
         return_attn_weights: bool = False,
         return_hidden_states: bool = False,
-        device: Optional[str] = None,
     ) -> TransformerDecoderOutput:
         if (in_modality is None) and (out_modality is None):
             raise ValueError(
@@ -75,14 +113,14 @@ class MultimodalGPT(nn.Module):
         # should be present. Position ids are optional as they can be derived from
         # the sequence length of each modality.
         if in_modality is None:
-            out_pos_ids = self._norm_pos_ids(out_modality, out_pos_ids, device)
+            out_pos_ids = self._norm_pos_ids(out_modality, out_pos_ids)
             x = self._encode(out_modality, out_pos_ids, "out")
         elif out_modality is None:
-            in_pos_ids = self._norm_pos_ids(in_modality, in_pos_ids, device)
+            in_pos_ids = self._norm_pos_ids(in_modality, in_pos_ids)
             x = self._encode(in_modality, in_pos_ids, "in")
         else:
-            in_pos_ids = self._norm_pos_ids(in_modality, in_pos_ids, device)
-            out_pos_ids = self._norm_pos_ids(out_modality, out_pos_ids, device)
+            in_pos_ids = self._norm_pos_ids(in_modality, in_pos_ids)
+            out_pos_ids = self._norm_pos_ids(out_modality, out_pos_ids)
             x_in = self._encode(in_modality, in_pos_ids, "in")
             x_out = self._encode(out_modality, out_pos_ids, "out")
             x = torch.cat((x_in, x_out), dim=1)
@@ -112,12 +150,10 @@ class MultimodalGPT(nn.Module):
 
         return x
 
-    def _norm_pos_ids(
-        self, x: Tensor, pos_ids: Optional[Tensor] = None, device: Optional[str] = None
-    ) -> Tensor:
+    def _norm_pos_ids(self, x: Tensor, pos_ids: Optional[Tensor] = None) -> Tensor:
         bs, seq_len, _ = x.shape
         if pos_ids is None:
-            pos_ids = torch.arange(seq_len, dtype=torch.long, device=device)[
+            pos_ids = torch.arange(seq_len, dtype=torch.long, device=x.device)[
                 None, :
             ]  # (bs, seq_len)
 
@@ -133,11 +169,22 @@ class TransformerDecoder(nn.Module):
     """A transformer decoder
 
     Attributes:
-        decoder_layers (nn.Module):
-        num_layers (int):
+        decoder_layer (nn.Module): The transformer decoder layer.
+        num_layers (int): The number of transformer decoder layers to be stacked up.
 
     Args:
-
+        hidden_states (Tensor): Tensor of the embedding vectors of dimension ``(bs, seq_len, emb_dim)``.
+        attn_mask (Tensor, optional): Tensor of dimension ``(bs, out_seq_len, in_seq_len)``. Contains 1s for
+            positions to attend to and 0s for masked positions. Defaults to ``None``.
+        head_mask (Tensor, optional): Tensor of dimension ``(bs, h, out_seq_len, in_seq_len)``. Contains 1s
+            for attention heads to use and 0s for masked heads. Defaults to ``None``.
+        use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
+            recomputes key and value for each decoding step. Defaults to ``False``.
+        causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
+        return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
+            layer. Defaults to ``False``.
+        return_hidden_states (bool): If ``True``, returns the embeddings of each transformer layer. Defaults to
+            ``False``.
     """
 
     def __init__(
@@ -210,14 +257,32 @@ class SiLU(nn.Module):
 
 
 class TransformerDecoderLayer(nn.Module):
-    """A single layer from a transformer decoder
+    """A single layer from a GPT transformer decoder
 
-        `"On Layer Normalization in the Transformer Architecture"<https://arxiv.org/pdf/2002.04745.pdf>`_
-        `"Improving Language Understanding by Generative
-        Pre-Training"<https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf>`_
+    Layer norm is applied before the attention layer and the feedforward layer so that the gradients are
+    well-behaved at initialization for training stability. This is also called "Pre-LN Transformer" studied in
+    `"On Layer Normalization in the Transformer Architecture"<https://arxiv.org/pdf/2002.04745.pdf>`_
+
+    Attributes:
+        d_model (int): Dimension of the input embedding vector.
+        n_head (int): Number of attention heads.
+        dropout (float, optional): Dropout probability used in the dropout layers. Defaults to ``0.1``.
+        activation (Union[str, Callable], optional): Activation used by the feedforward layer. Defaults to
+            ``SiLU``.
+        attn_module (nn.Module): Self attention module. Defaults to ``SelfAttention`` with dropout rate equal
+            to ``0.1``.
 
     Args:
-        d_model (int):
+        x (Tensor): input embedding vectors.
+        attn_mask (Tensor, optional): Tensor of dimension ``(bs, out_seq_len, in_seq_len)``. Contains 1s for
+            positions to attend to and 0s for masked positions. Defaults to ``None``.
+        head_mask (Tensor, optional): Tensor of dimension ``(bs, h, out_seq_len, in_seq_len)``. Contains 1s
+            for attention heads to use and 0s for masked heads. Defaults to ``None``.
+        use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
+            recomputes key and value for each decoding step. Defaults to ``False``.
+        causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
+        return_attn_weights (bool, optional): If ``True``, returns attention probabilities of the layer.
+            Defaults to ``False``.
     """
 
     def __init__(
@@ -226,7 +291,7 @@ class TransformerDecoderLayer(nn.Module):
         n_head: int = 12,
         dropout: float = 0.1,
         activation: Union[str, Callable[[Tensor], Tensor]] = SiLU,
-        attn_module: nn.Module = FullAttention(attn_dropout=0.1),  # TODO: SelfAttention
+        attn_module: nn.Module = SelfAttention(attn_dropout=0.1),
     ) -> None:
         super().__init__()
 
@@ -239,7 +304,6 @@ class TransformerDecoderLayer(nn.Module):
             dim_q=d_model,
             dim_kv=d_model,
             n_head=n_head,
-            n_layer=1,  # TODO: dummy
             attn_module=attn_module,
         )
 
@@ -305,7 +369,12 @@ class TransformerDecoderLayer(nn.Module):
         causal: bool,
     ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         return self.attention(
-            x, x, x, attn_mask, head_mask, return_attn_weights, use_cache, causal
+            x,
+            attention_mask=attn_mask,
+            head_mask=head_mask,
+            return_attn_weights=return_attn_weights,
+            use_cache=use_cache,
+            causal=causal,
         )
 
     @checkpoint_wrapper
