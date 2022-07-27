@@ -94,6 +94,11 @@ class VideoCLIPLightningModule(LightningModule):
         )
         return optimizer
 
+    def forward(self, batch):
+        text, video = batch.get("text"), batch.get("video")
+        model_output = self.model(features_a=text, features_b=video)
+        return model_output
+
     def training_step(self, batch, batch_idx):
         text, video = batch.get("text"), batch.get("video")
         model_output = self.model(features_a=text, features_b=video)
