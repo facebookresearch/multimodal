@@ -40,9 +40,9 @@ TorchMultimodal requires Python >= 3.7. The library can be installed with or wit
 The library builds on the following concepts:
 - **Architectures**: These are general and composable classes that capture the core logic associated with a family of models. In most cases these take modules as inputs instead of flat arguments (see Models below). Examples include the `LateFusion`, `FLAVA` and `CLIP`. Users should either reuse an existing architecture or a contribute a new one. We avoid inheritance as much as possible.
 
-- **Models**: These are specific instantiations of a given architecture implemented using builder functions. The builder functions take as input all of the parameters for constructing the modules needed to instantiate the architecture. See [cnn_lstm.py](https://github.com/facebookresearch/multimodal/blob/main/torchmultimodal/models/cnn_lstm.py) for an example.
+- **Models**: These are specific instantiations of a given architecture implemented using builder functions. The builder functions take as input all of the parameters for constructing the modules needed to instantiate the architecture. See [cnn_lstm.py](https://github.com/facebookresearch/multimodal/blob/main/examples/cnn_lstm/cnn_lstm.py) for an example.
 
-- **Modules**: These are self-contained components that can be stitched up in various ways to build an architecture. See [lstm_encoder.py](https://github.com/facebookresearch/multimodal/blob/main/torchmultimodal/modules/encoders/lstm_encoder.py) as an example.
+- **Modules**: These are self-contained components that can be stitched up in various ways to build an architecture. See [lstm_encoder.py](https://github.com/facebookresearch/multimodal/blob/main/examples/cnn_lstm/lstm_encoder.py) as an example.
 
 ## Contributing
 See the [CONTRIBUTING](CONTRIBUTING.md) file for how to help out.
