@@ -12,6 +12,7 @@ from typing import Any, List, Optional, Tuple, Union
 
 import torch
 from torch import nn, Tensor
+from torchmultimodal import _PATH_MANAGER
 
 
 def get_current_device() -> Union[str, torch.device]:
@@ -96,18 +97,14 @@ def tensor_slice(x: Tensor, begin: List[int], size: List[int]) -> Tensor:
 
 
 def load_module_from_url(
-    model: torch.nn.Module, url: str, progress: bool = True
+    model: torch.nn.Module, url: str, strict: bool = True, progress: bool = True
 ) -> None:
-    model_dir = os.path.join(
-        torch.hub.get_dir(),
-        "multimodal",
-        hashlib.sha256(url.encode("utf-8")).hexdigest(),
-    )
-
-    state_dict = torch.hub.load_state_dict_from_url(
-        url, model_dir=model_dir, progress=progress
-    )
-    model.load_state_dict(state_dict)
+    local_path = _PATH_MANAGER.get_local_path(url)
+    if not torch.cuda.is_available():
+        state_dict = torch.load(local_path, map_location=torch.device("cpu"))
+    else:
+        state_dict = torch.load(local_path)
+    model.load_state_dict(state_dict, strict=strict)
 
 
 @torch.no_grad()
