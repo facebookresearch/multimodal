@@ -180,7 +180,7 @@ class RandomSizeCrop(object):
         self.max_size = max_size
         self.respect_boxes = respect_boxes  # if True we can't crop a box out
 
-    def __call__(self, img: PIL.Image.Image, target: dict):
+    def __call__(self, img: PIL.Image.Image, target: Dict[str, Any]):
         init_boxes = len(target["boxes"])
         max_patience = 100
         for i in range(max_patience):
