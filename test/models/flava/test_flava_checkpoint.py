@@ -159,13 +159,13 @@ class TestFLAVACheckpoint:
         output = model(*inputs_model, skip_unmasked_mm_encoder=False)
 
         actual = torch.sum(output.image.last_hidden_state)
-        expected = torch.tensor(-1316.753173828125)
-        assert_expected(actual, expected, rtol=0, atol=1e-4)
+        expected = torch.tensor(-1316.7531)
+        assert_expected(actual, expected, rtol=0, atol=1e-3)
 
         actual = torch.sum(output.text.last_hidden_state)
-        expected = torch.tensor(-240.57443237304688)
-        assert_expected(actual, expected, rtol=0, atol=1e-4)
+        expected = torch.tensor(-240.5744)
+        assert_expected(actual, expected, rtol=0, atol=1e-3)
 
         actual = torch.sum(output.multimodal.last_hidden_state)
-        expected = torch.tensor(-4367.087890625)
-        assert_expected(actual, expected, rtol=0, atol=1e-4)
+        expected = torch.tensor(-4367.0878)
+        assert_expected(actual, expected, rtol=0, atol=1e-3)
