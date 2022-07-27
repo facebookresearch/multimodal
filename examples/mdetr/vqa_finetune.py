@@ -189,8 +189,29 @@ def main(args):
 
         model_without_ddp.load_state_dict(checkpoint["model"], strict=False)
 
-    if args.ema:
-        model_ema = deepcopy(model_without_ddp)
+        if args.ema:
+            model_ema = deepcopy(model_without_ddp)
+
+    # Used for resuming training from the checkpoint of a model. Used when training times-out or is pre-empted.
+    if args.resume:
+        if args.resume.startswith("https"):
+            checkpoint = torch.hub.load_state_dict_from_url(
+                args.resume, map_location="cpu", check_hash=True
+            )
+        else:
+            checkpoint = torch.load(args.resume, map_location="cpu")
+        model_without_ddp.load_state_dict(checkpoint["model"])
+        if not args.eval and "optimizer" in checkpoint and "epoch" in checkpoint:
+            optimizer.load_state_dict(checkpoint["optimizer"])
+            args.start_epoch = checkpoint["epoch"] + 1
+        if args.ema:
+            if "model_ema" not in checkpoint:
+                print(
+                    "WARNING: ema model not found in checkpoint, resetting to current model"
+                )
+                model_ema = deepcopy(model_without_ddp)
+            else:
+                model_ema.load_state_dict(checkpoint["model_ema"])
 
     print("Start training")
     start_time = time.time()
