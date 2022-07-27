@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from iopath.common.file_io import PathManager
+from iopath.common.file_io import HTTPURLHandler, PathManager
 
 
 def _get_path_manager() -> PathManager:
@@ -16,4 +16,5 @@ def _get_path_manager() -> PathManager:
         return pm
     except ImportError:
         pm = PathManager()
+        pm.register_handler(HTTPURLHandler())
         return pm
