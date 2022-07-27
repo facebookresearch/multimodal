@@ -14,7 +14,7 @@ from flava.data.transforms import (
 )
 from torch import nn
 from torch.utils.data import DataLoader
-from torchmultimodal.models.flava.flava_model import flava_model_for_pretraining
+from torchmultimodal.models.flava.flava_model import flava_model
 from torchvision.datasets import CocoCaptions
 
 logging.basicConfig(level=logging.INFO)
@@ -61,8 +61,7 @@ def main():
     dataset = CocoCaptions(
         root=args.data_root, annFile=args.annotations, transforms=transform
     )
-    # TODO: Replace with flava_model when it supports loading from ckpt
-    flava = flava_model_for_pretraining(pretrained_model_key="flava_full")
+    flava = flava_model(pretrained_model_key="flava_full")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
     flava = flava.to(device)
