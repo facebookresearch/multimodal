@@ -125,6 +125,7 @@ class MultiDataLoader:
             # TODO: Check if not doing this provides any speed benefits.
             torch.distributed.broadcast_object_list(choice, 0)
 
+        print("dataloader choice: ", choice)
         self.current_index = choice[0]
         self.current_iterator = self.iterators[self.current_index]
 

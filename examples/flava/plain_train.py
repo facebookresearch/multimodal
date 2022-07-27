@@ -4,6 +4,8 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+# train using `torchrun --master_port=1256 --nproc_per_node=4 flava/plain_train.py config=flava/configs/pretraining/debug.yaml`
+
 import os
 import sys
 from typing import Any
@@ -19,7 +21,7 @@ import torch.distributed as dist
 from common.data import MultiDataModule
 from flava.data import ImageDataModule, MLMDataModule, VLDataModule
 from flava.definitions import FLAVAArguments
-from flava.model import FLAVAPreTrainingLightningModule
+from flava.model import FLAVAPreTrainModule, get_optimizer
 from flava.utils import build_config, build_datamodule_kwargs
 from pytorch_lightning import seed_everything
 
@@ -108,7 +110,7 @@ def main():
     datamodule = get_datamodules(config)
     datamodule.setup("fit")
 
-    model = FLAVAPreTrainingLightningModule(
+    model = FLAVAPreTrainModule(
         learning_rate=config.training.learning_rate,
         adam_eps=config.training.adam_eps,
         adam_weight_decay=config.training.adam_weight_decay,
@@ -146,9 +148,15 @@ def main():
     # TODO replace with TLC logger
     writer = SummaryWriter(f"logs/{strategy}/{int(time.time())}")
 
-    optimizers = model.module.get_optimizers(model)
-    optimizer = optimizers[0][0]
-    scheduler = optimizers[1][0]["scheduler"]
+    optimizer, scheduler = get_optimizer(
+        model,
+        learning_rate=config.training.learning_rate,
+        adam_eps=config.training.adam_eps,
+        adam_weight_decay=config.training.adam_weight_decay,
+        adam_betas=config.training.adam_betas,
+        warmup_steps=config.training.warmup_steps,
+        max_steps=config.training.lightning.max_steps,
+    )
 
     steps = -1
     epochs = -1
@@ -168,7 +176,7 @@ def main():
 
             output = model(data, i)
             losses = output.losses
-            
+
             total_loss = 0
             for key in losses:
                 if losses[key] is not None:
@@ -176,7 +184,11 @@ def main():
                     loss_reduce = losses[key].detach()
                     dist.reduce(loss_reduce, dst=0)
                     if rank == 0:
-                        writer.add_scalar(f"train/losses/{key}", loss_reduce.item() / dist.get_world_size(), steps)
+                        writer.add_scalar(
+                            f"train/losses/{key}",
+                            loss_reduce.item() / dist.get_world_size(),
+                            steps,
+                        )
             total_loss.backward()
 
             if rank == 0:
@@ -190,7 +202,9 @@ def main():
             total_loss_reduce = total_loss.detach()
             dist.reduce(total_loss_reduce.detach(), dst=0)
             if rank == 0:
-                writer.add_scalar("loss", total_loss_reduce.item() / dist.get_world_size(), steps)
+                writer.add_scalar(
+                    "loss", total_loss_reduce.item() / dist.get_world_size(), steps
+                )
                 writer.add_scalar("batch_size", batch_size, steps)
 
             optimizer.step()

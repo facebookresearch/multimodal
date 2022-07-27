@@ -14,6 +14,7 @@ from torchmultimodal.models.flava.flava_model import (
     flava_model_for_pretraining,
 )
 from transformers.optimization import get_cosine_schedule_with_warmup
+from torch import nn
 
 # optional syntax-highlighting for console output
 try:
@@ -24,7 +25,7 @@ try:
 except ImportError:
     pass
 
-def get_optimizers_for_lightning(
+def get_optimizer(
     model: torch.nn.Module,
     learning_rate: float,
     adam_eps: float,
@@ -45,28 +46,16 @@ def get_optimizers_for_lightning(
         num_warmup_steps=warmup_steps,
         num_training_steps=max_steps,
     )
-    return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
+    return optimizer, scheduler
 
 
-class FLAVAPreTrainingLightningModule(LightningModule):
+class FLAVAPreTrainModule(nn.Module):
     def __init__(
         self,
-        learning_rate: float = 0.0002,
-        adam_eps: float = 1.0e-08,
-        adam_weight_decay: float = 0.01,
-        adam_betas: Tuple[int, int] = (0.9, 0.999),
-        warmup_steps: int = 2000,
-        max_steps: int = 450000,
         **flava_pretraining_kwargs: Any,
     ):
         super().__init__()
         self.model = flava_model_for_pretraining(**flava_pretraining_kwargs)
-        self.learning_rate = learning_rate
-        self.adam_eps = adam_eps
-        self.adam_betas = adam_betas
-        self.adam_weight_decay = adam_weight_decay
-        self.warmup_steps = warmup_steps
-        self.max_steps = max_steps
 
     def forward(self, batch, batch_idx):
         if "image" in batch and ("text" in batch or "text_masked" in batch):
@@ -90,16 +79,6 @@ class FLAVAPreTrainingLightningModule(LightningModule):
         )
         return output
 
-    def get_optimizers(self, model):
-        return get_optimizers_for_lightning(
-            model,
-            self.learning_rate,
-            self.adam_eps,
-            self.adam_weight_decay,
-            self.adam_betas,
-            self.warmup_steps,
-            self.max_steps,
-        )
 
 
 class FLAVAClassificationLightningModule(LightningModule):
