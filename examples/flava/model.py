@@ -14,11 +14,15 @@ from torchmultimodal.models.flava.flava_model import (
     flava_model_for_pretraining,
 )
 from transformers.optimization import get_cosine_schedule_with_warmup
-from rich.console import Console
 
-c = Console()
-print = c.log
+# optional syntax-highlighting for console output
+try:
+    from rich.console import Console
 
+    c = Console(force_terminal=True)
+    print = c.log
+except ImportError:
+    pass
 
 def get_optimizers_for_lightning(
     model: torch.nn.Module,
