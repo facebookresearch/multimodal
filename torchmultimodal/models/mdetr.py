@@ -56,7 +56,7 @@ class MDETR(nn.Module):
             bbox_embed (nn.Module): Embedding mapping transformer outputs to
                 bounding boxes.
             class_embed (nn.Module): Embedding mapping transformer outputs to classes.
-            extra_query_embeddings (Optiona[nn.Embedding]): Additional query embeddings,
+            extra_query_embeddings (Optional[nn.Embedding]): Additional query embeddings,
                 as used in e.g. VQA. Default: None
 
     Inputs: images (List[Tensor]): A list of image Tensors (possibly of different sizes).
