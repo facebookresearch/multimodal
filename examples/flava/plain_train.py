@@ -92,6 +92,15 @@ def get_model_size_gb(model: torch.nn.Module) -> int:
 def get_model_parameters(model: torch.nn.Module) -> int:
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
+def setup_distributed_device() -> None:
+    dist.init_process_group("nccl")
+    rank = dist.get_rank()
+    torch.cuda.set_device(rank)
+    return torch.device(rank) if torch.cuda.is_available() else "cpu"
+
+
+
+
 
 @record
 def main():
@@ -99,25 +108,15 @@ def main():
     if config.training.seed != -1:
         seed_everything(config.training.seed, workers=True)
 
-    dist.init_process_group("nccl")
+    device = setup_distributed_device()
 
     rank = dist.get_rank()
-
-    device = torch.device(rank) if torch.cuda.is_available() else "cpu"
-    print("using device", device)
-    torch.cuda.set_device(rank)
 
     datamodule = get_datamodules(config)
     datamodule.setup("fit")
 
     model = FLAVAPreTrainModule(
-        learning_rate=config.training.learning_rate,
-        adam_eps=config.training.adam_eps,
-        adam_weight_decay=config.training.adam_weight_decay,
-        adam_betas=config.training.adam_betas,
-        warmup_steps=config.training.warmup_steps,
-        max_steps=config.training.lightning.max_steps,
-        **config.model,
+       **config.model,
     )
 
     strategy = config.training.lightning.strategy
