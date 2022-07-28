@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import argparse
-from typing import Any, Callable, Dict, Optional, Tuple
+import json
 
 from examples.mugen.data.audio_utils import AUDIO_SAMPLE_LENGTH, AUDIO_SAMPLE_RATE
 from examples.mugen.data.mugen_datamodules import MUGENDataModule
@@ -20,125 +20,75 @@ from torchmultimodal.transforms.video_transform import VideoTransform
 
 
 arg_structure = {
-    "datamodule": [
-        {
-            "name_or_flags": "--text_transform",
-            "type": Optional[Callable],
-            "default": BertTextTransform(),
-        },
-        {
-            "name_or_flags": "--video_transform",
-            "type": Optional[Callable],
-            "default": VideoTransform(),
-        },
-        {
-            "name_or_flags": "--audio_transform",
-            "type": Optional[Callable],
-            "default": None,
-        },
-        {"name_or_flags": "--batch_size", "type": int, "default": 16},
-        {"name_or_flags": "--num_workers", "type": int, "default": 4},
-        {"name_or_flags": "--shuffle", "type": bool, "default": False},
-    ],
-    "lightningmodule": [
-        {"name_or_flags": "--logit_scale", "type": float, "default": 0.07},
-        {"name_or_flags": "--logit_scale_max", "type": float, "default": 100.0},
-        {"name_or_flags": "--recall_ks", "type": Tuple[int], "default": (1, 5, 10)},
-    ],
-    "dataset": [
-        {
-            "name_or_flags": "--data_path",
+    "datamodule": {
+        "batch_size": {"type": int, "default": 16},
+        "num_workers": {"type": int, "default": 4},
+        "shuffle": {"action": "store_true"},
+    },
+    "lightningmodule": {
+        "logit_scale": {"type": float, "default": 0.07},
+        "logit_scale_max": {"type": float, "default": 100.0},
+    },
+    "dataset": {
+        "data_path": {
             "type": str,
             "default": "datasets/coinrun/coinrun_dataset_jsons/release",
         },
-        {"name_or_flags": "--sample_every_n_frames", "type": int, "default": 3},
-        {"name_or_flags": "--sequence_length", "type": int, "default": 32},
-        {"name_or_flags": "--resolution", "type": int, "default": 256},
-        {
-            "name_or_flags": "--audio_sample_rate",
-            "type": int,
-            "default": AUDIO_SAMPLE_RATE,
-        },
-        {
-            "name_or_flags": "--audio_sample_length",
-            "type": int,
-            "default": AUDIO_SAMPLE_LENGTH,
-        },
-        {"name_or_flags": "--bbox_smap_for_agent", "type": bool, "default": False},
-        {"name_or_flags": "--bbox_smap_for_monsters", "type": bool, "default": False},
-        {"name_or_flags": "--use_manual_annotation", "type": bool, "default": False},
-        {"name_or_flags": "--use_auto_annotation", "type": bool, "default": False},
-        {"name_or_flags": "--use_downsampled_trainset", "type": bool, "default": False},
-        {"name_or_flags": "--fixed_start_idx", "type": bool, "default": False},
-        {"name_or_flags": "--get_game_frame", "type": bool, "default": True},
-        {"name_or_flags": "--get_seg_map", "type": bool, "default": False},
-        {"name_or_flags": "--get_text_desc", "type": bool, "default": True},
-        {"name_or_flags": "--get_audio", "type": bool, "default": False},
-        {"name_or_flags": "--debug", "type": bool, "default": False},
-    ],
-    "videoclip": [
-        {"name_or_flags": "--text_pretrained", "type": bool, "default": False},
-        {"name_or_flags": "--text_trainable", "type": bool, "default": False},
-        {
-            "name_or_flags": "--text_model_name",
-            "type": str,
-            "default": "distilbert-base-uncased",
-        },
-        {
-            "name_or_flags": "--text_model_config",
-            "type": Optional[Dict[str, Any]],
-            "default": None,
-        },
-        {"name_or_flags": "--text_padding_value", "type": int, "default": 0},
-        {"name_or_flags": "--video_pretrained", "type": bool, "default": False},
-        {"name_or_flags": "--video_trainable", "type": bool, "default": False},
-        {
-            "name_or_flags": "--video_pretrain_path",
-            "type": str,
-            "default": PRETRAINED_S3D_KINETICS400_URL,
-        },
-        {"name_or_flags": "--proj_out_dim", "type": int, "default": 256},
-        {"name_or_flags": "--proj_dropout", "type": float, "default": 0.1},
-    ],
-    "evaluation": [
-        {"name_or_flags": "--accelerator", "type": str, "default": "auto"},
-        {"name_or_flags": "--devices", "type": int, "default": 1},
-        {
-            "name_or_flags": "--checkpoint_path",
+        "sample_every_n_frames": {"type": int, "default": 3},
+        "sequence_length": {"type": int, "default": 32},
+        "resolution": {"type": int, "default": 224},
+        "audio_sample_rate": {"type": int, "default": AUDIO_SAMPLE_RATE},
+        "audio_sample_length": {"type": int, "default": AUDIO_SAMPLE_LENGTH},
+        "bbox_smap_for_agent": {"action": "store_true"},
+        "bbox_smap_for_monsters": {"action": "store_true"},
+        "use_manual_annotation": {"action": "store_true"},
+        "use_auto_annotation": {"action": "store_true"},
+        "use_downsampled_trainset": {"action": "store_true"},
+        "fixed_start_idx": {"action": "store_true"},
+        "get_game_frame": {"action": "store_true"},
+        "get_seg_map": {"action": "store_true"},
+        "get_text_desc": {"action": "store_true"},
+        "get_audio": {"action": "store_true"},
+        "debug": {"action": "store_true"},
+    },
+    "videoclip": {
+        "text_pretrained": {"action": "store_true"},
+        "text_trainable": {"action": "store_true"},
+        "text_model_name": {"type": str, "default": "distilbert-base-uncased"},
+        "text_model_config": {"type": json.loads, "default": None},
+        "text_padding_value": {"type": int, "default": 0},
+        "video_pretrained": {"action": "store_true"},
+        "video_trainable": {"action": "store_true"},
+        "video_pretrain_path": {"type": str, "default": PRETRAINED_S3D_KINETICS400_URL},
+        "proj_out_dim": {"type": int, "default": 256},
+        "proj_dropout": {"type": float, "default": 0.1},
+    },
+    "evaluation": {
+        "accelerator": {"type": str, "default": "auto"},
+        "devices": {"type": int, "default": 1},
+        "checkpoint_path": {
             "type": str,
             "default": "lightning_videoclip_mugen_ckpt.pt",
         },
-    ],
+    },
 }
 
 
 def parse_all_args():
     parser = argparse.ArgumentParser()
-    for argument_dicts in arg_structure.values():
-        for argument in argument_dicts:
-            # Can't unpack `**argument` directly because `add_argument` requires a positional argument
-            parser.add_argument(
-                argument["name_or_flags"],
-                type=argument["type"],
-                default=argument["default"],
-            )
+    for arguments_dict in arg_structure.values():
+        for arg_name, arg_options in arguments_dict.items():
+            parser.add_argument("--" + arg_name, **arg_options)
     args = parser.parse_args()
     return args
 
 
 def get_args_from_group(args, group_name):
     """Utility for grouping arguments based on the structure in ``arg_structure``"""
-
-    def attr_name(arg_name):
-        """Returns the name of an argument without the ``--`` prefix"""
-        return arg_name[2:]
-
     return argparse.Namespace(
         **{
-            attr_name(arg["name_or_flags"]): getattr(
-                args, attr_name(arg["name_or_flags"])
-            )
-            for arg in arg_structure[group_name]
+            arg_name: getattr(args, arg_name)
+            for arg_name in arg_structure[group_name].keys()
         }
     )
 
@@ -152,7 +102,12 @@ def evaluate():
     evaluation_args = get_args_from_group(args, "evaluation")
 
     dataset_args = MUGENDatasetArgs(**vars(dataset_args))
-    datamodule = MUGENDataModule(dataset_args, **vars(datamodule_args))
+    datamodule = MUGENDataModule(
+        dataset_args,
+        text_transform=BertTextTransform(),
+        video_transform=VideoTransform(),
+        **vars(datamodule_args),
+    )
 
     model = VideoCLIPLightningModule(
         **vars(lightningmodule_args), **vars(videoclip_args)
