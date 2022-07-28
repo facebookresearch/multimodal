@@ -51,17 +51,17 @@ class MultimodalGPT(nn.Module):
         decoder (nn.Module): the transformer decoder (see ``torchmultimodal.models.gpt.TransformerDecoder``)
 
     Args:
-        in_modality (Tensor, optional): Tensor of dimension ``(bs, d1, ..., dn, c)`` containing data for the
+        in_modality (Tensor, optional): Tensor of dimension ``(b, d1, ..., dn, c)`` containing data for the
             input modality. Defaults to ``None``.
-        out_modality (Tensor, optional): Tensor of dimension ``(bs, d1', ..., dn', c')`` containing data for
+        out_modality (Tensor, optional): Tensor of dimension ``(b, d1', ..., dn', c')`` containing data for
             the output modality. Defaults to ``None``.
-        in_pos_ids (Tensor, optional): Tensor of dimension ``(bs, in_seq_len)`` containing indices for the
+        in_pos_ids (Tensor, optional): Tensor of dimension ``(b, in_seq_len)`` containing indices for the
             input modality position embeddings. Defaults to ``None``.
-        out_pos_ids (Tensor, optional): Tensor of dimension ``(bs, out_seq_len)`` containing indices for the
+        out_pos_ids (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing indices for the
             output modality position embeddings. Defaults to ``None``.
-        attn_mask (Tensor, optional): Tensor of dimension ``(bs, out_seq_len, in_seq_len)``. Contains 1s for
+        attn_mask (Tensor, optional): Tensor of dimension ``(b, out_seq_len, in_seq_len)``. Contains 1s for
             positions to attend to and 0s for masked positions. Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(bs, h, out_seq_len, in_seq_len)``. Contains 1s
+        head_mask (Tensor, optional): Tensor of dimension ``(b, h, out_seq_len, in_seq_len)``. Contains 1s
             for attention heads to use and 0s for masked heads. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
@@ -106,7 +106,7 @@ class MultimodalGPT(nn.Module):
                 "in_modality and out_modality sequences cannot be both empty"
             )
 
-        # Since generation is based the previous data point (autoregressive) where
+        # Since generation is based on the previous data point (autoregressive) where
         # only one modality is needed at any point along the sequence, either input
         # or output modality can be None.
         # Whereas training is done by paralleling all data points so both modalities
@@ -125,7 +125,7 @@ class MultimodalGPT(nn.Module):
             x_out = self._encode(out_modality, out_pos_ids, "out")
             x = torch.cat((x_in, x_out), dim=1)
 
-        out = self.decoder(
+        return self.decoder(
             x,
             attn_mask,
             head_mask,
@@ -133,13 +133,6 @@ class MultimodalGPT(nn.Module):
             causal,
             return_attn_weights,
             return_hidden_states,
-        )
-
-        return TransformerDecoderOutput(
-            out.last_hidden_states,
-            out.hidden_states,
-            out.attention_weights,
-            out.past_key_values,
         )
 
     def _encode(self, x: Tensor, pos_ids: Tensor, modality: str) -> Tensor:
@@ -151,13 +144,13 @@ class MultimodalGPT(nn.Module):
         return x
 
     def _norm_pos_ids(self, x: Tensor, pos_ids: Optional[Tensor] = None) -> Tensor:
-        bs, seq_len, _ = x.shape
+        b, seq_len, _ = x.shape
         if pos_ids is None:
             pos_ids = torch.arange(seq_len, dtype=torch.long, device=x.device)[
                 None, :
-            ]  # (bs, seq_len)
+            ]  # (b, seq_len)
 
-        if pos_ids.shape != (bs, seq_len):
+        if pos_ids.shape != (b, seq_len):
             raise ValueError(
                 "input sequence and position ids must be equal in batch size and length"
             )
@@ -173,10 +166,10 @@ class TransformerDecoder(nn.Module):
         num_layers (int): The number of transformer decoder layers to be stacked up.
 
     Args:
-        hidden_states (Tensor): Tensor of the embedding vectors of dimension ``(bs, seq_len, emb_dim)``.
-        attn_mask (Tensor, optional): Tensor of dimension ``(bs, out_seq_len, in_seq_len)``. Contains 1s for
+        hidden_states (Tensor): Tensor of the embedding vectors of dimension ``(b, seq_len, emb_dim)``.
+        attn_mask (Tensor, optional): Tensor of dimension ``(b, out_seq_len, in_seq_len)``. Contains 1s for
             positions to attend to and 0s for masked positions. Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(bs, h, out_seq_len, in_seq_len)``. Contains 1s
+        head_mask (Tensor, optional): Tensor of dimension ``(b, h, out_seq_len, in_seq_len)``. Contains 1s
             for attention heads to use and 0s for masked heads. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
@@ -241,7 +234,7 @@ class TransformerDecoder(nn.Module):
 
 
 class SiLU(nn.Module):
-    r"""Sigmoind Linear Unit
+    r"""Sigmoid Linear Unit
 
     .. math:: \text{SiLU}(x) = x * \sigma(1.702 * x)
 
@@ -274,9 +267,9 @@ class TransformerDecoderLayer(nn.Module):
 
     Args:
         x (Tensor): input embedding vectors.
-        attn_mask (Tensor, optional): Tensor of dimension ``(bs, out_seq_len, in_seq_len)``. Contains 1s for
+        attn_mask (Tensor, optional): Tensor of dimension ``(b, out_seq_len, in_seq_len)``. Contains 1s for
             positions to attend to and 0s for masked positions. Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(bs, h, out_seq_len, in_seq_len)``. Contains 1s
+        head_mask (Tensor, optional): Tensor of dimension ``(b, h, out_seq_len, in_seq_len)``. Contains 1s
             for attention heads to use and 0s for masked heads. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.

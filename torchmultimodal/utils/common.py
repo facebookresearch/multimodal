@@ -204,7 +204,7 @@ def checkpoint_wrapper(fn: Callable) -> Callable:
                 kwargs["use_cache"] = False
 
             def create_custom_forward(fn: Callable) -> Callable:
-                # Specifies what should the checkpoint API run in forward pass
+                # checkpoint API does not accept user defined kwargs so we need to hide them
                 def custom_forward(*inputs: Any) -> Callable:
                     return fn(cls, *inputs, **kwargs)
 
