@@ -57,7 +57,7 @@ class FLAVAPreTrainModule(nn.Module):
         super().__init__()
         self.model = flava_model_for_pretraining(**flava_pretraining_kwargs)
 
-    def forward(self, batch, batch_idx):
+    def forward(self, batch):
         if "image" in batch and ("text" in batch or "text_masked" in batch):
             required_embedding = "mm"
         elif "image" in batch:

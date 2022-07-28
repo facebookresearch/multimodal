@@ -31,6 +31,7 @@ from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 from torchmultimodal.modules.layers.transformer import FLAVATransformerLayer
+import torchsnapshot
 
 # optional syntax-highlighting for console output
 try:
@@ -41,6 +42,8 @@ try:
 except ImportError:
     pass
 
+writer = None
+rank = None
 
 # TODO replace with tlc.copy_data_to_device
 def move_to_device(obj: Any, device: torch.device) -> Any:
@@ -95,30 +98,14 @@ def get_model_parameters(model: torch.nn.Module) -> int:
 def setup_distributed_device() -> None:
     dist.init_process_group("nccl")
     rank = dist.get_rank()
-    torch.cuda.set_device(rank)
-    return torch.device(rank) if torch.cuda.is_available() else "cpu"
+    local_rank = rank % 8
+    torch.cuda.set_device(local_rank)
+    return torch.device(local_rank) if torch.cuda.is_available() else "cpu"
 
-
-
-
-
-@record
-def main():
-    config: FLAVAArguments = build_config()
-    if config.training.seed != -1:
-        seed_everything(config.training.seed, workers=True)
-
-    device = setup_distributed_device()
-
-    rank = dist.get_rank()
-
-    datamodule = get_datamodules(config)
-    datamodule.setup("fit")
-
+def wrap_model(config, device):
     model = FLAVAPreTrainModule(
        **config.model,
     )
-
     strategy = config.training.lightning.strategy
     if rank == 0:
         print(
@@ -144,8 +131,55 @@ def main():
         f"after {strategy} model parameters ({rank=}): {get_model_parameters(model):,}, "
         f"size: {get_model_size_gb(model):.3} GB"
     )
+    return model
+
+LOG_INTERVAL = 50
+def should_log(steps):
+    return steps % LOG_INTERVAL == 0
+
+def calculate_loss(output, steps, validation=False):
+    losses = output.losses
+
+    total_loss = 0
+    for key in losses:
+        if losses[key] is not None:
+            total_loss += losses[key]
+            if should_log(steps):
+                loss_reduce = losses[key].detach()
+                dist.reduce(loss_reduce, dst=0)
+                if rank == 0:
+                    if validation:
+                        mode = "validation"
+                    else:
+                        mode = "train"
+                        writer.add_scalar(
+                            f"{mode}/losses/{key}",
+                            loss_reduce.item() / dist.get_world_size(),
+                            steps,
+                        )
+
+    return total_loss
+
+
+@record
+def main():
+    config: FLAVAArguments = build_config()
+    if config.training.seed != -1:
+        seed_everything(config.training.seed, workers=True)
+
+    device = setup_distributed_device()
+
+    global rank
+    rank = dist.get_rank()
+
+    datamodule = get_datamodules(config)
+    datamodule.setup("fit")
+
+    model = wrap_model(config, device)
+
     # TODO replace with TLC logger
-    writer = SummaryWriter(f"logs/{strategy}/{int(time.time())}")
+    global writer
+    writer = SummaryWriter(f"logs/{config.training.lightning.strategy}/{int(time.time())}")
 
     optimizer, scheduler = get_optimizer(
         model,
@@ -164,50 +198,84 @@ def main():
         epochs += 1
         dataloader = datamodule.train_dataloader()
         dataloader.set_epoch(epochs)
+
+        # prof = torch.profiler.profile(
+        #         schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=4),
+        #         on_trace_ready=torch.profiler.tensorboard_trace_handler('logs/profile'),
+        #         record_shapes=True,
+        #         with_stack=True)
+        # prof.start()
+
         for i, data in enumerate(dataloader):
+            model.train()
             steps += 1
-            dataloader_idx = 0
-            data = datamodule.on_before_batch_transfer(data, dataloader_idx)
+            data = datamodule.on_before_batch_transfer(data, None)
             data = move_to_device(data, device)
-            data = datamodule.on_after_batch_transfer(data, dataloader_idx)
+            data = datamodule.on_after_batch_transfer(data, None)
 
-            optimizer.zero_grad()
-
-            output = model(data, i)
-            losses = output.losses
-
-            total_loss = 0
-            for key in losses:
-                if losses[key] is not None:
-                    total_loss += losses[key]
-                    loss_reduce = losses[key].detach()
-                    dist.reduce(loss_reduce, dst=0)
-                    if rank == 0:
-                        writer.add_scalar(
-                            f"train/losses/{key}",
-                            loss_reduce.item() / dist.get_world_size(),
-                            steps,
-                        )
+            optimizer.zero_grad(set_to_none=True)
+            output = model(data)
+            total_loss = calculate_loss(output, steps)
             total_loss.backward()
-
-            if rank == 0:
-                print(f"step {steps} loss: {total_loss.item():.4}")
-
-            t1 = time.time()
-            batch_size = config.training.batch_size * dist.get_world_size()
-            writer.add_scalar("batch/time", batch_size / (t1 - t0), steps)
-            t0 = t1
-
-            total_loss_reduce = total_loss.detach()
-            dist.reduce(total_loss_reduce.detach(), dst=0)
-            if rank == 0:
-                writer.add_scalar(
-                    "loss", total_loss_reduce.item() / dist.get_world_size(), steps
-                )
-                writer.add_scalar("batch_size", batch_size, steps)
 
             optimizer.step()
             scheduler.step()
+
+            t1 = time.time()
+
+            if should_log(steps) and rank == 0:
+                batch_size = config.training.batch_size * dist.get_world_size()
+                writer.add_scalar("batch/time", batch_size / (t1 - t0), steps)
+            t0 = t1
+            if rank == 0:
+                print(f"epoch: {epochs} step {steps} loss: {total_loss.detach().item():.4}")
+
+            if should_log(steps):
+                total_loss_reduce = total_loss.detach()
+                dist.reduce(total_loss_reduce.detach(), dst=0)
+
+                if rank == 0:
+                    total_loss_reduce = total_loss_reduce.item() / dist.get_world_size()
+
+                    print(f"epoch: {epochs} step {steps} loss: {total_loss_reduce:.4}")
+                    writer.add_scalar(
+                        "train/loss", total_loss_reduce, steps
+                    )
+                    writer.add_scalar("batch_size", batch_size, steps)
+
+
+            if steps % 1000 != 0 or steps == 0:
+                continue
+
+            if rank == 0:
+                print("evaluating")
+
+            model.eval()
+            validation_loader = datamodule.val_dataloader()
+            validation_loss = 0
+            for i, data in enumerate(validation_loader):
+                data = datamodule.on_before_batch_transfer(data, None)
+                data = move_to_device(data, device)
+                data = datamodule.on_after_batch_transfer(data, None)
+                with torch.no_grad():
+                    output = model(data)
+                    total_loss = calculate_loss(output, steps, validation=True)
+                    total_loss_reduce = total_loss.detach()
+                    dist.reduce(total_loss_reduce.detach(), dst=0)
+                    total_loss_reduce = total_loss_reduce.item() / dist.get_world_size()
+                    validation_loss += total_loss_reduce
+            if rank == 0:
+                print(f"step {steps} EVAL loss: {total_loss_reduce:.4}")
+                writer.add_scalar(
+                    "validation/loss", total_loss_reduce, steps
+                )
+
+
+
+
+            
+
+
 
             # TODO implement validation
             # TODO implement imagenet eval

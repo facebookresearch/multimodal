@@ -15,6 +15,15 @@ from datasets.utils.file_utils import get_datasets_user_agent
 from flava.definitions import HFDatasetInfo
 from PIL import Image, UnidentifiedImageError
 
+# optional syntax-highlighting for console output
+try:
+    from rich.console import Console
+
+    c = Console(force_terminal=True)
+    print = c.log
+except ImportError:
+    pass
+
 
 DATASETS_USER_AGENT = get_datasets_user_agent()
 
@@ -22,11 +31,11 @@ DATASETS_USER_AGENT = get_datasets_user_agent()
 def build_datasets_from_info(dataset_infos: List[HFDatasetInfo], split: str = "train"):
     dataset_list = []
     for dataset_info in dataset_infos:
-        print(f"{dataset_info.key=}, {dataset_info.extra_kwargs=}")
+        print(f"build datasets from info {dataset_info.key=}, {dataset_info.extra_kwargs=}")
         current_dataset = load_dataset(
             dataset_info.key,
             dataset_info.subset,
-            split=dataset_info.split_key_mapping[split] + "[:3%]",  # speed up loading
+            split=dataset_info.split_key_mapping[split],
             use_auth_token=True,
             **dataset_info.extra_kwargs,
         )
@@ -37,7 +46,7 @@ def build_datasets_from_info(dataset_infos: List[HFDatasetInfo], split: str = "t
         if dataset_info.rename_columns is not None:
             for rename in dataset_info.rename_columns:
                 current_dataset = current_dataset.rename_column(rename[0], rename[1])
-
+        print(dataset_info.key, "size:", len(current_dataset))
         dataset_list.append(current_dataset)
 
     return concatenate_datasets(dataset_list)
