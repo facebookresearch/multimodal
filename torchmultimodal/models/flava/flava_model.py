@@ -66,7 +66,7 @@ FLAVA_FOR_PRETRAINED_MAPPING = {
 }
 
 FLAVA_MODEL_MAPPING = {
-    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_model.pt",
+    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_model_unified.pt",
 }
 
 
