@@ -12,6 +12,7 @@ from torch.nn import TransformerEncoder, TransformerEncoderLayer
 
 # Taken from original clip implementation https://github.com/openai/CLIP/blob/main/clip/model.py#L167
 def quick_gelu(x: Tensor) -> Tensor:
+    print("hi")
     return x * torch.sigmoid(1.702 * x)
 
 
