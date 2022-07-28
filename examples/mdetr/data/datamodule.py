@@ -8,10 +8,8 @@ from functools import partial
 from typing import Callable, Optional
 
 import torch
-from examples.mdetr.data.flickr import build_flickr
-from examples.mdetr.data.gqa import build_gqa
+from examples.mdetr.data.dataset import build_flickr, build_gqa, collate_fn
 from examples.mdetr.data.transforms import MDETRTransform
-from examples.mdetr.utils.misc import collate_fn
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, DistributedSampler
 from transformers import RobertaTokenizerFast
@@ -24,7 +22,6 @@ class FlickrDataModule(LightningDataModule):
         self.distributed = dataset_config.distributed
         self.batch_size = dataset_config.batch_size
         self.tokenizer = tokenizer
-        self.num_workers = 0
 
     def setup(self, stage: Optional[str] = None):
         if self.tokenizer is None:
@@ -46,7 +43,6 @@ class FlickrDataModule(LightningDataModule):
             sampler=sampler,
             drop_last=False,
             collate_fn=partial(collate_fn, self.tokenizer),
-            num_workers=self.num_workers,
         )
         return data_loader_val
 
@@ -59,7 +55,6 @@ class GQADataModule(LightningDataModule):
         self.batch_size = dataset_config.batch_size
         self.epoch_chunks = dataset_config.epoch_chunks
         self.tokenizer = tokenizer
-        self.num_workers = 0
 
     def setup(self, stage: Optional[str] = None):
         if self.tokenizer is None:
@@ -108,7 +103,6 @@ class GQADataModule(LightningDataModule):
                     ds,
                     batch_sampler=batch_sampler_train,
                     collate_fn=partial(collate_fn, self.tokenizer),
-                    num_workers=self.num_workers,
                 )
                 for ds, batch_sampler_train in zip(datasets, batch_samplers_train)
             ]
@@ -125,7 +119,6 @@ class GQADataModule(LightningDataModule):
                 self.train,
                 batch_sampler=batch_sampler_train,
                 collate_fn=partial(collate_fn, self.tokenizer),
-                num_workers=self.num_workers,
             )
             return train_dataloader
 
@@ -141,6 +134,5 @@ class GQADataModule(LightningDataModule):
             sampler=sampler,
             drop_last=False,
             collate_fn=partial(collate_fn, self.tokenizer),
-            num_workers=self.num_workers,
         )
         return data_loader_val
