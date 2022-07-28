@@ -95,6 +95,8 @@ class TestCheckpointWrapper:
                 return grad
 
         class DummyIdentity(nn.Module):
+            """Returns a passthrough of the input tensor with requires_grad True"""
+
             def __init__(self):
                 super().__init__()
                 self.param = nn.Parameter(torch.ones(1))
@@ -115,7 +117,9 @@ class TestCheckpointWrapper:
             def forward(self, x, y, attn_mask=None, use_cache=False):
                 x = self.identity(x)
                 y = self.identity(y)
-                out = self._layer_to_wrap(x, y, attn_mask, use_cache=use_cache)
+                out = self._layer_to_wrap(
+                    x, y, attn_mask=attn_mask, use_cache=use_cache
+                )
                 return out
 
         return DummyModel()
