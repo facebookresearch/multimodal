@@ -1,0 +1,124 @@
+/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torchvision/io/image.py:13: UserWarning: Failed to load image Python extension: /fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/torchvision/image.so: undefined symbol: _ZNK3c1010TensorImpl36is_contiguous_nondefault_policy_implENS_12MemoryFormatE
+  warn(f"Failed to load image Python extension: {e}")
+Traceback (most recent call last):
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/resolvers/oc/__init__.py", line 33, in env
+    return os.environ[key]
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/os.py", line 675, in __getitem__
+    raise KeyError(key) from None
+KeyError: 'IMAGENET_TAR'
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/base.py", line 662, in resolve_parse_tree
+    return visitor.visit(parse_tree)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/antlr4/tree/Tree.py", line 34, in visit
+    return tree.accept(self)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/grammar/gen/OmegaConfGrammarParser.py", line 205, in accept
+    return visitor.visitConfigValue(self)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/grammar_visitor.py", line 101, in visitConfigValue
+    return self.visit(ctx.getChild(0))
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/antlr4/tree/Tree.py", line 34, in visit
+    return tree.accept(self)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/grammar/gen/OmegaConfGrammarParser.py", line 339, in accept
+    return visitor.visitText(self)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/grammar_visitor.py", line 298, in visitText
+    return self.visitInterpolation(c)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/grammar_visitor.py", line 125, in visitInterpolation
+    return self.visit(ctx.getChild(0))
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/antlr4/tree/Tree.py", line 34, in visit
+    return tree.accept(self)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/grammar/gen/OmegaConfGrammarParser.py", line 1030, in accept
+    return visitor.visitInterpolationResolver(self)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/grammar_visitor.py", line 179, in visitInterpolationResolver
+    return self.resolver_interpolation_callback(
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/base.py", line 648, in resolver_interpolation_callback
+    return self._evaluate_custom_resolver(
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/base.py", line 591, in _evaluate_custom_resolver
+    return resolver(
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/omegaconf.py", line 435, in resolver_wrapper
+    ret = resolver(*args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/resolvers/oc/__init__.py", line 38, in env
+    raise KeyError(f"Environment variable '{key}' not found")
+KeyError: "Environment variable 'IMAGENET_TAR' not found"
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/runpy.py", line 194, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/runpy.py", line 87, in _run_code
+    exec(code, run_globals)
+  File "/fsx/users/rvarm1/rvarm1/repos/torchmultimodal/examples/flava/train.py", line 71, in <module>
+    main()
+  File "/fsx/users/rvarm1/rvarm1/repos/torchmultimodal/examples/flava/train.py", line 18, in main
+    config: FLAVAArguments = build_config()
+  File "/fsx/users/rvarm1/rvarm1/repos/torchmultimodal/examples/flava/utils.py", line 33, in build_config
+    conf = instantiate(yaml_conf)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/hydra/_internal/instantiate/_instantiate2.py", line 212, in instantiate
+    OmegaConf.resolve(config)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/omegaconf.py", line 792, in resolve
+    omegaconf._impl._resolve(cfg)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/_impl.py", line 40, in _resolve
+    _resolve_container_value(cfg, k)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/_impl.py", line 25, in _resolve_container_value
+    _resolve(node)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/_impl.py", line 40, in _resolve
+    _resolve_container_value(cfg, k)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/_impl.py", line 25, in _resolve_container_value
+    _resolve(node)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/_impl.py", line 40, in _resolve
+    _resolve_container_value(cfg, k)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/_impl.py", line 25, in _resolve_container_value
+    _resolve(node)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/_impl.py", line 44, in _resolve
+    _resolve_container_value(cfg, i)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/_impl.py", line 25, in _resolve_container_value
+    _resolve(node)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/_impl.py", line 40, in _resolve
+    _resolve_container_value(cfg, k)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/_impl.py", line 25, in _resolve_container_value
+    _resolve(node)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/_impl.py", line 40, in _resolve
+    _resolve_container_value(cfg, k)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/_impl.py", line 14, in _resolve_container_value
+    resolved = node._dereference_node()
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/base.py", line 205, in _dereference_node
+    node = self._dereference_node_impl(throw_on_resolution_failure=True)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/base.py", line 236, in _dereference_node_impl
+    return parent._resolve_interpolation_from_parse_tree(
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/base.py", line 482, in _resolve_interpolation_from_parse_tree
+    resolved = self.resolve_parse_tree(
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/base.py", line 667, in resolve_parse_tree
+    raise InterpolationResolutionError(
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/base.py", line 662, in resolve_parse_tree
+    return visitor.visit(parse_tree)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/antlr4/tree/Tree.py", line 34, in visit
+    return tree.accept(self)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/grammar/gen/OmegaConfGrammarParser.py", line 205, in accept
+    return visitor.visitConfigValue(self)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/grammar_visitor.py", line 101, in visitConfigValue
+    return self.visit(ctx.getChild(0))
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/antlr4/tree/Tree.py", line 34, in visit
+    return tree.accept(self)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/grammar/gen/OmegaConfGrammarParser.py", line 339, in accept
+    return visitor.visitText(self)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/grammar_visitor.py", line 298, in visitText
+    return self.visitInterpolation(c)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/grammar_visitor.py", line 125, in visitInterpolation
+    return self.visit(ctx.getChild(0))
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/antlr4/tree/Tree.py", line 34, in visit
+    return tree.accept(self)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/grammar/gen/OmegaConfGrammarParser.py", line 1030, in accept
+    return visitor.visitInterpolationResolver(self)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/grammar_visitor.py", line 179, in visitInterpolationResolver
+    return self.resolver_interpolation_callback(
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/base.py", line 648, in resolver_interpolation_callback
+    return self._evaluate_custom_resolver(
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/base.py", line 591, in _evaluate_custom_resolver
+    return resolver(
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/omegaconf.py", line 435, in resolver_wrapper
+    ret = resolver(*args, **kwargs)
+  File "/fsx/users/rvarm1/conda/envs/tmm/lib/python3.8/site-packages/omegaconf/resolvers/oc/__init__.py", line 38, in env
+    raise KeyError(f"Environment variable '{key}' not found")
+omegaconf.errors.InterpolationResolutionError: KeyError raised while resolving interpolation: "Environment variable 'IMAGENET_TAR' not found"
