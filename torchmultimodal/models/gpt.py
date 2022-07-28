@@ -4,7 +4,6 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import copy
 from typing import Callable, Dict, NamedTuple, Optional, Tuple, Union
 
 import torch
@@ -13,7 +12,7 @@ from torch import nn, Tensor
 from torchmultimodal.modules.layers.attention import MultiHeadAttention, SelfAttention
 from torchmultimodal.modules.layers.mlp import MLP
 from torchmultimodal.utils.attention import get_extended_attention_mask
-from torchmultimodal.utils.common import checkpoint_wrapper
+from torchmultimodal.utils.common import checkpoint_wrapper, get_clones
 
 
 class TransformerDecoderOutput(NamedTuple):
@@ -186,7 +185,7 @@ class TransformerDecoder(nn.Module):
         num_layers: int = 12,
     ) -> None:
         super().__init__()
-        self.layers = _get_clones(decoder_layer, num_layers)
+        self.layers = get_clones(decoder_layer, num_layers)
         self.num_layers = num_layers
 
     def forward(
@@ -405,7 +404,3 @@ class RightShift(nn.Module):
         x = torch.cat([sos, x[:, :-1, :]], axis=1)  # (batch, seq_len, embedding_dim)
         x = x.view(*x_shape)
         return x
-
-
-def _get_clones(module: nn.Module, n: int) -> nn.Module:
-    return nn.ModuleList([copy.deepcopy(module) for i in range(n)])
