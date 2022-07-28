@@ -178,7 +178,6 @@ class RandomSizeCrop(object):
     def __init__(self, min_size: int, max_size: int, respect_boxes: bool = False):
         self.min_size = min_size
         self.max_size = max_size
-        self.respect_boxes = respect_boxes  # if True we can't crop a box out
 
     def __call__(self, img: PIL.Image.Image, target: Dict[str, Any]):
         init_boxes = len(target["boxes"])
@@ -188,11 +187,7 @@ class RandomSizeCrop(object):
             h = random.randint(self.min_size, min(img.height, self.max_size))
             region = T.RandomCrop.get_params(img, [h, w])
             result_img, result_target = crop(img, target, region)
-            if (
-                not self.respect_boxes
-                or len(result_target["boxes"]) == init_boxes
-                or i == max_patience - 1
-            ):
+            if len(result_target["boxes"]) == init_boxes or i == max_patience - 1:
                 return result_img, result_target
         return result_img, result_target
 
@@ -293,7 +288,7 @@ class MDETRTransform:
     IMAGENET_MEAN = [0.485, 0.456, 0.406]
     IMAGENET_STD = [0.229, 0.224, 0.225]
 
-    def __init__(self, tokenizer: Callable, is_train: bool, cautious: bool = True):
+    def __init__(self, tokenizer: Callable, is_train: bool):
         normalize = Compose(
             [ToTensor(), Normalize(self.IMAGENET_MEAN, self.IMAGENET_STD)]
         )
@@ -301,16 +296,14 @@ class MDETRTransform:
         scales = [480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800]
         max_size = 1333
         if is_train:
-            horizontal = [] if cautious else [RandomHorizontalFlip()]
             self.image_transform = Compose(
-                horizontal
-                + [
+                [
                     RandomSelect(
                         RandomResize(scales, max_size=max_size),
                         Compose(
                             [
                                 RandomResize([400, 500, 600]),
-                                RandomSizeCrop(384, max_size, respect_boxes=cautious),
+                                RandomSizeCrop(384, max_size),
                                 RandomResize(scales, max_size=max_size),
                             ]
                         ),
