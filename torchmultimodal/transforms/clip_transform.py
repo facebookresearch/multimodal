@@ -17,6 +17,7 @@ from torchvision.transforms import InterpolationMode
 CLIP_DEFAULT_MEAN = (0.48145466, 0.4578275, 0.40821073)
 CLIP_DEFAULT_STD = (0.26862954, 0.26130258, 0.27577711)
 CLIP_DEFAULT_VOCAB_BPE_PATH = "http://download.pytorch.org/models/text/clip_merges.bpe"
+print("hi")
 
 
 def convert_to_rgb(img: Image) -> Image:
