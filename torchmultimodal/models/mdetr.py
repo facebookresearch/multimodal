@@ -5,7 +5,6 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
-from copy import deepcopy
 from typing import Callable, List, NamedTuple, Optional, Tuple
 
 import torch
@@ -18,6 +17,7 @@ from torchmultimodal.modules.encoders.mdetr_text_encoder import (
     mdetr_roberta_text_encoder,
 )
 from torchmultimodal.modules.layers.mlp import MLP
+from torchmultimodal.utils.common import get_clones
 
 
 class MDETRTransformerOutput(NamedTuple):
@@ -635,10 +635,6 @@ class FeatureResizer(nn.Module):
             x = self.layer_norm(x)
         output = self.dropout(x)
         return output
-
-
-def get_clones(module: nn.Module, n: int) -> nn.ModuleList:
-    return nn.ModuleList([deepcopy(module) for i in range(n)])
 
 
 def mdetr_transformer(
