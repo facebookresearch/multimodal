@@ -13,6 +13,7 @@ from typing import Any
 
 import torch
 import torch.distributed as dist
+from torch import nn
 
 
 def gpu_test(gpu_count: int = 1):
@@ -79,3 +80,8 @@ def assert_expected(actual: Any, expected: Any, rtol: float = None, atol: float 
         atol=atol,
         msg=f"actual: {actual}, expected: {expected}",
     )
+
+
+def init_params_ones(model: nn.Module) -> None:
+    for param in model.parameters():
+        nn.init.constant_(param, 1)

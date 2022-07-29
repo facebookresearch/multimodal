@@ -7,7 +7,7 @@
 import pytest
 
 import torch
-from test.test_utils import assert_expected, set_rng_seed
+from test.test_utils import assert_expected, init_params_ones, set_rng_seed
 from torchmultimodal.modules.layers.transformer import (
     _apply_layernorm,
     FLAVATransformerEncoder,
@@ -132,8 +132,7 @@ class TestTransformerEncoderLayer:
     def get_encoder_layer(self):
         def create_layer(norm_first):
             model = TransformerEncoderLayer(2, 1, 2, norm_first=norm_first)
-            for param in model.parameters():
-                torch.nn.init.constant_(param, 1)
+            init_params_ones(model)
             return model
 
         return create_layer
@@ -202,8 +201,7 @@ class TestTransformerEncoderCrossAttentionLayer:
             model = TransformerEncoderCrossAttentionLayer(
                 2, 1, 2, norm_first=norm_first
             )
-            for param in model.parameters():
-                torch.nn.init.constant_(param, 1)
+            init_params_ones(model)
             return model
 
         return create_layer
