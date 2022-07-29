@@ -219,5 +219,5 @@ def checkpoint_wrapper(fn: Callable) -> Callable:
     return inner
 
 
-def get_clones(module: nn.Module, n: int) -> nn.Module:
+def get_clones(module: nn.Module, n: int) -> nn.ModuleList:
     return nn.ModuleList([deepcopy(module) for i in range(n)])
