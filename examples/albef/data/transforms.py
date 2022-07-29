@@ -12,6 +12,7 @@ import torch
 from torchtext.transforms import (
     AddToken,
     BERTTokenizer,
+    PadTransform,
     Sequential,
     StrToIntTransform,
     ToTensor,
@@ -39,9 +40,10 @@ class ALBEFTextTransform:
             Defaults to True.
         truncate (bool): Whether to truncate input text to max_seq_length.
             Defaults to False.
+        pad_to_max_seq_len (bool): Whether to pad the sequence to max_seq_length.
         add_end_token (bool): Whether to add the end-of-sentence token.
             Defaults to True.
-        max_seq_len (int): The max sequence length after truncating, including start and end tokens.
+        max_seq_len (int): The max sequence length after truncating or padding.
             Defaults to 25.
         cls_token_id (int): Value to represent the start of each text.
             Defaults to 101, Hugging Face's BERT cls token id.
@@ -60,6 +62,7 @@ class ALBEFTextTransform:
         do_pre_process: bool = True,
         do_lower_case: bool = True,
         truncate: bool = False,
+        pad_to_max_seq_len: bool = False,
         add_end_token: bool = True,
         max_seq_len: int = 25,
         cls_token_id: int = 101,
@@ -85,6 +88,9 @@ class ALBEFTextTransform:
             if add_end_token
             else torch.nn.Identity(),
             ToTensor(padding_value=self.pad_token_id),
+            PadTransform(max_length=max_seq_len, pad_value=self.pad_token_id)
+            if pad_to_max_seq_len
+            else torch.nn.Identity(),
         )
 
     def pre_process(self, text: str) -> str:
