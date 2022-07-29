@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Dict, List
+from typing import List
 
 import numpy as np
 import torch
@@ -43,24 +43,23 @@ class PostProcessFlickr:
 
     def __call__(
         self,
-        outputs: Dict[str, Tensor],
+        output_logits: Tensor,
+        output_bbox: Tensor,
         target_sizes: Tensor,
         positive_map: Tensor,
         phrases_per_sample: List[int],
     ) -> List[List[List[float]]]:
 
-        out_logits, out_bbox = outputs["pred_logits"], outputs["pred_boxes"]
-
-        assert out_logits.size(0) == target_sizes.size(
+        assert output_logits.size(0) == target_sizes.size(
             0
         ), "Logits and target sizes should both have first dim = batch_size"
         assert target_sizes.size(1) == 2, "Target sizes should have second dim = 2"
 
         batch_size = target_sizes.shape[0]
-        prob = F.softmax(out_logits, -1)
+        prob = F.softmax(output_logits, -1)
 
         # convert to [x0, y0, x1, y1] format
-        boxes = box_convert(out_bbox, in_fmt="cxcywh", out_fmt="xyxy")
+        boxes = box_convert(output_bbox, in_fmt="cxcywh", out_fmt="xyxy")
         img_h, img_w = target_sizes.unbind(1)
         scale_fct = torch.stack([img_w, img_h, img_w, img_h], dim=1)
         # and from relative [0, 1] to absolute [0, height] coordinates
