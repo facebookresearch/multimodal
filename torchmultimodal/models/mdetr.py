@@ -18,7 +18,6 @@ from torchmultimodal.modules.encoders.mdetr_text_encoder import (
 )
 from torchmultimodal.modules.layers.mlp import MLP
 from torchmultimodal.utils.common import get_clones
-from torchvision.models import resnet101
 
 
 class MDETRTransformerOutput(NamedTuple):
