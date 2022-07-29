@@ -16,9 +16,6 @@ class ImageTextContrastiveLoss(nn.Module):
     Compute the image-text contrastive loss from image-text similarity, as used in ALBEF.
     Support loss distillation with pseudo-targets for non-zero alpha. Compute standard contrastive loss for zero alpha.
 
-    Args:
-        alpha (float): The interpolation value of momentum similarity and sim_targets. Default is 0.
-
     Inputs:
         image_to_text_sim (Tensor): Image to text similarity.
         text_to_image_sim (Tensor): Text to image similarity.
@@ -27,15 +24,14 @@ class ImageTextContrastiveLoss(nn.Module):
         text_to_image_sim_m (Optional[Tensor]): Text to image similarity from momentum models.
             Required if alpha is non-zero.
         sim_targets (Optional[Tensor]): Similarity pseudo-targets from momentum models. Default is the diagonal matrix.
-            Requires all inputs to have the same size.
+            Requires all Tensor inputs to have the same size.
+        alpha (Optional[float]): The interpolation value of momentum similarity and sim_targets. Default is 0.
     """
 
     def __init__(
         self,
-        alpha: float = 0.0,
     ) -> None:
         super().__init__()
-        self.alpha = alpha
 
     def forward(
         self,
@@ -44,6 +40,7 @@ class ImageTextContrastiveLoss(nn.Module):
         image_to_text_sim_m: Optional[Tensor] = None,
         text_to_image_sim_m: Optional[Tensor] = None,
         sim_targets: Optional[Tensor] = None,
+        alpha: Optional[float] = 0.0,
     ) -> Tensor:
         if sim_targets is None:
             sim_targets = torch.zeros(image_to_text_sim.size()).to(
@@ -51,19 +48,19 @@ class ImageTextContrastiveLoss(nn.Module):
             )
             sim_targets.fill_diagonal_(1)
 
-        if self.alpha != 0:
+        if alpha != 0:
             assert (
                 image_to_text_sim_m is not None and text_to_image_sim_m is not None
             ), "sim_i2t_m and sim_t2i_m cannot be none for non-zero alpha"
 
             with torch.no_grad():
                 image_to_text_sim_targets = (
-                    self.alpha * F.softmax(image_to_text_sim_m, dim=1)
-                    + (1 - self.alpha) * sim_targets
+                    alpha * F.softmax(image_to_text_sim_m, dim=1)
+                    + (1 - alpha) * sim_targets
                 )
                 text_to_image_sim_targets = (
-                    self.alpha * F.softmax(text_to_image_sim_m, dim=1)
-                    + (1 - self.alpha) * sim_targets
+                    alpha * F.softmax(text_to_image_sim_m, dim=1)
+                    + (1 - alpha) * sim_targets
                 )
         else:
             image_to_text_sim_targets = sim_targets
