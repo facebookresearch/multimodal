@@ -8,7 +8,9 @@
 from typing import Callable
 
 from torch import nn, Tensor
-from torchmultimodal.modules.layers.attention import MultiHeadAttention
+from torchmultimodal.modules.layers.transformer import (
+    TransformerEncoderCrossAttentionLayer,
+)
 from torchmultimodal.utils.attention import get_extended_attention_mask
 
 
@@ -46,12 +48,12 @@ class ALBEFMultimodalEncoder(nn.Module):
         super().__init__()
         self.layer = nn.ModuleList(
             [
-                ALBEFTransformerLayerWithCrossAttention(
-                    hidden_size,
-                    intermediate_size,
-                    num_attention_heads,
-                    layer_norm_eps,
-                    transform_act_fn,
+                TransformerEncoderCrossAttentionLayer(
+                    d_model=hidden_size,
+                    n_head=num_attention_heads,
+                    dim_feedforward=intermediate_size,
+                    activation=transform_act_fn,
+                    layer_norm_eps=layer_norm_eps,
                 )
                 for _ in range(num_hidden_layers)
             ]
@@ -68,62 +70,7 @@ class ALBEFMultimodalEncoder(nn.Module):
         for layer_module in self.layer:
             hidden_states = layer_module(
                 hidden_states,
+                image_embeds,
                 attention_mask=text_atts,
-                encoder_hidden_states=image_embeds,
             )
         return hidden_states
-
-
-class ALBEFTransformerLayerWithCrossAttention(nn.Module):
-    def __init__(
-        self,
-        hidden_size: int,
-        intermediate_size: int,
-        num_attention_heads: int,
-        layer_norm_eps: float,
-        transform_act_fn: Callable[[Tensor], Tensor],
-    ) -> None:
-        super().__init__()
-        # the attention block computes the self attention on text embeddings
-        self.attention = MultiHeadAttention(
-            dim_q=hidden_size,
-            dim_kv=hidden_size,
-            n_head=num_attention_heads,
-        )
-        # the cross_attention block computes the cross attention on image and text embeddings
-        self.cross_attention = MultiHeadAttention(
-            dim_q=hidden_size,
-            dim_kv=hidden_size,
-            n_head=num_attention_heads,
-        )
-        self.attention_layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
-        self.cross_attention_layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
-        self.dense1 = nn.Linear(hidden_size, intermediate_size)
-        self.transform_act_fn = transform_act_fn
-        self.dense2 = nn.Linear(intermediate_size, hidden_size)
-        self.ffn_layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
-
-    def forward(
-        self,
-        hidden_states: Tensor,
-        attention_mask: Tensor,
-        encoder_hidden_states: Tensor,
-    ) -> Tensor:
-        attention_output, _ = self.attention(
-            hidden_states, attention_mask=attention_mask
-        )
-        attention_norm_output = self.attention_layer_norm(
-            attention_output + hidden_states
-        )
-        cross_attention_output, _ = self.cross_attention(
-            attention_norm_output,
-            kv=encoder_hidden_states,
-        )
-        cross_attention_norm_output = self.cross_attention_layer_norm(
-            cross_attention_output + attention_norm_output
-        )
-        dense1_output = self.dense1(cross_attention_norm_output)
-        act_output = self.transform_act_fn(dense1_output)
-        dense2_output = self.dense2(act_output)
-        norm_output = self.ffn_layer_norm(dense2_output + cross_attention_norm_output)
-        return norm_output
