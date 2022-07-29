@@ -10,6 +10,7 @@ from functools import partial
 from typing import List
 
 import requests
+import datasets
 from datasets import concatenate_datasets, load_dataset
 from datasets.utils.file_utils import get_datasets_user_agent
 from flava.definitions import HFDatasetInfo
@@ -27,6 +28,7 @@ except ImportError:
 
 DATASETS_USER_AGENT = get_datasets_user_agent()
 
+datasets.logging.set_verbosity_error()
 
 def build_datasets_from_info(dataset_infos: List[HFDatasetInfo], split: str = "train"):
     dataset_list = []
@@ -35,6 +37,7 @@ def build_datasets_from_info(dataset_infos: List[HFDatasetInfo], split: str = "t
         current_dataset = load_dataset(
             dataset_info.key,
             dataset_info.subset,
+            # split=dataset_info.split_key_mapping[split] + "[:1%]",
             split=dataset_info.split_key_mapping[split],
             use_auth_token=True,
             **dataset_info.extra_kwargs,

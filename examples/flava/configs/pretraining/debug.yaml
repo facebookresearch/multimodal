@@ -7,7 +7,7 @@ training:
     progress_bar_refresh_rate: 50
     val_check_interval: 10000
     num_sanity_val_steps: 0
-    strategy: fsdp # can be changed to fsdp
+    strategy: ddp # can be changed to fsdp
   lightning_checkpoint:
     dirpath: "."
     filename: flava-{epoch:02d}-{step}
@@ -19,8 +19,8 @@ training:
   seed: 1337
   # batch_size: 60 #  ddp 
   # batch_size: 65 # fsdp
-  batch_size: 10
-  num_workers: 12
+  batch_size: 50
+  num_workers: 32
   learning_rate: 2e-4
   adam_eps: 1e-8
   adam_weight_decay: 1e-2
@@ -63,18 +63,18 @@ datasets:
         split_key_mapping:
           validation: train
 
-model:
-  image_num_hidden_layers: 32
-  image_hidden_size: 1280
-  image_intermediate_size: 5120
-  image_num_attention_heads: 16
+# model:
+#   image_num_hidden_layers: 32
+#   image_hidden_size: 1280
+#   image_intermediate_size: 5120
+#   image_num_attention_heads: 16
 
-  text_num_hidden_layers: 32
-  text_hidden_size: 1280
-  text_intermediate_size: 5120 
-  text_num_attention_heads: 16
+#   text_num_hidden_layers: 32
+#   text_hidden_size: 1280
+#   text_intermediate_size: 5120 
+#   text_num_attention_heads: 16
 
-  multimodal_num_hidden_layers: 24
-  multimodal_hidden_size: 1280
-  multimodal_intermediate_size: 5120
-  multimodal_num_attention_heads: 16
+#   multimodal_num_hidden_layers: 24
+#   multimodal_hidden_size: 1280
+#   multimodal_intermediate_size: 5120
+#   multimodal_num_attention_heads: 16

@@ -108,6 +108,7 @@ class MultiDataLoader:
         try:
             next_batch = next(self.current_iterator)
         except StopIteration:
+            print("stop iteration")
             iterator = iter(self.loaders[self.current_index])
             self.iterators[self.current_index] = iterator
             self.current_iterator = iterator

@@ -106,7 +106,7 @@ class ImageDataModule(LightningDataModule):
             sampler=get_sampler(self.train_dataset, shuffle=True),
             pin_memory=True,
             persistent_workers=True,
-            prefetch_factor=36,
+            prefetch_factor=2,
             # uneven batches can cause distributed issues,
             # drop last batch to prevent those.
             # ideally, we don't need to drop these for unimodal cases
@@ -122,7 +122,7 @@ class ImageDataModule(LightningDataModule):
             sampler=get_sampler(self.val_dataset, shuffle=False),
             pin_memory=True,
             persistent_workers=True,
-            prefetch_factor=36,
+            prefetch_factor=2,
             # uneven batches can cause distributed issues,
             # drop last batch to prevent those.
             # ideally, we don't need to drop these for unimodal cases
@@ -201,7 +201,7 @@ class TextDataModule(LightningDataModule):
             sampler=get_sampler(dataset, shuffle),
             pin_memory=True,
             persistent_workers=True,
-            prefetch_factor=36,
+            prefetch_factor=2,
             collate_fn=self._build_collator(),
             drop_last=drop_last,
         )
@@ -401,7 +401,7 @@ class VLDataModule(LightningDataModule):
             collate_fn=self._build_collator(),
             pin_memory=True,
             persistent_workers=True,
-            prefetch_factor=36,
+            prefetch_factor=2,
             # uneven batches can cause distributed issues,
             # drop last batch to prevent those.
             drop_last=True,
@@ -416,7 +416,7 @@ class VLDataModule(LightningDataModule):
             collate_fn=self._build_collator(),
             pin_memory=True,
             persistent_workers=True,
-            prefetch_factor=36,
+            prefetch_factor=2,
             # uneven batches can cause distributed issues,
             # drop last batch to prevent those.
             drop_last=True,
@@ -541,7 +541,7 @@ class TorchVisionDataModule(LightningDataModule):
             num_workers=self.num_workers,
             pin_memory=True,
             persistent_workers=True,
-            prefetch_factor=36,
+            prefetch_factor=2,
         )
 
     def on_before_batch_transfer(self, batch, *args):

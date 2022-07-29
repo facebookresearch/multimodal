@@ -38,7 +38,11 @@ try:
     from rich.console import Console
 
     c = Console(force_terminal=True)
-    print = c.log
+    def print(*args, **kwargs):
+        if dist.get_rank() == 0:
+            c.log(*args, **kwargs)
+
+    # print = c.log
 except ImportError:
     pass
 
@@ -99,6 +103,7 @@ def setup_distributed_device() -> None:
     dist.init_process_group("nccl")
     rank = dist.get_rank()
     local_rank = rank % 8
+    print("local rank", local_rank)
     torch.cuda.set_device(local_rank)
     return torch.device(local_rank) if torch.cuda.is_available() else "cpu"
 
@@ -113,13 +118,16 @@ def wrap_model(config, device):
             f"size: {get_model_size_gb(model):.3} GB"
         )
 
+    print("GPU allocation before model: ", torch.cuda.memory_allocated() / 1024 ** 3, "GB")
+    model = model.to(device)
+    print("allocation after model to device: ", torch.cuda.memory_allocated() / 1024 ** 3, "GB")
     if strategy == "ddp":
         # TODO do we have to do this in FSDP too?
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-        model = DDP(model.to(device), device_ids=[rank], find_unused_parameters=True)
+        model = DDP(model, device_ids=[rank], find_unused_parameters=True, gradient_as_bucket_view=True)
     elif strategy == "fsdp":
         model = FSDP(
-            model.to(device),
+            model,
             auto_wrap_policy=partial(
                 transformer_auto_wrap_policy,
                 transformer_layer_cls={FLAVATransformerLayer},
@@ -131,9 +139,10 @@ def wrap_model(config, device):
         f"after {strategy} model parameters ({rank=}): {get_model_parameters(model):,}, "
         f"size: {get_model_size_gb(model):.3} GB"
     )
+    print(f"allocation after {strategy}: {torch.cuda.memory_allocated() / 1024 ** 3:.3}GB")
     return model
 
-LOG_INTERVAL = 50
+LOG_INTERVAL = 1
 def should_log(steps):
     return steps % LOG_INTERVAL == 0
 
@@ -144,19 +153,19 @@ def calculate_loss(output, steps, validation=False):
     for key in losses:
         if losses[key] is not None:
             total_loss += losses[key]
-            if should_log(steps):
-                loss_reduce = losses[key].detach()
-                dist.reduce(loss_reduce, dst=0)
-                if rank == 0:
-                    if validation:
-                        mode = "validation"
-                    else:
-                        mode = "train"
-                        writer.add_scalar(
-                            f"{mode}/losses/{key}",
-                            loss_reduce.item() / dist.get_world_size(),
-                            steps,
-                        )
+            # if should_log(steps):
+            #     loss_reduce = losses[key].detach()
+            #     dist.reduce(loss_reduce, dst=0)
+            #     if rank == 0:
+            #         if validation:
+            #             mode = "validation"
+            #         else:
+            #             mode = "train"
+            #             writer.add_scalar(
+            #                 f"{mode}/losses/{key}",
+            #                 loss_reduce.item() / dist.get_world_size(),
+            #                 steps,
+            #             )
 
     return total_loss
 
@@ -181,6 +190,8 @@ def main():
     global writer
     writer = SummaryWriter(f"logs/{config.training.lightning.strategy}/{int(time.time())}")
 
+    print(f"allocation before optimizer: {torch.cuda.memory_allocated() / 1024 ** 3:.3}GB")
+
     optimizer, scheduler = get_optimizer(
         model,
         learning_rate=config.training.learning_rate,
@@ -190,6 +201,8 @@ def main():
         warmup_steps=config.training.warmup_steps,
         max_steps=config.training.lightning.max_steps,
     )
+    print(f"allocation after optimizer: {torch.cuda.memory_allocated() / 1024 ** 3:.3}GB")
+
 
     steps = -1
     epochs = -1
@@ -210,23 +223,33 @@ def main():
             model.train()
             steps += 1
             data = datamodule.on_before_batch_transfer(data, None)
+            print(f"allocation before data move: {torch.cuda.memory_allocated() / 1024 ** 3:.3}GB")
             data = move_to_device(data, device)
+            print(f"allocation after data move: {torch.cuda.memory_allocated() / 1024 ** 3:.3}GB")
             data = datamodule.on_after_batch_transfer(data, None)
 
+            print(datamodule.datamodules[datamodule.current_datamodule_idx])
             optimizer.zero_grad(set_to_none=True)
             output = model(data)
+            print(f"allocation after model: {torch.cuda.memory_allocated() / 1024 ** 3:.3}GB")
             total_loss = calculate_loss(output, steps)
             total_loss.backward()
+            print(f"allocation after backward: {torch.cuda.memory_allocated() / 1024 ** 3:.3}GB")
 
             optimizer.step()
+            print(f"allocation after step: {torch.cuda.memory_allocated() / 1024 ** 3:.3}GB")
             scheduler.step()
 
             t1 = time.time()
+            batch_time = t1 - t0
+            batch_size = config.training.batch_size * dist.get_world_size()
+            items_time = batch_size / (t1 - t0)
 
-            if should_log(steps) and rank == 0:
-                batch_size = config.training.batch_size * dist.get_world_size()
-                writer.add_scalar("batch/time", batch_size / (t1 - t0), steps)
             t0 = t1
+            if rank == 0:
+                writer.add_scalar("sec per batch", batch_time, steps)
+                writer.add_scalar("items per sec", items_time, steps)
+
             if rank == 0:
                 print(f"epoch: {epochs} step {steps} loss: {total_loss.detach().item():.4}")
 
@@ -244,7 +267,7 @@ def main():
                     writer.add_scalar("batch_size", batch_size, steps)
 
 
-            if steps % 1000 != 0 or steps == 0:
+            if steps % 500 != 0 or steps == 0:
                 continue
 
             if rank == 0:
@@ -272,12 +295,6 @@ def main():
 
 
 
-
-            
-
-
-
-            # TODO implement validation
             # TODO implement imagenet eval
             # TODO implement checkpoint saving
 
