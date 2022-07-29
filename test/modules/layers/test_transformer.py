@@ -144,7 +144,7 @@ class TestTransformerEncoderLayer:
     def test_attention_block(self, inputs, get_encoder_layer):
         model = get_encoder_layer(False)
         actual, _ = model._attention_block(inputs)
-        expected = model.attention(inputs)
+        expected, _ = model.attention(inputs)
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_feedforward_block(self, inputs, get_encoder_layer):
@@ -217,13 +217,13 @@ class TestTransformerEncoderCrossAttentionLayer:
     def test_self_attention_block(self, inputs, get_encoder_layer):
         model = get_encoder_layer(False)
         actual = model._self_attention_block(inputs)
-        expected = model.attention(inputs)
+        expected, _ = model.attention(inputs)
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_cross_attention_block(self, inputs, cross_inputs, get_encoder_layer):
         model = get_encoder_layer(False)
         actual = model._cross_attention_block(inputs, cross_inputs)
-        expected = model.cross_attention(inputs, cross_inputs)
+        expected, _ = model.cross_attention(inputs, cross_inputs)
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_feedforward_block(self, inputs, get_encoder_layer):
