@@ -72,7 +72,9 @@ class TransformerEncoderCrossAttentionLayer(nn.Module):
     def _self_attention_block(
         self, hidden_states: Tensor, attention_mask: Optional[Tensor] = None
     ) -> Tensor:
-        output, _ = self.attention(hidden_states, attention_mask=attention_mask)
+        output = self.attention(
+            hidden_states, attention_mask=attention_mask, return_attn_weights=False
+        )
         output = self.attention_dropout(output)
         return output
 
@@ -82,10 +84,11 @@ class TransformerEncoderCrossAttentionLayer(nn.Module):
         encoder_hidden_states: Tensor,
         cross_attention_mask: Optional[Tensor] = None,
     ) -> Tensor:
-        output, _ = self.cross_attention(
+        output = self.cross_attention(
             hidden_states,
             encoder_hidden_states,
             attention_mask=cross_attention_mask,
+            return_attn_weights=False,
         )
         output = self.cross_attention_dropout(output)
         return output
@@ -217,6 +220,7 @@ class TransformerEncoderLayer(nn.Module):
             hidden_states,
             attention_mask=attention_mask,
             head_mask=head_mask,
+            return_attn_weights=True,
         )
         output = self.attention_dropout(output)
         return output, attn_weights
@@ -343,6 +347,7 @@ class FLAVATransformerLayer(nn.Module):
             hs,  # in ViT, layernorm is applied before self-attention
             attention_mask=attention_mask,
             head_mask=head_mask,
+            return_attn_weights=True,
         )
         attention_output = self.attention_dropout(self_attention_outputs[0])
         # add self attentions if we output attention weights

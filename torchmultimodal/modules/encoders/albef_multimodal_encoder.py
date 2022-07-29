@@ -109,13 +109,11 @@ class ALBEFTransformerLayerWithCrossAttention(nn.Module):
         attention_mask: Tensor,
         encoder_hidden_states: Tensor,
     ) -> Tensor:
-        attention_output, _ = self.attention(
-            hidden_states, attention_mask=attention_mask
-        )
+        attention_output = self.attention(hidden_states, attention_mask=attention_mask)
         attention_norm_output = self.attention_layer_norm(
             attention_output + hidden_states
         )
-        cross_attention_output, _ = self.cross_attention(
+        cross_attention_output = self.cross_attention(
             attention_norm_output,
             kv=encoder_hidden_states,
         )
