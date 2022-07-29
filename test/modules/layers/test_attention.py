@@ -80,7 +80,7 @@ class TestMultiheadAttention:
     ):
         mha = multihead_attn(1, self_attn)
         qkv = 2 * torch.ones(1, *input_shape, hidden_dim)
-        actual = mha(qkv)
+        actual, _ = mha(qkv)
         expected = torch.tensor(
             [
                 [
@@ -119,7 +119,7 @@ class TestMultiheadAttention:
         mha = multihead_attn(1, self_attn)
         q = 2 * torch.ones(1, *input_shape, hidden_dim)
         kv = torch.ones(1, *input_shape, hidden_dim)
-        actual = mha(q, kv)
+        actual, _ = mha(q, kv)
         expected = torch.tensor(
             [
                 [
@@ -215,7 +215,7 @@ class TestMultiheadAttention:
         assert not mha.cache
         for i in range(2):
             # pertube the input k, v but cache only once
-            actual = mha(q, kv + i, use_cache=True)
+            actual, _ = mha(q, kv + i, use_cache=True)
             assert_expected(mha.cache["k"], expected_k, rtol=0, atol=1e-4)
             assert_expected(mha.cache["v"], expected_v, rtol=0, atol=1e-4)
             assert_expected(actual, expected, rtol=0, atol=1e-4)
@@ -239,7 +239,7 @@ class TestMultiheadAttention:
         # decoding is step-wise along the sequence dim
         for i in range(seq_len):
             out.append(
-                mha(q[:, i : i + 1], kv[:, i : i + 1], use_cache=True, causal=True)
+                mha(q[:, i : i + 1], kv[:, i : i + 1], use_cache=True, causal=True)[0]
             )
             # cached k, v are flattened and augmented by 1 unit at each step
             expected_kv_shape = torch.Size([1, n_heads, (i + 1), hidden_dim])

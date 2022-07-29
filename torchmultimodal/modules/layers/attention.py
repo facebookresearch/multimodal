@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Dict, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple
 
 import torch
 from torch import nn, Tensor
@@ -196,10 +196,9 @@ class MultiHeadAttention(nn.Module):
         kv: Optional[Tensor] = None,
         attention_mask: Optional[Tensor] = None,
         head_mask: Optional[Tensor] = None,
-        return_attn_weights: bool = False,
         use_cache: bool = False,
         causal: bool = False,
-    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+    ) -> Tuple[Tensor, Tensor]:
         if isinstance(self.attn, AxialAttention) and causal:
             raise TypeError("Causal axial attention is not supported.")
 
@@ -234,10 +233,7 @@ class MultiHeadAttention(nn.Module):
         a = merge_multihead(a)
         a = self.output(a)
 
-        if return_attn_weights:
-            return a, attn_probs
-        else:
-            return a
+        return a, attn_probs
 
 
 class AxialAttentionBlock(nn.Module):
@@ -291,7 +287,7 @@ class AxialAttentionBlock(nn.Module):
         h = shift_dim(x, 1, -1)  # (b, c, d1, ..., dn) -> (b, d1, ..., dn, c)
         attn_out = torch.zeros_like(h)
         for mha_attn in self.mha_attns:
-            attn_out += mha_attn(h)
+            attn_out += mha_attn(h)[0]
         h = attn_out
         h = shift_dim(h, -1, 1)  # (b, d1, ..., dn, c) -> (b, c, d1, ..., dn)
         return h
