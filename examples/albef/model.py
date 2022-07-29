@@ -10,7 +10,7 @@ from typing import Callable, List, Optional, Tuple, Union
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
-from torchmultimodal.models.albef import ALBEFModel
+from torchmultimodal.models.albef import ALBEFModel, ALBEFModelWithSimilarity
 from torchmultimodal.modules.encoders.albef_multimodal_encoder import (
     ALBEFMultimodalEncoder,
 )
@@ -19,7 +19,11 @@ from torchmultimodal.modules.encoders.albef_text_encoder import (
     ALBEFTextEncoder,
 )
 from torchmultimodal.modules.encoders.albef_vision_encoder import ALBEFVisionEncoder
-from torchmultimodal.modules.losses.albef import MaskedLanguageModelingLoss
+from torchmultimodal.modules.losses.albef import (
+    ImageTextContrastiveLoss,
+    ImageTextMatchingLoss,
+    MaskedLanguageModelingLoss,
+)
 from torchmultimodal.utils.attention import get_extended_attention_mask_for_decoder
 from torchmultimodal.utils.common import momentum_update, remove_grad
 
@@ -344,6 +348,155 @@ class ALBEFModelForVQA(nn.Module):
             )
 
 
+class ALBEFModelForRetrieval(nn.Module):
+    """
+    ALBEF Model for Retrieval finetuning and inference.
+
+    Args:
+        model_with_similarity (ALBEFModelWithSimilarity): Instantiated ALBEFModelWithSimilarity.
+        itc_loss (ImageTextContrastiveLoss): Instantiated ImageTextContrastiveLoss.
+        itm_loss (ImageTextMatchingLoss): Instantiated ImageTextMatchingLoss.
+
+    Inputs:
+        image (Optional[Tensor] of shape (B, C, H, W)): Image features.
+            Required if is_train is True.
+            Required if input_type is "image" or "multimodal".
+        text (Optional[Tensor] of shape (B, L)): Text features.
+            Required if is_train is True.
+            Required if input_type is "text" or "multimodal".
+        text_atts (Tensor of shape (B, L)): Text attention mask.
+            Required if is_train is True.
+            Required if input_type is "text" or "multimodal".
+        idx (Tensor of shape (B)): Identifier for each image sample.
+            Required if is_train is True.
+        alpha (Optional[float]): The interpolation value between mlm_loss and loss_distill.
+            Default is 0.
+        input_type (Optional[str]): "image", "text", or "multimodal" indicating the encoding type.
+            Required if is_train is False.
+        is_train (Optional[bool]): Whether the model is in training.
+            Default is True.
+
+    Returns:
+        is_train is True:
+            Tensor: The sum of itc loss and itm loss.
+        is_train is False:
+            input_type is "image":
+                Tuple[Tensor, Tensor]: Image embeddings and projected image features.
+            input_type is "text":
+                Tuple[Tensor, Tensor]: Text embeddings and projected text features.
+            input_type is "multimodal"
+                Tensor: Scores for the retrieval task.
+    """
+
+    def __init__(
+        self,
+        model_with_similarity: ALBEFModelWithSimilarity,
+        itc_loss: ImageTextContrastiveLoss,
+        itm_loss: ImageTextMatchingLoss,
+    ) -> None:
+        super().__init__()
+        self.model_with_similarity = (
+            model_with_similarity  # TODO: rename model to model_with_similarity
+        )
+        self.itc_loss = itc_loss
+        self.itm_loss = itm_loss
+
+    def _train_forward(
+        self,
+        image: Tensor,
+        text: Tensor,
+        text_atts: Tensor,
+        idx: Tensor,
+        alpha: float,
+    ) -> Tensor:
+        encoder_output = self.model_with_similarity(image, text, text_atts, idx)
+
+        similarity_outputs = encoder_output.similarity
+        similarity_targets = encoder_output.sim_targets
+        itc_loss = self.itc_loss(
+            similarity_outputs.sim_i2t,
+            similarity_outputs.sim_t2i,
+            similarity_outputs.sim_i2t_m,
+            similarity_outputs.sim_t2i_m,
+            similarity_targets,
+            alpha,
+        )
+
+        pos_embeddings = encoder_output.multimodal_embeddings[:, 0, :]
+        neg_embeddings = encoder_output.multimodal_embeddings_neg[:, 0, :]
+        itm_loss = self.itm_loss(pos_embeddings, neg_embeddings)
+
+        loss = itc_loss + itm_loss
+        return loss
+
+    def _eval_forward(
+        self,
+        input_type: str,
+        image: Optional[Tensor],
+        text: Optional[Tensor],
+        text_atts: Optional[Tensor],
+    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+        if input_type == "image":
+            assert image is not None, "image input tensor cannot be None"
+            image_embed = self.model_with_similarity.albef_model.vision_encoder(image)
+            image_feat = F.normalize(
+                self.model_with_similarity.vision_proj(image_embed[:, 0, :]), dim=-1
+            )
+            return image_embed, image_feat
+        elif input_type == "text":
+            assert (
+                text is not None and text_atts is not None
+            ), "text and text attention mask cannot be None"
+            text_embed = self.model_with_similarity.albef_model.text_encoder(
+                text, text_atts
+            )
+            text_feat = F.normalize(
+                self.model_with_similarity.text_proj(text_embed[:, 0, :]), dim=-1
+            )
+            return text_embed, text_feat
+        elif input_type == "multimodal":
+            assert (
+                image is not None and text is not None and text_atts is not None
+            ), "image embeddings, text embeddings, and text attention mask cannot be None"
+            multimodal_embeds = (
+                self.model_with_similarity.albef_model.multimodal_encoder(
+                    text,
+                    text_atts,
+                    image,
+                )
+            )
+            score = self.itm_loss.itm_head(multimodal_embeds[:, 0, :])[:, 1]
+            return score
+        else:
+            raise ValueError("input_type must be image, text, or multimodal")
+
+    def forward(
+        self,
+        image: Optional[Tensor] = None,
+        text: Optional[Tensor] = None,
+        text_atts: Optional[Tensor] = None,
+        idx: Optional[Tensor] = None,
+        alpha: Optional[Tensor] = 0.0,
+        input_type: Optional[str] = None,
+        is_train: Optional[bool] = True,
+    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+        if is_train:
+            return self._train_forward(
+                image,
+                text,
+                text_atts,
+                idx,
+                alpha,
+            )
+        else:
+            return self._eval_forward(
+                input_type,
+                image,
+                text,
+                text_atts,
+            )
+
+
 def albef_model_for_vqa(config: dict) -> ALBEFModelForVQA:
     vision_encoder = ALBEFVisionEncoder(**config["vision_encoder_args"])
     text_encoder = ALBEFTextEncoder(**config["text_encoder_args"])
@@ -359,3 +512,20 @@ def albef_model_for_vqa(config: dict) -> ALBEFModelForVQA:
     decoder = ALBEFDecoder(text_embeddings, answer_multimodal_encoder, prediction_head)
     loss = MaskedLanguageModelingLoss()
     return ALBEFModelForVQA(albef_model, decoder, loss)
+
+
+def albef_model_for_retrieval(config: dict) -> ALBEFModelForRetrieval:
+    vision_encoder = ALBEFVisionEncoder(**config["vision_encoder_args"])
+    text_encoder = ALBEFTextEncoder(**config["text_encoder_args"])
+    multimodal_encoder = ALBEFMultimodalEncoder(**config["multimodal_encoder_args"])
+    vision_proj = nn.Linear(**config["projection_args"])
+    text_proj = nn.Linear(**config["projection_args"])
+
+    albef_model = ALBEFModel(vision_encoder, text_encoder, multimodal_encoder)
+    albef_model_with_sim = ALBEFModelWithSimilarity(
+        albef_model, vision_proj, text_proj, **config["similarity_args"]
+    )
+    itc_loss = ImageTextContrastiveLoss()
+    itm_loss = ImageTextMatchingLoss()
+
+    return ALBEFModelForRetrieval(albef_model_with_sim, itc_loss, itm_loss)
