@@ -8,6 +8,7 @@ import hashlib
 import os
 import warnings
 from collections import OrderedDict
+from copy import deepcopy
 from dataclasses import fields
 from typing import Any, Callable, List, Optional, Tuple, Union
 
@@ -216,3 +217,7 @@ def checkpoint_wrapper(fn: Callable) -> Callable:
             return fn(cls, *inputs, **kwargs)
 
     return inner
+
+
+def get_clones(module: nn.Module, n: int) -> nn.ModuleList:
+    return nn.ModuleList([deepcopy(module) for i in range(n)])

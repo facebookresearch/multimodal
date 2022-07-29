@@ -4,7 +4,6 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import copy
 from typing import Callable, Dict, NamedTuple, Optional, Tuple, Union
 
 import torch
@@ -13,7 +12,7 @@ from torch import nn, Tensor
 from torchmultimodal.modules.layers.attention import MultiHeadAttention, SelfAttention
 from torchmultimodal.modules.layers.mlp import MLP
 from torchmultimodal.utils.attention import get_extended_attention_mask
-from torchmultimodal.utils.common import checkpoint_wrapper
+from torchmultimodal.utils.common import checkpoint_wrapper, get_clones
 
 
 class TransformerDecoderOutput(NamedTuple):
@@ -186,7 +185,7 @@ class TransformerDecoder(nn.Module):
         num_layers: int = 12,
     ) -> None:
         super().__init__()
-        self.layers = _get_clones(decoder_layer, num_layers)
+        self.layers = get_clones(decoder_layer, num_layers)
         self.num_layers = num_layers
 
     def forward(
@@ -199,9 +198,9 @@ class TransformerDecoder(nn.Module):
         return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> TransformerDecoderOutput:
-        all_hidden_states = () if return_hidden_states else None
-        all_attentions = () if return_attn_weights else None
-        all_past_key_values = () if use_cache else None
+        all_hidden_states: Tuple[Tensor, ...] = () if return_hidden_states else None
+        all_attentions: Tuple[Tensor, ...] = () if return_attn_weights else None
+        all_past_key_values: Tuple[Dict[str, Tensor], ...] = () if use_cache else None
 
         for layer in self.layers:
             if return_hidden_states:
@@ -245,7 +244,7 @@ class SiLU(nn.Module):
     `"Gaussian error linear units"<https://arxiv.org/pdf/1606.08415.pdf>`_.
     """
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         return torch.sigmoid(1.702 * x) * x
 
 
@@ -283,7 +282,7 @@ class TransformerDecoderLayer(nn.Module):
         d_model: int = 768,
         n_head: int = 12,
         dropout: float = 0.1,
-        activation: Union[str, Callable[[Tensor], Tensor]] = SiLU,
+        activation: Callable[..., nn.Module] = SiLU,
         attn_module: nn.Module = SelfAttention(attn_dropout=0.1),
     ) -> None:
         super().__init__()
@@ -384,14 +383,12 @@ class RightShift(nn.Module):
     from VideoGPT: https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/attention.py#L517
     """
 
-    def __init__(self, embedding_dim):
+    def __init__(self, embedding_dim: int) -> None:
         super().__init__()
         self.embedding_dim = embedding_dim
-        self.sos = nn.Parameter(
-            torch.FloatTensor(embedding_dim).normal_(std=0.02), requires_grad=True
-        )
+        self.sos = nn.Parameter(torch.FloatTensor(embedding_dim).normal_(std=0.02))
 
-    def forward(self, x):
+    def forward(self, x: Tensor) -> Tensor:
         x_shape = list(x.shape)
         x = x.flatten(start_dim=1, end_dim=-2)  # (batch, seq_len, embedding_dim)
         sos = (
@@ -400,12 +397,9 @@ class RightShift(nn.Module):
             )
             * self.sos
         )  # (batch, 1, embedding_dim)
-        sos = sos.type_as(x)
         # Shift one unit to the right along dim ``seq_len``
-        x = torch.cat([sos, x[:, :-1, :]], axis=1)  # (batch, seq_len, embedding_dim)
+        x = torch.cat(
+            (sos.data, x[:, :-1, :]), dim=1
+        )  # (batch, seq_len, embedding_dim)
         x = x.view(*x_shape)
         return x
-
-
-def _get_clones(module: nn.Module, n: int) -> nn.Module:
-    return nn.ModuleList([copy.deepcopy(module) for i in range(n)])
