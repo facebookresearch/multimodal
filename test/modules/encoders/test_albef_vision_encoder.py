@@ -4,12 +4,11 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from functools import partial
 
 import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
-from torch import nn, Tensor
+from torch import Tensor
 from torchmultimodal.modules.encoders.albef_vision_encoder import ALBEFVisionEncoder
 
 
@@ -19,11 +18,10 @@ class TestALBEFVisionEncoder:
     vision_encoder = ALBEFVisionEncoder(
         image_size=4,
         patch_size=4,
-        num_layers=2,
-        num_heads=1,
-        hidden_dim=3,
+        num_hidden_layers=2,
+        num_attention_heads=1,
+        hidden_size=3,
         mlp_dim=6,
-        norm_layer=partial(nn.LayerNorm, eps=1e-6),
     )
 
     def test_vision_transformer(self):

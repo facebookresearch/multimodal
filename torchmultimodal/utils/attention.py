@@ -12,7 +12,7 @@ from torch import Tensor
 
 def get_extended_attention_mask(attention_mask: Tensor) -> Tensor:
     """
-    Makes broadcastable attention and causal masks so that future and masked tokens are ignored.
+    Makes broadcastable attention mask so that masked tokens are ignored.
 
     Args:
         attention_mask (Tensor):
@@ -25,11 +25,13 @@ def get_extended_attention_mask(attention_mask: Tensor) -> Tensor:
     # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
     # ourselves in which case we just need to make it broadcastable to all heads,
     # [batch_size, num_heads, from_seq_length, to_seq_length].
-    if attention_mask.dim() == 3:
+    if attention_mask.dim() == 4:
+        extended_attention_mask = attention_mask
+    elif attention_mask.dim() == 3:
         extended_attention_mask = attention_mask[:, None, :, :]
     elif attention_mask.dim() == 2:
         # Provided a padding mask of dimensions [batch_size, seq_length]
-        # - if the model is an encoder, make the mask broadcastable to [batch_size, num_heads, seq_length, seq_length]
+        # if the model is an encoder, make the mask broadcastable to [batch_size, num_heads, seq_length, seq_length]
         extended_attention_mask = attention_mask[:, None, None, :]
     else:
         raise ValueError(
@@ -40,6 +42,32 @@ def get_extended_attention_mask(attention_mask: Tensor) -> Tensor:
         dtype=attention_mask.dtype
     )  # fp16 compatibility
 
+    return extended_attention_mask
+
+
+def get_extended_attention_mask_for_decoder(attention_mask: Tensor) -> Tensor:
+    """
+    Apply a causal mask in addition to the padding mask and make the mask broadcastable,
+    such that future and masked tokens are ignored.
+
+    Args:
+        attention_mask (Tensor):
+            Padding mask with ones indicating tokens to attend to, zeros for tokens to ignore.
+
+    Returns:
+        extended_attention_mask (Tensor):
+            The broadcastable attention mask, with the same dtype as ``attention_mask.dtype``.
+    """
+    device = attention_mask.device
+    batch_size, seq_length = attention_mask.shape
+    causal_mask = get_causal_attention_mask(seq_length).to(device)
+    causal_mask = causal_mask.repeat(batch_size, 1).view(
+        batch_size, seq_length, seq_length
+    )
+    extended_attention_mask = (
+        causal_mask[:, None, :, :] * attention_mask[:, None, None, :]
+    )
+    extended_attention_mask = extended_attention_mask.to(dtype=attention_mask.dtype)
     return extended_attention_mask
 
 
