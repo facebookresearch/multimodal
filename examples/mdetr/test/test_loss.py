@@ -6,10 +6,7 @@
 
 import pytest
 import torch
-from examples.mdetr.contrastive_alignment_loss import (
-    construct_positive_map,
-    contrastive_alignment_loss,
-)
+from examples.mdetr.loss import construct_positive_map, contrastive_alignment_loss
 from test.test_utils import assert_expected, set_rng_seed
 from transformers import RobertaTokenizerFast
 
