@@ -28,7 +28,7 @@ class TransformerLayerOutput(NamedTuple):
     past_key_values: Optional[Dict[str, Tensor]] = None
 
 
-class MultimodalGPT(nn.Module):
+class MultimodalTransformerDecoder(nn.Module):
     """GPT (Generative Pre-Training) model for cross-modality generation
 
     This module implements a GPT model template for generation of one modality given another.
@@ -42,9 +42,6 @@ class MultimodalGPT(nn.Module):
             at any point in time the input data contains only one modality.
 
     Attributes:
-        in_token_emb (nn.Module): input modality token embedding layer.
-        out_token_emb (nn.Module): output modality, i.e., the modality to be generated,
-            token embedding layer.
         in_pos_emb (nn.Module): input modality position embedding layer.
         out_pos_emb (nn.Module): output modality position embedding layer.
         decoder (nn.Module): the transformer decoder (see ``torchmultimodal.models.gpt.TransformerDecoder``)
@@ -73,16 +70,12 @@ class MultimodalGPT(nn.Module):
 
     def __init__(
         self,
-        in_token_emb: nn.Module,
-        out_token_emb: nn.Module,
         in_pos_emb: nn.Module,
         out_pos_emb: nn.Module,
         decoder: nn.Module,
     ) -> None:
         super().__init__()
 
-        self.in_token_emb = in_token_emb
-        self.out_token_emb = out_token_emb
         self.in_pos_emb = in_pos_emb
         self.out_pos_emb = out_pos_emb
         self.decoder = decoder
@@ -113,15 +106,15 @@ class MultimodalGPT(nn.Module):
         # the sequence length of each modality.
         if in_modality is None:
             out_pos_ids = self._norm_pos_ids(out_modality, out_pos_ids)
-            x = self._encode(out_modality, out_pos_ids, "out")
+            x = out_modality + self.out_pos_emb(out_pos_ids)
         elif out_modality is None:
             in_pos_ids = self._norm_pos_ids(in_modality, in_pos_ids)
-            x = self._encode(in_modality, in_pos_ids, "in")
+            x = in_modality + self.in_pos_emb(in_pos_ids)
         else:
             in_pos_ids = self._norm_pos_ids(in_modality, in_pos_ids)
             out_pos_ids = self._norm_pos_ids(out_modality, out_pos_ids)
-            x_in = self._encode(in_modality, in_pos_ids, "in")
-            x_out = self._encode(out_modality, out_pos_ids, "out")
+            x_in = in_modality + self.in_pos_emb(in_pos_ids)
+            x_out = out_modality + self.out_pos_emb(out_pos_ids)
             x = torch.cat((x_in, x_out), dim=1)
 
         return self.decoder(
@@ -133,14 +126,6 @@ class MultimodalGPT(nn.Module):
             return_attn_weights,
             return_hidden_states,
         )
-
-    def _encode(self, x: Tensor, pos_ids: Tensor, modality: str) -> Tensor:
-        token_emb = getattr(self, f"{modality}_token_emb")
-        pos_emb = getattr(self, f"{modality}_pos_emb")
-        _, x = token_emb(x)  # (tokens, embedding per token)
-        x = x + pos_emb(pos_ids)
-
-        return x
 
     def _norm_pos_ids(self, x: Tensor, pos_ids: Optional[Tensor] = None) -> Tensor:
         b, seq_len, _ = x.shape
@@ -390,13 +375,8 @@ class RightShift(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         x_shape = list(x.shape)
-        x = x.flatten(start_dim=1, end_dim=-2)  # (batch, seq_len, embedding_dim)
-        sos = (
-            torch.ones(x_shape[0], 1, self.embedding_dim, dtype=torch.float32).to(
-                self.sos
-            )
-            * self.sos
-        )  # (batch, 1, embedding_dim)
+        x = x.flatten(start_dim=1, end_dim=-2)  # (batch, seq_len, emb)
+        sos = self.sos.unsqueeze(0).unsqueeze(1).repeat(x_shape[0], 1, 1)  # (b, 1, emb)
         # Shift one unit to the right along dim ``seq_len``
         x = torch.cat(
             (sos.data, x[:, :-1, :]), dim=1

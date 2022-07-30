@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Dict, Tuple
+from typing import Dict
 
 import pytest
 
@@ -12,7 +12,7 @@ import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn, Tensor
 from torchmultimodal.models.gpt import (
-    MultimodalGPT,
+    MultimodalTransformerDecoder,
     RightShift,
     SiLU,
     TransformerDecoder,
@@ -137,23 +137,14 @@ def decoder(decoder_layer, num_layers):
 
 @pytest.fixture
 def gpt(decoder, in_seq_len, out_seq_len, emb_dim):
-    class DummyTokenEmbedding(nn.Module):
-        def forward(self, x: Tensor) -> Tuple[Tensor, Tensor]:
-            _, seq_len, emb_dim = x.shape
-            x_tok = torch.arange(seq_len, dtype=torch.long, device=x.device)
-            x_emb = x
-            return x_tok, x_emb
-
-    return MultimodalGPT(
-        in_token_emb=DummyTokenEmbedding(),
-        out_token_emb=DummyTokenEmbedding(),
+    return MultimodalTransformerDecoder(
         in_pos_emb=nn.Embedding(in_seq_len, emb_dim),
         out_pos_emb=nn.Embedding(out_seq_len, emb_dim),
         decoder=decoder,
     )
 
 
-class TestMultimodalGPT:
+class TestMultimodalTransformerDecoder:
     def _pos_ids(self, x):
         bs, seq_len, _ = x.shape
         pos_ids = torch.arange(seq_len, dtype=torch.long, device=x.device)
@@ -206,11 +197,6 @@ class TestMultimodalGPT:
             "past_key_values": None,
         }
         assert_expected_wrapper(actual, expected)
-
-    def test_encode(self, gpt, in_modality):
-        actual = gpt._encode(in_modality, self._pos_ids(in_modality), "in")
-        assert_expected(actual.shape, torch.Size([1, 3, 4]))  # (bs, seq_len, emb_dim)
-        assert_expected(actual.sum().item(), 4.3185, rtol=1e-5, atol=1e-4)
 
     def test_bad_pos_ids(self, gpt, in_modality, in_seq_len):
         in_pos_ids = torch.arange(
