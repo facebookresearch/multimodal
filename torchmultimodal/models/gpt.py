@@ -29,12 +29,12 @@ class TransformerLayerOutput(NamedTuple):
 
 
 class MultimodalTransformerDecoder(nn.Module):
-    """GPT (Generative Pre-Training) model for cross-modality generation
+    """Extends the transformer decoder of GPT (Generative Pre-Training) model for cross-modality generation.
 
-    This module implements a GPT model template for generation of one modality given another.
-    The transformer decoder follow the paper `"Improving Language Understanding by Generative Pre-Training
+    This module implements the transformer decoder of GPT model for generation of one modality given another
+    following the paper `"Improving Language Understanding by Generative Pre-Training
     "<https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf>`_.
-    The token and position embedding layers are per modality:
+    The position embedding layers are per modality:
         * During training both modalities are fed into the module and concatenated as a single sequence of
             tokenized embedding vectors
         * During generation the future data points are predicted step-wise from the past. The input modality
@@ -47,10 +47,10 @@ class MultimodalTransformerDecoder(nn.Module):
         decoder (nn.Module): the transformer decoder (see ``torchmultimodal.models.gpt.TransformerDecoder``)
 
     Args:
-        in_modality (Tensor, optional): Tensor of dimension ``(b, d1, ..., dn, c)`` containing data for the
-            input modality. Defaults to ``None``.
-        out_modality (Tensor, optional): Tensor of dimension ``(b, d1', ..., dn', c')`` containing data for
-            the output modality. Defaults to ``None``.
+        in_modality (Tensor, optional): Tensor of dimension ``(b, in_seq_len, c)`` containing tokenized
+            embeddings for the input modality. Defaults to ``None``.
+        out_modality (Tensor, optional): Tensor of dimension ``(b, out_seq_len, c')`` containing tokenized
+            embeddings for the output modality. Defaults to ``None``.
         in_pos_ids (Tensor, optional): Tensor of dimension ``(b, in_seq_len)`` containing indices for the
             input modality position embeddings. Defaults to ``None``.
         out_pos_ids (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing indices for the
