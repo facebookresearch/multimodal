@@ -12,15 +12,6 @@ from typing import Callable, List, Optional
 import torch
 from pytorch_lightning import LightningDataModule
 
-# optional syntax-highlighting for console output
-try:
-    from rich.console import Console
-
-    c = Console(force_terminal=True)
-    print = c.log
-except ImportError:
-    pass
-
 
 class MultiDataLoader:
     # NOTE: Please check MMF's MultiDataLoader if you want to support
@@ -108,7 +99,6 @@ class MultiDataLoader:
         try:
             next_batch = next(self.current_iterator)
         except StopIteration:
-            print("stop iteration")
             iterator = iter(self.loaders[self.current_index])
             self.iterators[self.current_index] = iterator
             self.current_iterator = iterator
