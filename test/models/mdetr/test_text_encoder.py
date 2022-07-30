@@ -9,7 +9,7 @@ import unittest
 import torch
 
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.modules.encoders.mdetr_text_encoder import (
+from torchmultimodal.models.mdetr.text_encoder import (
     MDETRTextEmbeddings,
     MDETRTextEncoder,
     ModifiedTransformerEncoder,
