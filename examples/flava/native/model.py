@@ -8,6 +8,7 @@ from typing import Any, Tuple
 
 import torch
 from torch import nn
+from torch.utils.checkpoint import checkpoint
 from torchmetrics import Accuracy
 from torchmultimodal.models.flava.flava_model import (
     flava_model_for_classification,

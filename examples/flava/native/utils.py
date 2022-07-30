@@ -59,9 +59,14 @@ def setup_distributed_device() -> None:
     local_rank = int(os.environ["LOCAL_RANK"])
     print("local rank", local_rank)
     torch.cuda.set_device(local_rank)
-    return torch.device(local_rank)  # TODO work with CPU
+    return torch.device(f"cuda:{local_rank}")  # TODO work with CPU
 
 
 def print0(*args, **kwargs) -> None:
     if not dist.is_initialized() or dist.get_rank() == 0:
         print(*args, **kwargs)
+
+
+def enable_tf32() -> None:
+    torch.backends.cudnn.allow_tf32 = True
+    torch.backends.cuda.matmul.allow_tf32 = True

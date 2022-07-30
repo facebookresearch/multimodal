@@ -1,15 +1,23 @@
 training:
-  strategy: ddp # can be changed to fsdp
+  strategy: fsdp # can be changed to fsdp
   seed: 1337
-  batch_size: 50
-  num_workers: 32
+
+  batch_size: 40
+  num_workers: 10
+  prefetch_factor: 2
+  
   learning_rate: 2e-4
   adam_eps: 1e-8
   adam_weight_decay: 1e-2
   adam_betas: [0.9, 0.999]
+
   warmup_steps: 2000
   max_steps: 100000
-  validation_steps: 1000
+  validation_steps: 500
+  log_interval: 10
+
+  enable_tf32: True
+  enable_amp: False
 
 datasets:
   _target_: flava.definitions.TrainingDatasetsInfo
@@ -48,18 +56,18 @@ datasets:
         split_key_mapping:
           validation: train
 
-# model:
-#   image_num_hidden_layers: 32
-#   image_hidden_size: 1280
-#   image_intermediate_size: 5120
-#   image_num_attention_heads: 16
+model:
+  image_num_hidden_layers: 32
+  image_hidden_size: 1280
+  image_intermediate_size: 5120
+  image_num_attention_heads: 16
 
-#   text_num_hidden_layers: 32
-#   text_hidden_size: 1280
-#   text_intermediate_size: 5120 
-#   text_num_attention_heads: 16
+  text_num_hidden_layers: 32
+  text_hidden_size: 1280
+  text_intermediate_size: 5120 
+  text_num_attention_heads: 16
 
-#   multimodal_num_hidden_layers: 24
-#   multimodal_hidden_size: 1280
-#   multimodal_intermediate_size: 5120
-#   multimodal_num_attention_heads: 16
+  multimodal_num_hidden_layers: 24
+  multimodal_hidden_size: 1280
+  multimodal_intermediate_size: 5120
+  multimodal_num_attention_heads: 16

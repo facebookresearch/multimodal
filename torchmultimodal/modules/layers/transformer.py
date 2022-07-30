@@ -15,6 +15,7 @@ import torch
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.attention import MultiHeadAttention, SelfAttention
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
+from torch.utils.checkpoint import checkpoint
 
 FLAVATransformerOutput = namedtuple(
     "FLAVATransformerOutput",
@@ -117,6 +118,7 @@ class FLAVATransformerEncoder(nn.Module):
                     attention_probs_dropout_prob=attention_probs_dropout_prob,
                     layer_norm_eps=layer_norm_eps,
                 )
+
                 for _ in range(num_hidden_layers)
             ]
         )
@@ -135,7 +137,8 @@ class FLAVATransformerEncoder(nn.Module):
             all_hidden_states.append(hidden_states)
 
             layer_head_mask = head_mask[i] if head_mask is not None else None
-            layer_outputs = layer_module(hidden_states, attention_mask, layer_head_mask)
+            # layer_outputs = layer_module(hidden_states, attention_mask, layer_head_mask)
+            layer_outputs = checkpoint(layer_module, hidden_states, attention_mask, layer_head_mask)
 
             hidden_states = layer_outputs[0]
 
