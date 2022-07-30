@@ -192,7 +192,7 @@ def main(args):
     model.to(device)
 
     # Loss weights
-    weight_dict = build_weight_dict(args, model.vqa_heads.heads.keys())
+    weight_dict = build_weight_dict(args, model.vqa_heads.keys())
     model_ema = deepcopy(model) if args.ema else None
     model_without_ddp = model
 
