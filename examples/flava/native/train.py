@@ -8,7 +8,9 @@
 
 import os
 import sys
-from typing import Any
+from typing import Any, Dict, Union
+
+from omegaconf import DictConfig
 
 CURR_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
@@ -39,6 +41,7 @@ from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 from torchmultimodal.modules.layers.transformer import FLAVATransformerLayer
+from torchmultimodal.modules.losses.flava import FLAVAPretrainingLossOutput
 
 
 def get_datamodules(config: FLAVAArguments) -> MultiDataModule:
@@ -71,27 +74,29 @@ def get_datamodules(config: FLAVAArguments) -> MultiDataModule:
 
 @record
 class Trainer:
-    def __init__(self, config):
+    def __init__(self, config: DictConfig):
         if config.training.seed != -1:
             set_seed(config.training.seed)
 
-        self.device = setup_distributed_device()
-        self.config = config
-        self.rank = dist.get_rank()
-        self._logger = SummaryWriter(
+        self.device: torch.device = setup_distributed_device()
+        self.config: DictConfig = config
+        self.rank: int = dist.get_rank()
+        self._logger: SummaryWriter = SummaryWriter(
             f"logs/{config.training.strategy}/{int(time.time())}"
         )
-        self.steps = -1
-        self.epochs = -1
+        self.steps: int = -1
+        self.epochs: int = -1
 
-        self.datamodule = get_datamodules(config)
+        self.datamodule: MultiDataModule = get_datamodules(config)
         self.datamodule.setup("fit")
 
-    def log(self, name, value, log_rank_0=True):
+    def log(
+        self, name: str, value: Union[torch.Tensor, float, int], log_rank_0: bool = True
+    ):
         if log_rank_0 and self.rank == 0:
             self._logger.add_scalar(name, value, self.steps)
 
-    def create_model(self):
+    def create_model(self) -> torch.nn.Module:
         model = FLAVAPreTrainModule(
             **self.config.get("model", {}),
         )
@@ -131,7 +136,9 @@ class Trainer:
 
         return model
 
-    def calculate_loss(self, output, validation=False):
+    def calculate_loss(
+        self, output: FLAVAPretrainingLossOutput, validation=False
+    ) -> torch.Tensor:
         losses = output.losses
 
         total_loss = 0
@@ -151,12 +158,12 @@ class Trainer:
 
         return total_loss
 
-    def preprocess_data(self, data):
+    def preprocess_data(self, data: Dict[str, Any]):
         data = self.datamodule.on_before_batch_transfer(data, None)
         data = move_to_device(data, self.device)
         return self.datamodule.on_after_batch_transfer(data, None)
 
-    def train(self):
+    def train(self) -> None:
         model = self.create_model()
         optimizer, scheduler = get_optimizer(
             model,

@@ -4,7 +4,7 @@ from typing import Any
 
 import torch
 from hydra.utils import instantiate
-from omegaconf import OmegaConf
+from omegaconf import DictConfig, OmegaConf
 from torch import distributed as dist
 
 # optional syntax-highlighting for console output
@@ -17,7 +17,7 @@ except ImportError:
     pass
 
 
-def build_config():
+def build_config() -> DictConfig:
     cli_conf = OmegaConf.from_cli()
     yaml_conf = OmegaConf.load(cli_conf.config)
     conf = instantiate(yaml_conf)
@@ -62,6 +62,6 @@ def setup_distributed_device() -> None:
     return torch.device(local_rank)  # TODO work with CPU
 
 
-def print0(*args, **kwargs):
+def print0(*args, **kwargs) -> None:
     if not dist.is_initialized() or dist.get_rank() == 0:
         print(*args, **kwargs)
