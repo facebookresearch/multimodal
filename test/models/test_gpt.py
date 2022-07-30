@@ -4,13 +4,11 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Dict
-
 import pytest
 
 import torch
-from test.test_utils import assert_expected, set_rng_seed
-from torch import nn, Tensor
+from test.test_utils import assert_expected, assert_expected_wrapper, set_rng_seed
+from torch import nn
 from torchmultimodal.models.gpt import (
     MultimodalTransformerDecoder,
     RightShift,
@@ -27,43 +25,6 @@ def tuple_to_dict(t):
         raise TypeError(f"Input must be of type tuple but got {type(t)}")
 
     return {k: v for k, v in enumerate(t)}
-
-
-def assert_expected_wrapper(actual, expected):
-    """Helper function that calls assert_expected recursively on nested Dict/NamedTuple"""
-    # convert NamedTuple to dictionary
-    if isinstance(actual, tuple) and hasattr(
-        actual, "_asdict"
-    ):  # hacky way to assert an instance of NamedTuple
-        actual = actual._asdict()
-
-    if not isinstance(actual, Dict):
-        raise TypeError(f"actual needs to be a dictionary but got {type(actual)}")
-
-    if not isinstance(expected, Dict):
-        raise TypeError(f"expected needs to be a dictionary but got {type(expected)}")
-
-    for attr, _expected in expected.items():
-        _actual = actual[attr]
-
-        if _actual is None:
-            # optional output
-            assert _expected is None
-        elif isinstance(_actual, Dict):
-            # dictionary output, e.g., cache of k/v
-            assert_expected_wrapper(_actual, _expected)
-        elif isinstance(_actual, tuple):
-            # outputs are from multiple layers: (Tensor, Tensor, ...)
-            assert_expected_wrapper(tuple_to_dict(_actual), tuple_to_dict(_expected))
-        elif isinstance(_actual, Tensor):
-            # single tensor output
-            _expected_shape, _expected_sum = _expected
-            assert_expected(_actual.shape, _expected_shape)
-            assert_expected(_actual.sum().item(), _expected_sum, rtol=1e-5, atol=1e-4)
-        else:
-            raise TypeError(
-                f"Unsupported types for test assertion: {_actual}, {_expected}"
-            )
 
 
 @pytest.fixture(autouse=True)
