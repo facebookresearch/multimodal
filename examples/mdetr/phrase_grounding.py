@@ -16,10 +16,10 @@ import torch
 from examples.mdetr.data.datamodule import FlickrDataModule
 from examples.mdetr.data.flickr_eval import FlickrEvaluator
 from examples.mdetr.data.postprocessors import PostProcessFlickr
-from examples.mdetr.model import mdetr_for_phrase_grounding
 from examples.mdetr.utils.args_parse import get_args_parser
 from examples.mdetr.utils.metrics import MetricLogger
 from examples.mdetr.utils.misc import targets_to
+from torchmultimodal.models.mdetr.model import mdetr_for_phrase_grounding
 
 
 @torch.no_grad()
@@ -45,12 +45,7 @@ def evaluate(
             if "positive_map" in batch_dict
             else None
         )
-        outputs = model(
-            samples, text, targets, positive_map, batch_dict["batch_encoding"]
-        )
-        loss_dict = outputs.loss
-        loss_dict_reduced = dist.reduce_dict(loss_dict)
-        metric_logger.update(**loss_dict_reduced)
+        outputs = model(samples, text)
 
         orig_target_sizes = torch.stack([t["orig_size"] for t in targets], dim=0)
         flickr_res = []
@@ -59,8 +54,8 @@ def evaluate(
         phrases_per_sample = [t["nb_eval"] for t in targets]
         positive_map_eval = batch_dict["positive_map_eval"].to(device)
         flickr_results = postprocessor(
-            outputs.model_output.pred_logits,
-            outputs.model_output.pred_boxes,
+            outputs.pred_logits,
+            outputs.pred_boxes,
             orig_target_sizes,
             positive_map_eval,
             phrases_per_sample,
@@ -74,10 +69,8 @@ def evaluate(
         evaluator.update(flickr_res)
 
     # gather the stats from all processes
-    metric_logger.synchronize_between_processes()
     evaluator.synchronize_between_processes()
 
-    print("Averaged stats:", metric_logger)
     flickr_res = evaluator.summarize()
 
     return flickr_res
@@ -118,9 +111,6 @@ def main(args):
     model = mdetr_for_phrase_grounding(
         args.num_queries,
         args.num_classes,
-        matcher_cost_class=args.set_cost_class,
-        matcher_cost_bbox=args.set_cost_bbox,
-        matcher_cost_giou=args.set_cost_giou,
     )
     model.to(device)
 
@@ -150,7 +140,8 @@ def main(args):
     else:
         model_ema.load_state_dict(checkpoint["model_ema"])
 
-    test_model = model_ema if model_ema is not None else model
+    # For eval we only need the model and not the contrastive projections
+    test_model = model_ema.model if model_ema is not None else model.model
 
     # Construct evaluator
     evaluator = FlickrEvaluator(

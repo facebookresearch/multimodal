@@ -84,23 +84,29 @@ def get_args_parser():
         "--contrastive_loss_hdim",
         type=int,
         default=64,
-        help="Projection head output size before computing normalized temperature-scaled cross entropy loss",
+        help="Projection head output size before computing the contrastive alignment loss",
     )
-    # * Matcher
     parser.add_argument(
-        "--set_cost_class",
+        "--temperature",
+        type=float,
+        default=0.07,
+        help="Temperature in the contrastive alignment loss",
+    )
+    # Matcher
+    parser.add_argument(
+        "--matcher_cost_class",
         default=1,
         type=float,
         help="Class coefficient in the matching cost",
     )
     parser.add_argument(
-        "--set_cost_bbox",
+        "--matcher_cost_bbox",
         default=5,
         type=float,
         help="L1 box coefficient in the matching cost",
     )
     parser.add_argument(
-        "--set_cost_giou",
+        "--matcher_cost_giou",
         default=2,
         type=float,
         help="giou box coefficient in the matching cost",
@@ -111,7 +117,7 @@ def get_args_parser():
     parser.add_argument("--giou_loss_coef", default=2, type=float)
     parser.add_argument("--qa_loss_coef", default=1, type=float)
     parser.add_argument(
-        "--eos_coef",
+        "--no_object_weight",
         default=0.1,
         type=float,
         help="Relative classification weight of the no-object class",
