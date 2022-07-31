@@ -102,6 +102,8 @@ class OmnivoreSunRgbdDatasets(VisionDataset):
             if self._get_sunrgbd_scene_class(x) in self.class_to_idx
         ]
 
+        self._to_tensor = T.ToTensor()
+
     def _check_exists(self):
         return self._data_dir.is_dir() and self._meta_dir.is_dir()
 
@@ -122,7 +124,7 @@ class OmnivoreSunRgbdDatasets(VisionDataset):
             focal_length = float(lines[0].strip().split()[0])
 
         img_depth = PIL.Image.open(depth_path)
-        tensor_depth = T.ToTensor()(img_depth)
+        tensor_depth = self._to_tensor(img_depth)
         tensor_disparity = baseline * focal_length / (tensor_depth / 1000.0)
         return tensor_disparity
 
@@ -130,7 +132,7 @@ class OmnivoreSunRgbdDatasets(VisionDataset):
         rgb_dir = os.path.join(image_dir, "image")
         rgb_path = os.path.join(rgb_dir, os.listdir(rgb_dir)[0])
         img_rgb = PIL.Image.open(rgb_path)
-        tensor_rgb = T.ToTensor()(img_rgb)
+        tensor_rgb = self._to_tensor(img_rgb)
 
         tensor_d = self._get_disparity_tensor(image_dir)
 
