@@ -99,6 +99,8 @@ def decoder(decoder_layer, num_layers):
 @pytest.fixture
 def gpt(decoder, in_seq_len, out_seq_len, emb_dim):
     return MultimodalTransformerDecoder(
+        in_token_emb=nn.Identity(),
+        out_token_emb=nn.Identity(),
         in_pos_emb=nn.Embedding(in_seq_len, emb_dim),
         out_pos_emb=nn.Embedding(out_seq_len, emb_dim),
         decoder=decoder,

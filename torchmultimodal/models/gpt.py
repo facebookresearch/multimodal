@@ -34,7 +34,7 @@ class MultimodalTransformerDecoder(nn.Module):
     This module implements the transformer decoder of GPT model for generation of one modality given another
     following the paper `"Improving Language Understanding by Generative Pre-Training
     "<https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf>`_.
-    The position embedding layers are per modality:
+    The token- and position- embedding layers are per modality:
         * During training both modalities are fed into the module and concatenated as a single sequence of
             tokenized embedding vectors
         * During generation the future data points are predicted step-wise from the past. The input modality
@@ -42,6 +42,8 @@ class MultimodalTransformerDecoder(nn.Module):
             at any point in time the input data contains only one modality.
 
     Attributes:
+        in_token_emb (nn.Module): embedding layer that converts input tokens to embedding vectors.
+        out_token_emb (nn.Module): embedding layer that converts output tokens to embedding vectors.
         in_pos_emb (nn.Module): input modality position embedding layer.
         out_pos_emb (nn.Module): output modality position embedding layer.
         decoder (nn.Module): the transformer decoder (see ``torchmultimodal.models.gpt.TransformerDecoder``)
@@ -55,9 +57,9 @@ class MultimodalTransformerDecoder(nn.Module):
             input modality position embeddings. Defaults to ``None``.
         out_pos_ids (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing indices for the
             output modality position embeddings. Defaults to ``None``.
-        attn_mask (Tensor, optional): Tensor of dimension ``(b, out_seq_len, in_seq_len)``. Contains 1s for
+        attn_mask (Tensor, optional): Tensor of dimension ``(b, total_seq_len, total_seq_len)``. Contains 1s for
             positions to attend to and 0s for masked positions. Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(b, h, out_seq_len, in_seq_len)``. Contains 1s
+        head_mask (Tensor, optional): Tensor of dimension ``(b, h, total_seq_len, total_seq_len)``. Contains 1s
             for attention heads to use and 0s for masked heads. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
@@ -70,12 +72,16 @@ class MultimodalTransformerDecoder(nn.Module):
 
     def __init__(
         self,
+        in_token_emb: nn.Module,
+        out_token_emb: nn.Module,
         in_pos_emb: nn.Module,
         out_pos_emb: nn.Module,
         decoder: nn.Module,
     ) -> None:
         super().__init__()
 
+        self.in_token_emb = in_token_emb
+        self.out_token_emb = out_token_emb
         self.in_pos_emb = in_pos_emb
         self.out_pos_emb = out_pos_emb
         self.decoder = decoder
@@ -106,15 +112,15 @@ class MultimodalTransformerDecoder(nn.Module):
         # the sequence length of each modality.
         if in_modality is None:
             out_pos_ids = self._norm_pos_ids(out_modality, out_pos_ids)
-            x = out_modality + self.out_pos_emb(out_pos_ids)
+            x = self.out_token_emb(out_modality) + self.out_pos_emb(out_pos_ids)
         elif out_modality is None:
             in_pos_ids = self._norm_pos_ids(in_modality, in_pos_ids)
-            x = in_modality + self.in_pos_emb(in_pos_ids)
+            x = self.in_token_emb(in_modality) + self.in_pos_emb(in_pos_ids)
         else:
             in_pos_ids = self._norm_pos_ids(in_modality, in_pos_ids)
             out_pos_ids = self._norm_pos_ids(out_modality, out_pos_ids)
-            x_in = in_modality + self.in_pos_emb(in_pos_ids)
-            x_out = out_modality + self.out_pos_emb(out_pos_ids)
+            x_in = self.in_token_emb(in_modality) + self.in_pos_emb(in_pos_ids)
+            x_out = self.out_token_emb(out_modality) + self.out_pos_emb(out_pos_ids)
             x = torch.cat((x_in, x_out), dim=1)
 
         return self.decoder(
@@ -151,9 +157,9 @@ class TransformerDecoder(nn.Module):
 
     Args:
         hidden_states (Tensor): Tensor of the embedding vectors of dimension ``(b, seq_len, emb_dim)``.
-        attn_mask (Tensor, optional): Tensor of dimension ``(b, out_seq_len, in_seq_len)``. Contains 1s for
+        attn_mask (Tensor, optional): Tensor of dimension ``(b, seq_len, seq_len)``. Contains 1s for
             positions to attend to and 0s for masked positions. Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(b, h, out_seq_len, in_seq_len)``. Contains 1s
+        head_mask (Tensor, optional): Tensor of dimension ``(b, h, seq_len, seq_len)``. Contains 1s
             for attention heads to use and 0s for masked heads. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
@@ -251,9 +257,9 @@ class TransformerDecoderLayer(nn.Module):
 
     Args:
         x (Tensor): input embedding vectors.
-        attn_mask (Tensor, optional): Tensor of dimension ``(b, out_seq_len, in_seq_len)``. Contains 1s for
+        attn_mask (Tensor, optional): Tensor of dimension ``(b, seq_len, seq_len)``. Contains 1s for
             positions to attend to and 0s for masked positions. Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(b, h, out_seq_len, in_seq_len)``. Contains 1s
+        head_mask (Tensor, optional): Tensor of dimension ``(b, h, seq_len, seq_len)``. Contains 1s
             for attention heads to use and 0s for masked heads. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
