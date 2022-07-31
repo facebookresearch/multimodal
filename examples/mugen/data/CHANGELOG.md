@@ -5,11 +5,11 @@ The format of this document is based on [Keep a Changelog](http://keepachangelog
 ## [Unreleased] - 2022-07-26
 
 Changes are noted with respect to the [original MUGEN dataset API](https://github.com/mugen-org/MUGEN_baseline/tree/main/lib/data).
- 
+
 ### Added
-- Added `README.md` instructions on how to download assets. 
+- Added `README.md` instructions on how to download assets.
 - Added optional data transform arguments to data module.
- 
+
 ### Changed
 - Replaced command-line arguments with `MUGENDatasetArgs` and direct arguments to `MugenDataModule`.
 - Renamed `data.py` --> `mugen_datamodules.py` and renamed `VideoData` class to `MUGENDataModule`.
