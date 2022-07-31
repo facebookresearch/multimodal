@@ -9,10 +9,11 @@ import random
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict
 
 import torch
 import torch.distributed as dist
+from torch import Tensor
 
 
 def gpu_test(gpu_count: int = 1):
@@ -79,3 +80,40 @@ def assert_expected(actual: Any, expected: Any, rtol: float = None, atol: float 
         atol=atol,
         msg=f"actual: {actual}, expected: {expected}",
     )
+
+
+def assert_expected_wrapper(actual, expected):
+    """Helper function that calls assert_expected recursively on nested Dict/NamedTuple"""
+    # convert NamedTuple to dictionary
+    if isinstance(actual, tuple) and hasattr(
+        actual, "_asdict"
+    ):  # hacky way to assert an instance of NamedTuple
+        actual = actual._asdict()
+
+    if not isinstance(actual, Dict):
+        raise TypeError(f"actual needs to be a dictionary but got {type(actual)}")
+
+    if not isinstance(expected, Dict):
+        raise TypeError(f"expected needs to be a dictionary but got {type(expected)}")
+
+    for attr, _expected in expected.items():
+        _actual = actual[attr]
+
+        if _actual is None:
+            # optional output
+            assert _expected is None
+        elif isinstance(_actual, Dict):
+            # dictionary output, e.g., cache of k/v
+            assert_expected_wrapper(_actual, _expected)
+        elif isinstance(_actual, tuple):
+            # outputs are from multiple layers: (Tensor, Tensor, ...)
+            assert_expected_wrapper(tuple_to_dict(_actual), tuple_to_dict(_expected))
+        elif isinstance(_actual, Tensor):
+            # single tensor output
+            _expected_shape, _expected_sum = _expected
+            assert_expected(_actual.shape, _expected_shape)
+            assert_expected(_actual.sum().item(), _expected_sum, rtol=1e-5, atol=1e-4)
+        else:
+            raise TypeError(
+                f"Unsupported types for test assertion: {_actual}, {_expected}"
+            )
