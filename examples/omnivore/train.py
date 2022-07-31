@@ -454,9 +454,13 @@ def main(args):
                 checkpoint["model_ema"] = model_ema.state_dict()
             if scaler:
                 checkpoint["scaler"] = scaler.state_dict()
-            utils.save_on_master(
-                checkpoint, os.path.join(args.output_dir, f"model_{epoch}.pth")
-            )
+            if (
+                epoch % args.save_checkpoint_every_num_epoch
+                == args.save_checkpoint_every_num_epoch - 1
+            ):
+                utils.save_on_master(
+                    checkpoint, os.path.join(args.output_dir, f"model_{epoch}.pth")
+                )
             utils.save_on_master(
                 checkpoint, os.path.join(args.output_dir, "checkpoint.pth")
             )
@@ -772,6 +776,12 @@ def get_args_parser(add_help=True):
     parser.add_argument("--log-level", default="INFO", type=str, help="Log level")
     parser.add_argument(
         "--pretrained", action="store_true", help="Start model with pretrained weight"
+    )
+    parser.add_argument(
+        "--save-checkpoint-every-num-epoch",
+        default=1,
+        type=int,
+        help="Save checkpoint every specified number of epoch",
     )
     return parser
 
