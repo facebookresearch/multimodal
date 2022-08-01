@@ -54,10 +54,12 @@ class Codebook(nn.Module):
         # Embedding weights and parameters for EMA update will be registered to buffer, as they
         # will not be updated by the optimizer but are still model parameters.
         # code_usage and code_avg correspond with N and m, respectively, from Oord et al.
-        randn_init_embedding = torch.randn(num_embeddings, embedding_dim)
-        self.register_buffer("embedding", randn_init_embedding.clone())
+        self.register_buffer("embedding", torch.zeros(num_embeddings, embedding_dim))
         self.register_buffer("code_usage", torch.zeros(num_embeddings))
-        self.register_buffer("code_avg", randn_init_embedding.clone())
+        self.register_buffer("code_avg", torch.zeros(num_embeddings, embedding_dim))
+        self.embedding: Tensor
+        self.code_usage: Tensor
+        self.code_avg: Tensor
 
         self.embedding_dim = embedding_dim
         self.num_embeddings = num_embeddings
@@ -68,9 +70,6 @@ class Codebook(nn.Module):
 
         # Threshold for randomly reseting unused embedding vectors
         self.codebook_usage_threshold = codebook_usage_threshold
-
-        # Flag to track if we need to initialize embedding with encoder output
-        self._is_embedding_init = False
 
     def _tile(self, x: Tensor, n: int) -> Tensor:
         # Repeat vectors in x if x has less than n vectors
@@ -110,7 +109,6 @@ class Codebook(nn.Module):
         self, quantized_flat: Tensor, permuted_shape: Union[Size, Tuple]
     ) -> Tensor:
         # Rearrange back to batch x channel x n dims
-        num_dims = len(permuted_shape)
         quantized_permuted = quantized_flat.view(permuted_shape)
         quantized = shift_dim(quantized_permuted, -1, 1)
 
@@ -121,8 +119,6 @@ class Codebook(nn.Module):
         # on the first forward pass for faster convergence, as in VideoGPT (Yan et al. 2021)
         #
         # This requires preprocessing the encoder output, so return this as well.
-
-        self._is_embedding_init = True
 
         # Flatten encoder outputs, tile to match num embeddings, get random encoder outputs
         encoded_flat, permuted_shape = self._preprocess(z)
@@ -195,7 +191,7 @@ class Codebook(nn.Module):
 
     def forward(self, z: Tensor) -> CodebookOutput:
         # First check if embedding is initialized correctly
-        if not self._is_embedding_init and self.training:
+        if torch.sum(self.embedding).item() == 0 and self.training:
             encoded_flat, permuted_shape = self._init_embedding_and_preprocess(z)
         else:
             # Reshape and flatten encoder output for quantization
