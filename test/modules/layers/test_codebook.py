@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import unittest
+import warnings
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
@@ -109,7 +110,7 @@ class TestCodebook(unittest.TestCase):
         expected_weight = torch.Tensor(
             [
                 [2.0, -1.0, 0.0, 2.0, 0.0],
-                [2.0, 1.0, 0.0, 1.0, 1.0],
+                [-1.0, -2.0, 0.0, 1.0, 0.0],
                 [0.0, 1.0, -1.0, 2.0, -1.0],
                 [1.0, 0.0, -1.0, -1.0, 1.0],
             ]
@@ -133,8 +134,8 @@ class TestCodebook(unittest.TestCase):
         actual_weight = self.vq.embedding
         expected_weight = torch.Tensor(
             [
-                [0.7647, -1.4118, 0.0000, 1.5882, 0.0000],
-                [2.0000, 1.0000, 0.0000, 1.0000, 1.0000],
+                [2.0000, -0.1765, 0.0000, 1.5882, 0.4118],
+                [-1.0000, -2.0000, 0.0000, 1.0000, 0.0000],
                 [-0.4118, 1.4118, -0.5882, 1.1765, -1.4118],
                 [1.0000, 0.0000, -1.0000, -1.0000, 1.0000],
             ]
@@ -144,8 +145,8 @@ class TestCodebook(unittest.TestCase):
         actual_code_avg = self.vq.code_avg
         expected_code_avg = torch.Tensor(
             [
-                [1.3000, -2.4000, 0.0000, 2.7000, 0.0000],
-                [2.0000, 1.0000, 0.0000, 1.0000, 1.0000],
+                [3.4000, -0.3000, 0.0000, 2.7000, 0.7000],
+                [-1.0000, -2.0000, 0.0000, 1.0000, 0.0000],
                 [-0.7000, 2.4000, -1.0000, 2.0000, -2.4000],
                 [1.0000, 0.0000, -1.0000, -1.0000, 1.0000],
             ]
@@ -161,9 +162,11 @@ class TestCodebook(unittest.TestCase):
         out.quantized.sum().backward()
 
         msg_has_grad = "tensor assigned to buffer but accumulated grad"
-        assert not self.vq.code_avg.grad, msg_has_grad
-        assert not self.vq.code_usage.grad, msg_has_grad
-        assert not self.vq.embedding.grad, msg_has_grad
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            assert not self.vq.code_avg.grad, msg_has_grad
+            assert not self.vq.code_usage.grad, msg_has_grad
+            assert not self.vq.embedding.grad, msg_has_grad
 
         assert not list(
             self.vq.parameters()
