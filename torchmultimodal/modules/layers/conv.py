@@ -119,7 +119,7 @@ class SamePadConvTranspose3d(nn.Module):
                 self.kernel_size, self.stride, x.shape[2:]
             )
             self.convt.padding, self.convt.output_padding = calculate_transpose_padding(
-                self.kernel_size, self.stride, x.shape[2:], self.pad_input
+                self.kernel_size, self.stride, x.shape[2:], self.pad_input[::-1]
             )
         return self.convt(F.pad(x, self.pad_input))
 
