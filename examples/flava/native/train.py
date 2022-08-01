@@ -11,9 +11,8 @@ import sys
 from contextlib import nullcontext
 from typing import Any, Dict, Union
 
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
-CURR_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(1, os.path.join(sys.path[0], ".."))
 
 import time
@@ -198,6 +197,8 @@ class Trainer:
         return self.datamodule.on_after_batch_transfer(data, None)
 
     def train(self) -> None:
+
+        print0(OmegaConf.to_container(self.config.training))
         model = self.create_model()
         optimizer, scheduler = get_optimizer(
             model,
@@ -206,7 +207,7 @@ class Trainer:
             adam_weight_decay=self.config.training.get("adam_weight_decay"),
             adam_betas=self.config.training.get("adam_betas"),
             warmup_steps=self.config.training.get("warmup_steps"),
-            max_steps=self.config.training.get("lightning.max_steps"),
+            max_steps=self.config.training.get("max_steps"),
         )
 
         while True:
@@ -216,6 +217,8 @@ class Trainer:
             dataloader.set_epoch(self.epochs)
 
             for i, data in enumerate(dataloader):
+                torch.cuda.reset_peak_memory_stats()
+
                 self.steps += 1
 
                 if self.config.training.max_steps < self.steps:
@@ -224,13 +227,9 @@ class Trainer:
 
                 model.train()
                 data = self.preprocess_data(data)
-                print0(
-                    f"after preprocess data {torch.cuda.memory_allocated()/1024**3:.3} GB"
-                )
-
                 optimizer.zero_grad(set_to_none=True)
 
-                with torch.cuda.amp.autocast() if self.scaler else nullcontext():
+                with torch.cuda.amp.autocast(dtype=torch.bfloat16) if self.scaler else nullcontext():
                     output = model(data)
                     print0(
                         f"after forward pass {torch.cuda.memory_allocated()/1024**3:.3} GB"
@@ -238,25 +237,16 @@ class Trainer:
                     self.log("fwd memory", torch.cuda.memory_allocated() / 1024**3)
 
                     total_loss = self.calculate_loss(output)
-                    print0(f"after loss {torch.cuda.memory_allocated()/1024**3:.3} GB")
 
                 if self.scaler:
                     self.scaler.scale(total_loss).backward()
-                    print0(
-                        f"after backward {torch.cuda.memory_allocated()/1024**3:.3} GB"
-                    )
                     self.scaler.step(optimizer)
                     self.scaler.update()
                 else:
                     total_loss.backward()
-                    print0(
-                        f"after backward {torch.cuda.memory_allocated()/1024**3:.3} GB"
-                    )
                     optimizer.step()
 
                 scheduler.step()
-
-                print0(f"after step {torch.cuda.memory_allocated()/1024**3:.3} GB")
 
                 t1 = time.time()
                 batch_time = t1 - t0
@@ -278,6 +268,7 @@ class Trainer:
                     )
                     self.log("train/loss", norm_total_loss)
                     self.log("batch_size", batch_size)
+                self.log("max_gpu_allocated_gb", torch.cuda.max_memory_allocated()/1024**3)
 
                 if (
                     self.steps % self.config.training.validation_steps != 0
@@ -295,9 +286,10 @@ class Trainer:
                         break
                     data = self.preprocess_data(data)
                     with torch.no_grad():
-                        output = model(data)
-                        total_loss = self.calculate_loss(output, validation=True)
-                        validation_loss += total_loss.detach()
+                        with torch.cuda.amp.autocast(dtype=torch.bfloat16) if self.scaler else nullcontext():
+                            output = model(data)
+                            total_loss = self.calculate_loss(output, validation=True)
+                            validation_loss += total_loss.detach()
 
                 print(validation_loss)
                 dist.reduce(validation_loss, dst=0)

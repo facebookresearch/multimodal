@@ -517,6 +517,7 @@ def flava_model_for_pretraining(
     **flava_model_kwargs: Any,
     # TODO: Add parameters for loss here
 ) -> FLAVAForPreTraining:
+    print("pretraining configs", locals())
     model = flava_model(**flava_model_kwargs)
     hidden_size = flava_model_kwargs.get("multimodal_hidden_size", 768)
     losses = FLAVAPretrainingLoss(hidden_size=hidden_size)

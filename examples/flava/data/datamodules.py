@@ -299,7 +299,7 @@ class VLDataModule(LightningDataModule):
         fetch_retries: int = 0,
         fetch_sleep_timer: int = 0,
         fetch_timeout: Optional[float] = None,
-        fetch_batch_size: int = 50,
+        fetch_batch_size: int = 1000,
         prefetch_factor = 2,
         **kwargs,
     ):
