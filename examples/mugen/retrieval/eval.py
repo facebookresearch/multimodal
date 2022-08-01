@@ -7,6 +7,8 @@
 import argparse
 import json
 
+from examples.mugen.data.audio_utils import AUDIO_SAMPLE_LENGTH, AUDIO_SAMPLE_RATE
+
 from examples.mugen.data.mugen_datamodules import MUGENDataModule
 from examples.mugen.data.mugen_dataset import MUGENDatasetArgs
 
@@ -36,6 +38,8 @@ arg_structure = {
         "sample_every_n_frames": {"type": int, "default": 3},
         "sequence_length": {"type": int, "default": 32},
         "resolution": {"type": int, "default": 224},
+        "audio_sample_rate": {"type": int, "default": AUDIO_SAMPLE_RATE},
+        "audio_sample_length": {"type": int, "default": AUDIO_SAMPLE_LENGTH},
         "bbox_smap_for_agent": {"action": "store_true"},
         "bbox_smap_for_monsters": {"action": "store_true"},
         "use_manual_annotation": {"action": "store_true"},
@@ -45,6 +49,7 @@ arg_structure = {
         "get_game_frame": {"action": "store_true"},
         "get_seg_map": {"action": "store_true"},
         "get_text_desc": {"action": "store_true"},
+        "get_audio": {"action": "store_true"},
         "debug": {"action": "store_true"},
     },
     "videoclip": {
@@ -95,7 +100,7 @@ def evaluate():
     videoclip_args = get_args_from_group(args, "videoclip")
     evaluation_args = get_args_from_group(args, "evaluation")
 
-    dataset_args = MUGENDatasetArgs(get_audio=False, **vars(dataset_args))
+    dataset_args = MUGENDatasetArgs(**vars(dataset_args))
     datamodule = MUGENDataModule(
         dataset_args,
         text_transform=BertTextTransform(),
