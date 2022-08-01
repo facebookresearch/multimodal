@@ -60,8 +60,6 @@ arg_structure = {
         "proj_dropout": {"type": float, "default": 0.1},
     },
     "evaluation": {
-        "accelerator": {"type": str, "default": "auto"},
-        "devices": {"type": int, "default": 1},
         "checkpoint_path": {
             "type": str,
             "default": "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/videoclip_lightning_mugen.pt",
@@ -110,9 +108,7 @@ def evaluate():
     )
     model = model.load_from_checkpoint(evaluation_args.checkpoint_path)
 
-    trainer = Trainer(
-        accelerator=evaluation_args.accelerator, devices=evaluation_args.devices
-    )
+    trainer = Trainer(accelerator="auto", devices=1)
     trainer.test(model, dataloaders=datamodule.test_dataloader())
 
 
