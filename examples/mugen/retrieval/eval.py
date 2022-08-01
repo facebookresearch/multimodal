@@ -64,7 +64,7 @@ arg_structure = {
         "devices": {"type": int, "default": 1},
         "checkpoint_path": {
             "type": str,
-            "default": "lightning_videoclip_mugen_ckpt.pt",
+            "default": "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/videoclip_lightning_mugen.pt",
         },
     },
 }
