@@ -22,33 +22,30 @@ def get_yaml_config():
             "Please pass 'config' to specify configuration yaml file for running VideoCLIP evaluation"
         )
     yaml_conf = OmegaConf.load(cli_conf.config)
-    return OmegaConf.to_container(yaml_conf)
+    return yaml_conf
 
 
 def evaluate():
     args = get_yaml_config()
-    datamodule_args = args["datamodule_args"]
-    lightningmodule_args = args["lightningmodule_args"]
-    dataset_args = args["dataset_args"]
-    videoclip_args = args["videoclip_args"]
-    evaluation_args = args["evaluation_args"]
 
-    dataset_args = MUGENDatasetArgs(get_audio=False, **dataset_args)
+    dataset_args = MUGENDatasetArgs(get_audio=False, **args.dataset_args)
     datamodule = MUGENDataModule(
         dataset_args,
-        text_transform=BertTextTransform(**datamodule_args["bert_text_transform"]),
-        video_transform=VideoTransform(**datamodule_args["video_transform"]),
-        batch_size=datamodule_args["batch_size"],
-        num_workers=datamodule_args["num_workers"],
-        shuffle=datamodule_args["shuffle"],
+        text_transform=BertTextTransform(**args.datamodule_args.bert_text_transform),
+        video_transform=VideoTransform(**args.datamodule_args.video_transform),
+        batch_size=args.datamodule_args.batch_size,
+        num_workers=args.datamodule_args.num_workers,
+        shuffle=args.datamodule_args.shuffle,
     )
 
-    model = VideoCLIPLightningModule(**lightningmodule_args, **videoclip_args)
-    model = model.load_from_checkpoint(evaluation_args["checkpoint_path"])
+    model = VideoCLIPLightningModule(**args.lightningmodule_args, **args.videoclip_args)
+    model = model.load_from_checkpoint(args.evaluation_args.checkpoint_path)
 
     trainer = Trainer(
-        accelerator=evaluation_args["accelerator"], devices=evaluation_args["devices"]
+        accelerator=args.evaluation_args.accelerator,
+        devices=args.evaluation_args.devices,
     )
+
     trainer.test(model, dataloaders=datamodule.test_dataloader())
 
 
