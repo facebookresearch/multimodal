@@ -6,6 +6,7 @@
 
 from typing import Any, cast, List, Optional, Tuple
 
+import torch
 from torch import nn, Tensor
 
 from torchmultimodal.models.vqvae import VQVAE
@@ -13,6 +14,13 @@ from torchmultimodal.modules.layers.attention import AxialAttentionBlock
 from torchmultimodal.modules.layers.conv import SamePadConv3d, SamePadConvTranspose3d
 from torchmultimodal.utils.assertion import assert_equal_lengths
 from torchmultimodal.utils.common import to_tuple_tuple
+
+
+MUGEN_PRETRAINED_MAPPING = {
+    "mugen_L32": "https://download.pytorch.org/models/multimodal/mugen/mugen_video_vqvae_L32.pt",
+    "mugen_L16": "https://download.pytorch.org/models/multimodal/mugen/mugen_video_vqvae_L16.pt",
+    "mugen_L8": "https://download.pytorch.org/models/multimodal/mugen/mugen_video_vqvae_L8.pt",
+}
 
 
 def video_vqvae(
@@ -100,7 +108,7 @@ def video_vqvae_mugen(
     embedding_dim: int = 256,
     decoder_hidden_dim: int = 240,
     decoder_kernel_size: int = 3,
-    pretrained_model_key: Optional[str] = None,
+    pretrained_model_key: Optional[str] = "mugen_L32",
 ) -> VQVAE:
     """Constructor for MUGEN's Video VQVAE. Expects input video data of shape {8,16,32}x256x256.
     Trained for tokenization of video data and use in video-audio-text retrieval and generation tasks.
@@ -157,7 +165,16 @@ def video_vqvae_mugen(
         n_res_layers,
         attn_hidden_dim,
     )
-    return VQVAE(encoder, decoder, num_embeddings, embedding_dim)
+    model = VQVAE(encoder, decoder, num_embeddings, embedding_dim)
+
+    if pretrained_model_key:
+        model.load_state_dict(
+            torch.hub.load_state_dict_from_url(
+                MUGEN_PRETRAINED_MAPPING[pretrained_model_key]
+            )
+        )
+
+    return model
 
 
 class VideoEncoder(nn.Module):
