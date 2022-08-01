@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 
-from typing import Callable
+from typing import Callable, Optional
 
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.attention import MultiHeadAttention
@@ -19,19 +19,29 @@ class ALBEFMultimodalEncoder(nn.Module):
     The ALBEFMultimodalEncoder is similar to ALBEFTextEncoder, with the addition of image-text cross attention in encoder layers.
 
     Args:
-        hidden_size (int): Dimensionality of the encoder layers. Default is 768.
-        num_hidden_layers (int): Number of hidden layers in the Transformer encoder. Default is 6.
-        num_attention_heads (int): Number of attention heads for each attention layer in the Transformer encoder. Default is 12.
+        hidden_size (int): Dimensionality of the encoder layers.
+            Default is 768.
+        num_hidden_layers (int): Number of hidden layers in the Transformer encoder.
+            Default is 6.
+        num_attention_heads (int): Number of attention heads for each attention layer in the Transformer encoder.
+            Default is 12.
         intermediate_size (int): Dimensionality of the “intermediate” (i.e., feed-forward) layer in the Transformer encoder.
             Default is 3072.
-        layer_norm_eps (float): The epsilon used by the layer normalization layers. Default is 1e-12.
-        transform_act_fn (Callable[[Tensor], Tensor]): The activation function for the Transformer encoder layer. Default is GELU.
+        layer_norm_eps (float): The epsilon used by the layer normalization layers.
+            Default is 1e-12.
+        transform_act_fn (Callable[[Tensor], Tensor]): The activation function for the Transformer encoder layer.
+            Default is GELU.
 
     Inputs:
-        image_embeds (Tensor of size (batch_size, image_seq_length, hidden_size)): Image embeddings from a vision encoder.
-        text_embeds (Tensor of size (batch_size, text_seq_length, hidden_size)): Text embeddings from a text encoder.
-        text_atts (Tensor of size (batch_size, text_seq_length)): Mask to avoid performing attention on padding token indices.
-            Mask values selected in [0, 1]: 1 for tokens that are NOT MASKED, 0 for MASKED tokens.
+        hidden_states (Tensor of shape (batch_size, seq_len, hidden_size)):
+            Unimodal input hidden states.
+        attention_mask (Tensor of shape (batch_size, seq_len)):
+            Input attention mask to avoid performing attention on padding token indices.
+        encoder_hidden_states (Tensor of shape (batch_size, encoder_seq_len, hidden_size)):
+            The encoder hidden states.
+        encoder_attention_mask (Optional[Tensor] of shape (batch_size, encoder_seq_len)):
+            The attention mask for encoder hidden states.
+        is_decoder (bool): Whether this module is used as a decoder. Default is False.
     """
 
     def __init__(
@@ -59,17 +69,21 @@ class ALBEFMultimodalEncoder(nn.Module):
 
     def forward(
         self,
-        image_embeds: Tensor,
-        text_embeds: Tensor,
-        text_atts: Tensor,
+        hidden_states: Tensor,
+        attention_mask: Tensor,
+        encoder_hidden_states: Tensor,
+        encoder_attention_mask: Optional[Tensor] = None,
     ) -> Tensor:
-        text_atts = get_extended_attention_mask(text_atts)
-        hidden_states = text_embeds
+        attention_mask = get_extended_attention_mask(attention_mask)
+        if encoder_attention_mask is not None:
+            encoder_attention_mask = get_extended_attention_mask(encoder_attention_mask)
+
         for layer_module in self.layer:
             hidden_states = layer_module(
                 hidden_states,
-                attention_mask=text_atts,
-                encoder_hidden_states=image_embeds,
+                attention_mask=attention_mask,
+                encoder_hidden_states=encoder_hidden_states,
+                encoder_attention_mask=encoder_attention_mask,
             )
         return hidden_states
 
@@ -108,6 +122,7 @@ class ALBEFTransformerLayerWithCrossAttention(nn.Module):
         hidden_states: Tensor,
         attention_mask: Tensor,
         encoder_hidden_states: Tensor,
+        encoder_attention_mask: Optional[Tensor] = None,
     ) -> Tensor:
         attention_output = self.attention(hidden_states, attention_mask=attention_mask)
         attention_norm_output = self.attention_layer_norm(
@@ -116,6 +131,7 @@ class ALBEFTransformerLayerWithCrossAttention(nn.Module):
         cross_attention_output = self.cross_attention(
             attention_norm_output,
             kv=encoder_hidden_states,
+            attention_mask=encoder_attention_mask,
         )
         cross_attention_norm_output = self.cross_attention_layer_norm(
             cross_attention_output + attention_norm_output
