@@ -281,7 +281,9 @@ class TestVideoVQVAEMUGEN:
     @pytest.fixture
     def vv(self):
         def create_model(model_key):
-            return video_vqvae_mugen(pretrained_model_key=model_key)
+            model = video_vqvae_mugen(pretrained_model_key=model_key)
+            model.eval()
+            return model
 
         return create_model
 
@@ -299,6 +301,18 @@ class TestVideoVQVAEMUGEN:
         actual = torch.tensor(output.decoded.shape)
         expected = torch.tensor((1, 3, 32, 256, 256))
         assert_expected(actual, expected)
+
+    @pytest.mark.parametrize(
+        "seq_len,expected", [(8, 136533.1875), (16, -87956.390625), (32, 1182203.0)]
+    )
+    def test_checkpoint(self, vv, input_data, seq_len, expected):
+        model_key = f"mugen_L{seq_len}"
+        model = vv(model_key)
+        x = input_data(seq_len)
+        output = model(x)
+        actual_tensor = torch.sum(output.decoded)
+        expected_tensor = torch.tensor(expected)
+        assert_expected(actual_tensor, expected_tensor, rtol=1e-5, atol=1e-8)
 
 
 def test_preprocess_int_conv_params():
