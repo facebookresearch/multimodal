@@ -2,7 +2,7 @@ _target_: flava.definitions.FLAVAArguments
 training:
   _target_: flava.definitions.TrainingArguments
   lightning:
-    max_steps: 450000
+    max_steps: 1000
     gpus: -1
     # progress_bar_refresh_rate: 50
     val_check_interval: 10000
@@ -17,7 +17,7 @@ training:
     verbose: true
   lightning_load_from_checkpoint: null
   seed: -1
-  batch_size: 8
+  batch_size: 2
   num_workers: 4
   learning_rate: 2e-4
   adam_eps: 1e-8
@@ -60,3 +60,19 @@ datasets:
           - ["caption", "text"]
         split_key_mapping:
           validation: train
+
+model:
+  image_num_hidden_layers: 32
+  image_hidden_size: 1280
+  image_intermediate_size: 5120
+  image_num_attention_heads: 16
+
+  text_num_hidden_layers: 32
+  text_hidden_size: 1280
+  text_intermediate_size: 5120
+  text_num_attention_heads: 16
+
+  multimodal_num_hidden_layers: 24
+  multimodal_hidden_size: 1280
+  multimodal_intermediate_size: 5120
+  multimodal_num_attention_heads: 16

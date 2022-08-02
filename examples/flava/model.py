@@ -4,15 +4,19 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+from functools import partial
 from typing import Any, Tuple
 
 import torch
 from pytorch_lightning import LightningModule
 from torchmetrics import Accuracy
+from torch.distributed.fsdp import FullyShardedDataParallel
+from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 from torchmultimodal.models.flava.flava_model import (
     flava_model_for_classification,
     flava_model_for_pretraining,
 )
+from torchmultimodal.modules.layers.transformer import FLAVATransformerLayer
 from transformers.optimization import get_cosine_schedule_with_warmup
 
 
@@ -40,6 +44,92 @@ def get_optimizers_for_lightning(
     return [optimizer], [{"scheduler": scheduler, "interval": "step"}]
 
 
+class FLAVAPreTrainingLightningModuleFSDP(LightningModule):
+    def __init__(
+        self,
+        learning_rate: float = 0.0002,
+        adam_eps: float = 1.0e-08,
+        adam_weight_decay: float = 0.01,
+        adam_betas: Tuple[int, int] = (0.9, 0.999),
+        warmup_steps: int = 2000,
+        max_steps: int = 450000,
+        **flava_pretraining_kwargs: Any,
+    ):
+        super().__init__()
+        self.model = flava_model_for_pretraining(**flava_pretraining_kwargs)
+        self.learning_rate = learning_rate
+        self.adam_eps = adam_eps
+        self.adam_betas = adam_betas
+        self.adam_weight_decay = adam_weight_decay
+        self.warmup_steps = warmup_steps
+        self.max_steps = max_steps
+
+    def training_step(self, batch, batch_idx):
+        output = self._step(batch, batch_idx)
+        # print(f"The output in lm is {output}")
+        # print(f"output keys are {output.keys()}")
+        losses = output["losses"]
+        total_loss = 0
+        for key in losses:
+            if losses[key] is not None:
+                total_loss += losses[key]
+                self.log(f"train/losses/{key}", losses[key], prog_bar=True, logger=True)
+        return total_loss
+
+    def validation_step(self, batch, batch_idx):
+        output = self._step(batch, batch_idx)
+        losses = output["losses"]
+        total_loss = 0
+        for key in losses:
+            if losses[key] is not None:
+                total_loss += losses[key]
+                self.log(
+                    f"validation/losses/{key}", losses[key], prog_bar=True, logger=True
+                )
+
+        return total_loss
+
+    def _step(self, batch, batch_idx):
+        if "image" in batch and ("text" in batch or "text_masked" in batch):
+            required_embedding = "mm"
+        elif "image" in batch:
+            required_embedding = "image"
+        elif "text" in batch or "text_masked" in batch:
+            required_embedding = "text"
+        else:
+            raise RuntimeError("Batch needs to have either or both 'image' and 'text'.")
+        # print(self.model)
+        output = self.model(
+            image=batch.get("image", None),
+            image_for_codebook=batch.get("image_for_codebook", None),
+            image_patches_mask=batch.get("image_patches_mask", None),
+            text=batch.get("text", None),
+            text_masked=batch.get("text_masked", None),
+            mlm_labels=batch.get("mlm_labels", None),
+            itm_labels=batch.get("itm_labels", None),
+            required_embedding=required_embedding,
+        )
+        return output
+
+    def configure_optimizers(self):
+        return get_optimizers_for_lightning(
+            self.model,
+            self.learning_rate,
+            self.adam_eps,
+            self.adam_weight_decay,
+            self.adam_betas,
+            self.warmup_steps,
+            self.max_steps,
+        )
+
+    def configure_sharded_model(self) -> None:
+        p = partial(
+            transformer_auto_wrap_policy, transformer_layer_cls={FLAVATransformerLayer}
+        )
+        self.model = FullyShardedDataParallel(self.model, auto_wrap_policy=p)
+        print("My fsdp model ", self.model)
+
+
 class FLAVAPreTrainingLightningModule(LightningModule):
     def __init__(
         self,
@@ -62,18 +152,19 @@ class FLAVAPreTrainingLightningModule(LightningModule):
 
     def training_step(self, batch, batch_idx):
         output = self._step(batch, batch_idx)
-        losses = output.losses
+        # print(f"The output in lm is {output}")
+        # print(f"output keys are {output.keys()}")
+        losses = output["losses"]
         total_loss = 0
         for key in losses:
             if losses[key] is not None:
                 total_loss += losses[key]
                 self.log(f"train/losses/{key}", losses[key], prog_bar=True, logger=True)
-
         return total_loss
 
     def validation_step(self, batch, batch_idx):
         output = self._step(batch, batch_idx)
-        losses = output.losses
+        losses = output["losses"]
         total_loss = 0
         for key in losses:
             if losses[key] is not None:
@@ -93,7 +184,7 @@ class FLAVAPreTrainingLightningModule(LightningModule):
             required_embedding = "text"
         else:
             raise RuntimeError("Batch needs to have either or both 'image' and 'text'.")
-
+        # print(self.model)
         output = self.model(
             image=batch.get("image", None),
             image_for_codebook=batch.get("image_for_codebook", None),

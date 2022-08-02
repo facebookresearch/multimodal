@@ -8,11 +8,15 @@ from common.data import MultiDataModule
 from flava.callbacks.multimodal_eval import MultimodalEvalCallback
 from flava.data import ImageDataModule, MLMDataModule, VLDataModule
 from flava.definitions import FLAVAArguments
-from flava.model import FLAVAPreTrainingLightningModule
+from flava.model import (
+    FLAVAPreTrainingLightningModule,
+    FLAVAPreTrainingLightningModuleFSDP,
+)
 from flava.utils import build_config, build_datamodule_kwargs
 from omegaconf import OmegaConf
 from pytorch_lightning import seed_everything, Trainer
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.profiler import PyTorchProfiler
 
 
 def main():
@@ -43,16 +47,31 @@ def main():
 
     datamodule = MultiDataModule(datamodules)
 
+    profiler = PyTorchProfiler()
+
     datamodule.setup("fit")
-    model = FLAVAPreTrainingLightningModule(
-        learning_rate=config.training.learning_rate,
-        adam_eps=config.training.adam_eps,
-        adam_weight_decay=config.training.adam_weight_decay,
-        adam_betas=config.training.adam_betas,
-        warmup_steps=config.training.warmup_steps,
-        max_steps=config.training.lightning.max_steps,
-        **config.model,
-    )
+    if config.training.lightning.strategy == "fsdp_native":
+        print("Using FSDP")
+        model = FLAVAPreTrainingLightningModuleFSDP(
+            learning_rate=config.training.learning_rate,
+            adam_eps=config.training.adam_eps,
+            adam_weight_decay=config.training.adam_weight_decay,
+            adam_betas=config.training.adam_betas,
+            warmup_steps=config.training.warmup_steps,
+            max_steps=config.training.lightning.max_steps,
+            **config.model,
+        )
+    else:
+        print(f"Using {config.training.lightning.strategy}")
+        model = FLAVAPreTrainingLightningModule(
+            learning_rate=config.training.learning_rate,
+            adam_eps=config.training.adam_eps,
+            adam_weight_decay=config.training.adam_weight_decay,
+            adam_betas=config.training.adam_betas,
+            warmup_steps=config.training.warmup_steps,
+            max_steps=config.training.lightning.max_steps,
+            **config.model,
+        )
 
     callbacks = [
         LearningRateMonitor(logging_interval="step"),
@@ -68,6 +87,7 @@ def main():
 
     trainer = Trainer(
         **OmegaConf.to_container(config.training.lightning),
+        profiler=profiler,
         callbacks=callbacks,
     )
     ckpt_path = config.training.lightning_load_from_checkpoint
