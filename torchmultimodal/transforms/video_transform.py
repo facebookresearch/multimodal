@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import List, Tuple
+from typing import Tuple
 
 import torch
 import torch.nn.functional as F
@@ -13,8 +13,8 @@ from torchvision.transforms.functional import normalize, resize
 
 
 MUGEN_DEFAULT_TIME_SAMPLES = 32
-DEFAULT_MEAN = [0.43216, 0.394666, 0.37645]
-DEFAULT_STD = [0.22803, 0.22145, 0.216989]
+DEFAULT_MEAN = (0.43216, 0.394666, 0.37645)
+DEFAULT_STD = (0.22803, 0.22145, 0.216989)
 DEFAULT_RESIZE_SHAPE = (224, 224)
 
 
@@ -23,8 +23,8 @@ class VideoTransform:
 
     Args:
         time_samples (int): number of frames to sample in the time dimension
-        mean (List[float]): sequence of means of each channel
-        std (List[float]): sequence of standard deviations of each channel
+        mean (Tuple[float]): sequence of means of each channel
+        std (Tuple[float]): sequence of standard deviations of each channel
         resize_shape (Tuple[int, int]): shape to resize each frame to
 
     Inputs:
@@ -39,8 +39,8 @@ class VideoTransform:
     def __init__(
         self,
         time_samples: int = MUGEN_DEFAULT_TIME_SAMPLES,
-        mean: List[float] = DEFAULT_MEAN,
-        std: List[float] = DEFAULT_STD,
+        mean: Tuple[float] = DEFAULT_MEAN,
+        std: Tuple[float] = DEFAULT_STD,
         resize_shape: Tuple[int, int] = DEFAULT_RESIZE_SHAPE,
     ):
         self.time_samples = time_samples

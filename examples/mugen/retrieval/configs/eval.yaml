@@ -1,6 +1,6 @@
 _target_: examples.mugen.retrieval.definitions.EvaluationArgs
 dataset_args:
-  _target_: examples.mugen.retrieval.definitions.MUGENDatasetArgs
+  _target_: examples.mugen.data.mugen_dataset.MUGENDatasetArgs
   data_path: "datasets/coinrun/coinrun_dataset_jsons/release"
   asset_path: "datasets/coinrun/assets"
   sample_every_n_frames: 3
