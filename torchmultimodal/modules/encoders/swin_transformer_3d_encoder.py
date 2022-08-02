@@ -269,7 +269,7 @@ class ShiftedWindowAttention3d(nn.Module):
 
         window_vol = window_size[0] * window_size[1] * window_size[2]
         relative_position_bias = self.relative_position_bias_table[
-            self.relative_position_index[:window_vol, :window_vol].reshape(-1)  # type: ignore[index]
+            self.relative_position_index[:window_vol, :window_vol].flatten()  # type: ignore[index]
         ]
         relative_position_bias = relative_position_bias.view(window_vol, window_vol, -1)
         relative_position_bias = (
