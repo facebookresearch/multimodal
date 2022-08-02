@@ -8,9 +8,7 @@
 from typing import Callable
 
 from torch import nn, Tensor
-from torchmultimodal.modules.layers.transformer import (
-    TransformerEncoderCrossAttentionLayer,
-)
+from torchmultimodal.modules.layers.transformer import TransformerCrossAttentionLayer
 from torchmultimodal.utils.attention import get_extended_attention_mask
 
 
@@ -43,12 +41,12 @@ class ALBEFMultimodalEncoder(nn.Module):
         num_attention_heads: int = 12,
         intermediate_size: int = 3072,
         layer_norm_eps: float = 1e-12,
-        transform_act_fn: Callable[[Tensor], Tensor] = nn.functional.gelu,
+        transform_act_fn: Callable[..., nn.Module] = nn.GELU,
     ) -> None:
         super().__init__()
         self.layer = nn.ModuleList(
             [
-                TransformerEncoderCrossAttentionLayer(
+                TransformerCrossAttentionLayer(
                     d_model=hidden_size,
                     n_head=num_attention_heads,
                     dim_feedforward=intermediate_size,
