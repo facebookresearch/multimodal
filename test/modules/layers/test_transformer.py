@@ -11,7 +11,7 @@ from test.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.modules.layers.transformer import (
     _apply_layernorm,
     FLAVATransformerEncoder,
-    TransformerEncoderCrossAttentionLayer,
+    TransformerCrossAttentionLayer,
     TransformerEncoderLayer,
 )
 
@@ -132,8 +132,7 @@ class TestTransformerEncoderLayer:
     def get_encoder_layer(self):
         def create_layer(norm_first):
             model = TransformerEncoderLayer(2, 1, 2, norm_first=norm_first)
-            for param in model.parameters():
-                torch.nn.init.constant_(param, 1)
+            model.eval()
             return model
 
         return create_layer
@@ -151,9 +150,7 @@ class TestTransformerEncoderLayer:
     def test_feedforward_block(self, inputs, get_encoder_layer):
         model = get_encoder_layer(False)
         actual = model._feedforward_block(inputs)
-        expected = model.output(
-            model.intermediate_activation(model.intermediate(inputs))
-        )
+        expected = model.feedforward_dropout(model.feedforward(inputs))
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_forward_prenorm(self, inputs, get_encoder_layer):
@@ -163,12 +160,12 @@ class TestTransformerEncoderLayer:
             [
                 [
                     [
-                        [[13.0586, 15.2632], [13.8162, 14.1505]],
-                        [[14.1075, 13.7220], [11.3979, 14.6245]],
+                        [[-1.5605, 2.3367], [-0.8028, 1.2239]],
+                        [[-0.3491, 0.7343], [-3.2212, 1.6979]],
                     ],
                     [
-                        [[13.1316, 13.7949], [14.3976, 14.6699]],
-                        [[13.9463, 14.0467], [12.2329, 11.8795]],
+                        [[-1.4874, 0.8684], [-0.2215, 1.7433]],
+                        [[-0.6728, 1.1201], [-2.2237, -1.1081]],
                     ],
                 ]
             ]
@@ -182,12 +179,12 @@ class TestTransformerEncoderLayer:
             [
                 [
                     [
-                        [[-2.3842e-07, 2.0000e00], [-7.7486e-06, 2.0000e00]],
-                        [[2.0000e00, 1.8477e-06], [-1.1921e-07, 2.0000e00]],
+                        [[-1.0000, 1.0000], [-1.0000, 1.0000]],
+                        [[-1.0000, 1.0000], [-1.0000, 1.0000]],
                     ],
                     [
-                        [[9.5367e-07, 2.0000e00], [-1.9073e-06, 2.0000e00]],
-                        [[1.8477e-05, 2.0000e00], [2.0000e00, 5.9605e-08]],
+                        [[-1.0000, 1.0000], [-1.0000, 1.0000]],
+                        [[-1.0000, 1.0000], [-1.0000, 1.0000]],
                     ],
                 ]
             ]
@@ -195,15 +192,12 @@ class TestTransformerEncoderLayer:
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
 
-class TestTransformerEncoderCrossAttentionLayer:
+class TestTransformerCrossAttentionLayer:
     @pytest.fixture
     def get_encoder_layer(self):
         def create_layer(norm_first):
-            model = TransformerEncoderCrossAttentionLayer(
-                2, 1, 2, norm_first=norm_first
-            )
-            for param in model.parameters():
-                torch.nn.init.constant_(param, 1)
+            model = TransformerCrossAttentionLayer(2, 1, 2, norm_first=norm_first)
+            model.eval()
             return model
 
         return create_layer
@@ -231,9 +225,7 @@ class TestTransformerEncoderCrossAttentionLayer:
     def test_feedforward_block(self, inputs, get_encoder_layer):
         model = get_encoder_layer(False)
         actual = model._feedforward_block(inputs)
-        expected = model.output(
-            model.intermediate_activation(model.intermediate(inputs))
-        )
+        expected = model.feedforward_dropout(model.feedforward(inputs))
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_forward_prenorm(self, inputs, cross_inputs, get_encoder_layer):
@@ -243,12 +235,12 @@ class TestTransformerEncoderCrossAttentionLayer:
             [
                 [
                     [
-                        [[7.0000, 9.0000], [7.0000, 9.0000]],
-                        [[9.0000, 7.0000], [7.0000, 9.0000]],
+                        [[-0.5925, 1.1257], [-0.5925, 1.1257]],
+                        [[-0.5925, 1.1257], [-0.5925, 1.1257]],
                     ],
                     [
-                        [[7.0000, 9.0000], [7.0000, 9.0000]],
-                        [[7.0000, 9.0000], [9.0000, 7.0000]],
+                        [[-0.5925, 1.1257], [-0.5925, 1.1257]],
+                        [[-0.5925, 1.1257], [-0.5925, 1.1257]],
                     ],
                 ]
             ]
@@ -261,14 +253,8 @@ class TestTransformerEncoderCrossAttentionLayer:
         expected = torch.tensor(
             [
                 [
-                    [
-                        [[0.0000e00, 2.0000e00], [3.5763e-07, 2.0000e00]],
-                        [[2.0000e00, -2.3842e-07], [0.0000e00, 2.0000e00]],
-                    ],
-                    [
-                        [[0.0000e00, 2.0000e00], [0.0000e00, 2.0000e00]],
-                        [[0.0000e00, 2.0000e00], [2.0000e00, 0.0000e00]],
-                    ],
+                    [[[-1.0, 1.0], [-1.0, 1.0]], [[-1.0, 1.0], [-1.0, 1.0]]],
+                    [[[-1.0, 1.0], [-1.0, 1.0]], [[-1.0, 1.0], [-1.0, 1.0]]],
                 ]
             ]
         )
@@ -278,8 +264,5 @@ class TestTransformerEncoderCrossAttentionLayer:
 def test_apply_layernorm():
     x = torch.ones(1, 1, dtype=torch.float16)
     norm = torch.nn.LayerNorm(1)
-    output = _apply_layernorm(x, norm, mixed_precision=True)
+    output = _apply_layernorm(x, norm)
     assert output.dtype == torch.float16
-    # layer norm should not work with fp16
-    with pytest.raises(RuntimeError):
-        output = _apply_layernorm(x, norm, mixed_precision=False)
