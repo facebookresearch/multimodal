@@ -108,10 +108,11 @@ def evaluate():
         **vars(datamodule_args),
     )
 
-    model = VideoCLIPLightningModule(
-        **vars(lightningmodule_args), **vars(videoclip_args)
+    model = VideoCLIPLightningModule.load_from_checkpoint(
+        evaluation_args.checkpoint_path,
+        **vars(lightningmodule_args),
+        **vars(videoclip_args),
     )
-    model = model.load_from_checkpoint(evaluation_args.checkpoint_path)
 
     trainer = Trainer(accelerator="auto", devices=1)
     trainer.test(model, dataloaders=datamodule.test_dataloader())
