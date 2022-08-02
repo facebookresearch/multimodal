@@ -6,7 +6,6 @@
 
 import json
 import os
-from typing import NamedTuple
 
 import numpy as np
 import torch
@@ -19,38 +18,11 @@ from examples.mugen.data.coinrun.construct_from_json import (
 )
 
 from examples.mugen.data.coinrun.game import Game
+
+from examples.mugen.retrieval.definitions import MUGENDatasetArgs
 from torch.utils.data import Dataset
 
-from .audio_utils import AUDIO_SAMPLE_LENGTH, AUDIO_SAMPLE_RATE, load_audio
-
-
-class MUGENDatasetArgs(NamedTuple):
-    data_path: str = "datasets/coinrun/coinrun_dataset_jsons/release"
-    asset_path: str = "datasets/coinrun/assets"
-    sample_every_n_frames: int = 3
-    sequence_length: int = 32
-    resolution: int = 256
-    audio_sample_rate: int = AUDIO_SAMPLE_RATE
-    audio_sample_length: int = AUDIO_SAMPLE_LENGTH
-    bbox_smap_for_agent: bool = (
-        True  # render smap for mugen (and shield) as bounding boxes
-    )
-    bbox_smap_for_monsters: bool = True  # render smap for monsters as bounding boxes
-    use_manual_annotation: bool = False  # if True will only use videos with manual annotation and skip those without
-    use_auto_annotation: bool = (
-        True  # if True will only use videos with auto annotation and skip those without
-    )
-    use_downsampled_trainset: bool = (
-        False  # if True will only use downsampled training set
-    )
-    fixed_start_idx: bool = True  # fx starting game frame idx to 0
-    get_game_frame: bool = True  # load video data
-    get_seg_map: bool = True  # load semantic map
-    get_text_desc: bool = True  # load text data
-    get_audio: bool = (
-        True  # load full mix audio for each video, for audio generation models
-    )
-    debug: bool = False
+from .audio_utils import load_audio
 
 
 class MUGENDataset(Dataset):
