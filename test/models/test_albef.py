@@ -99,8 +99,8 @@ def test_albef_image_embeddings_momentum(albef_model_output):
 def test_albef_text_embeddings(albef_model_output):
     expected = Tensor(
         [
-            [[-0.317956, 1.352367, -1.034411], [1.064044, -1.338780, 0.274735]],
-            [[-1.320019, 0.220507, 1.099512], [1.411497, -0.781628, -0.629869]],
+            [[-0.332726, 1.356729, -1.024002], [1.050448, -1.345235, 0.294787]],
+            [[-1.098961, -0.221372, 1.320333], [1.304645, -1.125002, -0.179644]],
         ]
     )
     assert_expected(albef_model_output.text_embeddings, expected, rtol=0, atol=1e-4)
@@ -109,8 +109,8 @@ def test_albef_text_embeddings(albef_model_output):
 def test_albef_text_embeddings_momentum(albef_model_output):
     expected = Tensor(
         [
-            [[-0.317956, 1.352367, -1.034411], [1.064044, -1.338780, 0.274735]],
-            [[-1.320019, 0.220507, 1.099512], [1.411497, -0.781628, -0.629869]],
+            [[-0.332726, 1.356729, -1.024002], [1.050448, -1.345235, 0.294787]],
+            [[-1.098961, -0.221372, 1.320333], [1.304645, -1.125002, -0.179644]],
         ]
     )
     assert_expected(albef_model_output.text_embeddings_m, expected, rtol=0, atol=1e-4)
@@ -119,8 +119,8 @@ def test_albef_text_embeddings_momentum(albef_model_output):
 def test_albef_multimodal_embeddings(albef_model_output):
     expected = Tensor(
         [
-            [[-0.068738, 1.257666, -1.188928], [1.409873, -0.609056, -0.800817]],
-            [[-1.402520, 0.544084, 0.858435], [1.202279, -1.246038, 0.043760]],
+            [[-0.100506, 1.271901, -1.171395], [1.410639, -0.618296, -0.792343]],
+            [[-1.393961, 0.490451, 0.903510], [0.606909, -1.409685, 0.802776]],
         ]
     )
     assert_expected(
@@ -131,8 +131,8 @@ def test_albef_multimodal_embeddings(albef_model_output):
 def test_albef_multimodal_embeddings_momentum(albef_model_output):
     expected = Tensor(
         [
-            [[-0.068738, 1.257666, -1.188928], [1.409873, -0.609056, -0.800817]],
-            [[-1.402520, 0.544084, 0.858435], [1.202279, -1.246038, 0.043760]],
+            [[-0.100506, 1.271901, -1.171395], [1.410639, -0.618296, -0.792343]],
+            [[-1.393961, 0.490451, 0.903510], [0.606909, -1.409685, 0.802776]],
         ]
     )
     assert_expected(
