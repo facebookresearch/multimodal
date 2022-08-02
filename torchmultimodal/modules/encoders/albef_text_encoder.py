@@ -48,7 +48,7 @@ class ALBEFTextEncoder(nn.Module):
         type_vocab_size: int = 2,
         pad_token_id: int = 0,
         layer_norm_eps: float = 1e-12,
-        transform_act_fn: Callable[[Tensor], Tensor] = nn.functional.gelu,
+        transform_act_fn: Callable[..., nn.Module] = nn.GELU,
     ) -> None:
         super().__init__()
 
@@ -123,7 +123,7 @@ class ALBEFTransformerEncoder(nn.Module):
         num_attention_heads: int,
         num_hidden_layers: int,
         layer_norm_eps: float,
-        transform_act_fn: Callable[[Tensor], Tensor],
+        transform_act_fn: Callable[..., nn.Module],
     ) -> None:
         super().__init__()
         self.layer = nn.ModuleList(
