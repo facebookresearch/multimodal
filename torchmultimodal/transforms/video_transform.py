@@ -23,8 +23,8 @@ class VideoTransform:
 
     Args:
         time_samples (int): number of frames to sample in the time dimension
-        mean (Tuple[float]): sequence of means of each channel
-        std (Tuple[float]): sequence of standard deviations of each channel
+        mean (Tuple[float, float, float]): sequence of means of each channel
+        std (Tuple[float, float, float]): sequence of standard deviations of each channel
         resize_shape (Tuple[int, int]): shape to resize each frame to
 
     Inputs:
@@ -39,8 +39,8 @@ class VideoTransform:
     def __init__(
         self,
         time_samples: int = MUGEN_DEFAULT_TIME_SAMPLES,
-        mean: Tuple[float] = DEFAULT_MEAN,
-        std: Tuple[float] = DEFAULT_STD,
+        mean: Tuple[float, float, float] = DEFAULT_MEAN,
+        std: Tuple[float, float, float] = DEFAULT_STD,
         resize_shape: Tuple[int, int] = DEFAULT_RESIZE_SHAPE,
     ):
         self.time_samples = time_samples
