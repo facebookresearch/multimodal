@@ -7,12 +7,26 @@
 # Code for some of the transformers components in this file are initialized
 # from their counterparts in Hugging Face Transformers library.
 
-from typing import Callable, Optional, Tuple, Union
+from collections import namedtuple
+from typing import Any, Callable, Optional, Tuple, Union
 
-import torch
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.attention import MultiHeadAttention, SelfAttention
 from torchmultimodal.modules.layers.mlp import MLP
+from torchmultimodal.modules.layers.normalizations import fp32layernorm
+
+
+TransformerOutput = namedtuple(
+    "TransformerOutput",
+    [
+        "last_hidden_state",
+        "pooler_output",
+        "hidden_states",
+        "attentions",
+        "image_labels",
+    ],
+    defaults=(None, None, None, None, None),
+)
 
 
 class TransformerCrossAttentionLayer(nn.Module):
@@ -118,17 +132,15 @@ class TransformerCrossAttentionLayer(nn.Module):
     ) -> Tensor:
         x = hidden_states
         kv = encoder_hidden_states
-        inputs = _apply_layernorm(x, self.attention_layernorm)
+        inputs = fp32layernorm(x, self.attention_layernorm)
         attn_output = self._self_attention_block(inputs, attention_mask=attention_mask)
         attn_residual = attn_output + x
-        attn_norm_output = _apply_layernorm(
-            attn_residual, self.cross_attention_layernorm
-        )
+        attn_norm_output = fp32layernorm(attn_residual, self.cross_attention_layernorm)
         cross_attention_output = self._cross_attention_block(
             attn_norm_output, kv, cross_attention_mask
         )
         cross_attention_residual = cross_attention_output + attn_norm_output
-        cross_attention_norm_output = _apply_layernorm(
+        cross_attention_norm_output = fp32layernorm(
             cross_attention_residual, self.feedforward_layernorm
         )
         ff_residual = cross_attention_norm_output + self._feedforward_block(
@@ -147,18 +159,18 @@ class TransformerCrossAttentionLayer(nn.Module):
         kv = encoder_hidden_states
         attn_output = self._self_attention_block(x, attention_mask=attention_mask)
         attn_residual = attn_output + x
-        attn_norm_output = _apply_layernorm(attn_residual, self.attention_layernorm)
+        attn_norm_output = fp32layernorm(attn_residual, self.attention_layernorm)
         cross_attention_output = self._cross_attention_block(
             attn_norm_output, kv, cross_attention_mask
         )
         cross_attention_residual = cross_attention_output + attn_norm_output
-        cross_attention_norm_output = _apply_layernorm(
+        cross_attention_norm_output = fp32layernorm(
             cross_attention_residual, self.cross_attention_layernorm
         )
         ff_residual = cross_attention_norm_output + self._feedforward_block(
             cross_attention_norm_output
         )
-        outputs = _apply_layernorm(ff_residual, self.feedforward_layernorm)
+        outputs = fp32layernorm(ff_residual, self.feedforward_layernorm)
         return outputs
 
     def forward(
@@ -267,7 +279,7 @@ class TransformerEncoderLayer(nn.Module):
         return_attn_weights: bool = False,
     ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         x = hidden_states
-        inputs = _apply_layernorm(x, self.attention_layernorm)
+        inputs = fp32layernorm(x, self.attention_layernorm)
         attn_output, attn_weights = self._attention_block(
             inputs,
             attention_mask=attention_mask,
@@ -275,7 +287,7 @@ class TransformerEncoderLayer(nn.Module):
         )
         attn_residual = attn_output + x
         ff_residual = attn_residual + self._feedforward_block(
-            _apply_layernorm(attn_residual, self.feedforward_layernorm)
+            fp32layernorm(attn_residual, self.feedforward_layernorm)
         )
         if return_attn_weights:
             return ff_residual, attn_weights
@@ -297,9 +309,9 @@ class TransformerEncoderLayer(nn.Module):
         )
         attn_residual = attn_output + x
         ff_residual = attn_residual + self._feedforward_block(
-            _apply_layernorm(attn_residual, self.attention_layernorm)
+            fp32layernorm(attn_residual, self.attention_layernorm)
         )
-        outputs = _apply_layernorm(ff_residual, self.feedforward_layernorm)
+        outputs = fp32layernorm(ff_residual, self.feedforward_layernorm)
         if return_attn_weights:
             return outputs, attn_weights
         else:
@@ -328,11 +340,73 @@ class TransformerEncoderLayer(nn.Module):
             )
 
 
-def _apply_layernorm(x: Tensor, layernorm: nn.Module) -> Tensor:
-    """Supports mixed-precision training by casting to fp32 for layernorm and back"""
-    if x.dtype != torch.float32:
-        x_fp32 = x.float()
-        x_fp32 = layernorm(x_fp32)
-        return x_fp32.type_as(x)
-    else:
-        return layernorm(x)
+class TransformerEncoder(nn.Module):
+    def __init__(
+        self,
+        hidden_size: int = 768,
+        num_attention_heads: int = 12,
+        num_hidden_layers: int = 12,
+        dropout: float = 0.0,
+        intermediate_size: int = 3072,
+        intermediate_activation: Callable[..., nn.Module] = nn.GELU,
+        layer_norm_eps: float = 1e-12,
+        **kwargs: Any,
+    ):
+        super().__init__()
+        self.layer = nn.ModuleList(
+            [
+                TransformerEncoderLayer(
+                    d_model=hidden_size,
+                    n_head=num_attention_heads,
+                    dim_feedforward=intermediate_size,
+                    dropout=dropout,
+                    activation=intermediate_activation,
+                    layer_norm_eps=layer_norm_eps,
+                    norm_first=True,
+                )
+                for _ in range(num_hidden_layers)
+            ]
+        )
+        self.hidden_size = hidden_size
+
+    def forward(
+        self,
+        hidden_states: Tensor,
+        attention_mask: Optional[Tensor] = None,
+        head_mask: Optional[Tensor] = None,
+        return_attn_weights: bool = False,
+        return_hidden_states: bool = False,
+    ) -> TransformerOutput:
+        all_hidden_states = []
+        all_self_attentions = []
+
+        for i, layer_module in enumerate(self.layer):
+            if return_hidden_states:
+                all_hidden_states.append(hidden_states)
+
+            layer_head_mask = head_mask[i] if head_mask is not None else None
+            layer_outputs = layer_module(
+                hidden_states,
+                attention_mask=attention_mask,
+                head_mask=layer_head_mask,
+                return_attn_weights=True,
+            )
+
+            hidden_states = layer_outputs[0]
+
+            if return_attn_weights:
+                all_self_attentions.append(layer_outputs[1])
+
+        all_hidden_states_final: Optional[Tuple] = None
+        if all_hidden_states:
+            all_hidden_states.append(hidden_states)
+            all_hidden_states_final = tuple(all_hidden_states)
+        all_self_attentions: Optional[Tuple] = None
+        if all_self_attentions:
+            all_self_attentions_final = tuple(all_self_attentions)
+
+        return TransformerOutput(
+            last_hidden_state=hidden_states,
+            hidden_states=all_hidden_states_final,
+            attentions=all_self_attentions_final,
+        )
