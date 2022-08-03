@@ -2,7 +2,7 @@ training:
   strategy: fsdp # can be changed to ddp or fsdp
   seed: 1337
 
-  batch_size: 80
+  batch_size: 30
   num_workers: 10
   prefetch_factor: 2
   
@@ -17,7 +17,8 @@ training:
   log_interval: 10
 
   enable_tf32: True
-  enable_amp: True
+  enable_amp: False
+  enable_bf16: False  # not working 
 
 datasets:
   _target_: flava.definitions.TrainingDatasetsInfo

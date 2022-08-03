@@ -144,9 +144,9 @@ class Trainer:
                 model,
                 # cpu_offload=CPUOffload(offload_params=True),
                 mixed_precision=MixedPrecision(
-                    # param_dtype=torch.bfloat16,  doesn't work
-                    reduce_dtype=torch.bfloat16,
-                    # buffer_dtype=torch.bfloat16,  doesn't work
+                    param_dtype=torch.float16,  
+                    reduce_dtype=torch.float16,
+                    buffer_dtype=torch.float16, 
                 ),
                 auto_wrap_policy=partial(
                     transformer_auto_wrap_policy,
@@ -200,6 +200,9 @@ class Trainer:
 
         print0(OmegaConf.to_container(self.config.training))
         model = self.create_model()
+        if self.config.training.enable_bf16:
+            model = model.to(dtype=torch.bfloat16)
+
         optimizer, scheduler = get_optimizer(
             model,
             learning_rate=self.config.training.get("learning_rate"),
@@ -208,6 +211,7 @@ class Trainer:
             adam_betas=self.config.training.get("adam_betas"),
             warmup_steps=self.config.training.get("warmup_steps"),
             max_steps=self.config.training.get("max_steps"),
+            use_bf16=self.config.training.get("enable_bf16"),
         )
 
         while True:

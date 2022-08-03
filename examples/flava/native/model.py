@@ -15,6 +15,7 @@ from torchmultimodal.models.flava.flava_model import (
     flava_model_for_pretraining,
 )
 from transformers.optimization import get_cosine_schedule_with_warmup
+from flava.native.bfoptimizer import BFOptimizer
 
 
 def get_optimizer(
@@ -25,14 +26,25 @@ def get_optimizer(
     adam_betas: Tuple[int, int] = (0.9, 0.999),
     warmup_steps: int = 2000,
     max_steps: int = 450000,
+    use_bf16: bool = True,
 ):
-    optimizer = torch.optim.AdamW(
+    if use_bf16:
+        print("using bf16")
+        optimizer = BFOptimizer(
+            model.parameters(),
+            lr=learning_rate,
+            betas=adam_betas,
+            eps=adam_eps,
+            weight_decay=adam_weight_decay,
+        )
+    else:
+        optimizer = torch.optim.AdamW(
         model.parameters(),
         lr=learning_rate,
         betas=adam_betas,
         eps=adam_eps,
         weight_decay=adam_weight_decay,
-    )
+        )
     scheduler = get_cosine_schedule_with_warmup(
         optimizer,
         num_warmup_steps=warmup_steps,
@@ -40,14 +52,24 @@ def get_optimizer(
     )
     return optimizer, scheduler
 
+def get_batch_value(batch, key, use_bf16=True):
+    val = batch.get(key, None)
+    if val is None:
+        return
+    if val.dtype == torch.float32 and use_bf16:
+        return val.to(dtype=torch.bfloat16)
+    return val
+
 
 class FLAVAPreTrainModule(nn.Module):
     def __init__(
         self,
+        use_bf16: bool = True,
         **flava_pretraining_kwargs: Any,
     ):
         super().__init__()
         self.model = flava_model_for_pretraining(**flava_pretraining_kwargs)
+        self.use_bf16 = use_bf16
 
     def forward(self, batch):
         if "image" in batch and ("text" in batch or "text_masked" in batch):
@@ -60,13 +82,13 @@ class FLAVAPreTrainModule(nn.Module):
             raise RuntimeError("Batch needs to have either or both 'image' and 'text'.")
 
         output = self.model(
-            image=batch.get("image", None),
-            image_for_codebook=batch.get("image_for_codebook", None),
-            image_patches_mask=batch.get("image_patches_mask", None),
-            text=batch.get("text", None),
-            text_masked=batch.get("text_masked", None),
-            mlm_labels=batch.get("mlm_labels", None),
-            itm_labels=batch.get("itm_labels", None),
+            image=get_batch_value(batch, "image",self.use_bf16),
+            image_for_codebook=get_batch_value(batch, "image_for_codebook",self.use_bf16),
+            image_patches_mask=get_batch_value(batch, "image_patches_mask",self.use_bf16),
+            text=get_batch_value(batch, "text",self.use_bf16),
+            text_masked=get_batch_value(batch, "text_masked",self.use_bf16),
+            mlm_labels=get_batch_value(batch, "mlm_labels",self.use_bf16),
+            itm_labels=get_batch_value(batch, "itm_labels",self.use_bf16),
             required_embedding=required_embedding,
         )
         return output
