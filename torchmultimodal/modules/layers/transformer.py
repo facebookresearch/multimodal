@@ -89,9 +89,9 @@ class TransformerCrossAttentionLayer(nn.Module):
         )
         self.feedforward_dropout = nn.Dropout(dropout)
         # layernorms
-        self.layernorm_first = nn.LayerNorm(d_model, eps=layer_norm_eps)
-        self.layernorm_second = nn.LayerNorm(d_model, eps=layer_norm_eps)
-        self.layernorm_third = nn.LayerNorm(d_model, eps=layer_norm_eps)
+        self.attention_layernorm = nn.LayerNorm(d_model, eps=layer_norm_eps)
+        self.cross_attention_layernorm = nn.LayerNorm(d_model, eps=layer_norm_eps)
+        self.feedforward_layernorm = nn.LayerNorm(d_model, eps=layer_norm_eps)
         self.norm_first = norm_first
 
     def _self_attention_block(
@@ -132,16 +132,18 @@ class TransformerCrossAttentionLayer(nn.Module):
     ) -> Tensor:
         x = hidden_states
         kv = encoder_hidden_states
-        inputs = _apply_layernorm(x, self.layernorm_first)
+        inputs = _apply_layernorm(x, self.attention_layernorm)
         attn_output = self._self_attention_block(inputs, attention_mask=attention_mask)
         attn_residual = attn_output + x
-        attn_norm_output = _apply_layernorm(attn_residual, self.layernorm_second)
+        attn_norm_output = _apply_layernorm(
+            attn_residual, self.cross_attention_layernorm
+        )
         cross_attention_output = self._cross_attention_block(
             attn_norm_output, kv, cross_attention_mask
         )
         cross_attention_residual = cross_attention_output + attn_norm_output
         cross_attention_norm_output = _apply_layernorm(
-            cross_attention_residual, self.layernorm_third
+            cross_attention_residual, self.feedforward_layernorm
         )
         ff_residual = cross_attention_norm_output + self._feedforward_block(
             cross_attention_norm_output
@@ -159,18 +161,18 @@ class TransformerCrossAttentionLayer(nn.Module):
         kv = encoder_hidden_states
         attn_output = self._self_attention_block(x, attention_mask=attention_mask)
         attn_residual = attn_output + x
-        attn_norm_output = _apply_layernorm(attn_residual, self.layernorm_first)
+        attn_norm_output = _apply_layernorm(attn_residual, self.attention_layernorm)
         cross_attention_output = self._cross_attention_block(
             attn_norm_output, kv, cross_attention_mask
         )
         cross_attention_residual = cross_attention_output + attn_norm_output
         cross_attention_norm_output = _apply_layernorm(
-            cross_attention_residual, self.layernorm_second
+            cross_attention_residual, self.cross_attention_layernorm
         )
         ff_residual = cross_attention_norm_output + self._feedforward_block(
             cross_attention_norm_output
         )
-        outputs = _apply_layernorm(ff_residual, self.layernorm_third)
+        outputs = _apply_layernorm(ff_residual, self.feedforward_layernorm)
         return outputs
 
     def forward(
@@ -247,8 +249,8 @@ class TransformerEncoderLayer(nn.Module):
         )
         self.feedforward_dropout = nn.Dropout(dropout)
         # layernorms
-        self.layernorm_first = nn.LayerNorm(d_model, eps=layer_norm_eps)
-        self.layernorm_second = nn.LayerNorm(d_model, eps=layer_norm_eps)
+        self.attention_layernorm = nn.LayerNorm(d_model, eps=layer_norm_eps)
+        self.feedforward_layernorm = nn.LayerNorm(d_model, eps=layer_norm_eps)
         self.norm_first = norm_first
 
     def _attention_block(
@@ -279,7 +281,7 @@ class TransformerEncoderLayer(nn.Module):
         return_attn_weights: bool = False,
     ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         x = hidden_states
-        inputs = _apply_layernorm(x, self.layernorm_first)
+        inputs = _apply_layernorm(x, self.attention_layernorm)
         attn_output, attn_weights = self._attention_block(
             inputs,
             attention_mask=attention_mask,
@@ -287,7 +289,7 @@ class TransformerEncoderLayer(nn.Module):
         )
         attn_residual = attn_output + x
         ff_residual = attn_residual + self._feedforward_block(
-            _apply_layernorm(attn_residual, self.layernorm_second)
+            _apply_layernorm(attn_residual, self.feedforward_layernorm)
         )
         if return_attn_weights:
             return ff_residual, attn_weights
@@ -309,9 +311,9 @@ class TransformerEncoderLayer(nn.Module):
         )
         attn_residual = attn_output + x
         ff_residual = attn_residual + self._feedforward_block(
-            _apply_layernorm(attn_residual, self.layernorm_first)
+            _apply_layernorm(attn_residual, self.attention_layernorm)
         )
-        outputs = _apply_layernorm(ff_residual, self.layernorm_second)
+        outputs = _apply_layernorm(ff_residual, self.feedforward_layernorm)
         if return_attn_weights:
             return outputs, attn_weights
         else:
