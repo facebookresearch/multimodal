@@ -33,12 +33,20 @@ from .transforms import (
     VLTransform,
 )
 from .utils import build_datasets_from_info, fetch_images
+from torch.utils.data.distributed import DistributedSampler
+import torch.distributed as dist
 
 
 def transform_image(transform, sample):
     sample.update(transform(sample["image"]))
     return sample
 
+def get_sampler(dataset, shuffle=True):
+    if dist.is_initialized():
+        return DistributedSampler(dataset, shuffle=shuffle)
+    if shuffle:
+        return torch.utils.data.RandomSampler(dataset)
+    return torch.utils.data.SequentialSampler(dataset)
 
 class DataCollatorForWholeWordMaskRetainingBatch(DataCollatorForWholeWordMask):
     def torch_call(
@@ -60,6 +68,7 @@ class ImageDataModule(LightningDataModule):
         batch_size: int = 32,
         num_workers: int = 4,
         allow_uneven_batches: bool = False,
+        prefetch_factor: int = 2,
         **kwargs: Any,
     ):
         super().__init__()
@@ -71,6 +80,7 @@ class ImageDataModule(LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.allow_uneven_batches = allow_uneven_batches
+        self.prefetch_factor = prefetch_factor
 
         if transforms is None:
             transforms = default_image_pretraining_transforms()
@@ -95,8 +105,10 @@ class ImageDataModule(LightningDataModule):
             self.train_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            sampler=None,
-            shuffle=True,
+            sampler=get_sampler(self.train_dataset, shuffle=True),
+            pin_memory=True,
+            persistent_workers=True,
+            prefetch_factor=self.prefetch_factor,
             # uneven batches can cause distributed issues,
             # drop last batch to prevent those.
             # ideally, we don't need to drop these for unimodal cases
@@ -109,8 +121,10 @@ class ImageDataModule(LightningDataModule):
             self.val_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            sampler=None,
-            shuffle=False,
+            sampler=get_sampler(self.val_dataset, shuffle=False),
+            pin_memory=True,
+            persistent_workers=True,
+            prefetch_factor=self.prefetch_factor,
             # uneven batches can cause distributed issues,
             # drop last batch to prevent those.
             # ideally, we don't need to drop these for unimodal cases
@@ -138,6 +152,7 @@ class TextDataModule(LightningDataModule):
         batch_size: int = 32,
         num_workers: int = 4,
         allow_uneven_batches: bool = False,
+        prefetch_factor: int = 2,
         **kwargs: Any,
     ):
         super().__init__()
@@ -151,6 +166,7 @@ class TextDataModule(LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.allow_uneven_batches = allow_uneven_batches
+        self.prefetch_factor = prefetch_factor
 
     def setup(self, stage=None):
         if self.tokenizer is None:
@@ -186,8 +202,10 @@ class TextDataModule(LightningDataModule):
             dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            sampler=None,
-            shuffle=shuffle,
+            sampler=get_sampler(dataset, shuffle),
+            pin_memory=True,
+            persistent_workers=True,
+            prefetch_factor=self.prefetch_factor,
             collate_fn=self._build_collator(),
             drop_last=drop_last,
         )
@@ -281,7 +299,8 @@ class VLDataModule(LightningDataModule):
         fetch_retries: int = 0,
         fetch_sleep_timer: int = 0,
         fetch_timeout: Optional[float] = None,
-        fetch_batch_size: int = 50,
+        fetch_batch_size: int = 1000,
+        prefetch_factor = 2,
         **kwargs,
     ):
         super().__init__()
@@ -309,6 +328,7 @@ class VLDataModule(LightningDataModule):
         self.fetch_sleep_timer = fetch_sleep_timer
         self.fetch_timeout = fetch_timeout
         self.fetch_batch_size = fetch_batch_size
+        self.prefetch_factor = prefetch_factor
 
     def setup(self, stage=None):
         if self.text_transform is None:
@@ -383,9 +403,11 @@ class VLDataModule(LightningDataModule):
             self.train_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            sampler=None,
-            shuffle=True,
+            sampler=get_sampler(self.train_dataset),
             collate_fn=self._build_collator(),
+            pin_memory=True,
+            persistent_workers=True,
+            prefetch_factor=self.prefetch_factor,
             # uneven batches can cause distributed issues,
             # drop last batch to prevent those.
             drop_last=True,
@@ -396,9 +418,11 @@ class VLDataModule(LightningDataModule):
             self.val_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            sampler=None,
-            shuffle=False,
+            sampler=get_sampler(self.val_dataset, shuffle=False),
             collate_fn=self._build_collator(),
+            pin_memory=True,
+            persistent_workers=True,
+            prefetch_factor=self.prefetch_factor,
             # uneven batches can cause distributed issues,
             # drop last batch to prevent those.
             drop_last=True,
@@ -442,6 +466,7 @@ class TorchVisionDataModule(LightningDataModule):
         image_transforms: Optional[Tuple[Callable, Callable]] = None,
         batch_size: int = 32,
         num_workers: int = 4,
+        prefetch_factor: int = 2,
         **kwargs: Any,
     ):
         super().__init__()
@@ -463,6 +488,7 @@ class TorchVisionDataModule(LightningDataModule):
         self.train_transform, self.test_transform = image_transforms
         self.batch_size = batch_size
         self.num_workers = num_workers
+        self.prefetch_factor = prefetch_factor
 
     def _parse_info(
         self, info: TorchVisionDatasetInfo, dataset_root: Optional[str] = None
@@ -518,9 +544,12 @@ class TorchVisionDataModule(LightningDataModule):
     def _build_dataloader(self, dataset: torch.utils.data.Dataset, shuffle=True):
         return torch.utils.data.DataLoader(
             dataset,
-            shuffle=shuffle,
+            sampler=get_sampler(dataset, shuffle),
             batch_size=self.batch_size,
             num_workers=self.num_workers,
+            pin_memory=True,
+            persistent_workers=True,
+            prefetch_factor=self.prefetch_factor,
         )
 
     def on_before_batch_transfer(self, batch, *args):
