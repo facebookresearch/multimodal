@@ -11,12 +11,12 @@ from typing import Any, Callable, Dict, Optional, Tuple
 
 import torch
 from torch import nn, Tensor
-from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
-from torchmultimodal.modules.layers.transformer import (
+from torchmultimodal.models.flava.transformer import (
     FLAVATransformerEncoder,
     FLAVATransformerOutput,
     init_transformer_weights,
 )
+from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.modules.losses.flava import Pooler
 
 

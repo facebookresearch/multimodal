@@ -9,14 +9,14 @@ import unittest
 import torch
 from test.test_utils import assert_expected
 from torch import nn
-from torchmultimodal.models.flava.flava_model import (
+from torchmultimodal.models.flava.model import (
     flava_image_encoder,
     flava_model_for_classification,
     flava_model_for_pretraining,
     flava_text_encoder,
     FLAVAModel,
 )
-from torchmultimodal.modules.layers.transformer import FLAVATransformerOutput
+from torchmultimodal.models.flava.transformer import FLAVATransformerOutput
 
 NUM_CLASSES = 2
 

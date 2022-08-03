@@ -15,15 +15,15 @@ from typing import Any, Callable, List, Optional, Tuple, Union
 
 import torch
 from torch import nn, Tensor
-from torchmultimodal.models.flava.flava_image_encoder import flava_image_encoder
-from torchmultimodal.models.flava.flava_text_encoder import flava_text_encoder
-from torchmultimodal.modules.layers.mlp import MLP
-from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
-from torchmultimodal.modules.layers.transformer import (
+from torchmultimodal.models.flava.image_encoder import flava_image_encoder
+from torchmultimodal.models.flava.text_encoder import flava_text_encoder
+from torchmultimodal.models.flava.transformer import (
     FLAVATransformerEncoder,
     FLAVATransformerOutput,
     FLAVATransformerWithoutEmbeddings,
 )
+from torchmultimodal.modules.layers.mlp import MLP
+from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.modules.losses.flava import (
     FLAVAPretrainingLoss,
     FLAVAPretrainingLossOutput,

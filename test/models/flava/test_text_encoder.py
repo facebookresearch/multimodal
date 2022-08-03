@@ -9,11 +9,8 @@ import unittest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn
-from torchmultimodal.models.flava.flava_text_encoder import (
-    TextEmbeddings,
-    TextTransformer,
-)
-from torchmultimodal.modules.layers.transformer import FLAVATransformerEncoder
+from torchmultimodal.models.flava.text_encoder import TextEmbeddings, TextTransformer
+from torchmultimodal.models.flava.transformer import FLAVATransformerEncoder
 
 
 class TestFlavaTextEncoder(unittest.TestCase):

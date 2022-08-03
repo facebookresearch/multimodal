@@ -7,7 +7,7 @@
 import unittest
 
 import torch
-from torchmultimodal.modules.encoders.clip_resnet_encoder import ResNetForCLIP
+from torchmultimodal.models.clip.resnet_encoder import ResNetForCLIP
 from torchmultimodal.utils.common import get_current_device
 
 

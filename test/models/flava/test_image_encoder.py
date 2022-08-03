@@ -9,11 +9,8 @@ import unittest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn
-from torchmultimodal.models.flava.flava_image_encoder import (
-    ImageEmbeddings,
-    ImageTransformer,
-)
-from torchmultimodal.modules.layers.transformer import FLAVATransformerEncoder
+from torchmultimodal.models.flava.image_encoder import ImageEmbeddings, ImageTransformer
+from torchmultimodal.models.flava.transformer import FLAVATransformerEncoder
 
 
 class TestFlavaImageEncoder(unittest.TestCase):

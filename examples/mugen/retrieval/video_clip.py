@@ -11,7 +11,7 @@ import torch
 from examples.mugen.retrieval.s3d import S3D
 from torch import nn
 
-from torchmultimodal.models.clip import CLIP
+from torchmultimodal.models.clip.model import CLIP
 from torchmultimodal.utils.common import PretrainedMixin
 from transformers import DistilBertConfig, DistilBertModel
 
