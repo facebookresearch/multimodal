@@ -8,8 +8,9 @@ import pytest
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
+from torch import nn
 from torchmultimodal.modules.layers.transformer import (
-    _apply_layernorm,
+    transformer_encoder,
     TransformerCrossAttentionLayer,
     TransformerEncoderLayer,
 )
@@ -124,8 +125,74 @@ class TestTransformerCrossAttentionLayer:
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
 
-def test_apply_layernorm():
-    x = torch.ones(1, 1, dtype=torch.float16)
-    norm = torch.nn.LayerNorm(1)
-    output = _apply_layernorm(x, norm)
-    assert output.dtype == torch.float16
+class TestTransformerEncoder:
+    @pytest.fixture
+    def encoder(self):
+        return transformer_encoder(
+            n_layers=2,
+            d_model=2,
+            n_head=2,
+            dim_feedforward=3072,
+            activation=nn.GELU,
+            norm_first=True,
+        )
+
+    @pytest.fixture
+    def inputs(self):
+        return torch.rand((2, 3, 2))
+
+    def test_forward(self, encoder, inputs):
+        output = encoder(inputs, return_hidden_states=True, return_attn_weights=True)
+
+        actual_last_hidden_state = output.last_hidden_state
+        actual_hidden_states = torch.sum(torch.stack(output.hidden_states), dim=0)
+        actual_attentions = torch.sum(torch.stack(output.attentions), dim=0)
+
+        expected_last_hidden_state = torch.Tensor(
+            [
+                [[0.7518, 1.0348], [0.8214, 1.4777], [0.6917, 1.2366]],
+                [[0.6661, 1.4557], [0.5292, 0.6997], [0.1917, 0.8434]],
+            ]
+        )
+        expected_hidden_states = torch.Tensor(
+            [
+                [[2.1316, 2.5687], [2.3714, 3.9094], [1.9824, 3.1862]],
+                [[2.1966, 2.6867], [1.4734, 1.5089], [0.3254, 2.4932]],
+            ]
+        )
+        expected_attentions = torch.Tensor(
+            [
+                [
+                    [
+                        [0.6327, 0.6836, 0.6836],
+                        [0.6326, 0.6837, 0.6837],
+                        [0.6326, 0.6837, 0.6837],
+                    ],
+                    [
+                        [0.8662, 0.5669, 0.5669],
+                        [0.7821, 0.6090, 0.6090],
+                        [0.7821, 0.6090, 0.6090],
+                    ],
+                ],
+                [
+                    [
+                        [0.6488, 0.6488, 0.7024],
+                        [0.6488, 0.6488, 0.7024],
+                        [0.6487, 0.6487, 0.7025],
+                    ],
+                    [
+                        [0.7435, 0.7435, 0.5131],
+                        [0.7435, 0.7435, 0.5131],
+                        [0.7159, 0.7159, 0.5683],
+                    ],
+                ],
+            ]
+        )
+
+        assert_expected(
+            actual_last_hidden_state, expected_last_hidden_state, rtol=0.0, atol=1e-4
+        )
+        assert_expected(
+            actual_hidden_states, expected_hidden_states, rtol=0.0, atol=1e-4
+        )
+        assert_expected(actual_attentions, expected_attentions, rtol=0.0, atol=1e-4)

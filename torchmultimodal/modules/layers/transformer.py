@@ -8,12 +8,13 @@
 # from their counterparts in Hugging Face Transformers library.
 
 from collections import namedtuple
-from typing import Any, Callable, Optional, Tuple, Union
+from typing import Callable, Optional, Tuple, Union
 
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.attention import MultiHeadAttention, SelfAttention
 from torchmultimodal.modules.layers.mlp import MLP
 from torchmultimodal.modules.layers.normalizations import fp32layernorm
+from torchmultimodal.utils.common import get_clones
 
 
 TransformerOutput = namedtuple(
@@ -343,31 +344,12 @@ class TransformerEncoderLayer(nn.Module):
 class TransformerEncoder(nn.Module):
     def __init__(
         self,
-        hidden_size: int = 768,
-        num_attention_heads: int = 12,
-        num_hidden_layers: int = 12,
-        dropout: float = 0.0,
-        intermediate_size: int = 3072,
-        intermediate_activation: Callable[..., nn.Module] = nn.GELU,
-        layer_norm_eps: float = 1e-12,
-        **kwargs: Any,
+        encoder_layer: nn.Module,
+        num_layers: int,
     ):
         super().__init__()
-        self.layer = nn.ModuleList(
-            [
-                TransformerEncoderLayer(
-                    d_model=hidden_size,
-                    n_head=num_attention_heads,
-                    dim_feedforward=intermediate_size,
-                    dropout=dropout,
-                    activation=intermediate_activation,
-                    layer_norm_eps=layer_norm_eps,
-                    norm_first=True,
-                )
-                for _ in range(num_hidden_layers)
-            ]
-        )
-        self.hidden_size = hidden_size
+        self.layer = get_clones(encoder_layer, num_layers)
+        self.num_layers = num_layers
 
     def forward(
         self,
@@ -377,12 +359,12 @@ class TransformerEncoder(nn.Module):
         return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> TransformerOutput:
-        all_hidden_states = []
-        all_self_attentions = []
+        all_hidden_states: Tuple[Tensor, ...] = () if return_hidden_states else None
+        all_self_attentions: Tuple[Tensor, ...] = () if return_attn_weights else None
 
         for i, layer_module in enumerate(self.layer):
             if return_hidden_states:
-                all_hidden_states.append(hidden_states)
+                all_hidden_states = all_hidden_states + (hidden_states,)
 
             layer_head_mask = head_mask[i] if head_mask is not None else None
             layer_outputs = layer_module(
@@ -395,18 +377,35 @@ class TransformerEncoder(nn.Module):
             hidden_states = layer_outputs[0]
 
             if return_attn_weights:
-                all_self_attentions.append(layer_outputs[1])
+                all_self_attentions = all_self_attentions + (layer_outputs[1],)
 
-        all_hidden_states_final: Optional[Tuple] = None
-        if all_hidden_states:
-            all_hidden_states.append(hidden_states)
-            all_hidden_states_final = tuple(all_hidden_states)
-        all_self_attentions: Optional[Tuple] = None
-        if all_self_attentions:
-            all_self_attentions_final = tuple(all_self_attentions)
+        if return_hidden_states:
+            all_hidden_states = all_hidden_states + (hidden_states,)
 
         return TransformerOutput(
             last_hidden_state=hidden_states,
-            hidden_states=all_hidden_states_final,
-            attentions=all_self_attentions_final,
+            hidden_states=all_hidden_states,
+            attentions=all_self_attentions,
         )
+
+
+def transformer_encoder(
+    n_layers: int,
+    d_model: int,
+    n_head: int,
+    dim_feedforward: int,
+    dropout: float = 0.0,
+    activation: Callable[..., nn.Module] = nn.ReLU,
+    layer_norm_eps: float = 1e-12,
+    norm_first: bool = False,
+):
+    layer = TransformerEncoderLayer(
+        d_model,
+        n_head,
+        dim_feedforward,
+        dropout,
+        activation,
+        layer_norm_eps,
+        norm_first,
+    )
+    return TransformerEncoder(layer, n_layers)
