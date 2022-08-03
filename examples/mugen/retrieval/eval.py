@@ -35,6 +35,7 @@ arg_structure = {
             "type": str,
             "default": "datasets/coinrun/coinrun_dataset_jsons/release",
         },
+        "asset_path": {"type": str, "default": "datasets/coinrun/assets"},
         "sample_every_n_frames": {"type": int, "default": 3},
         "sequence_length": {"type": int, "default": 32},
         "resolution": {"type": int, "default": 224},
