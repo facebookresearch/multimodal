@@ -43,7 +43,7 @@ def evaluate():
     model = VideoCLIPLightningModule.load_from_checkpoint(
         args.checkpoint_path,
         **vars(args.lightningmodule_args),
-        **vars(args.videoclip_args)
+        **vars(args.videoclip_args),
     )
 
     trainer = Trainer(accelerator=args.accelerator, devices=1)
