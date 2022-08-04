@@ -8,7 +8,10 @@ from typing import Callable
 
 import torch
 from torch import nn, Tensor
-from torchmultimodal.modules.layers.transformer import TransformerEncoderLayer
+from torchmultimodal.modules.layers.transformer import (
+    transformer_encoder,
+    TransformerOutput,
+)
 from torchmultimodal.utils.attention import get_extended_attention_mask
 
 
@@ -60,20 +63,21 @@ class ALBEFTextEncoder(nn.Module):
             type_vocab_size,
             layer_norm_eps,
         )
-        self.encoder = ALBEFTransformerEncoder(
-            hidden_size,
-            intermediate_size,
-            num_attention_heads,
-            num_hidden_layers,
-            layer_norm_eps,
-            transform_act_fn,
+        self.encoder = transformer_encoder(
+            n_layer=num_hidden_layers,
+            d_model=hidden_size,
+            n_head=num_attention_heads,
+            dim_feedforward=intermediate_size,
+            activation=transform_act_fn,
+            layer_norm_eps=layer_norm_eps,
+            norm_first=False,
         )
 
     def forward(
         self,
         input_ids: Tensor,
         attention_mask: Tensor,
-    ) -> Tensor:
+    ) -> TransformerOutput:
         extended_attention_mask = get_extended_attention_mask(attention_mask)
         embedding_output = self.embeddings(input_ids)
         encoder_outputs = self.encoder(embedding_output, extended_attention_mask)
@@ -113,37 +117,3 @@ class ALBEFTextEmbeddings(nn.Module):
         embeddings = inputs_embeds + position_embeddings + token_type_embeddings
         embeddings = self.layer_norm(embeddings)
         return embeddings
-
-
-class ALBEFTransformerEncoder(nn.Module):
-    def __init__(
-        self,
-        hidden_size: int,
-        intermediate_size: int,
-        num_attention_heads: int,
-        num_hidden_layers: int,
-        layer_norm_eps: float,
-        transform_act_fn: Callable[..., nn.Module],
-    ) -> None:
-        super().__init__()
-        self.layer = nn.ModuleList(
-            [
-                TransformerEncoderLayer(
-                    d_model=hidden_size,
-                    n_head=num_attention_heads,
-                    dim_feedforward=intermediate_size,
-                    activation=transform_act_fn,
-                    layer_norm_eps=layer_norm_eps,
-                )
-                for _ in range(num_hidden_layers)
-            ]
-        )
-
-    def forward(
-        self,
-        hidden_states: Tensor,
-        attention_mask: Tensor,
-    ) -> Tensor:
-        for layer_module in self.layer:
-            hidden_states = layer_module(hidden_states, attention_mask=attention_mask)
-        return hidden_states
