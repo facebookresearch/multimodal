@@ -11,8 +11,8 @@ import torch
 from examples.mugen.retrieval.s3d import S3D
 from torch import nn
 
-from torchmultimodal.models.clip.model import CLIP
-from torchmultimodal.utils.common import PretrainedMixin
+from torchmultimodal.models.clip import CLIP
+from torchmultimodal.utils.common import load_module_from_url
 from transformers import DistilBertConfig, DistilBertModel
 
 
@@ -21,19 +21,7 @@ PRETRAINED_S3D_KINETICS400_URL = (
 )
 
 
-class HuggingFaceMixin(PretrainedMixin):
-    """Interface to loading pretrained model from HuggingFace.
-
-    Inputs:
-        model_name (str): name of pretrained model.
-
-    """
-
-    def load_model(self, model_name: str):
-        self.model = DistilBertModel.from_pretrained(model_name)
-
-
-class TextEncoder(nn.Module, HuggingFaceMixin):
+class TextEncoder(nn.Module):
     """Encode tokenized text to the last hidden state representation of the CLS token using
         DistilBERT. DistilBERT prepends a CLS (classification) token to every text so the
         token's hidden state represents the entire text.
@@ -81,7 +69,7 @@ class TextEncoder(nn.Module, HuggingFaceMixin):
         return last_hidden_state[:, self.target_token_idx, :]
 
 
-class VideoEncoder(nn.Module, PretrainedMixin):
+class VideoEncoder(nn.Module):
     """Encode videos to the last layer before the fully-connected layer of S3D.
 
     Adapted from MUGEN's video encoder
@@ -192,7 +180,7 @@ def videoclip(
     )
     if text_pretrained:
         print(f"Loading pretrained DistilBERT from {text_model_name}.")
-        text_model.load_model(text_model_name)
+        text_model.model = DistilBertModel.from_pretrained(text_model_name)
     if text_pretrained and not text_trainable:
         # check `text_pretrained` because if model isn't pretrained, then it should be trainable
         for p in text_model.model.parameters():
@@ -208,7 +196,7 @@ def videoclip(
     video_model = VideoEncoder()
     if video_pretrained:
         print(f"Loading pretrained video encoder from {video_pretrain_path}.")
-        video_model.load_model(video_pretrain_path)
+        load_module_from_url(video_model, video_pretrain_path)
     if video_pretrained and not video_trainable:
         # check `video_pretrained` because if model isn't pretrained, then it should be trainable
         for p in video_model.model.parameters():
