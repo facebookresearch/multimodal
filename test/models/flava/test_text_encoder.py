@@ -9,7 +9,8 @@ import unittest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn
-from torchmultimodal.models.flava.text_encoder import TextEmbeddings, TextTransformer
+from torchmultimodal.models.flava.text_encoder import TextTransformer
+from torchmultimodal.modules.layers.text_embedding import TextEmbeddings
 from torchmultimodal.modules.layers.transformer import transformer_encoder
 
 
@@ -20,7 +21,7 @@ class TestFlavaTextEncoder(unittest.TestCase):
             hidden_size=2,
             vocab_size=3,
             max_position_embeddings=2,
-            hidden_dropout_prob=0,
+            dropout=0,
         )
         emb_weights = torch.Tensor([[0, 1], [1, 0], [1, 1]])
         self.text_embedding.word_embeddings = nn.Embedding.from_pretrained(emb_weights)

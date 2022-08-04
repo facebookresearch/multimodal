@@ -9,113 +9,7 @@ from typing import List, Optional, Union
 import torch
 from torch import nn, Tensor
 
-
-class MDETRTextEmbeddings(nn.Module):
-    """
-    Class for RoBERTa embeddings as used in MDETR. This is very similar to the FLAVA
-    text embeddings class except for its handling of position IDs.
-
-    Args:   hidden_size (int): Embedding dimension. Default: 768
-            vocab_size (int): Number of tokens in the vocabulary. Default: 30522
-            pad_token_id (int): Index of padded tokens. Default: 0
-            type_vocab_size (int): Number of token types. Default: 2
-            max_position_embeddings (int): Max number of positions. Default: 512
-            layer_norm_eps (float): Regularization value in layer norm. Default: 1e-12
-            hidden_dropout_prob (float): Dropout probability on final embeddings.
-                Default: 0.1
-
-    Inputs: input_ids (Tensor): Tensor of input IDs to calculate embeddings for.
-            token_type_ids (Optional[Tensor]): Optional tensor of token type IDs to use
-                in token type embedding. Default: None
-            position_ids (Optional[Tensor]): Optional tensor of position IDs to use in
-                position embedding. Default: None
-    """
-
-    def __init__(
-        self,
-        hidden_size: int = 768,
-        vocab_size: int = 30522,
-        pad_token_id: int = 0,
-        type_vocab_size: int = 2,
-        max_position_embeddings: int = 512,
-        layer_norm_eps: float = 1e-12,
-        hidden_dropout_prob: float = 0.1,
-    ):
-        super().__init__()
-        self.word_embeddings = nn.Embedding(
-            vocab_size, hidden_size, padding_idx=pad_token_id
-        )
-        self.padding_idx = pad_token_id
-        self.position_embeddings = nn.Embedding(
-            max_position_embeddings, hidden_size, padding_idx=self.padding_idx
-        )
-        self.token_type_embeddings = nn.Embedding(type_vocab_size, hidden_size)
-
-        self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
-        self.dropout = nn.Dropout(hidden_dropout_prob)
-        position_ids_range = torch.arange(max_position_embeddings).expand((1, -1))
-        self.register_buffer("position_ids", position_ids_range.clone())
-        self.register_buffer(
-            "token_type_ids",
-            torch.zeros(position_ids_range.size(), dtype=torch.long),
-            persistent=False,
-        )
-
-    def create_position_ids_from_input_ids(
-        self, input_ids: Tensor, padding_idx: int
-    ) -> Tensor:
-        """
-        Replace non-padding symbols with their position numbers.
-        Position numbers begin at padding_idx+1. Padding symbols
-        are ignored. This is modified from fairseq's `utils.make_positions`.
-
-        Inputs: input_ids (Tensor): Tensor from which to create position IDs.
-                padding_idx (int): Padding index
-                    (determines starting point of position IDs).
-        """
-        mask = input_ids.ne(padding_idx).int()
-        incremental_indices = torch.cumsum(mask, dim=1).type_as(mask) * mask
-        return incremental_indices.long() + padding_idx
-
-    def forward(
-        self,
-        input_ids: Tensor,
-        token_type_ids: Optional[Tensor] = None,
-        position_ids: Optional[Tensor] = None,
-    ) -> Tensor:
-        batch_size, seq_length = input_ids.size()
-        device = input_ids.device
-
-        if position_ids is None:
-            # Create the position ids from the input token ids. Any padded tokens remain padded.
-            position_ids = self.create_position_ids_from_input_ids(
-                input_ids, self.padding_idx
-            )
-
-        if token_type_ids is None:
-            if hasattr(self, "token_type_ids"):
-                buffered_token_type_ids = self.token_type_ids[:, :seq_length]  # type: ignore
-                buffered_token_type_ids_expanded = buffered_token_type_ids.expand(
-                    batch_size, seq_length
-                )
-                token_type_ids = buffered_token_type_ids_expanded
-            else:
-                token_type_ids = torch.zeros(
-                    batch_size,
-                    seq_length,
-                    dtype=torch.long,
-                    device=device,
-                )
-        inputs_embeds = self.word_embeddings(input_ids)
-        token_type_embeddings = self.token_type_embeddings(token_type_ids)
-
-        embeddings = inputs_embeds + token_type_embeddings
-        position_embeddings = self.position_embeddings(position_ids)
-        embeddings += position_embeddings
-
-        embeddings = self.layer_norm(embeddings)
-        embeddings = self.dropout(embeddings)
-        return embeddings
+from torchmultimodal.modules.layers.text_embedding import TextEmbeddings
 
 
 class ModifiedTransformerEncoder(nn.Module):
@@ -235,14 +129,14 @@ def mdetr_roberta_text_encoder(
     encoder_dropout_prob: float = 0.1,
     normalize_before: bool = False,
 ) -> MDETRTextEncoder:
-    embeddings = MDETRTextEmbeddings(
+    embeddings = TextEmbeddings(
         hidden_size=embedding_dim,
         vocab_size=vocab_size,
         pad_token_id=pad_token_id,
         type_vocab_size=type_vocab_size,
         max_position_embeddings=max_position_embeddings,
         layer_norm_eps=layer_norm_eps,
-        hidden_dropout_prob=embedding_dropout_prob,
+        dropout=embedding_dropout_prob,
     )
 
     modified_transformer_encoder = ModifiedTransformerEncoder(

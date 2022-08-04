@@ -8,100 +8,16 @@ from functools import partial
 from typing import Any, Callable, Optional
 
 import torch
-from packaging import version
 from torch import nn, Tensor
 from torchmultimodal.models.flava.transformer import init_transformer_weights
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
+from torchmultimodal.modules.layers.text_embedding import TextEmbeddings
 from torchmultimodal.modules.layers.transformer import (
     transformer_encoder,
     TransformerOutput,
 )
 from torchmultimodal.modules.losses.flava import Pooler
 from torchmultimodal.utils.attention import get_extended_attention_mask
-
-
-class TextEmbeddings(nn.Module):
-    """Construct the embeddings from word, position and token_type embeddings following BERT."""
-
-    def __init__(
-        self,
-        hidden_size: int = 768,
-        vocab_size: int = 30522,
-        pad_token_id: int = 0,
-        type_vocab_size: int = 2,
-        max_position_embeddings: int = 512,
-        layer_norm_eps: float = 1e-12,
-        hidden_dropout_prob: float = 0.1,
-    ):
-        super().__init__()
-        self.word_embeddings = nn.Embedding(
-            vocab_size, hidden_size, padding_idx=pad_token_id
-        )
-        self.position_embeddings = nn.Embedding(max_position_embeddings, hidden_size)
-        self.token_type_embeddings = nn.Embedding(type_vocab_size, hidden_size)
-
-        # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
-        # any TensorFlow checkpoint file
-        self.LayerNorm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
-        self.dropout = nn.Dropout(hidden_dropout_prob)
-        # position_ids (1, len position emb) is contiguous in memory and exported when serialized
-        self.register_buffer(
-            "position_ids", torch.arange(max_position_embeddings).expand((1, -1))
-        )
-        self.position_ids: Tensor
-        if version.parse(torch.__version__) > version.parse("1.6.0"):
-            self.register_buffer(
-                "token_type_ids",
-                torch.zeros(self.position_ids.size(), dtype=torch.long),
-                persistent=False,
-            )
-            self.token_type_ids: Tensor
-
-    def forward(
-        self,
-        input_ids: Optional[Tensor] = None,
-        token_type_ids: Optional[Tensor] = None,
-        position_ids: Optional[Tensor] = None,
-        inputs_embeds: Optional[Tensor] = None,
-        past_key_values_length: int = 0,
-    ) -> Tensor:
-        if input_ids is not None:
-            input_shape = input_ids.size()
-        else:
-            input_shape = inputs_embeds.size()[:-1]
-
-        seq_length = input_shape[1]
-
-        if position_ids is None:
-            position_ids = self.position_ids[
-                :, past_key_values_length : seq_length + past_key_values_length
-            ]
-
-        # Setting the token_type_ids to the registered buffer in constructor where it is all zeros, which usually occurs
-        # when its auto-generated, registered buffer helps users when tracing the model without passing token_type_ids, solves
-        # issue #5664
-        if token_type_ids is None:
-            if hasattr(self, "token_type_ids"):
-                buffered_token_type_ids = self.token_type_ids[:, :seq_length]
-                buffered_token_type_ids_expanded = buffered_token_type_ids.expand(
-                    input_shape[0], seq_length
-                )
-                token_type_ids = buffered_token_type_ids_expanded
-            else:
-                token_type_ids = torch.zeros(
-                    input_shape, dtype=torch.long, device=self.position_ids.device
-                )
-
-        if inputs_embeds is None:
-            inputs_embeds = self.word_embeddings(input_ids)
-        token_type_embeddings = self.token_type_embeddings(token_type_ids)
-
-        embeddings = inputs_embeds + token_type_embeddings
-        position_embeddings = self.position_embeddings(position_ids)
-        embeddings += position_embeddings
-        embeddings = self.LayerNorm(embeddings)
-        embeddings = self.dropout(embeddings)
-        return embeddings
 
 
 class TextTransformer(nn.Module):
@@ -201,7 +117,7 @@ def flava_text_encoder(
         type_vocab_size=type_vocab_size,
         max_position_embeddings=max_position_embeddings,
         layer_norm_eps=layer_norm_eps,
-        hidden_dropout_prob=dropout,
+        dropout=dropout,
     )
 
     encoder = transformer_encoder(
