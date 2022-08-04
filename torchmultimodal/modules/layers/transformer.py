@@ -15,7 +15,6 @@ import torch
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.attention import MultiHeadAttention, SelfAttention
 from torchmultimodal.modules.layers.mlp import MLP
-from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 
 FLAVATransformerOutput = namedtuple(
     "FLAVATransformerOutput",
@@ -343,93 +342,29 @@ class TransformerEncoderLayer(nn.Module):
             )
 
 
-class FLAVATransformerLayer(nn.Module):
-    def __init__(
-        self,
-        hidden_size: int = 768,
-        num_attention_heads: int = 12,
-        hidden_dropout_prob: float = 0.0,
-        intermediate_size: int = 3072,
-        intermediate_activation: Callable[..., Tensor] = nn.functional.gelu,
-        attention_probs_dropout_prob: float = 0.0,
-        layer_norm_eps: float = 1e-12,
-    ):
-        super().__init__()
-        self.attention = MultiHeadAttention(
-            dim_q=hidden_size,
-            dim_kv=hidden_size,
-            n_head=num_attention_heads,
-            attn_module=SelfAttention(attention_probs_dropout_prob),
-        )
-        self.attention_dropout = nn.Dropout(hidden_dropout_prob)
-        self.intermediate = nn.Linear(hidden_size, intermediate_size)
-        self.intermediate_activation = intermediate_activation
-        self.output = nn.Linear(intermediate_size, hidden_size)
-        self.ffn_dropout = nn.Dropout(hidden_dropout_prob)
-        self.layernorm_before = Fp32LayerNorm(hidden_size, eps=layer_norm_eps)
-        self.layernorm_after = Fp32LayerNorm(hidden_size, eps=layer_norm_eps)
-
-    def forward(
-        self,
-        hidden_states: Tensor,
-        attention_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
-    ) -> Tuple[Tensor, Tensor]:
-        # TODO(asg): Support postnorm transformer architecture
-        # TODO(asg): After verification with this code, try replacing with
-        # torchtext transformer implementation
-        hs = self.layernorm_before(hidden_states)
-        self_attention_outputs = self.attention(
-            hs,  # in ViT, layernorm is applied before self-attention
-            attention_mask=attention_mask,
-            head_mask=head_mask,
-            return_attn_weights=True,
-        )
-        attention_output = self.attention_dropout(self_attention_outputs[0])
-        # add self attentions if we output attention weights
-        attention_weights = self_attention_outputs[1]
-
-        # first residual connection
-        hidden_states = attention_output + hidden_states
-
-        # in ViT, layernorm is also applied after self-attention
-        layer_output = self.layernorm_after(hidden_states)
-
-        layer_output = self.intermediate(layer_output)
-        layer_output = self.intermediate_activation(layer_output)
-
-        # second residual connection is done here
-        layer_output = self.output(layer_output)
-        layer_output = self.ffn_dropout(layer_output)
-        layer_output += hidden_states
-
-        return layer_output, attention_weights
-
-
 class FLAVATransformerEncoder(nn.Module):
     def __init__(
         self,
         hidden_size: int = 768,
         num_attention_heads: int = 12,
         num_hidden_layers: int = 12,
-        hidden_dropout_prob: float = 0.0,
+        dropout: float = 0.0,
         intermediate_size: int = 3072,
-        intermediate_activation: Callable[..., Tensor] = nn.functional.gelu,
-        attention_probs_dropout_prob: float = 0.0,
+        intermediate_activation: Callable[..., nn.Module] = nn.GELU,
         layer_norm_eps: float = 1e-12,
         **kwargs: Any,
     ):
         super().__init__()
         self.layer = nn.ModuleList(
             [
-                FLAVATransformerLayer(
-                    hidden_size=hidden_size,
-                    num_attention_heads=num_attention_heads,
-                    hidden_dropout_prob=hidden_dropout_prob,
-                    intermediate_size=intermediate_size,
-                    intermediate_activation=intermediate_activation,
-                    attention_probs_dropout_prob=attention_probs_dropout_prob,
+                TransformerEncoderLayer(
+                    d_model=hidden_size,
+                    n_head=num_attention_heads,
+                    dim_feedforward=intermediate_size,
+                    dropout=dropout,
+                    activation=intermediate_activation,
                     layer_norm_eps=layer_norm_eps,
+                    norm_first=True,
                 )
                 for _ in range(num_hidden_layers)
             ]
@@ -449,7 +384,12 @@ class FLAVATransformerEncoder(nn.Module):
             all_hidden_states.append(hidden_states)
 
             layer_head_mask = head_mask[i] if head_mask is not None else None
-            layer_outputs = layer_module(hidden_states, attention_mask, layer_head_mask)
+            layer_outputs = layer_module(
+                hidden_states,
+                attention_mask=attention_mask,
+                head_mask=layer_head_mask,
+                return_attn_weights=True,
+            )
 
             hidden_states = layer_outputs[0]
 
