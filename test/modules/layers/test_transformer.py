@@ -129,7 +129,7 @@ class TestTransformerEncoder:
     @pytest.fixture
     def encoder(self):
         return transformer_encoder(
-            n_layers=2,
+            n_layer=2,
             d_model=2,
             n_head=2,
             dim_feedforward=3072,

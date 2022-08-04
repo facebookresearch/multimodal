@@ -10,12 +10,12 @@ from typing import Any, Callable, Optional
 import torch
 from packaging import version
 from torch import nn, Tensor
-from torchmultimodal.models.flava.transformer import (
-    FLAVATransformerEncoder,
-    FLAVATransformerOutput,
-    init_transformer_weights,
-)
+from torchmultimodal.models.flava.transformer import init_transformer_weights
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
+from torchmultimodal.modules.layers.transformer import (
+    transformer_encoder,
+    TransformerOutput,
+)
 from torchmultimodal.modules.losses.flava import Pooler
 from torchmultimodal.utils.attention import get_extended_attention_mask
 
@@ -138,7 +138,7 @@ class TextTransformer(nn.Module):
         token_type_ids: Optional[Tensor] = None,
         position_ids: Optional[Tensor] = None,
         attention_mask: Optional[Tensor] = None,
-    ) -> FLAVATransformerOutput:
+    ) -> TransformerOutput:
         if input_ids is None:
             raise ValueError("You have to specify input_ids")
         input_shape = input_ids.size()
@@ -161,21 +161,23 @@ class TextTransformer(nn.Module):
             position_ids=position_ids,
         )
 
-        encoder_outputs = self.encoder(
+        encoder_output = self.encoder(
             embedding_output,
             attention_mask=extended_attention_mask,
+            return_attn_weights=True,
+            return_hidden_states=True,
         )
-        sequence_output = encoder_outputs[0]
+        sequence_output = encoder_output.last_hidden_state
         sequence_output = self.layernorm(sequence_output)
         pooled_output = (
             self.pooler(sequence_output) if self.pooler is not None else None
         )
 
-        return FLAVATransformerOutput(
+        return TransformerOutput(
             last_hidden_state=sequence_output,
             pooler_output=pooled_output,
-            hidden_states=encoder_outputs.hidden_states,
-            attentions=encoder_outputs.attentions,
+            hidden_states=encoder_output.hidden_states,
+            attentions=encoder_output.attentions,
         )
 
 
@@ -183,10 +185,9 @@ def flava_text_encoder(
     hidden_size: int = 768,
     num_attention_heads: int = 12,
     num_hidden_layers: int = 12,
-    hidden_dropout_prob: float = 0.0,
+    dropout: float = 0.0,
     intermediate_size: int = 3072,
     intermediate_activation: Callable[..., nn.Module] = nn.GELU,
-    attention_probs_dropout_prob: float = 0.0,
     layer_norm_eps: float = 1e-12,
     vocab_size: int = 30522,
     pad_token_id: int = 0,
@@ -200,19 +201,18 @@ def flava_text_encoder(
         type_vocab_size=type_vocab_size,
         max_position_embeddings=max_position_embeddings,
         layer_norm_eps=layer_norm_eps,
-        hidden_dropout_prob=hidden_dropout_prob,
+        hidden_dropout_prob=dropout,
     )
 
-    encoder = FLAVATransformerEncoder(
-        hidden_size=hidden_size,
-        num_attention_heads=num_attention_heads,
-        num_hidden_layers=num_hidden_layers,
-        hidden_dropout_prob=hidden_dropout_prob,
-        intermediate_size=intermediate_size,
-        intermediate_activation=intermediate_activation,
-        attention_probs_dropout_prob=attention_probs_dropout_prob,
+    encoder = transformer_encoder(
+        n_layer=num_hidden_layers,
+        d_model=hidden_size,
+        n_head=num_attention_heads,
+        dim_feedforward=intermediate_size,
+        activation=intermediate_activation,
         layer_norm_eps=layer_norm_eps,
-        pad_token_id=pad_token_id,
+        dropout=dropout,
+        norm_first=True,
     )
 
     layernorm = Fp32LayerNorm(hidden_size, eps=layer_norm_eps)

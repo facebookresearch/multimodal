@@ -11,12 +11,12 @@ from typing import Any, Callable, Dict, Optional, Tuple
 
 import torch
 from torch import nn, Tensor
-from torchmultimodal.models.flava.transformer import (
-    FLAVATransformerEncoder,
-    FLAVATransformerOutput,
-    init_transformer_weights,
-)
+from torchmultimodal.models.flava.transformer import init_transformer_weights
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
+from torchmultimodal.modules.layers.transformer import (
+    transformer_encoder,
+    TransformerOutput,
+)
 from torchmultimodal.modules.losses.flava import Pooler
 
 
@@ -206,7 +206,7 @@ class ImageTransformer(nn.Module):
         pixel_values: Optional[Tensor] = None,
         image_patches_mask: Optional[Tensor] = None,
         attention_mask: Optional[Tensor] = None,
-    ) -> FLAVATransformerOutput:
+    ) -> TransformerOutput:
         if pixel_values is None:
             raise ValueError("You have to specify pixel_values")
 
@@ -214,21 +214,23 @@ class ImageTransformer(nn.Module):
             pixel_values, image_patches_mask=image_patches_mask
         )
 
-        encoder_outputs = self.encoder(
+        encoder_output = self.encoder(
             embedding_output,
             attention_mask=attention_mask,
+            return_attn_weights=True,
+            return_hidden_states=True,
         )
-        sequence_output = encoder_outputs[0]
+        sequence_output = encoder_output.last_hidden_state
         sequence_output = self.layernorm(sequence_output)
         pooled_output = (
             self.pooler(sequence_output) if self.pooler is not None else None
         )
 
-        return FLAVATransformerOutput(
+        return TransformerOutput(
             last_hidden_state=sequence_output,
             pooler_output=pooled_output,
-            hidden_states=encoder_outputs.hidden_states,
-            attentions=encoder_outputs.attentions,
+            hidden_states=encoder_output.hidden_states,
+            attentions=encoder_output.attentions,
         )
 
 
@@ -237,10 +239,9 @@ def flava_image_encoder(
     num_attention_heads: int = 12,
     num_hidden_layers: int = 12,
     use_image_masking: bool = False,
-    hidden_dropout_prob: float = 0.0,
+    dropout: float = 0.0,
     intermediate_size: int = 3072,
     intermediate_activation: Callable[..., nn.Module] = nn.GELU,
-    attention_probs_dropout_prob: float = 0.0,
     layer_norm_eps: float = 1e-12,
     image_size: int = 224,
     patch_size: int = 16,
@@ -252,18 +253,18 @@ def flava_image_encoder(
         patch_size=patch_size,
         num_channels=num_channels,
         hidden_size=hidden_size,
-        hidden_dropout_prob=hidden_dropout_prob,
+        hidden_dropout_prob=dropout,
         use_image_masking=use_image_masking,
     )
-    encoder = FLAVATransformerEncoder(
-        hidden_size=hidden_size,
-        num_attention_heads=num_attention_heads,
-        num_hidden_layers=num_hidden_layers,
-        hidden_dropout_prob=hidden_dropout_prob,
-        intermediate_size=intermediate_size,
-        intermediate_activation=intermediate_activation,
-        attention_probs_dropout_prob=attention_probs_dropout_prob,
+    encoder = transformer_encoder(
+        n_layer=num_hidden_layers,
+        d_model=hidden_size,
+        n_head=num_attention_heads,
+        dim_feedforward=intermediate_size,
+        activation=intermediate_activation,
         layer_norm_eps=layer_norm_eps,
+        dropout=dropout,
+        norm_first=True,
     )
 
     layernorm = Fp32LayerNorm(hidden_size, eps=layer_norm_eps)
@@ -294,7 +295,7 @@ class ImageTransformerWithVAE(nn.Module):
         pixel_values: Optional[Tensor] = None,
         image_patches_mask: Optional[Tensor] = None,
         attention_mask: Optional[Tensor] = None,
-    ) -> FLAVATransformerOutput:
+    ) -> TransformerOutput:
         image_labels = self.vae(pixel_values).flatten(1)
         image_patches_mask = image_patches_mask.flatten(1).to(torch.bool)
         image_labels[image_patches_mask == False] = -1  # noqa
@@ -304,7 +305,7 @@ class ImageTransformerWithVAE(nn.Module):
             image_patches_mask=image_patches_mask,
             attention_mask=attention_mask,
         )
-        return FLAVATransformerOutput(
+        return TransformerOutput(
             last_hidden_state=output.last_hidden_state,
             pooler_output=output.pooler_output,
             hidden_states=output.hidden_states,

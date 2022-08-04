@@ -16,7 +16,7 @@ from torchmultimodal.models.flava.model import (
     flava_text_encoder,
     FLAVAModel,
 )
-from torchmultimodal.models.flava.transformer import FLAVATransformerOutput
+from torchmultimodal.modules.layers.transformer import TransformerOutput
 
 NUM_CLASSES = 2
 
@@ -36,7 +36,6 @@ class TestFLAVA(unittest.TestCase):
         flava.eval()
 
         # Test multimodal scenario
-
         output = flava(image, text, "mm", labels)
         self.assertAlmostEqual(output.loss.item(), 0.7180, places=4)
 
@@ -143,14 +142,12 @@ class TestFLAVAModel(unittest.TestCase):
             hidden_size=2,
             num_attention_heads=1,
             num_hidden_layers=1,
-            hidden_dropout_prob=0.0,
             intermediate_size=2,
         )
         self.image_encoder = flava_image_encoder(
             hidden_size=2,
             num_attention_heads=1,
             num_hidden_layers=1,
-            hidden_dropout_prob=0.0,
             intermediate_size=2,
             image_size=2,
             patch_size=1,
@@ -174,7 +171,7 @@ class TestFLAVAModel(unittest.TestCase):
     def _assert_empty(self, field):
         self.assertEqual(
             field,
-            FLAVATransformerOutput(
+            TransformerOutput(
                 last_hidden_state=None,
                 pooler_output=None,
                 hidden_states=None,
