@@ -390,7 +390,7 @@ class TransformerEncoder(nn.Module):
 
 
 def transformer_encoder(
-    n_layers: int,
+    n_layer: int,
     d_model: int,
     n_head: int,
     dim_feedforward: int,
@@ -398,7 +398,7 @@ def transformer_encoder(
     activation: Callable[..., nn.Module] = nn.ReLU,
     layer_norm_eps: float = 1e-12,
     norm_first: bool = False,
-):
+) -> TransformerEncoder:
     layer = TransformerEncoderLayer(
         d_model,
         n_head,
@@ -408,4 +408,4 @@ def transformer_encoder(
         layer_norm_eps,
         norm_first,
     )
-    return TransformerEncoder(layer, n_layers)
+    return TransformerEncoder(layer, n_layer)
