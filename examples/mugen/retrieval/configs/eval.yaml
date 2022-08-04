@@ -45,3 +45,4 @@ videoclip_args:
   proj_out_dim: 256
   proj_dropout: 0.1
 checkpoint_path: "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/videoclip_lightning_mugen.pt"
+accelerator: "auto"

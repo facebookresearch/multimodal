@@ -46,7 +46,7 @@ def evaluate():
         **vars(args.videoclip_args)
     )
 
-    trainer = Trainer(accelerator="auto", devices=1)
+    trainer = Trainer(accelerator=args.accelerator, devices=1)
     trainer.test(model, dataloaders=datamodule.test_dataloader())
 
 
