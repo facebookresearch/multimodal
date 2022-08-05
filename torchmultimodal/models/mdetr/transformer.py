@@ -4,7 +4,6 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from copy import deepcopy
 from typing import Callable, NamedTuple, Optional
 
 import torch
@@ -446,10 +445,6 @@ class TransformerDecoderLayer(nn.Module):
         x = x + self.dropout4(mlp_outputs)
         x = self.norm4(x)
         return x
-
-
-def get_clones(module: nn.Module, n: int) -> nn.ModuleList:
-    return nn.ModuleList([deepcopy(module) for i in range(n)])
 
 
 def mdetr_transformer(
