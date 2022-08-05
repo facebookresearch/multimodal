@@ -10,6 +10,7 @@ from typing import Callable, NamedTuple, Optional
 import torch
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.mlp import MLP
+from torchmultimodal.utils.common import get_clones
 
 
 class MDETRTransformerOutput(NamedTuple):

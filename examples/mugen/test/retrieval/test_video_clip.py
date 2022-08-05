@@ -4,9 +4,6 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import os
-from typing import Optional
-
 import pytest
 import torch
 from examples.mugen.retrieval.video_clip import (
@@ -17,39 +14,28 @@ from examples.mugen.retrieval.video_clip import (
 )
 
 from test.test_utils import assert_expected, get_asset_path, set_rng_seed
+from torchmultimodal import _PATH_MANAGER
 from torchmultimodal.utils.common import shift_dim
 
 
-def patch_load_model(mocker):
-    """Mock the ``load_model`` function of ``VideoEncoder`` to allow loading truncated
-    state dicts with ``strict=False``.
+def patch_load_module_from_url(mocker):
+    """Mock the ``load_module_from_url`` utility function used in ``videoclip()`` to allow
+    loading truncated state dicts with ``strict=False``.
     """
 
-    def patched_load_model(
-        cls,
-        pretrained_url: Optional[str],
-        load_state_dict: bool = True,
-        state_dict_key: Optional[str] = None,
-    ):
-        assert isinstance(
-            cls, torch.nn.Module
-        ), "load_model can only be called on an nn.Module instance"
-        if os.path.exists(pretrained_url):
-            state_dict = torch.load(pretrained_url)
+    def patched_load_module_from_url(
+        model: torch.nn.Module, url: str, strict: bool = True, progress: bool = True
+    ) -> None:
+        local_path = _PATH_MANAGER.get_local_path(url)
+        if not torch.cuda.is_available():
+            state_dict = torch.load(local_path, map_location=torch.device("cpu"))
         else:
-            state_dict = torch.hub.load_state_dict_from_url(
-                pretrained_url, model_dir=cls.get_model_dir(pretrained_url)
-            )
-        if state_dict_key:
-            state_dict = state_dict[state_dict_key]
-
-        if load_state_dict:
-            cls.load_state_dict(state_dict, strict=False)
-        return state_dict
+            state_dict = torch.load(local_path)
+        model.load_state_dict(state_dict, strict=False)
 
     return mocker.patch(
-        "examples.mugen.retrieval.video_clip.VideoEncoder.load_model",
-        new=patched_load_model,
+        "examples.mugen.retrieval.video_clip.load_module_from_url",
+        new=patched_load_module_from_url,
     )
 
 
@@ -166,7 +152,7 @@ class TestVideoCLIPBuilder:
 
     def test_forward_pretrained_trainable(self, utils, mocker):
         input_text, input_video = utils
-        patch_load_model(mocker)
+        patch_load_module_from_url(mocker)
         model = videoclip(
             video_pretrain_path=get_asset_path("S3D_sample.pt"), proj_out_dim=3
         )
@@ -193,7 +179,7 @@ class TestVideoCLIPBuilder:
         )
 
     def test_pretrained_untrainable(self, mocker):
-        patch_load_model(mocker)
+        patch_load_module_from_url(mocker)
         model = videoclip(
             text_trainable=False,
             video_trainable=False,
