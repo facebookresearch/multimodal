@@ -13,7 +13,10 @@ from torchmultimodal.models.mdetr.image_encoder import (
     mdetr_resnet101_backbone,
     PositionEmbedding2D,
 )
-from torchmultimodal.models.mdetr.text_encoder import mdetr_roberta_text_encoder, FeatureResizer
+from torchmultimodal.models.mdetr.text_encoder import (
+    FeatureResizer,
+    mdetr_roberta_text_encoder,
+)
 from torchmultimodal.models.mdetr.transformer import (
     mdetr_transformer,
     MDETRTransformerOutput,
