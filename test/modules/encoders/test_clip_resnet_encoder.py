@@ -12,7 +12,7 @@ from torchmultimodal.modules.encoders.clip_resnet_encoder import ResNetForCLIP
 from torchmultimodal.utils.common import get_current_device
 
 
-class TestCLIPModule:
+class TestResnetEncoder:
     @pytest.fixture(autouse=True)
     def set_seed(self):
         torch.manual_seed(1234)
