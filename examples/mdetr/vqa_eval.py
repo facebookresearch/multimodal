@@ -141,7 +141,7 @@ def main(args):
 
     # Loss weights
     weight_dict = build_weight_dict(
-        args, model.vqa_heads.heads.keys(), include_contrastive_loss=False
+        args, model.vqa_heads.keys(), include_contrastive_loss=False
     )
 
     model_ema = deepcopy(model) if args.ema else None

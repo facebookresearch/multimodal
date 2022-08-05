@@ -230,25 +230,7 @@ def mdetr_resnet101(
     return mdetr
 
 
-class MultiHead(nn.Module):
-    def __init__(self, heads: nn.ModuleDict):
-        super().__init__()
-        self.heads = heads
-
-    def forward(
-        self,
-        embeddings: Tensor,
-    ) -> Dict[str, Tensor]:
-        if embeddings.size(0) != len(self.heads):
-            raise ValueError("Number of embeddings must equal number of heads")
-        out = OrderedDict()
-        for (head_name, head), embedding in zip(self.heads.items(), embeddings):
-            out[head_name] = head(embedding)
-
-        return out
-
-
-def mdetr_gqa_heads(hidden_dim: int = 256) -> MultiHead:
+def mdetr_gqa_heads(hidden_dim: int = 256) -> nn.ModuleDict:
     answer_type_head = nn.Linear(hidden_dim, 5)  # Number of answer types
     answer_obj_head = nn.Linear(hidden_dim, 3)
     answer_attr_head = nn.Linear(hidden_dim, 403)
@@ -265,7 +247,7 @@ def mdetr_gqa_heads(hidden_dim: int = 256) -> MultiHead:
             "answer_global": answer_global_head,
         }
     )
-    return MultiHead(heads)
+    return heads
 
 
 class ContrastiveEmbeddingsOutput(NamedTuple):
@@ -283,7 +265,7 @@ class MDETRForVQA(nn.Module):
     def __init__(
         self,
         model: MDETR,
-        vqa_heads: MultiHead,
+        vqa_heads: nn.ModuleDict,
         contrastive_alignment_image_projection: nn.Module,
         contrastive_alignment_text_projection: nn.Module,
     ):
@@ -293,7 +275,7 @@ class MDETRForVQA(nn.Module):
         if self.model.extra_query_embeddings is None:
             raise ValueError("MDETRForVQA requires extra query embeddings ")
         if self.model.extra_query_embeddings.num_embeddings != len(
-            self.vqa_heads.heads.keys()
+            self.vqa_heads.keys()
         ):
             raise ValueError("Number of heads must match number of QA embeddings")
 
@@ -332,7 +314,10 @@ class MDETRForVQA(nn.Module):
         )
 
         # Apply VQA heads to get answer predictions
-        answer_preds = self.vqa_heads(model_output.extra_embeddings.transpose(0, 1))
+        answer_preds = OrderedDict()
+        vqa_embeddings = model_output.extra_embeddings.transpose(0, 1)
+        for (head_name, head), embedding in zip(self.vqa_heads.items(), vqa_embeddings):
+            answer_preds[head_name] = head(embedding)
 
         return MDETRVQAOutput(model_output, answer_preds, contrastive_outputs)
 
@@ -348,11 +333,11 @@ def mdetr_for_vqa(
     transformer_dim_feedforward: int = 2048,
     transformer_dropout: float = 0.1,
     return_intermediate_dec: bool = True,
+    vqa_heads: nn.ModuleDict = mdetr_gqa_heads(),
     contrastive_dim: int = 64,
 ) -> MDETRForVQA:
     hidden_dim = transformer_d_model
-    vqa_heads = mdetr_gqa_heads()
-    num_heads = len(vqa_heads.heads.keys())
+    num_heads = len(vqa_heads.keys())
 
     model = mdetr_resnet101(
         num_queries,
