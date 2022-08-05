@@ -365,10 +365,10 @@ def mdetr_for_vqa(
     transformer_dim_feedforward: int = 2048,
     transformer_dropout: float = 0.1,
     return_intermediate_dec: bool = True,
+    vqa_heads: nn.ModuleDict = mdetr_gqa_heads(),
     contrastive_dim: int = 64,
 ) -> MDETRForVQA:
     hidden_dim = transformer_d_model
-    vqa_heads = mdetr_gqa_heads()
     num_heads = len(vqa_heads.keys())
 
     model = mdetr_resnet101(
