@@ -14,16 +14,22 @@ import examples.mdetr.utils.dist as dist
 import numpy as np
 import torch
 from examples.mdetr.data.datamodule import GQADataModule
-from examples.mdetr.loss import build_weight_dict
-from examples.mdetr.model import mdetr_for_vqa
+from examples.mdetr.loss import build_mdetr_loss, build_weight_dict
+from examples.mdetr.matcher import HungarianMatcher
 from examples.mdetr.utils.args_parse import get_args_parser
 from examples.mdetr.utils.metrics import MetricLogger
 from examples.mdetr.utils.misc import targets_to
+from torchmultimodal.models.mdetr.model import mdetr_for_vqa
 
 
 @torch.no_grad()
 def evaluate(
-    model, data_loader, device, weight_dict, include_contrastive_loss: bool = False
+    model,
+    matcher,
+    loss,
+    data_loader,
+    device,
+    weight_dict,
 ):
 
     model.eval()
@@ -33,7 +39,9 @@ def evaluate(
         samples = [x.to(device) for x in batch_dict["samples"]]
         targets = batch_dict["targets"]
         text = [t["tokenized"].to(device) for t in targets]
+        tokenized = batch_dict["batch_encoding"]
         targets = targets_to(targets, device)
+        target_boxes = [t["boxes"] for t in targets]
         answers = {k: v.to(device) for k, v in batch_dict["answers"].items()}
         answer_types = {
             k: v.to(device) for k, v in batch_dict["answer_type_mask"].items()
@@ -46,16 +54,28 @@ def evaluate(
         outputs = model(
             samples,
             text,
+        )
+        indices = matcher(
+            outputs.model_output.pred_logits,
+            outputs.model_output.pred_boxes,
+            target_boxes,
+            positive_map,
+        )
+        loss_dict = loss(
+            outputs.model_output.pred_logits,
+            outputs.model_output.pred_boxes,
             targets,
             positive_map,
+            indices,
+            outputs.contrastive_embeddings.query_embeddings,
+            outputs.contrastive_embeddings.token_embeddings,
+            tokenized,
+            outputs.vqa_preds,
             answers,
             answer_types,
-            batch_dict["batch_encoding"],
             weight_dict,
-            include_contrastive_loss,
         )
 
-        loss_dict = outputs.loss
         loss_dict_reduced = dist.reduce_dict(loss_dict)
         metric_logger.update(**loss_dict_reduced)
 
@@ -111,8 +131,12 @@ def main(args):
     datamodule.setup("val")
     val_loader = datamodule.val_dataloader()
 
-    # Build the model
+    # Build the model, matcher, and losses
     model = mdetr_for_vqa()
+    matcher = HungarianMatcher(
+        args.matcher_cost_class, args.matcher_cost_bbox, args.matcher_cost_giou
+    )
+    loss = build_mdetr_loss(True, args.no_object_weight, args.temperature)
     model.to(device)
 
     # Loss weights
@@ -136,18 +160,20 @@ def main(args):
     else:
         checkpoint = torch.load(args.resume, map_location="cpu")
 
-    model_without_ddp.load_state_dict(checkpoint["model"])
+    model_without_ddp.load_state_dict(checkpoint["model"], strict=False)
     # Load EMA model
     if "model_ema" not in checkpoint:
         print("WARNING: ema model not found in checkpoint, resetting to current model")
         model_ema = deepcopy(model_without_ddp)
     else:
-        model_ema.load_state_dict(checkpoint["model_ema"])
+        model_ema.load_state_dict(checkpoint["model_ema"], strict=False)
 
     test_model = model_ema if model_ema is not None else model
 
     test_stats = evaluate(
         model=test_model,
+        matcher=matcher,
+        loss=loss,
         data_loader=val_loader,
         device=device,
         weight_dict=weight_dict,
