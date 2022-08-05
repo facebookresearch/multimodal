@@ -13,7 +13,7 @@ from torchmultimodal.models.mdetr.image_encoder import (
     mdetr_resnet101_backbone,
     PositionEmbedding2D,
 )
-from torchmultimodal.models.mdetr.text_encoder import mdetr_roberta_text_encoder
+from torchmultimodal.models.mdetr.text_encoder import mdetr_roberta_text_encoder, FeatureResizer
 from torchmultimodal.models.mdetr.transformer import (
     mdetr_transformer,
     MDETRTransformerOutput,
@@ -166,41 +166,6 @@ class MDETR(nn.Module):
         return MDETRModelOutput(
             transformer_output, outputs_class, outputs_coord, extra_embeddings
         )
-
-
-class FeatureResizer(nn.Module):
-    """
-    This class takes as input a set of embeddings of dimension C1 and outputs a set of
-    embedding of dimension C2, after a linear transformation, dropout and normalization (LN).
-
-    Args:   input_feat_size (int): Dimension of input features.
-            output_feat_size (int): Dimension of output features.
-            dropout (float): Dropout probability for final features. Default: 0.1
-            do_ln (bool): Whether to perform layer normalization after the linear layer.
-
-    Inputs: encoder_features (Tensor): Features to be resized.
-    """
-
-    def __init__(
-        self,
-        input_feat_size: int,
-        output_feat_size: int,
-        dropout: float = 0.1,
-        do_ln: bool = True,
-    ):
-        super().__init__()
-        self.do_ln = do_ln
-        # Object feature encoding
-        self.fc = nn.Linear(input_feat_size, output_feat_size, bias=True)
-        self.layer_norm = nn.LayerNorm(output_feat_size, eps=1e-12) if do_ln else None
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, encoder_features: Tensor) -> Tensor:
-        x = self.fc(encoder_features)
-        if self.do_ln:
-            x = self.layer_norm(x)
-        output = self.dropout(x)
-        return output
 
 
 def mdetr_resnet101(
