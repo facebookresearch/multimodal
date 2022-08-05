@@ -4,27 +4,36 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import unittest
+import pytest
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.modules.layers.transformer import FLAVATransformerEncoder
+from torchmultimodal.modules.layers.transformer import (
+    _apply_layernorm,
+    FLAVATransformerEncoder,
+    TransformerCrossAttentionLayer,
+    TransformerEncoderLayer,
+)
 
 
-class TestTransformer(unittest.TestCase):
-    """
-    Test the Transformer classes
-    """
+@pytest.fixture(autouse=True)
+def random():
+    set_rng_seed(4)
 
-    def setUp(self):
-        set_rng_seed(4)
-        self.encoder = FLAVATransformerEncoder(
+
+class TestFLAVATransformerEncoder:
+    @pytest.fixture
+    def encoder(self):
+        return FLAVATransformerEncoder(
             hidden_size=2, num_attention_heads=2, num_hidden_layers=2
         )
-        self.test_input = torch.rand((2, 3, 2))
 
-    def test_flava_encoder_forward(self):
-        output = self.encoder(self.test_input)
+    @pytest.fixture
+    def inputs(self):
+        return torch.rand((2, 3, 2))
+
+    def test_flava_encoder_forward(self, encoder, inputs):
+        output = encoder(inputs)
 
         actual_last_hidden_state = output.last_hidden_state
         actual_hidden_states = torch.stack(output.hidden_states)
@@ -116,3 +125,114 @@ class TestTransformer(unittest.TestCase):
             actual_hidden_states, expected_hidden_states, rtol=0.0, atol=1e-4
         )
         assert_expected(actual_attentions, expected_attentions, rtol=0.0, atol=1e-4)
+
+
+class TestTransformerEncoderLayer:
+    @pytest.fixture
+    def get_encoder_layer(self):
+        def create_layer(norm_first):
+            model = TransformerEncoderLayer(2, 1, 2, norm_first=norm_first)
+            model.eval()
+            return model
+
+        return create_layer
+
+    @pytest.fixture
+    def inputs(self):
+        return torch.randn(1, 2, 2, 2, 2)
+
+    def test_forward_prenorm(self, inputs, get_encoder_layer):
+        model = get_encoder_layer(True)
+        actual = model(inputs)
+        expected = torch.tensor(
+            [
+                [
+                    [
+                        [[-1.5605, 2.3367], [-0.8028, 1.2239]],
+                        [[-0.3491, 0.7343], [-3.2212, 1.6979]],
+                    ],
+                    [
+                        [[-1.4874, 0.8684], [-0.2215, 1.7433]],
+                        [[-0.6728, 1.1201], [-2.2237, -1.1081]],
+                    ],
+                ]
+            ]
+        )
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+    def test_forward_postnorm(self, inputs, get_encoder_layer):
+        model = get_encoder_layer(False)
+        actual = model(inputs)
+        expected = torch.tensor(
+            [
+                [
+                    [
+                        [[-1.0000, 1.0000], [-1.0000, 1.0000]],
+                        [[-1.0000, 1.0000], [-1.0000, 1.0000]],
+                    ],
+                    [
+                        [[-1.0000, 1.0000], [-1.0000, 1.0000]],
+                        [[-1.0000, 1.0000], [-1.0000, 1.0000]],
+                    ],
+                ]
+            ]
+        )
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+
+class TestTransformerCrossAttentionLayer:
+    @pytest.fixture
+    def get_encoder_layer(self):
+        def create_layer(norm_first):
+            model = TransformerCrossAttentionLayer(2, 1, 2, norm_first=norm_first)
+            model.eval()
+            return model
+
+        return create_layer
+
+    @pytest.fixture
+    def inputs(self):
+        return torch.randn(1, 2, 2, 2, 2)
+
+    @pytest.fixture
+    def cross_inputs(self):
+        return torch.randn(1, 2, 2, 2, 2)
+
+    def test_forward_prenorm(self, inputs, cross_inputs, get_encoder_layer):
+        model = get_encoder_layer(True)
+        actual = model(inputs, cross_inputs)
+        expected = torch.tensor(
+            [
+                [
+                    [
+                        [[-0.5925, 1.1257], [-0.5925, 1.1257]],
+                        [[-0.5925, 1.1257], [-0.5925, 1.1257]],
+                    ],
+                    [
+                        [[-0.5925, 1.1257], [-0.5925, 1.1257]],
+                        [[-0.5925, 1.1257], [-0.5925, 1.1257]],
+                    ],
+                ]
+            ]
+        )
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+    def test_forward_postnorm(self, inputs, cross_inputs, get_encoder_layer):
+        model = get_encoder_layer(False)
+        actual = model(inputs, cross_inputs)
+        expected = torch.tensor(
+            [
+                [
+                    [[[-1.0, 1.0], [-1.0, 1.0]], [[-1.0, 1.0], [-1.0, 1.0]]],
+                    [[[-1.0, 1.0], [-1.0, 1.0]], [[-1.0, 1.0], [-1.0, 1.0]]],
+                ]
+            ]
+        )
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+
+def test_apply_layernorm():
+    x = torch.ones(1, 1, dtype=torch.float16)
+    norm = torch.nn.LayerNorm(1)
+    output = _apply_layernorm(x, norm)
+    assert output.dtype == torch.float16
