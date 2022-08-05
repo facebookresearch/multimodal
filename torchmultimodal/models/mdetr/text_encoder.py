@@ -220,6 +220,7 @@ class MDETRTextEncoder(nn.Module):
 
         return out
 
+
 class FeatureResizer(nn.Module):
     """
     This class takes as input a set of embeddings of dimension C1 and outputs a set of
@@ -251,6 +252,7 @@ class FeatureResizer(nn.Module):
             x = self.layer_norm(x)
         output = self.dropout(x)
         return output
+
 
 def mdetr_roberta_text_encoder(
     embedding_dim: int = 768,
