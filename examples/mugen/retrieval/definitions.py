@@ -47,6 +47,9 @@ class DataModuleArgs:
 class LightningModuleArgs:
     logit_scale: float = 0.07
     logit_scale_max: float = 100.0
+    learning_rate: float = 1e-3
+    weight_decay: float = 1e-3
+    recall_ks: Tuple[int] = (1, 5, 10)
 
 
 @dataclass
@@ -70,7 +73,7 @@ class EvaluationArgs:
     dataset_args: MUGENDatasetArgs = MUGENDatasetArgs(
         get_game_frame=True,
         get_text_desc=True,
-        resolution=224,
+        resolution=256,
         fixed_start_idx=False,
         use_manual_annotation=True,
         use_auto_annotation=False,
@@ -80,3 +83,22 @@ class EvaluationArgs:
     videoclip_args: VideoCLIPArgs = VideoCLIPArgs()
     checkpoint_path: str = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/videoclip_lightning_mugen.pt"
     accelerator: str = "auto"
+
+
+@dataclass
+class TrainingArgs:
+    dataset_args: MUGENDatasetArgs = MUGENDatasetArgs(
+        get_game_frame=True,
+        get_text_desc=True,
+        resolution=224,
+        fixed_start_idx=False,
+        use_manual_annotation=True,
+        use_auto_annotation=False,
+    )
+    datamodule_args: DataModuleArgs = DataModuleArgs()
+    lightningmodule_args: LightningModuleArgs = LightningModuleArgs()
+    videoclip_args: VideoCLIPArgs = VideoCLIPArgs()
+    accelerator: str = "auto"
+    max_epochs: int = 1000
+    log_every_n_steps: int = 100
+    default_root_dir: Optional[str] = None
