@@ -239,7 +239,7 @@ def flava_image_encoder(
     use_image_masking: bool = False,
     hidden_dropout_prob: float = 0.0,
     intermediate_size: int = 3072,
-    intermediate_activation: Callable[..., Tensor] = nn.functional.gelu,
+    intermediate_activation: Callable[..., nn.Module] = nn.GELU,
     attention_probs_dropout_prob: float = 0.0,
     layer_norm_eps: float = 1e-12,
     image_size: int = 224,
