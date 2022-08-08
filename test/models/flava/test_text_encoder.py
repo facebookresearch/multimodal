@@ -10,7 +10,7 @@ import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn
 from torchmultimodal.models.flava.text_encoder import TextEmbeddings, TextTransformer
-from torchmultimodal.modules.layers.transformer import transformer_encoder
+from torchmultimodal.modules.layers.transformer import TransformerEncoder
 
 
 class TestFlavaTextEncoder(unittest.TestCase):
@@ -31,7 +31,7 @@ class TestFlavaTextEncoder(unittest.TestCase):
             emb_weights
         )
 
-        encoder = transformer_encoder(
+        encoder = TransformerEncoder(
             n_layer=1,
             d_model=2,
             n_head=1,

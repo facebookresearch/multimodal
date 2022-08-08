@@ -9,11 +9,11 @@ import unittest
 import torch
 
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.modules.encoders.mdetr_text_encoder import (
-    MDETRTextEmbeddings,
+from torchmultimodal.models.mdetr.text_encoder import (
     MDETRTextEncoder,
     ModifiedTransformerEncoder,
 )
+from torchmultimodal.modules.layers.text_embedding import TextEmbeddings
 
 
 class TestMDETRTextEncoder(unittest.TestCase):
@@ -21,14 +21,15 @@ class TestMDETRTextEncoder(unittest.TestCase):
         set_rng_seed(0)
         self.max_position_embeddings = 514
         self.hidden_size = 768
-        self.embeddings = MDETRTextEmbeddings(
+        self.embeddings = TextEmbeddings(
             hidden_size=self.hidden_size,
             vocab_size=50265,
             pad_token_id=1,
             type_vocab_size=1,
             max_position_embeddings=self.max_position_embeddings,
             layer_norm_eps=1e-05,
-            hidden_dropout_prob=0.1,
+            dropout=0.1,
+            offset_pos_ids=True,
         )
 
         self.modified_transformer_encoder = ModifiedTransformerEncoder(
