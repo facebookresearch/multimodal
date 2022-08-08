@@ -5,12 +5,17 @@
 # LICENSE file in the root directory of this source tree.
 
 from collections import OrderedDict
+from functools import partial
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
-from torchmultimodal.modules.losses.mdetr import BoxLosses
+from torchmultimodal.modules.losses.mdetr import (
+    box_losses,
+    BoxLosses,
+    soft_token_prediction_loss,
+)
 
 
 def contrastive_alignment_loss(
@@ -122,7 +127,7 @@ def masked_dict_accuracy(
     label_dict: Optional[Dict[str, Tensor]] = None,
     mask_dict: Optional[Dict[str, Tensor]] = None,
     answer_type_key: Optional[str] = "answer_type",
-):
+) -> Dict[str, Tensor]:
     accuracies = OrderedDict()
     for k in pred_dict.keys():
         if mask_dict is None or mask_dict[k] is None:
@@ -153,7 +158,7 @@ def masked_dict_cross_entropy(
     pred_dict: Optional[Dict[str, Tensor]] = None,
     label_dict: Optional[Dict[str, Tensor]] = None,
     mask_dict: Optional[Dict[str, Tensor]] = None,
-):
+) -> Dict[str, Tensor]:
     losses = OrderedDict()
     if pred_dict.keys() != label_dict.keys():
         raise ValueError("Keys of pred_dict and label_dict must match")
@@ -177,7 +182,7 @@ class MDETRLoss(nn.Module):
         soft_token_loss: Callable[..., Tensor],
         box_losses: Callable[..., BoxLosses],
         contrastive_alignment_loss: Optional[nn.Module] = None,
-        vqa_losses: Optional[Iterable[nn.Module]] = None,
+        vqa_losses: Optional[Iterable[Callable[..., Dict[str, Tensor]]]] = None,
     ):
         super().__init__()
         self.soft_token_loss = soft_token_loss
@@ -280,6 +285,35 @@ class MDETRLoss(nn.Module):
             loss_dict.update(total_loss=total_loss)
 
         return loss_dict
+
+
+def build_mdetr_loss(
+    do_qa: bool = False,
+    no_object_weight: float = 0.1,
+    temperature: Optional[float] = None,
+) -> MDETRLoss:
+
+    soft_token_loss = partial(
+        soft_token_prediction_loss, no_object_weight=no_object_weight
+    )
+
+    if temperature is not None:
+        contrastive_loss = partial(contrastive_alignment_loss, temperature=temperature)
+    else:
+        contrastive_loss = None
+
+    if do_qa:
+        vqa_losses = [masked_dict_cross_entropy, masked_dict_accuracy]
+    else:
+        vqa_losses = None
+
+    loss = MDETRLoss(
+        soft_token_loss=soft_token_loss,
+        box_losses=box_losses,
+        contrastive_alignment_loss=contrastive_loss,
+        vqa_losses=vqa_losses,
+    )
+    return loss
 
 
 def build_weight_dict(
