@@ -16,40 +16,37 @@ from torchmultimodal.utils.common import to_tuple_tuple
 
 
 def video_vqvae(
-    in_channel_dim: int = 3,
-    encoder_hidden_dim: int = 240,
-    encoder_kernel_size: int = 3,
-    encoder_stride: int = 2,
-    encoder_n_layers: int = 1,
-    n_res_layers: int = 4,
-    attn_hidden_dim: int = 240,
-    num_embeddings: int = 1024,
-    embedding_dim: int = 256,
-    decoder_hidden_dim: int = 240,
-    decoder_kernel_size: int = 4,
-    decoder_stride: int = 2,
-    decoder_n_layers: int = 1,
+    in_channel_dim: int,
+    encoder_hidden_dim: int,
+    encoder_kernel_size: int,
+    encoder_stride: int,
+    encoder_n_layers: int,
+    n_res_layers: int,
+    attn_hidden_dim: int,
+    num_embeddings: int,
+    embedding_dim: int,
+    decoder_hidden_dim: int,
+    decoder_kernel_size: int,
+    decoder_stride: int,
+    decoder_n_layers: int,
 ) -> VQVAE:
-    """Generic Video VQVAE builder using default parameters from VideoGPT (Yan et al. 2022).
-    Uses hyperparameters from Appendix A Table 8 for BAIR/RoboNet/ViZDoom. Code ref:
-    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
+    """Generic Video VQVAE builder
 
     Args:
-        in_channel_dim (int, optional): Size of channel dim in input. Defaults to 3.
-        encoder_hidden_dim (int, optional): Size of channel dims in encoder conv layers. Defaults to 240.
-        encoder_kernel_size (int, optional): Kernel size for encoder. Defaults to 3.
-        encoder_stride (int, optional): Stride for encoder. Defaults to 2.
+        in_channel_dim (int, optional): Size of channel dim in input.
+        encoder_hidden_dim (int, optional): Size of channel dims in encoder conv layers.
+        encoder_kernel_size (int, optional): Kernel size for encoder.
+        encoder_stride (int, optional): Stride for encoder.
         encoder_n_layers (int, optional): Number of layers in encoder. Does not include attention stack and pre-codebook conv layer.
-            Defaults to 1.
-        n_res_layers (int, optional): Number of ``AttentionResidualBlocks`` to include in encoder and decoder. Defaults to 4.
-        attn_hidden_dim (int, optional): Size of hidden dim of ``AttentionResidualBlocks``. Defaults to 240.
-        num_embeddings (int, optional): Number of embedding vectors used in ``Codebook``. Defaults to 1024.
-        embedding_dim (int, optional): Dimensionality of embedding vectors in ``Codebook``. Defaults to 256.
-        decoder_hidden_dim (int, optional): Size of channel dims in decoder conv tranpose layers. Defaults to 240.
-        decoder_kernel_size (int, optional): Kernel size for decoder. Defaults to 4.
-        decoder_stride (int, optional): Stride for decoder. Defaults to 2.
+        n_res_layers (int, optional): Number of ``AttentionResidualBlocks`` to include in encoder and decoder.
+        attn_hidden_dim (int, optional): Size of hidden dim of ``AttentionResidualBlocks``.
+        num_embeddings (int, optional): Number of embedding vectors used in ``Codebook``.
+        embedding_dim (int, optional): Dimensionality of embedding vectors in ``Codebook``.
+        decoder_hidden_dim (int, optional): Size of channel dims in decoder conv tranpose layers.
+        decoder_kernel_size (int, optional): Kernel size for decoder.
+        decoder_stride (int, optional): Stride for decoder.
         decoder_n_layers (int, optional): Number of layers in decoder. Does not include attention stack and
-            post-codebook conv transpose layer. Defaults to 1.
+            post-codebook conv transpose layer.
 
     Returns:
         VQVAE: constructed ``VQVAE`` model using ``VideoEncoder``, ``Codebook``, and ``VideoDecoder``
