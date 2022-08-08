@@ -1,0 +1,82 @@
+_target_: flava.definitions.FLAVAArguments
+training:
+  _target_: flava.definitions.TrainingArguments
+  lightning:
+    max_steps: 1000
+    gpus: -1
+    # progress_bar_refresh_rate: 50
+    val_check_interval: 10000
+    num_sanity_val_steps: 0
+    strategy: ddp
+  lightning_checkpoint:
+    dirpath: "."
+    filename: flava-{epoch:02d}-{step}
+    save_last: true
+    every_n_train_steps: 1000
+    save_on_train_epoch_end: true
+    verbose: true
+  lightning_load_from_checkpoint: null
+  seed: -1
+  batch_size: 2
+  num_workers: 4
+  learning_rate: 2e-4
+  adam_eps: 1e-8
+  adam_weight_decay: 1e-2
+  warmup_steps: 2000
+
+datasets:
+  _target_: flava.definitions.TrainingDatasetsInfo
+  selected:
+  - image
+  - vl
+  - text
+  image:
+    _target_: flava.definitions.TrainingSingleDatasetInfo
+    train:
+      - _target_: flava.definitions.HFDatasetInfo
+        key: imagenet-1k
+        subset: default
+        #        extra_kwargs:
+            #          data_dir: ${oc.env:IMAGENET_TAR}
+  text:
+    _target_: flava.definitions.TrainingSingleDatasetInfo
+    train:
+      - _target_: flava.definitions.HFDatasetInfo
+        key: wikitext
+        subset: wikitext-103-raw-v1
+    datamodule_extra_kwargs:
+      text_columns: ["text"]
+  vl:
+    _target_: flava.definitions.TrainingSingleDatasetInfo
+    train:
+      - _target_: flava.definitions.HFDatasetInfo
+        key: red_caps
+        subset: jellyfish
+        rename_columns:
+          - ["caption", "text"]
+    val:
+      - _target_: flava.definitions.HFDatasetInfo
+        key: red_caps
+        subset: jellyfish
+        rename_columns:
+          - ["caption", "text"]
+        split_key_mapping:
+          validation: train
+
+model:
+  image_num_hidden_layers: 48
+  image_hidden_size: 1664
+  image_intermediate_size: 8192
+  image_num_attention_heads: 16
+
+  text_num_hidden_layers: 48
+  text_hidden_size: 1664
+  text_intermediate_size: 8192
+  text_num_attention_heads: 16
+
+  multimodal_num_hidden_layers: 24
+  multimodal_hidden_size: 1664
+  multimodal_intermediate_size: 8192
+  multimodal_num_attention_heads: 16
+
+  

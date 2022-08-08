@@ -12,11 +12,25 @@ from pytorch_lightning import LightningModule
 from torchmetrics import Accuracy
 from torch.distributed.fsdp import FullyShardedDataParallel
 from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
+from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import CheckpointWrapper, apply_activation_checkpointing_wrapper, checkpoint_wrapper, CheckpointImpl
 from torchmultimodal.models.flava.flava_model import (
     flava_model_for_classification,
     flava_model_for_pretraining,
+    DalleVAEEncoder,
+    DalleEncoderBlock,
 )
+from torchmultimodal.modules.losses.flava import MaskedPredictionLoss
 from torchmultimodal.modules.layers.transformer import FLAVATransformerLayer
+from torchmultimodal.models.flava.flava_image_encoder import (
+    ImageEmbeddings,
+    ImageTransformer,
+)
+from torchmultimodal.models.flava.flava_text_encoder import (
+    TextEmbeddings,
+    TextTransformer,
+)
+
+
 from transformers.optimization import get_cosine_schedule_with_warmup
 
 
@@ -99,6 +113,7 @@ class FLAVAPreTrainingLightningModuleFSDP(LightningModule):
         else:
             raise RuntimeError("Batch needs to have either or both 'image' and 'text'.")
         # print(self.model)
+        print(f"Rank {torch.distributed.get_rank()} keys: {batch.keys()}")
         output = self.model(
             image=batch.get("image", None),
             image_for_codebook=batch.get("image_for_codebook", None),
@@ -123,11 +138,27 @@ class FLAVAPreTrainingLightningModuleFSDP(LightningModule):
         )
 
     def configure_sharded_model(self) -> None:
+        if isinstance(self.model, FullyShardedDataParallel):
+            return
+        
+        wrapper_fn = partial(checkpoint_wrapper, checkpoint_impl=CheckpointImpl.NO_REENTRANT)
+        print(" -- applying activation checkpoint --")
+        wrapper_cls = {
+                FLAVATransformerLayer,
+                #ImageTransformer,
+                #TextTransformer,
+                DalleVAEEncoder,
+                DalleEncoderBlock,
+                MaskedPredictionLoss,
+                #ITMLoss,
+        }
         p = partial(
-            transformer_auto_wrap_policy, transformer_layer_cls={FLAVATransformerLayer}
+            transformer_auto_wrap_policy, transformer_layer_cls=wrapper_cls,
         )
-        self.model = FullyShardedDataParallel(self.model, auto_wrap_policy=p)
-        print("My fsdp model ", self.model)
+        print(f"Current cuda device {torch.cuda.current_device()}")
+        self.model = FullyShardedDataParallel(self.model, auto_wrap_policy=p, device_id=torch.cuda.current_device())
+        apply_activation_checkpointing_wrapper(self.model, checkpoint_wrapper_fn=wrapper_fn, check_fn=lambda mod: isinstance(mod, FLAVATransformerLayer))
+        if torch.distributed.get_rank() == 0: print("My fsdp model ", self.model)
 
 
 class FLAVAPreTrainingLightningModule(LightningModule):

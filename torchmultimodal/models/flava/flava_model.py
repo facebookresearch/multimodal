@@ -170,6 +170,7 @@ class FLAVAModel(nn.Module, PretrainedMixin):
             text_outputs = text_encoding_out
             projected_text_embeddings = None
 
+        print(f"projected_text_embeddings: {type(projected_text_embeddings)}")
         image_masked_outputs = self._encode_data_to_embeddings(
             image,
             required_embedding,
@@ -232,6 +233,7 @@ class FLAVAModel(nn.Module, PretrainedMixin):
         else:
             encoded_image = self.image_encoder(image)
         if projection:
+            print(f"Type of encoded_image {type(encoded_image)}, last_hidden_state {type(encoded_image.last_hidden_state)}")
             projected_embeddings = self.image_projection(
                 encoded_image.last_hidden_state[:, 0, :]
             )
@@ -349,6 +351,7 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
             skip_unmasked_mm_encoder=skip_unmasked_mm_encoder,
         )
 
+        print(f"Type of projected text embeddings {flava_output.projected_text_embeddings}")
         out = self.loss(
             image_sequence=flava_output.image.last_hidden_state,
             text_sequence=flava_output.text.last_hidden_state,
@@ -520,7 +523,9 @@ def flava_model_for_pretraining(
     # TODO: Add parameters for loss here
 ) -> FLAVAForPreTraining:
     model = flava_model(**flava_model_kwargs)
-    losses = FLAVAPretrainingLoss()
+#    losses = FLAVAPretrainingLoss()
+    hidden_size = flava_model_kwargs.get("multimodal_hidden_size", 768)
+    losses = FLAVAPretrainingLoss(hidden_size=hidden_size)
     codebook = DalleVAEEncoder(image_size=codebook_image_size)
 
     flava = FLAVAForPreTraining(
@@ -698,9 +703,7 @@ class DalleEncoder(nn.Module):
         if len(x.shape) != 4:
             raise ValueError(f"input shape {x.shape} is not 4d")
         if x.shape[1] != self.input_channels:
-            raise ValueError(
-                f"input has {x.shape[1]} channels but model built for {self.input_channels}"
-            )
+            raise ValueError("foo")
         # if x.dtype != torch.float32:
         # 	raise ValueError('input must have dtype torch.float32')
         return self.blocks(x)
