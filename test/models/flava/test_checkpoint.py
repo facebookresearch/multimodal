@@ -8,6 +8,7 @@ import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.models.flava.model import (
+    flava_model,
     flava_model_for_classification,
     flava_model_for_pretraining,
 )
@@ -64,6 +65,10 @@ class TestFLAVACheckpoint:
         return gather_inputs
 
     @pytest.fixture
+    def inputs_model(self, image_input, text_input):
+        return image_input, text_input
+
+    @pytest.fixture
     def classification_model(self):
         return flava_model_for_classification(
             num_classes=3, pretrained_model_key="flava_full"
@@ -72,6 +77,10 @@ class TestFLAVACheckpoint:
     @pytest.fixture
     def pretraining_model(self):
         return flava_model_for_pretraining(pretrained_model_key="flava_full")
+
+    @pytest.fixture
+    def model(self):
+        return flava_model(pretrained_model_key="flava_full")
 
     def _assert_tensor_dicts_equal(self, dict_actual, dict_expected):
         for key in dict_expected:
@@ -145,3 +154,18 @@ class TestFLAVACheckpoint:
             global_contrastive_loss=None,
         )
         self._assert_tensor_dicts_equal(actual, expected)
+
+    def test_flava_model(self, model, inputs_model):
+        output = model(*inputs_model, skip_unmasked_mm_encoder=False)
+
+        actual = torch.sum(output.image.last_hidden_state)
+        expected = torch.tensor(-1316.7531)
+        assert_expected(actual, expected, rtol=0, atol=1e-3)
+
+        actual = torch.sum(output.text.last_hidden_state)
+        expected = torch.tensor(-240.5744)
+        assert_expected(actual, expected, rtol=0, atol=1e-3)
+
+        actual = torch.sum(output.multimodal.last_hidden_state)
+        expected = torch.tensor(-4367.0878)
+        assert_expected(actual, expected, rtol=0, atol=1e-3)
