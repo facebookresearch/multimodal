@@ -8,9 +8,7 @@ import unittest
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.modules.encoders.mdetr_image_encoder import (
-    mdetr_resnet101_backbone,
-)
+from torchmultimodal.models.mdetr.image_encoder import mdetr_resnet101_backbone
 
 
 class TestMDETRImageEncoder(unittest.TestCase):

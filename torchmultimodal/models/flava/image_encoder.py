@@ -14,7 +14,7 @@ from torch import nn, Tensor
 from torchmultimodal.models.flava.transformer import init_transformer_weights
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.modules.layers.transformer import (
-    transformer_encoder,
+    TransformerEncoder,
     TransformerOutput,
 )
 from torchmultimodal.modules.losses.flava import Pooler
@@ -256,7 +256,7 @@ def flava_image_encoder(
         hidden_dropout_prob=dropout,
         use_image_masking=use_image_masking,
     )
-    encoder = transformer_encoder(
+    encoder = TransformerEncoder(
         n_layer=num_hidden_layers,
         d_model=hidden_size,
         n_head=num_attention_heads,

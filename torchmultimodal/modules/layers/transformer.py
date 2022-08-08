@@ -7,27 +7,20 @@
 # Code for some of the transformers components in this file are initialized
 # from their counterparts in Hugging Face Transformers library.
 
-from collections import namedtuple
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable, NamedTuple, Optional, Tuple, Union
 
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.attention import MultiHeadAttention, SelfAttention
 from torchmultimodal.modules.layers.mlp import MLP
-from torchmultimodal.modules.layers.normalizations import fp32layernorm
-from torchmultimodal.utils.common import get_clones
+from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 
 
-TransformerOutput = namedtuple(
-    "TransformerOutput",
-    [
-        "last_hidden_state",
-        "pooler_output",
-        "hidden_states",
-        "attentions",
-        "image_labels",
-    ],
-    defaults=(None, None, None, None, None),
-)
+class TransformerOutput(NamedTuple):
+    last_hidden_state: Optional[Tensor] = None
+    pooler_output: Optional[Tensor] = None
+    hidden_states: Optional[Tuple[Tensor, ...]] = None
+    attentions: Optional[Tuple[Tensor, ...]] = None
+    image_labels: Optional[Tensor] = None
 
 
 class TransformerCrossAttentionLayer(nn.Module):
@@ -90,9 +83,9 @@ class TransformerCrossAttentionLayer(nn.Module):
         )
         self.feedforward_dropout = nn.Dropout(dropout)
         # layernorms
-        self.attention_layernorm = nn.LayerNorm(d_model, eps=layer_norm_eps)
-        self.cross_attention_layernorm = nn.LayerNorm(d_model, eps=layer_norm_eps)
-        self.feedforward_layernorm = nn.LayerNorm(d_model, eps=layer_norm_eps)
+        self.attention_layernorm = Fp32LayerNorm(d_model, eps=layer_norm_eps)
+        self.cross_attention_layernorm = Fp32LayerNorm(d_model, eps=layer_norm_eps)
+        self.feedforward_layernorm = Fp32LayerNorm(d_model, eps=layer_norm_eps)
         self.norm_first = norm_first
 
     def _self_attention_block(
@@ -133,16 +126,16 @@ class TransformerCrossAttentionLayer(nn.Module):
     ) -> Tensor:
         x = hidden_states
         kv = encoder_hidden_states
-        inputs = fp32layernorm(x, self.attention_layernorm)
+        inputs = self.attention_layernorm(x)
         attn_output = self._self_attention_block(inputs, attention_mask=attention_mask)
         attn_residual = attn_output + x
-        attn_norm_output = fp32layernorm(attn_residual, self.cross_attention_layernorm)
+        attn_norm_output = self.cross_attention_layernorm(attn_residual)
         cross_attention_output = self._cross_attention_block(
             attn_norm_output, kv, cross_attention_mask
         )
         cross_attention_residual = cross_attention_output + attn_norm_output
-        cross_attention_norm_output = fp32layernorm(
-            cross_attention_residual, self.feedforward_layernorm
+        cross_attention_norm_output = self.feedforward_layernorm(
+            cross_attention_residual
         )
         ff_residual = cross_attention_norm_output + self._feedforward_block(
             cross_attention_norm_output
@@ -160,18 +153,18 @@ class TransformerCrossAttentionLayer(nn.Module):
         kv = encoder_hidden_states
         attn_output = self._self_attention_block(x, attention_mask=attention_mask)
         attn_residual = attn_output + x
-        attn_norm_output = fp32layernorm(attn_residual, self.attention_layernorm)
+        attn_norm_output = self.attention_layernorm(attn_residual)
         cross_attention_output = self._cross_attention_block(
             attn_norm_output, kv, cross_attention_mask
         )
         cross_attention_residual = cross_attention_output + attn_norm_output
-        cross_attention_norm_output = fp32layernorm(
-            cross_attention_residual, self.cross_attention_layernorm
+        cross_attention_norm_output = self.cross_attention_layernorm(
+            cross_attention_residual
         )
         ff_residual = cross_attention_norm_output + self._feedforward_block(
             cross_attention_norm_output
         )
-        outputs = fp32layernorm(ff_residual, self.feedforward_layernorm)
+        outputs = self.feedforward_layernorm(ff_residual)
         return outputs
 
     def forward(
@@ -248,8 +241,8 @@ class TransformerEncoderLayer(nn.Module):
         )
         self.feedforward_dropout = nn.Dropout(dropout)
         # layernorms
-        self.attention_layernorm = nn.LayerNorm(d_model, eps=layer_norm_eps)
-        self.feedforward_layernorm = nn.LayerNorm(d_model, eps=layer_norm_eps)
+        self.attention_layernorm = Fp32LayerNorm(d_model, eps=layer_norm_eps)
+        self.feedforward_layernorm = Fp32LayerNorm(d_model, eps=layer_norm_eps)
         self.norm_first = norm_first
 
     def _attention_block(
@@ -280,7 +273,7 @@ class TransformerEncoderLayer(nn.Module):
         return_attn_weights: bool = False,
     ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         x = hidden_states
-        inputs = fp32layernorm(x, self.attention_layernorm)
+        inputs = self.attention_layernorm(x)
         attn_output, attn_weights = self._attention_block(
             inputs,
             attention_mask=attention_mask,
@@ -288,7 +281,7 @@ class TransformerEncoderLayer(nn.Module):
         )
         attn_residual = attn_output + x
         ff_residual = attn_residual + self._feedforward_block(
-            fp32layernorm(attn_residual, self.feedforward_layernorm)
+            self.feedforward_layernorm(attn_residual)
         )
         if return_attn_weights:
             return ff_residual, attn_weights
@@ -310,9 +303,9 @@ class TransformerEncoderLayer(nn.Module):
         )
         attn_residual = attn_output + x
         ff_residual = attn_residual + self._feedforward_block(
-            fp32layernorm(attn_residual, self.attention_layernorm)
+            self.attention_layernorm(attn_residual)
         )
-        outputs = fp32layernorm(ff_residual, self.feedforward_layernorm)
+        outputs = self.feedforward_layernorm(ff_residual)
         if return_attn_weights:
             return outputs, attn_weights
         else:
@@ -344,12 +337,31 @@ class TransformerEncoderLayer(nn.Module):
 class TransformerEncoder(nn.Module):
     def __init__(
         self,
-        encoder_layer: nn.Module,
-        num_layers: int,
+        n_layer: int,
+        d_model: int,
+        n_head: int,
+        dim_feedforward: int,
+        dropout: float = 0.0,
+        activation: Callable[..., nn.Module] = nn.ReLU,
+        layer_norm_eps: float = 1e-12,
+        norm_first: bool = False,
     ):
         super().__init__()
-        self.layer = get_clones(encoder_layer, num_layers)
-        self.num_layers = num_layers
+        self.layer = nn.ModuleList(
+            [
+                TransformerEncoderLayer(
+                    d_model,
+                    n_head,
+                    dim_feedforward,
+                    dropout,
+                    activation,
+                    layer_norm_eps,
+                    norm_first,
+                )
+                for _ in range(n_layer)
+            ]
+        )
+        self.num_layers = n_layer
 
     def forward(
         self,
@@ -366,18 +378,17 @@ class TransformerEncoder(nn.Module):
             if return_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
-            layer_head_mask = head_mask[i] if head_mask is not None else None
-            layer_outputs = layer_module(
+            layer_outputs, attn_weights = layer_module(
                 hidden_states,
                 attention_mask=attention_mask,
-                head_mask=layer_head_mask,
+                head_mask=head_mask,
                 return_attn_weights=True,
             )
 
-            hidden_states = layer_outputs[0]
+            hidden_states = layer_outputs
 
             if return_attn_weights:
-                all_self_attentions = all_self_attentions + (layer_outputs[1],)
+                all_self_attentions = all_self_attentions + (attn_weights,)
 
         if return_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
@@ -387,25 +398,3 @@ class TransformerEncoder(nn.Module):
             hidden_states=all_hidden_states,
             attentions=all_self_attentions,
         )
-
-
-def transformer_encoder(
-    n_layer: int,
-    d_model: int,
-    n_head: int,
-    dim_feedforward: int,
-    dropout: float = 0.0,
-    activation: Callable[..., nn.Module] = nn.ReLU,
-    layer_norm_eps: float = 1e-12,
-    norm_first: bool = False,
-) -> TransformerEncoder:
-    layer = TransformerEncoderLayer(
-        d_model,
-        n_head,
-        dim_feedforward,
-        dropout,
-        activation,
-        layer_norm_eps,
-        norm_first,
-    )
-    return TransformerEncoder(layer, n_layer)

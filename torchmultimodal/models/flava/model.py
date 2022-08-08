@@ -21,7 +21,7 @@ from torchmultimodal.models.flava.transformer import FLAVATransformerWithoutEmbe
 from torchmultimodal.modules.layers.mlp import MLP
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.modules.layers.transformer import (
-    transformer_encoder,
+    TransformerEncoder,
     TransformerOutput,
 )
 from torchmultimodal.modules.losses.flava import (
@@ -65,6 +65,10 @@ FLAVA_FOR_PRETRAINED_MAPPING = {
     "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_for_pretraining_unified.pt",
 }
 
+FLAVA_MODEL_MAPPING = {
+    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_model_unified.pt",
+}
+
 
 def flava_multimodal_encoder(
     hidden_size: int = 768,
@@ -75,7 +79,7 @@ def flava_multimodal_encoder(
     intermediate_activation: Callable[..., nn.Module] = nn.GELU,
     layer_norm_eps: float = 1e-12,
 ) -> FLAVATransformerWithoutEmbeddings:
-    encoder = transformer_encoder(
+    encoder = TransformerEncoder(
         n_layer=num_hidden_layers,
         d_model=hidden_size,
         n_head=num_attention_heads,
@@ -151,7 +155,7 @@ class FLAVAModel(nn.Module, PretrainedMixin):
                 image_encoding_out[1],
             )
         else:
-            image_outputs = image_encoding_out
+            image_outputs = image_encoding_out  # type: ignore
             projected_image_embeddings = None
 
         text_encoding_out = self._encode_data_to_embeddings(
@@ -166,7 +170,7 @@ class FLAVAModel(nn.Module, PretrainedMixin):
                 text_encoding_out[1],
             )
         else:
-            text_outputs = text_encoding_out
+            text_outputs = text_encoding_out  # type: ignore
             projected_text_embeddings = None
 
         image_masked_outputs = self._encode_data_to_embeddings(
@@ -193,11 +197,11 @@ class FLAVAModel(nn.Module, PretrainedMixin):
             if not skip_unmasked_mm_encoder:
                 # Unmasked multimodal embedding is not currently used by any of the FLAVA losses.
                 multimodal_outputs = self.encode_mm(
-                    image_outputs.hidden_states[-1]
-                    if image_outputs.hidden_states
+                    image_outputs.hidden_states[-1]  # type: ignore
+                    if image_outputs.hidden_states  # type: ignore
                     else None,
-                    text_outputs.hidden_states[-1]
-                    if text_outputs.hidden_states
+                    text_outputs.hidden_states[-1]  # type: ignore
+                    if text_outputs.hidden_states  # type: ignore
                     else None,
                 )
             multimodal_masked_outputs = self.encode_mm(
@@ -446,6 +450,7 @@ def flava_model(
     multimodal_layer_norm_eps: float = 1e-12,
     # projection
     text_and_image_proj_size: int = 768,
+    pretrained_model_key: Optional[str] = None,
     **kwargs: Any,
 ) -> FLAVAModel:
     image_encoder = flava_image_encoder(
@@ -490,7 +495,7 @@ def flava_model(
     image_projection = nn.Linear(image_hidden_size, text_and_image_proj_size)
     text_projection = nn.Linear(text_hidden_size, text_and_image_proj_size)
 
-    return FLAVAModel(
+    flava = FLAVAModel(
         image_encoder=image_encoder,
         text_encoder=text_encoder,
         mm_encoder=mm_encoder,
@@ -499,6 +504,11 @@ def flava_model(
         text_projection=text_projection,
         image_projection=image_projection,
     )
+
+    if pretrained_model_key is not None:
+        flava.load_model(FLAVA_MODEL_MAPPING[pretrained_model_key])
+
+    return flava
 
 
 def flava_model_for_pretraining(
