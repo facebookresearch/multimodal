@@ -19,17 +19,20 @@ import examples.mdetr.utils.dist as dist
 import numpy as np
 import torch
 from examples.mdetr.data.datamodule import GQADataModule
-from examples.mdetr.loss import build_weight_dict
-from examples.mdetr.model import mdetr_for_vqa
+from examples.mdetr.loss import build_mdetr_loss, build_weight_dict
+from examples.mdetr.matcher import HungarianMatcher
 from examples.mdetr.optimizer import adjust_learning_rate, build_optimizer, update_ema
 from examples.mdetr.utils.args_parse import get_args_parser
 from examples.mdetr.utils.metrics import MetricLogger, SmoothedValue
 from examples.mdetr.utils.misc import targets_to
 from examples.mdetr.vqa_eval import evaluate
+from torchmultimodal.models.mdetr.model import mdetr_for_vqa
 
 
 def train_one_epoch(
     model: torch.nn.Module,
+    matcher: torch.nn.Module,
+    loss: torch.nn.Module,
     data_loader: Iterable,
     weight_dict: Dict[str, float],
     optimizer: torch.optim.Optimizer,
@@ -59,7 +62,9 @@ def train_one_epoch(
         samples = [x.to(device) for x in batch_dict["samples"]]
         targets = batch_dict["targets"]
         text = [t["tokenized"].to(device) for t in targets]
+        tokenized = batch_dict["batch_encoding"]
         targets = targets_to(targets, device)
+        target_boxes = [t["boxes"] for t in targets]
         answers = {k: v.to(device) for k, v in batch_dict["answers"].items()}
         answer_types = {
             k: v.to(device) for k, v in batch_dict["answer_type_mask"].items()
@@ -72,15 +77,28 @@ def train_one_epoch(
         outputs = model(
             samples,
             text,
+        )
+        indices = matcher(
+            outputs.model_output.pred_logits,
+            outputs.model_output.pred_boxes,
+            target_boxes,
+            positive_map,
+        )
+        loss_dict = loss(
+            outputs.model_output.pred_logits,
+            outputs.model_output.pred_boxes,
             targets,
             positive_map,
+            indices,
+            outputs.contrastive_embeddings.query_embeddings,
+            outputs.contrastive_embeddings.token_embeddings,
+            tokenized,
+            outputs.vqa_preds,
             answers,
             answer_types,
-            batch_dict["batch_encoding"],
             weight_dict,
         )
 
-        loss_dict = outputs.loss
         losses = sum(
             loss_dict[k] * weight_dict[k] for k in loss_dict.keys() if k in weight_dict
         )
@@ -102,7 +120,6 @@ def train_one_epoch(
             print("Loss is {}, stopping training".format(loss_value))
             print(loss_dict_reduced)
             sys.exit(1)
-
         optimizer.zero_grad()
         losses.backward()
 
@@ -167,11 +184,15 @@ def main(args):
     val_loader = datamodule.val_dataloader()
 
     # Build the model
-    model = mdetr_for_vqa(contrastive_dim=64, temperature=0.07)
+    model = mdetr_for_vqa()
+    matcher = HungarianMatcher(
+        args.matcher_cost_class, args.matcher_cost_bbox, args.matcher_cost_giou
+    )
+    loss = build_mdetr_loss(True, args.no_object_weight, args.temperature)
     model.to(device)
 
     # Loss weights
-    weight_dict = build_weight_dict(args, model.vqa_heads.heads.keys())
+    weight_dict = build_weight_dict(args, model.vqa_heads.keys())
     model_ema = deepcopy(model) if args.ema else None
     model_without_ddp = model
 
@@ -230,6 +251,8 @@ def main(args):
             sampler_train.set_epoch(epoch)
         train_stats = train_one_epoch(
             model=model,
+            matcher=matcher,
+            loss=loss,
             data_loader=train_loader,
             weight_dict=weight_dict,
             optimizer=optimizer,
@@ -268,10 +291,11 @@ def main(args):
 
             curr_test_stats = evaluate(
                 model=test_model,
+                matcher=matcher,
+                loss=loss,
                 data_loader=val_loader,
                 device=device,
                 weight_dict=weight_dict,
-                include_contrastive_loss=True,
             )
             test_stats.update(curr_test_stats)
         else:
