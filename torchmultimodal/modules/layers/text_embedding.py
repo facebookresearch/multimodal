@@ -11,6 +11,28 @@ from torch import nn, Tensor
 
 
 class TextEmbeddings(nn.Module):
+    """Construct word, position, and token type embeddings following BERT.
+
+    Attributes:
+        hidden_size (int): size of embedding space. Default is 768.
+        vocab_size (int): size of vocabulary. Default is 30522.
+        pad_token_id (int): id used for padding token. Default is 0.
+        max_position_embeddings (int): the highest position id number, or max sequence length. Default is 512.
+        type_vocab_size (int): the highest token type id number. Default is 2.
+        layer_norm_eps (float): the eps value in layer norms. Default is 1e-12.
+        dropout (float): dropout probability after all embeddings and layernorm
+        offset_pos_ids (bool): if True, shift position ids by one for the padding token. Used in RoBERTa.
+            Default is False.
+
+    Args:
+        input_ids (Tensor, optional): Tensor of input vocab token ids of shape [batch, seq_len].
+        token_type_ids (Tensor, optional): Tensor of input token type ids of shape [batch, seq_len]. In BERT,
+            used to indicate whether a word is in sentence A or B for next sentence prediction
+        position_ids (Tensor, optional): Tensor of input position ids of shape [batch, seq_len]
+        inputs_embeds (Tensor, optional): Tensor of input embeddings of shape [batch, hidden_size],
+            if embeddings are calculated elsewhere
+    """
+
     def __init__(
         self,
         hidden_size: int = 768,

@@ -10,7 +10,7 @@ import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn
 from torchmultimodal.models.flava.image_encoder import ImageEmbeddings, ImageTransformer
-from torchmultimodal.modules.layers.transformer import transformer_encoder
+from torchmultimodal.modules.layers.transformer import TransformerEncoder
 
 
 class TestFlavaImageEncoder(unittest.TestCase):
@@ -20,7 +20,7 @@ class TestFlavaImageEncoder(unittest.TestCase):
             image_size=2, patch_size=1, hidden_size=2
         )
 
-        encoder = transformer_encoder(
+        encoder = TransformerEncoder(
             n_layer=1,
             d_model=2,
             n_head=1,
