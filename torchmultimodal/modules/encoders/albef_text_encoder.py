@@ -8,7 +8,7 @@ from typing import Callable
 
 import torch
 from torch import nn, Tensor
-from torchmultimodal.modules.layers.attention import MultiHeadAttention
+from torchmultimodal.modules.layers.transformer import TransformerEncoderLayer
 from torchmultimodal.utils.attention import get_extended_attention_mask
 
 
@@ -48,7 +48,7 @@ class ALBEFTextEncoder(nn.Module):
         type_vocab_size: int = 2,
         pad_token_id: int = 0,
         layer_norm_eps: float = 1e-12,
-        transform_act_fn: Callable[[Tensor], Tensor] = nn.functional.gelu,
+        transform_act_fn: Callable[..., nn.Module] = nn.GELU,
     ) -> None:
         super().__init__()
 
@@ -123,17 +123,17 @@ class ALBEFTransformerEncoder(nn.Module):
         num_attention_heads: int,
         num_hidden_layers: int,
         layer_norm_eps: float,
-        transform_act_fn: Callable[[Tensor], Tensor],
+        transform_act_fn: Callable[..., nn.Module],
     ) -> None:
         super().__init__()
         self.layer = nn.ModuleList(
             [
-                ALBEFTransformerLayer(
-                    hidden_size,
-                    intermediate_size,
-                    num_attention_heads,
-                    layer_norm_eps,
-                    transform_act_fn,
+                TransformerEncoderLayer(
+                    d_model=hidden_size,
+                    n_head=num_attention_heads,
+                    dim_feedforward=intermediate_size,
+                    activation=transform_act_fn,
+                    layer_norm_eps=layer_norm_eps,
                 )
                 for _ in range(num_hidden_layers)
             ]
@@ -145,40 +145,5 @@ class ALBEFTransformerEncoder(nn.Module):
         attention_mask: Tensor,
     ) -> Tensor:
         for layer_module in self.layer:
-            hidden_states = layer_module(hidden_states, attention_mask)
+            hidden_states = layer_module(hidden_states, attention_mask=attention_mask)
         return hidden_states
-
-
-class ALBEFTransformerLayer(nn.Module):
-    def __init__(
-        self,
-        hidden_size: int,
-        intermediate_size: int,
-        num_attention_heads: int,
-        layer_norm_eps: float,
-        transform_act_fn: Callable[[Tensor], Tensor],
-    ) -> None:
-        super().__init__()
-        self.attention = MultiHeadAttention(
-            dim_q=hidden_size,
-            dim_kv=hidden_size,
-            n_head=num_attention_heads,
-        )
-        self.attention_layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
-        self.dense1 = nn.Linear(hidden_size, intermediate_size)
-        self.transform_act_fn = transform_act_fn
-        self.dense2 = nn.Linear(intermediate_size, hidden_size)
-        self.ffn_layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
-
-    def forward(
-        self,
-        hidden_states: Tensor,
-        attention_mask: Tensor,
-    ) -> Tensor:
-        attention_output = self.attention(hidden_states, attention_mask=attention_mask)
-        norm1_output = self.attention_layer_norm(attention_output + hidden_states)
-        dense1_output = self.dense1(norm1_output)
-        act_output = self.transform_act_fn(dense1_output)
-        dense2_output = self.dense2(act_output)
-        norm2_output = self.ffn_layer_norm(dense2_output + norm1_output)
-        return norm2_output

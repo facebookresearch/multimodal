@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import NamedTuple, Tuple, Union
+from typing import Any, List, Mapping, NamedTuple, Tuple, Union
 
 import torch
 from torch import nn, Size, Tensor
@@ -21,22 +21,17 @@ class CodebookOutput(NamedTuple):
 class Codebook(nn.Module):
     """Codebook provides an embedding layer that takes in the output of an encoder
     and performs a nearest-neighbor lookup in the embedding space.
-
     Vector quantization was introduced in Oord et al. 2017 (https://arxiv.org/pdf/1711.00937.pdf)
     to generate high-fidelity images, videos, and audio data.
-
     The embedding weights are trained with exponential moving average updates as described
     in original paper.
-
     Code was largely inspired by a PyTorch implementation of the author's original code, found here:
     https://colab.research.google.com/github/zalandoresearch/pytorch-vq-vae/blob/master/vq-vae.ipynb
     and by the implementation in MUGEN (Hayes et al. 2022), found here:
     https://github.com/mugen-org/MUGEN_baseline/blob/main/lib/models/video_vqvae/vqvae.py
-
     Args:
         num_embeddings (int): the number of vectors in the embedding space
         embedding_dim (int): the dimensionality of the embedding vectors
-
     Inputs:
         z (Tensor): Tensor containing a batch of encoder outputs.
                     Expects dimensions to be batch x channel x n dims.
@@ -54,12 +49,10 @@ class Codebook(nn.Module):
         # Embedding weights and parameters for EMA update will be registered to buffer, as they
         # will not be updated by the optimizer but are still model parameters.
         # code_usage and code_avg correspond with N and m, respectively, from Oord et al.
-        self.register_buffer("embedding", torch.zeros(num_embeddings, embedding_dim))
+        randn_init_embedding = torch.randn(num_embeddings, embedding_dim)
+        self.register_buffer("embedding", randn_init_embedding.clone())
         self.register_buffer("code_usage", torch.zeros(num_embeddings))
-        self.register_buffer("code_avg", torch.zeros(num_embeddings, embedding_dim))
-        self.embedding: Tensor
-        self.code_usage: Tensor
-        self.code_avg: Tensor
+        self.register_buffer("code_avg", randn_init_embedding.clone())
 
         self.embedding_dim = embedding_dim
         self.num_embeddings = num_embeddings
@@ -70,6 +63,9 @@ class Codebook(nn.Module):
 
         # Threshold for randomly reseting unused embedding vectors
         self.codebook_usage_threshold = codebook_usage_threshold
+
+        # Flag to track if we need to initialize embedding with encoder output
+        self._is_embedding_init = False
 
     def _tile(self, x: Tensor, n: int) -> Tensor:
         # Repeat vectors in x if x has less than n vectors
@@ -119,6 +115,8 @@ class Codebook(nn.Module):
         # on the first forward pass for faster convergence, as in VideoGPT (Yan et al. 2021)
         #
         # This requires preprocessing the encoder output, so return this as well.
+
+        self._is_embedding_init = True
 
         # Flatten encoder outputs, tile to match num embeddings, get random encoder outputs
         encoded_flat, permuted_shape = self._preprocess(z)
@@ -191,7 +189,7 @@ class Codebook(nn.Module):
 
     def forward(self, z: Tensor) -> CodebookOutput:
         # First check if embedding is initialized correctly
-        if torch.sum(self.embedding).item() == 0 and self.training:
+        if not self._is_embedding_init and self.training:
             encoded_flat, permuted_shape = self._init_embedding_and_preprocess(z)
         else:
             # Reshape and flatten encoder output for quantization
@@ -209,3 +207,30 @@ class Codebook(nn.Module):
         return "num_embeddings={}, embedding_dim={}".format(
             self.num_embeddings, self.embedding_dim
         )
+
+    def _load_from_state_dict(
+        self,
+        state_dict: Mapping[str, Any],
+        prefix: str,
+        local_metadata: Mapping,
+        strict: bool,
+        missing_keys: List[str],
+        unexpected_keys: List[str],
+        error_msgs: List[str],
+    ) -> None:
+        # Override nn.Module's _load_from_state_dict to ensure embedding init is turned off
+        # when state dict is loaded.
+        #
+        # This can also be handled with _register_load_state_dict_pre_hook but since this is
+        # an internal function, it may change. Overriding _load_from_state_dict seems more
+        # stable and cleaner.
+        super()._load_from_state_dict(
+            state_dict,
+            prefix,
+            local_metadata,
+            strict,
+            missing_keys,
+            unexpected_keys,
+            error_msgs,
+        )
+        self._is_embedding_init = True

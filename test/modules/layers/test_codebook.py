@@ -47,6 +47,7 @@ class TestCodebook(unittest.TestCase):
 
     def test_quantized_output(self):
         self.vq.embedding = self.embedding_weights
+        self.vq._is_embedding_init = True
         output = self.vq(self.encoded)
         _, actual_quantized_flat, actual_codebook_indices, actual_quantized = output
         # This is shape (2,5,3)
@@ -104,13 +105,17 @@ class TestCodebook(unittest.TestCase):
         assert_expected(actual_quantized_shape, expected_quantized_shape)
 
     def test_init_embedding_and_preprocess(self):
+        assert not self.vq._is_embedding_init, "embedding init flag not False initially"
+
         _, _ = self.vq._init_embedding_and_preprocess(self.encoded)
+
+        assert self.vq._is_embedding_init, "embedding init flag not True after init"
 
         actual_weight = self.vq.embedding
         expected_weight = torch.Tensor(
             [
                 [2.0, -1.0, 0.0, 2.0, 0.0],
-                [-1.0, -2.0, 0.0, 1.0, 0.0],
+                [2.0, 1.0, 0.0, 1.0, 1.0],
                 [0.0, 1.0, -1.0, 2.0, -1.0],
                 [1.0, 0.0, -1.0, -1.0, 1.0],
             ]
@@ -134,8 +139,8 @@ class TestCodebook(unittest.TestCase):
         actual_weight = self.vq.embedding
         expected_weight = torch.Tensor(
             [
-                [2.0000, -0.1765, 0.0000, 1.5882, 0.4118],
-                [-1.0000, -2.0000, 0.0000, 1.0000, 0.0000],
+                [0.7647, -1.4118, 0.0000, 1.5882, 0.0000],
+                [2.0000, 1.0000, 0.0000, 1.0000, 1.0000],
                 [-0.4118, 1.4118, -0.5882, 1.1765, -1.4118],
                 [1.0000, 0.0000, -1.0000, -1.0000, 1.0000],
             ]
@@ -145,8 +150,8 @@ class TestCodebook(unittest.TestCase):
         actual_code_avg = self.vq.code_avg
         expected_code_avg = torch.Tensor(
             [
-                [3.4000, -0.3000, 0.0000, 2.7000, 0.7000],
-                [-1.0000, -2.0000, 0.0000, 1.0000, 0.0000],
+                [1.3000, -2.4000, 0.0000, 2.7000, 0.0000],
+                [2.0000, 1.0000, 0.0000, 1.0000, 1.0000],
                 [-0.7000, 2.4000, -1.0000, 2.0000, -2.4000],
                 [1.0000, 0.0000, -1.0000, -1.0000, 1.0000],
             ]
