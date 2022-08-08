@@ -9,7 +9,7 @@ from typing import Callable
 import torch
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.transformer import (
-    transformer_encoder,
+    TransformerEncoder,
     TransformerOutput,
 )
 from torchmultimodal.utils.attention import get_extended_attention_mask
@@ -63,7 +63,7 @@ class ALBEFTextEncoder(nn.Module):
             type_vocab_size,
             layer_norm_eps,
         )
-        self.encoder = transformer_encoder(
+        self.encoder = TransformerEncoder(
             n_layer=num_hidden_layers,
             d_model=hidden_size,
             n_head=num_attention_heads,

@@ -6,7 +6,6 @@
 
 from typing import Any
 
-import torch
 from torch import nn, Tensor
 
 
@@ -23,13 +22,3 @@ class Fp32LayerNorm(nn.LayerNorm):
             self.eps,
         )
         return output.type_as(x)
-
-
-def fp32layernorm(x: Tensor, layernorm: nn.Module) -> Tensor:
-    """Supports mixed-precision training by casting to fp32 for layernorm and back"""
-    if x.dtype != torch.float32:
-        x_fp32 = x.float()
-        x_fp32 = layernorm(x_fp32)
-        return x_fp32.type_as(x)
-    else:
-        return layernorm(x)

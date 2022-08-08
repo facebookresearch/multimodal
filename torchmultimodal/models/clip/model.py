@@ -11,7 +11,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from torchmultimodal.models.clip.resnet_encoder import ResNetForCLIP
+from torchmultimodal.models.clip.image_encoder import ResNetForCLIP
 from torchmultimodal.models.clip.text_encoder import CLIPTextEncoder
 from torchvision.models.resnet import Bottleneck, ResNet
 from torchvision.models.vision_transformer import VisionTransformer
