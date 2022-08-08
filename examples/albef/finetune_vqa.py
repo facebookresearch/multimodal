@@ -15,6 +15,7 @@ import examples.utils.distributed as dist_utils
 import ruamel.yaml as yaml
 import torch
 import torch.backends.cudnn as cudnn
+import torch.distributed as dist
 from examples.albef.data.vqa_datamodules import VQADataModule
 from examples.albef.model import albef_model_for_vqa
 from examples.albef.utils import add_weight_decay
@@ -22,7 +23,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
 
-def train(model, datamodule, args, checkpoint_root, device):
+def train(model, datamodule, args, device):
     model_without_ddp = (
         model.module if dist_utils.is_dist_avail_and_initialized() else model
     )
@@ -45,10 +46,11 @@ def train(model, datamodule, args, checkpoint_root, device):
     )
 
     start_time = time.time()
-    log_every_n_steps = 100
-    dataset_length = len(datamodule.train_dataset)
 
     for epoch in range(args["max_epochs"]):
+        if dist_utils.is_dist_avail_and_initialized():
+            data_loader.sampler.set_epoch(epoch)
+
         if epoch > 0:
             scheduler.step(epoch + warmup_steps)
 
@@ -64,7 +66,7 @@ def train(model, datamodule, args, checkpoint_root, device):
             if epoch > 0:
                 alpha = args["alpha"]
             else:
-                alpha = args["alpha"] * min(1, batch / dataset_length)
+                alpha = args["alpha"] * min(1, batch / len(data_loader))
 
             images = images.to(device, non_blocking=True)
             questions = questions.to(device)
@@ -92,7 +94,7 @@ def train(model, datamodule, args, checkpoint_root, device):
             if epoch == 0 and batch % step_size == 0 and batch <= warmup_iterations:
                 scheduler.step(batch // step_size)
 
-            if batch % log_every_n_steps == 0:
+            if batch % args["log_every_n_steps"] == 0:
                 total_time = time.time() - start_time
                 time_str = "time {},".format(
                     datetime.timedelta(seconds=int(total_time))
@@ -102,19 +104,24 @@ def train(model, datamodule, args, checkpoint_root, device):
                 loss_str = "loss {}".format(loss.item())
                 print(time_str, epoch_str, batch_str, loss_str)
 
-        save_obj = {
-            "model": model_without_ddp.state_dict(),
-            "optimizer": optimizer.state_dict(),
-            "lr_scheduler": scheduler.state_dict(),
-            "epoch": epoch,
-        }
-        torch.save(
-            save_obj, os.path.join(checkpoint_root, "vqa_checkpoint_%02d.pth" % epoch)
-        )
+        if dist_utils.is_main_process():
+            save_obj = {
+                "model": model_without_ddp.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "scheduler": scheduler.state_dict(),
+                "epoch": epoch,
+            }
+            torch.save(
+                save_obj,
+                os.path.join(args["checkpoint_root"], "vqa_checkpoint_%02d.pt" % epoch),
+            )
+
+        if dist_utils.is_dist_avail_and_initialized():
+            dist.barrier()
 
 
 @torch.no_grad()
-def evaluation(model, datamodule, k, device):
+def evaluation(model, datamodule, args, device):
     model.eval()
 
     result = []
@@ -129,7 +136,6 @@ def evaluation(model, datamodule, k, device):
     )
 
     start_time = time.time()
-    log_every_n_steps = 100
 
     for batch, (img, ques, ques_atts, ques_ids) in enumerate(data_loader):
         img = img.to(device, non_blocking=True)
@@ -137,7 +143,13 @@ def evaluation(model, datamodule, k, device):
         ques_atts = ques_atts.to(device)
 
         topk_ids, topk_probs = model(
-            img, ques, ques_atts, answer_input_ids, answer_atts, k=k, is_train=False
+            img,
+            ques,
+            ques_atts,
+            answer_input_ids,
+            answer_atts,
+            k=args["k_test"],
+            is_train=False,
         )
 
         for ques_id, topk_id, topk_prob in zip(ques_ids, topk_ids, topk_probs):
@@ -146,7 +158,7 @@ def evaluation(model, datamodule, k, device):
                 {"question_id": ques_id, "answer": answer_list[topk_id[pred]]}
             )
 
-        if batch % log_every_n_steps == 0:
+        if batch % args["log_every_n_steps"] == 0:
             total_time = time.time() - start_time
             total_time_str = str(datetime.timedelta(seconds=int(total_time)))
             print(
@@ -159,18 +171,11 @@ def evaluation(model, datamodule, k, device):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="./examples/albef/configs/vqa.yaml")
-    parser.add_argument("--device", default="cuda")
-    parser.add_argument(
-        "--world_size", default=1, type=int, help="number of distributed processes"
-    )
-    parser.add_argument(
-        "--dist_url", default="env://", help="url used to set up distributed training"
-    )
     args = parser.parse_args()
     config = yaml.load(open(args.config, "r"), Loader=yaml.Loader)
 
-    dist_utils.init_distributed_mode(args)
-    device = torch.device(args.device)
+    dist_utils.init_distributed_mode(config)
+    device = torch.device(config["device"])
 
     seed = config["seed"] + dist_utils.get_rank()
     torch.manual_seed(seed)
@@ -178,18 +183,15 @@ def main():
     cudnn.benchmark = True
 
     datamodule = VQADataModule(**config["datamodule_args"])
-    model = albef_model_for_vqa(config)
-
-    pretrained_checkpoint_path = os.path.join(
-        config["checkpoint_root"], config["pretrained_checkpoint"]
-    )
-    model.load_state_dict(torch.load(pretrained_checkpoint_path, map_location="cpu"))
+    model = albef_model_for_vqa(config, pretrained=True)
     model = model.to(device)
-    if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+    if dist_utils.is_dist_avail_and_initialized():
+        model = torch.nn.parallel.DistributedDataParallel(
+            model, device_ids=[config["gpu"]]
+        )
 
-    train(model, datamodule, config["training_args"], config["checkpoint_root"], device)
-    result = evaluation(model, datamodule, config["k_test"], device)
+    train(model, datamodule, config["training_args"], device)
+    result = evaluation(model, datamodule, config["eval_args"], device)
     dist_utils.save_result(result, config["output_root"], "vqa_output")
 
 
