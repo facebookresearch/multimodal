@@ -9,10 +9,9 @@ import torch
 from test.test_utils import assert_expected, set_rng_seed
 
 from torchmultimodal.models.video_vqvae import (
-    _preprocess_int_conv_params,
     AttentionResidualBlock,
+    preprocess_int_conv_params,
     video_vqvae,
-    video_vqvae_mugen,
     VideoDecoder,
     VideoEncoder,
 )
@@ -75,39 +74,32 @@ class TestAttentionResidualBlock:
 class TestVideoEncoder:
     @pytest.fixture
     def encoder(self, params):
-        in_channel_dims, _, kernel_sizes, strides = params
-        enc = VideoEncoder(
-            in_channel_dims=in_channel_dims,
-            kernel_sizes=kernel_sizes,
-            strides=strides,
-            output_dim=2,
-            n_res_layers=1,
-            attn_hidden_dim=2,
-        )
-        enc.eval()
-        return enc
+        in_channel_dims, _, kernel_sizes, _ = params
+        def get_encoder(strides):
+            enc = VideoEncoder(
+                in_channel_dims=in_channel_dims,
+                kernel_sizes=kernel_sizes,
+                strides=strides,
+                output_dim=2,
+                n_res_layers=1,
+                attn_hidden_dim=2,
+            )
+            enc.eval()
+            return enc
+        return get_encoder
 
     @pytest.fixture
-    def downsampler(self, params):
-        in_channel_dims, _, kernel_sizes, _ = params
-        strides = ((2, 2, 2), (2, 2, 2))
-        model = VideoEncoder(
-            in_channel_dims=in_channel_dims,
-            kernel_sizes=kernel_sizes,
-            strides=strides,
-            output_dim=2,
-            n_res_layers=1,
-            attn_hidden_dim=2,
-        )
-        model.eval()
-        return model
+    def uneven_strides(self):
+        return ((2, 2, 2), (1, 2, 2))
 
     @pytest.fixture
     def big_input(self):
-        return torch.ones(1, 2, 8, 8, 8)
+        return torch.ones(1, 2, 4, 8, 8)
 
-    def test_forward(self, input_tensor, encoder):
-        actual = encoder(input_tensor)
+    def test_forward(self, input_tensor, encoder, params):
+        strides = params[-1]
+        model = encoder(strides)
+        actual = model(input_tensor)
         expected = torch.tensor(
             [
                 [
@@ -124,15 +116,11 @@ class TestVideoEncoder:
         )
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
-    def test_get_latent_shape(self, downsampler, big_input):
-        actual = downsampler.get_latent_shape(big_input.shape[2:])
-        expected = (2, 2, 2)
-        assert_expected(actual, expected)
-
-    def test_encoder_latent_shape(self, downsampler, big_input):
+    def test_latent_shape(self, big_input, encoder, uneven_strides):
+        downsampler = encoder(uneven_strides)
         output = downsampler(big_input)
         actual = output.shape[2:]
-        expected = (2, 2, 2)
+        expected = downsampler.get_latent_shape(big_input.shape[2:])
         assert_expected(actual, expected)
 
 
@@ -307,62 +295,22 @@ class TestVideoVQVAE:
         assert_expected(actual_codebook_indices, expected_codebook_indices)
 
 
-class TestVideoVQVAEMUGEN:
-    @pytest.fixture
-    def vv(self):
-        def create_model(model_key):
-            model = video_vqvae_mugen(pretrained_model_key=model_key)
-            model.eval()
-            return model
-
-        return create_model
-
-    @pytest.fixture
-    def input_data(self):
-        def create_data(seq_len):
-            return torch.randn(1, 3, seq_len, 256, 256)
-
-        return create_data
-
-    def test_forward(self, vv, input_data):
-        x = input_data(32)
-        model = vv(None)
-        output = model(x)
-        actual = torch.tensor(output.decoded.shape)
-        expected = torch.tensor((1, 3, 32, 256, 256))
-        assert_expected(actual, expected)
-
-    @pytest.mark.parametrize(
-        "seq_len,expected", [(8, 132017.28125), (16, -109636.0), (32, 1193122.0)]
-    )
-    def test_checkpoint(self, vv, input_data, seq_len, expected):
-        x = input_data(seq_len)
-        model_key = f"mugen_L{seq_len}"
-        model = vv(model_key)
-        # ensure embed init flag is turned off
-        assert model.codebook._is_embedding_init
-        output = model(x)
-        actual_tensor = torch.sum(output.decoded)
-        expected_tensor = torch.tensor(expected)
-        assert_expected(actual_tensor, expected_tensor, rtol=1e-5, atol=1e-8)
-
-
 def test_preprocess_int_conv_params():
     channels = (3, 3, 3)
     kernel = 2
     stride = 1
     expected_kernel = torch.tensor(((2, 2, 2), (2, 2, 2), (2, 2, 2)))
     expected_stride = torch.tensor(((1, 1, 1), (1, 1, 1), (1, 1, 1)))
-    actual_kernel, actual_stride = _preprocess_int_conv_params(channels, kernel, stride)
+    actual_kernel, actual_stride = preprocess_int_conv_params(channels, kernel, stride)
     actual_kernel = torch.tensor(actual_kernel)
     actual_stride = torch.tensor(actual_stride)
     assert_expected(actual_kernel, expected_kernel)
     assert_expected(actual_stride, expected_stride)
 
-    actual_kernel = _preprocess_int_conv_params(channels, kernel_sizes=kernel)
+    actual_kernel = preprocess_int_conv_params(channels, kernel_sizes=kernel)
     actual_kernel = torch.tensor(actual_kernel)
     assert_expected(actual_kernel, expected_kernel)
 
-    actual_stride = _preprocess_int_conv_params(channels, strides=stride)
+    actual_stride = preprocess_int_conv_params(channels, strides=stride)
     actual_stride = torch.tensor(actual_stride)
     assert_expected(actual_stride, expected_stride)
