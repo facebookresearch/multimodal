@@ -24,8 +24,18 @@ from torchmultimodal.modules.losses.albef import (
     ImageTextMatchingLoss,
     MaskedLanguageModelingLoss,
 )
-from torchmultimodal.utils.attention import get_extended_attention_mask_for_decoder
-from torchmultimodal.utils.common import momentum_update, remove_grad
+from torchmultimodal.utils.attention import get_causal_attention_mask
+from torchmultimodal.utils.common import (
+    load_module_from_url,
+    momentum_update,
+    remove_grad,
+)
+
+
+_ALBEF_PRETRAINED_URLS = {
+    "vqa": "https://download.pytorch.org/models/multimodal/albef/pretrained_vqa_checkpoint.pt",
+    "retrieval": "https://download.pytorch.org/models/multimodal/albef/pretrained_retrieval_checkpoint.pt",
+}
 
 
 class PredictionHead(nn.Module):
@@ -100,6 +110,31 @@ class ALBEFDecoder(nn.Module):
         self.multimodal_encoder = multimodal_encoder
         self.prediction_head = prediction_head
 
+    def get_extended_attention_mask_for_decoder(self, attention_mask: Tensor) -> Tensor:
+        """
+        Apply a causal mask in addition to the padding mask and make the mask broadcastable,
+        such that future and masked tokens are ignored.
+
+        Args:
+            attention_mask (Tensor):
+                Padding mask with ones indicating tokens to attend to, zeros for tokens to ignore.
+
+        Returns:
+            extended_attention_mask (Tensor):
+                The broadcastable attention mask, with the same dtype as ``attention_mask.dtype``.
+        """
+        device = attention_mask.device
+        batch_size, seq_length = attention_mask.shape
+        causal_mask = get_causal_attention_mask(seq_length).to(device)
+        causal_mask = causal_mask.repeat(batch_size, 1).view(
+            batch_size, seq_length, seq_length
+        )
+        extended_attention_mask = (
+            causal_mask[:, None, :, :] * attention_mask[:, None, None, :]
+        )
+        extended_attention_mask = extended_attention_mask.to(dtype=attention_mask.dtype)
+        return extended_attention_mask
+
     def forward(
         self,
         input_ids: Tensor,
@@ -108,7 +143,7 @@ class ALBEFDecoder(nn.Module):
         encoder_attention_mask: Tensor,
     ) -> Tensor:
         hidden_states = self.text_embeddings(input_ids)
-        attention_mask = get_extended_attention_mask_for_decoder(attention_mask)
+        attention_mask = self.get_extended_attention_mask_for_decoder(attention_mask)
         decoder_output = self.multimodal_encoder(
             hidden_states=hidden_states,
             attention_mask=attention_mask,
@@ -147,7 +182,7 @@ class ALBEFModelForVQA(nn.Module):
 
     Returns:
         is_train is True:
-            Tensor: The masked language loss for input.
+            Tensor: The masked language modeling loss for input.
         is_train is False:
             Tuple[Tensor, Tensor]: The ids and probabilities for the top k predicted answers.
     """
@@ -178,6 +213,27 @@ class ALBEFModelForVQA(nn.Module):
         ans_lengths: List[int],
         alpha: float,
     ) -> Tensor:
+        """
+        Forward step for training. Encode the inputs with the ALBEFModel.
+        Generate pseudo-targets using answer_decoder_m (momentum decoder model).
+        Generate answer predictions using answer_decoder.
+        Compute masked language modeling loss of the predictions using answers as labels,
+            pseudo-targets as soft-labels, and alpha as their interpolation value.
+
+        Inputs:
+            image (Tensor of shape (B, C, H, W)): Image features.
+            question (Tensor of shape (B, L)): Question text features.
+            question_atts (Tensor of shape (B, L)): Question attention mask.
+            answers (Tensor of shape (N, M)): Answer text features.
+            answers_atts (Tensor of shape (N, M)): Answer attention mask.
+            ans_weights (Tensor of shape (N)): Weights for each answer.
+            ans_lengths (List[int] of length B): Number of answers for each question.
+                ans_lengths should sum to N.
+            alpha (float): The interpolation value between mlm_loss and loss_distill.
+
+        Returns:
+            Tensor: The masked language modeling loss for input.
+        """
         # get image-question embeddings from the ALBEFModel and format it to match the ans_lengths
         encoder_outputs = self.model(image, question, question_atts)
         (
@@ -191,7 +247,7 @@ class ALBEFModelForVQA(nn.Module):
             ans_lengths,
         )
 
-        # use image-question embeddings as encoder_hidden_states to predict answers
+        # use the momentum model to generate pseudo-targets
         with torch.no_grad():
             momentum_update(
                 self.answer_decoder, self.answer_decoder_m, self.model.momentum
@@ -203,6 +259,7 @@ class ALBEFModelForVQA(nn.Module):
                 encoder_attention_mask=encoder_attention_mask,
             )
 
+        # generate answer predictions
         prediction_scores = self.answer_decoder(
             input_ids=answers,
             attention_mask=answers_atts,
@@ -226,6 +283,22 @@ class ALBEFModelForVQA(nn.Module):
         answer_atts: Tensor,
         k: int = 128,
     ) -> Tuple[Tensor, Tensor]:
+        """
+        Forward step for evaluation. Encode the inputs with the ALBEFModel.
+        Generate answer autoregressively using the decoder, starting with the [CLS] token.
+        Compute the answer ids and their perspective probabilities of the top k predictions.
+
+        Inputs:
+            image (Tensor of shape (B, C, H, W)): Image features.
+            question (Tensor of shape (B, L)): Question text features.
+            question_atts (Tensor of shape (B, L)): Question attention mask.
+            answers (Tensor of shape (N, M)): Answer text features.
+            answer_atts (Tensor of shape (N, M)): Answer attention mask.
+            k (int): The number of answers to return for inference.
+
+        Returns:
+            Tuple[Tensor, Tensor]: The ids and probabilities for the top k predicted answers.
+        """
         # get multimodal embeddings from the ALBEFModel and
         # feed it to the decoder as cross attention
         encoder_outputs = self.model(image, question, question_atts)
@@ -297,6 +370,20 @@ class ALBEFModelForVQA(nn.Module):
         question_atts: Tensor,
         ans_lengths: List[int],
     ) -> Tuple[Tensor, Tensor, Tensor]:
+        """
+        Repeat each image-question input, repeat its embedding and mask to match the number of answers it has.
+
+        Args:
+            multimodal_embeds (Tensor): Image-question embeddings.
+            multimodal_embeds_m (Tensor): Image-question embeddings from the momentum model.
+            question_atts (Tensor): Question attention mask.
+            ans_lengths (List[int]): The number of answers each image-question input has.
+
+        Returns:
+            encoder_hidden_states (Tensor): Image-question embeddings after the repetition.
+            encoder_hidden_states_m (Tensor): Image-question embeddings from the momentum model after the repetition.
+            encoder_attention_mask (Tensor): Question attention mask after the repetition.
+        """
         encoder_hidden_states = []
         encoder_attention_mask = []
         for b, n in enumerate(ans_lengths):
@@ -497,7 +584,7 @@ class ALBEFModelForRetrieval(nn.Module):
             )
 
 
-def albef_model_for_vqa(config: dict) -> ALBEFModelForVQA:
+def albef_model_for_vqa(config: dict, pretrained: bool = False) -> ALBEFModelForVQA:
     vision_encoder = ALBEFVisionEncoder(**config["vision_encoder_args"])
     text_encoder = ALBEFTextEncoder(**config["text_encoder_args"])
     question_multimodal_encoder = ALBEFMultimodalEncoder(
@@ -511,7 +598,11 @@ def albef_model_for_vqa(config: dict) -> ALBEFModelForVQA:
     albef_model = ALBEFModel(vision_encoder, text_encoder, question_multimodal_encoder)
     decoder = ALBEFDecoder(text_embeddings, answer_multimodal_encoder, prediction_head)
     loss = MaskedLanguageModelingLoss()
-    return ALBEFModelForVQA(albef_model, decoder, loss)
+    model = ALBEFModelForVQA(albef_model, decoder, loss)
+
+    if pretrained:
+        load_module_from_url(model, _ALBEF_PRETRAINED_URLS["vqa"])
+    return model
 
 
 def albef_model_for_retrieval(config: dict) -> ALBEFModelForRetrieval:
