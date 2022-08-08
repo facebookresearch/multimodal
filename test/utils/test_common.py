@@ -7,9 +7,16 @@
 import pytest
 
 import torch
-from test.test_utils import assert_expected
 
-from torchmultimodal.utils.common import shift_dim, tensor_slice, to_tuple_tuple
+from test.test_utils import assert_expected
+from torch import nn
+from torch.utils.checkpoint import checkpoint
+from torchmultimodal.utils.common import (
+    checkpoint_wrapper,
+    shift_dim,
+    tensor_slice,
+    to_tuple_tuple,
+)
 
 
 def test_shift_dim():
@@ -70,3 +77,112 @@ class TestToTupleTuple:
     def test_tuple(self, expected):
         actual = to_tuple_tuple((2, 2, 2), 3, 3)
         assert actual == expected, "tuple -> tuple[tuple] incorrect"
+
+
+class TestCheckpointWrapper:
+    @pytest.fixture
+    def model(self):
+        class DummyAttention(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.param = nn.Parameter(torch.ones(3))
+
+            def forward(self, x, y, attn_mask=None, use_cache=None):
+                grad = x if use_cache else y
+                grad = grad * self.param
+                if attn_mask is not None:
+                    grad = grad * attn_mask
+                return grad
+
+        class DummyIdentity(nn.Module):
+            """Returns a passthrough of the input tensor with requires_grad True"""
+
+            def __init__(self):
+                super().__init__()
+                self.param = nn.Parameter(torch.ones(1))
+
+            def forward(self, x):
+                return self.param * x
+
+        class DummyModel(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.attention = DummyAttention()
+                self.identity = DummyIdentity()
+
+            @checkpoint_wrapper
+            def _layer_to_wrap(self, x, y, attn_mask, use_cache):
+                return self.attention(x, y, attn_mask, use_cache)
+
+            def forward(self, x, y, attn_mask=None, use_cache=False):
+                x = self.identity(x)
+                y = self.identity(y)
+                out = self._layer_to_wrap(
+                    x, y, attn_mask=attn_mask, use_cache=use_cache
+                )
+                return out
+
+        return DummyModel()
+
+    @pytest.fixture
+    def inputs(self):
+        x = torch.ones(3)
+        y = torch.ones(3) * 2
+        attn_mask = torch.tensor([1, 1, 0])
+        x = x
+        y = y
+        attn_mask = attn_mask
+
+        return x, y, attn_mask
+
+    @pytest.fixture
+    def compute_grad(self, model):
+        model.zero_grad()
+
+        def _compute_grad(output):
+            output.sum().backward()
+            grad_checkpointed = {}
+            for name, param in model.named_parameters():
+                grad_checkpointed[name] = param.grad.data.clone()
+            return grad_checkpointed
+
+        return _compute_grad
+
+    def test_training_mode(self, model, inputs, compute_grad, mocker):
+        """Test training mode that checkpoint is on"""
+
+        mock_checkpoint = mocker.patch(
+            "torchmultimodal.utils.common.checkpoint", wraps=checkpoint
+        )
+
+        with pytest.warns(UserWarning):
+            model.train()
+            x, y, attn_mask = inputs
+            actual = model(x, y, attn_mask=attn_mask, use_cache=True)
+            # gradient of attention.param is y * attn_mask when use_cache is False (checkpointing on)
+            expected = torch.tensor([2.0, 2.0, 0.0])
+            assert_expected(actual, expected)
+            actual_grad = compute_grad(actual)
+            assert_expected(
+                actual_grad["attention.param"], torch.tensor([2.0, 2.0, 0.0])
+            )
+
+        mock_checkpoint.assert_called_once()
+
+    def test_eval_model(self, model, inputs, compute_grad, mocker):
+        """Test eval mode that checkpoint is off"""
+
+        mock_checkpoint = mocker.patch(
+            "torchmultimodal.utils.common.checkpoint", wraps=checkpoint
+        )
+
+        model.eval()
+        x, y, attn_mask = inputs
+        actual = model(x, y, attn_mask=attn_mask, use_cache=True)
+        # gradient of attention.param is x * attn_mask when use_cache is True (checkpointing off)
+        expected = torch.tensor([1.0, 1.0, 0.0])
+        assert_expected(actual, expected)
+        actual_grad = compute_grad(actual)
+        assert_expected(actual_grad["attention.param"], torch.tensor([1.0, 1.0, 0.0]))
+
+        mock_checkpoint.assert_not_called()
