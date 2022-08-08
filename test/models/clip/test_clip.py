@@ -7,8 +7,8 @@
 import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
+from torchmultimodal.models.clip.image_encoder import ResNetForCLIP
 from torchmultimodal.models.clip.model import CLIP
-from torchmultimodal.models.clip.resnet_encoder import ResNetForCLIP
 from torchmultimodal.models.clip.text_encoder import CLIPTextEncoder
 from torchvision.models.vision_transformer import VisionTransformer
 
