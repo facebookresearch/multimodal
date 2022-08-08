@@ -5,14 +5,14 @@ max_position_embeddings: &max_position_embeddings 512
 pad_token_id: &pad_token_id 0
 
 seed: 42
-k_test: 128
-checkpoint_root: "./examples/albef/checkpoints"
-pretrained_checkpoint: "pretrained_vqa_checkpoint.pth"
+world_size: 1
+device: "cuda"
+dist_url: "env://"
 output_root: "./examples/albef/outputs"
 
 datamodule_args:
-  train_files: ["./examples/albef/data_files/vqa_train.json", "./examples/albef/data_files/vg_qa.json"]
-  test_files: ["./examples/albef/data_files/vqa_val.json"]
+  train_files: ["./examples/albef/data_files/vqa_train.json", "./examples/albef/data_files/vg_qa.json", "./examples/albef/data_files/vqa_val.json"]
+  test_files: ["./examples/albef/data_files/vqa_test.json"]
   answer_list: "./examples/albef/data_files/answer_list.json"
   vqa_root: "./examples/albef/data_files/coco"
   vg_root: "./examples/albef/data_files/visual_genome"
@@ -62,6 +62,7 @@ prediction_head_args:
   layer_norm_eps: 1e-12
 
 training_args:
+  log_every_n_steps: 100
   alpha: 0.4
   weight_decay: 0.02
   lr: 2e-5
@@ -69,3 +70,8 @@ training_args:
   max_epochs: 8
   step_size: 100
   warmup_steps: 4
+  checkpoint_root: "./examples/albef/checkpoints"
+
+eval_args:
+  log_every_n_steps: 100
+  k_test: 128
