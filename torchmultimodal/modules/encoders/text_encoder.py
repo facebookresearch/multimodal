@@ -10,7 +10,7 @@ import torch
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.text_embedding import TextEmbeddings
 from torchmultimodal.modules.layers.transformer import (
-    transformer_encoder,
+    TransformerEncoder,
     TransformerOutput,
 )
 from torchmultimodal.utils.attention import get_extended_attention_mask
@@ -18,16 +18,35 @@ from torchmultimodal.utils.attention import get_extended_attention_mask
 
 class TextEncoder(nn.Module):
     """
-    Construct word embeddings from input_ids and attention_mask.
+    General text transformer encoder with embeddings, similar to BERT / RoBERTa.
+    Can be constructed with any user-provided embeddings and encoder.
 
     Based on https://github.com/huggingface/transformers/blob/main/src/transformers/models/bert/modeling_bert.py#L870
 
-    Args:
+    Attributes:
+        embeddings (nn.Module): Module that projects text token ids into embeddings.
+            ``forward()`` should follow interface:
+                input_ids: Optional[Tensor],
+                token_type_ids: Optional[Tensor],
+                position_ids: Optional[Tensor],
+                inputs_embeds: Optional[Tensor],
+        encoder (nn.Module): Module for transformer encoder. ``forward()`` should follow interface:
+            hidden_states: Tensor,
+            attention_mask: Optional[Tensor],
+        layernorm (nn.Module, optional): Module for layernorm to be applied after encoder, if provided.
+        pooler (nn.Module, optional): Module for pooler to be applied after layernorm, if provided.
 
-    Inputs:
-        input_ids (Tensor of size (batch_size, sequence_length)): Indices of input sequence tokens in the vocabulary.
-        attention_mask (Tensor of shape (batch_size, sequence_length)): Mask to avoid performing attention on padding token indices.
-            Mask values selected in [0, 1]: 1 for tokens that are NOT MASKED, 0 for MASKED tokens.
+    Args:
+        input_ids (Tensor, optional): Tensor of input vocab token ids of shape [batch, seq_len].
+        attention_mask (Tensor, optional): Tensor indicating which tokens to attend to, shape [batch, seq_len]
+        token_type_ids (Tensor, optional): Tensor of input token type ids of shape [batch, seq_len]. In BERT,
+            used to indicate whether a word is in sentence A or B for next sentence prediction
+        position_ids (Tensor, optional): Tensor of input position ids of shape [batch, seq_len]
+        inputs_embeds (Tensor, optional): Tensor of input embeddings of shape [batch, hidden_size],
+            if embeddings are calculated elsewhere
+
+    Raises:
+        ValueError: if input_ids and inputs_embeds are both None
     """
 
     def __init__(
@@ -110,6 +129,7 @@ def text_encoder(
     max_position_embeddings: int = 512,
     type_vocab_size: int = 2,
     pad_token_id: int = 0,
+    offset_pos_ids: bool = False,
 ) -> TextEncoder:
     embeddings = TextEmbeddings(
         hidden_size=hidden_size,
@@ -118,8 +138,9 @@ def text_encoder(
         max_position_embeddings=max_position_embeddings,
         type_vocab_size=type_vocab_size,
         layer_norm_eps=layer_norm_eps,
+        offset_pos_ids=offset_pos_ids,
     )
-    encoder = transformer_encoder(
+    encoder = TransformerEncoder(
         n_layer=num_hidden_layers,
         d_model=hidden_size,
         n_head=num_attention_heads,
