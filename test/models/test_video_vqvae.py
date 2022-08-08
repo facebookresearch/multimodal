@@ -75,6 +75,7 @@ class TestVideoEncoder:
     @pytest.fixture
     def encoder(self, params):
         in_channel_dims, _, kernel_sizes, _ = params
+
         def get_encoder(strides):
             enc = VideoEncoder(
                 in_channel_dims=in_channel_dims,
@@ -86,6 +87,7 @@ class TestVideoEncoder:
             )
             enc.eval()
             return enc
+
         return get_encoder
 
     @pytest.fixture
