@@ -6,9 +6,11 @@
 
 import unittest
 import warnings
+from collections import OrderedDict
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
+from torch import nn, tensor
 from torchmultimodal.modules.layers.codebook import Codebook
 
 
@@ -215,3 +217,37 @@ class TestCodebook(unittest.TestCase):
                         for enc in encoded_flat_noise
                     ]
                 ), "embedding restarted from encoder output incorrectly"
+
+    def test_load_state_dict(self):
+        state_dict = OrderedDict(
+            [
+                ("linear.weight", tensor([[1.0]])),
+                ("linear.bias", tensor([2.0])),
+                ("codebook.embedding", tensor([[3.0]])),
+                ("codebook.code_usage", tensor([4.0])),
+                ("codebook.code_avg", tensor([[5.0]])),
+            ]
+        )
+
+        class DummyModel(nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear = nn.Linear(1, 1)
+                self.codebook = Codebook(1, 1)
+
+        model = DummyModel()
+        assert not model.codebook._is_embedding_init
+        model.load_state_dict(state_dict)
+        assert model.codebook._is_embedding_init
+
+        actual = model.codebook.embedding
+        expected = state_dict["codebook.embedding"]
+        assert_expected(actual, expected)
+
+        actual = model.codebook.code_usage
+        expected = state_dict["codebook.code_usage"]
+        assert_expected(actual, expected)
+
+        actual = model.codebook.code_avg
+        expected = state_dict["codebook.code_avg"]
+        assert_expected(actual, expected)
