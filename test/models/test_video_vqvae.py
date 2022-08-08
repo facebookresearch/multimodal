@@ -87,6 +87,25 @@ class TestVideoEncoder:
         enc.eval()
         return enc
 
+    @pytest.fixture
+    def downsampler(self, params):
+        in_channel_dims, _, kernel_sizes, _ = params
+        strides = ((2, 2, 2), (2, 2, 2))
+        model = VideoEncoder(
+            in_channel_dims=in_channel_dims,
+            kernel_sizes=kernel_sizes,
+            strides=strides,
+            output_dim=2,
+            n_res_layers=1,
+            attn_hidden_dim=2,
+        )
+        model.eval()
+        return model
+
+    @pytest.fixture
+    def big_input(self):
+        return torch.ones(1, 2, 8, 8, 8)
+
     def test_forward(self, input_tensor, encoder):
         actual = encoder(input_tensor)
         expected = torch.tensor(
@@ -104,6 +123,17 @@ class TestVideoEncoder:
             ]
         )
         assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+    def test_get_latent_shape(self, downsampler, big_input):
+        actual = downsampler.get_latent_shape(big_input.shape[2:])
+        expected = (2, 2, 2)
+        assert_expected(actual, expected)
+
+    def test_encoder_latent_shape(self, downsampler, big_input):
+        output = downsampler(big_input)
+        actual = output.shape[2:]
+        expected = (2, 2, 2)
+        assert_expected(actual, expected)
 
 
 class TestVideoDecoder:

@@ -4,10 +4,10 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Any, cast, List, Optional, Tuple
+from typing import Any, cast, List, Optional, Tuple, Union
 
 import torch
-from torch import nn, Tensor
+from torch import nn, Size, Tensor
 
 from torchmultimodal.models.vqvae import VQVAE
 from torchmultimodal.modules.layers.attention import AxialAttentionBlock
@@ -250,6 +250,17 @@ class VideoEncoder(nn.Module):
         self.conv_out = SamePadConv3d(
             attn_hidden_dim, output_dim, kernel_size=1, stride=1
         )
+
+    def get_latent_shape(self, input_shape: Union[Tuple, Size]) -> Tuple:
+        """Return shape of encoder output based on number of downsampling conv layers"""
+        latent_shape = list(input_shape)
+        for layer in self.convs:  # ignore conv_out since it has a stride of 1
+            if isinstance(layer, SamePadConv3d):
+                # SamePadConv should downsample input shape by factor of stride
+                for dim in range(len(input_shape)):
+                    latent_shape[dim] = latent_shape[dim] // layer.conv.stride[dim]
+
+        return tuple(latent_shape)
 
     def forward(self, x: Tensor) -> Tensor:
         in_channel = x.shape[1]
