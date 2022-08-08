@@ -62,7 +62,7 @@ FLAVAOutput.__annotations__ = {
 FLAVA_FOR_PRETRAINED_MAPPING = {
     # This will no longer load with the updated model, but keeping here just in case
     # "flava_full": "https://huggingface.co/aps/flava_full_pretrained_encoders_torchmm/resolve/main/pytorch_model.bin",
-    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_for_pretraining_projection.pt",
+    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_for_pretraining_unified.pt",
 }
 
 
@@ -72,7 +72,7 @@ def flava_multimodal_encoder(
     num_hidden_layers: int = 12,
     hidden_dropout_prob: float = 0.0,
     intermediate_size: int = 3072,
-    intermediate_activation: Callable[..., Tensor] = nn.functional.gelu,
+    intermediate_activation: Callable[..., nn.Module] = nn.GELU,
     attention_probs_dropout_prob: float = 0.0,
     layer_norm_eps: float = 1e-12,
 ) -> FLAVATransformerWithoutEmbeddings:
@@ -421,7 +421,7 @@ def flava_model(
     image_num_hidden_layers: int = 12,
     image_hidden_dropout_prob: float = 0.0,
     image_intermediate_size: int = 3072,
-    image_intermediate_activation: Callable[..., Tensor] = nn.functional.gelu,
+    image_intermediate_activation: Callable[..., nn.Module] = nn.GELU,
     image_attention_probs_dropout_prob: float = 0.0,
     image_layer_norm_eps: float = 1e-12,
     use_image_masking: bool = True,
@@ -434,7 +434,7 @@ def flava_model(
     text_num_hidden_layers: int = 12,
     text_hidden_dropout_prob: float = 0.0,
     text_intermediate_size: int = 3072,
-    text_intermediate_activation: Callable[..., Tensor] = nn.functional.gelu,
+    text_intermediate_activation: Callable[..., nn.Module] = nn.GELU,
     text_attention_probs_dropout_prob: float = 0.0,
     text_layer_norm_eps: float = 1e-12,
     vocab_size: int = 30522,
@@ -447,7 +447,7 @@ def flava_model(
     multimodal_num_hidden_layers: int = 6,
     multimodal_hidden_dropout_prob: float = 0.0,
     multimodal_intermediate_size: int = 3072,
-    multimodal_intermediate_activation: Callable[..., Tensor] = nn.functional.gelu,
+    multimodal_intermediate_activation: Callable[..., nn.Module] = nn.GELU,
     multimodal_attention_probs_dropout_prob: float = 0.0,
     multimodal_layer_norm_eps: float = 1e-12,
     # projection

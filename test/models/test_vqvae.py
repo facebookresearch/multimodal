@@ -39,7 +39,7 @@ class TestVQVAE:
             quantized_flat=torch.tensor(
                 [[3.0, 9.0], [7.0, 21.0], [6.0, 12.0], [14.0, 28.0]]
             ),
-            codebook_indices=torch.tensor([3, 1, 0, 2]),
+            codebook_indices=torch.tensor([3, 2, 1, 0]),
         )
         return x, expected_decoded, expected_out
 
