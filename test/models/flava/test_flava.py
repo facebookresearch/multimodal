@@ -49,7 +49,6 @@ class TestFLAVA(unittest.TestCase):
 
     @torch.no_grad()
     def test_forward_pretraining(self):
-
         text = torch.randint(0, 30500, (2, 77), dtype=torch.long)
         image = torch.rand((2, 3, 224, 224))
         image_for_codebook = torch.rand(2, 3, 112, 112)

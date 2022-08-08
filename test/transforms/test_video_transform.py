@@ -21,8 +21,8 @@ class TestVideoTransform:
         input_videos = 255 * torch.rand(size=(2, 6, 4, 5, 3)).to(dtype=float)
         transform = VideoTransform(
             time_samples=1,
-            mean=[0.5, 0.5, 0.5],
-            std=[0.2857, 0.2857, 0.2857],
+            mean=(0.5, 0.5, 0.5),
+            std=(0.2857, 0.2857, 0.2857),
             resize_shape=(6, 7),
         )
 
