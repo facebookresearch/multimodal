@@ -124,7 +124,7 @@ def training_image_transform(
                 image_size, scale=scale, interpolation=image_interpolation
             ),
             transforms.RandomHorizontalFlip(),
-            transforms.RandAugment(),
+            transforms.RandAugment(2, 7),
             transforms.ToTensor(),
             transforms.Normalize(mean, std_dev),
         ]
