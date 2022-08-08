@@ -45,32 +45,6 @@ def get_extended_attention_mask(attention_mask: Tensor) -> Tensor:
     return extended_attention_mask
 
 
-def get_extended_attention_mask_for_decoder(attention_mask: Tensor) -> Tensor:
-    """
-    Apply a causal mask in addition to the padding mask and make the mask broadcastable,
-    such that future and masked tokens are ignored.
-
-    Args:
-        attention_mask (Tensor):
-            Padding mask with ones indicating tokens to attend to, zeros for tokens to ignore.
-
-    Returns:
-        extended_attention_mask (Tensor):
-            The broadcastable attention mask, with the same dtype as ``attention_mask.dtype``.
-    """
-    device = attention_mask.device
-    batch_size, seq_length = attention_mask.shape
-    causal_mask = get_causal_attention_mask(seq_length).to(device)
-    causal_mask = causal_mask.repeat(batch_size, 1).view(
-        batch_size, seq_length, seq_length
-    )
-    extended_attention_mask = (
-        causal_mask[:, None, :, :] * attention_mask[:, None, None, :]
-    )
-    extended_attention_mask = extended_attention_mask.to(dtype=attention_mask.dtype)
-    return extended_attention_mask
-
-
 def get_causal_attention_mask(
     tgt_seq_len: int, src_seq_len: Optional[int] = None
 ) -> Tensor:
