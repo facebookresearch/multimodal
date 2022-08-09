@@ -82,12 +82,22 @@ def assert_expected(actual: Any, expected: Any, rtol: float = None, atol: float 
     )
 
 
+def tuple_to_dict(t):
+    if not isinstance(t, tuple):
+        raise TypeError(f"Input must be of type tuple but got {type(t)}")
+
+    return {k: v for k, v in enumerate(t)}
+
+
+def is_named_tuple(nt):
+    # hacky way to assert an instance of NamedTuple
+    return isinstance(nt, tuple) and hasattr(nt, "_asdict")
+
+
 def assert_expected_wrapper(actual, expected):
     """Helper function that calls assert_expected recursively on nested Dict/NamedTuple"""
     # convert NamedTuple to dictionary
-    if isinstance(actual, tuple) and hasattr(
-        actual, "_asdict"
-    ):  # hacky way to assert an instance of NamedTuple
+    if is_named_tuple(actual):
         actual = actual._asdict()
 
     if not isinstance(actual, Dict):
@@ -108,6 +118,9 @@ def assert_expected_wrapper(actual, expected):
         elif isinstance(_actual, tuple):
             # outputs are from multiple layers: (Tensor, Tensor, ...)
             assert_expected_wrapper(tuple_to_dict(_actual), tuple_to_dict(_expected))
+        elif is_named_tuple(_actual):
+            # output is another named tuple instance
+            assert_expected_wrapper(_actual, _expected)
         elif isinstance(_actual, Tensor):
             # single tensor output
             _expected_shape, _expected_sum = _expected
