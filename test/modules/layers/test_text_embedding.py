@@ -7,7 +7,7 @@
 import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.modules.layers.text_embedding import TextEmbeddings
+from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 
 
 @pytest.fixture(autouse=True)
@@ -18,7 +18,7 @@ def random():
 class TestTextEmbeddings:
     @pytest.fixture
     def text_embedding(self):
-        return TextEmbeddings(hidden_size=3, vocab_size=3)
+        return BERTTextEmbeddings(hidden_size=3, vocab_size=3)
 
     @pytest.fixture
     def input_ids(self):

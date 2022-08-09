@@ -18,7 +18,7 @@ from torchmultimodal.models.albef.model import (
     ALBEFSimilarity,
 )
 from torchmultimodal.models.albef.multimodal_encoder import ALBEFMultimodalEncoder
-from torchmultimodal.models.albef.text_encoder import ALBEFTextEncoder
+from torchmultimodal.modules.encoders.text_encoder import text_encoder
 from torchmultimodal.utils.common import momentum_update, remove_grad
 
 
@@ -37,8 +37,8 @@ def vision_encoder():
 
 
 @pytest.fixture(autouse=True)
-def text_encoder():
-    return ALBEFTextEncoder(hidden_size=3, num_attention_heads=1)
+def text_transformer():
+    return text_encoder(hidden_size=3, num_attention_heads=1)
 
 
 @pytest.fixture(autouse=True)
@@ -47,10 +47,10 @@ def multimodal_encoder():
 
 
 @pytest.fixture(autouse=True)
-def albef_model(vision_encoder, text_encoder, multimodal_encoder):
+def albef_model(vision_encoder, text_transformer, multimodal_encoder):
     return ALBEFModel(
         vision_encoder,
-        text_encoder,
+        text_transformer,
         multimodal_encoder,
     )
 

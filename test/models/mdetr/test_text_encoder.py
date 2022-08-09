@@ -9,11 +9,9 @@ import unittest
 import torch
 
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.models.mdetr.text_encoder import (
-    MDETRTextEncoder,
-    ModifiedTransformerEncoder,
-)
-from torchmultimodal.modules.layers.text_embedding import TextEmbeddings
+from torchmultimodal.models.mdetr.text_encoder import ModifiedTransformerEncoder
+from torchmultimodal.modules.encoders.text_encoder import TextEncoder
+from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 
 
 class TestMDETRTextEncoder(unittest.TestCase):
@@ -21,7 +19,7 @@ class TestMDETRTextEncoder(unittest.TestCase):
         set_rng_seed(0)
         self.max_position_embeddings = 514
         self.hidden_size = 768
-        self.embeddings = TextEmbeddings(
+        self.embeddings = BERTTextEmbeddings(
             hidden_size=self.hidden_size,
             vocab_size=50265,
             pad_token_id=1,
@@ -41,7 +39,7 @@ class TestMDETRTextEncoder(unittest.TestCase):
             normalize_before=False,
         )
 
-        self.text_encoder = MDETRTextEncoder(
+        self.text_encoder = TextEncoder(
             embeddings=self.embeddings, encoder=self.modified_transformer_encoder
         )
         self.text_encoder.eval()
@@ -163,9 +161,10 @@ class TestMDETRTextEncoder(unittest.TestCase):
             ]
         )
         out = self.modified_transformer_encoder(self.encoder_input, self.attention_mask)
-        actual = out[1, :, 1]
+        actual = out.last_hidden_state[1, :, 1]
         self.assertEqual(
-            out.size(), (self.batch_size, self.input_length, self.hidden_size)
+            out.last_hidden_state.size(),
+            (self.batch_size, self.input_length, self.hidden_size),
         )
         assert_expected(actual, expected, rtol=0.0, atol=1e-4)
 
@@ -191,8 +190,9 @@ class TestMDETRTextEncoder(unittest.TestCase):
             ]
         )
         out = self.text_encoder(self.input_ids, self.attention_mask)
-        actual = out[1, :, 1]
+        actual = out.last_hidden_state[1, :, 1]
         self.assertEqual(
-            out.size(), (self.batch_size, self.input_length, self.hidden_size)
+            out.last_hidden_state.size(),
+            (self.batch_size, self.input_length, self.hidden_size),
         )
         assert_expected(actual, expected, rtol=0.0, atol=1e-4)

@@ -8,7 +8,7 @@ from typing import Callable, Optional
 
 import torch
 from torch import nn, Tensor
-from torchmultimodal.modules.layers.text_embedding import TextEmbeddings
+from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 from torchmultimodal.modules.layers.transformer import (
     TransformerEncoder,
     TransformerOutput,
@@ -31,8 +31,11 @@ class TextEncoder(nn.Module):
                 position_ids: Optional[Tensor],
                 inputs_embeds: Optional[Tensor],
         encoder (nn.Module): Module for transformer encoder. ``forward()`` should follow interface:
-            hidden_states: Tensor,
-            attention_mask: Optional[Tensor],
+            Inputs:
+                hidden_states: Tensor,
+                attention_mask: Optional[Tensor], shape [batch_size, num_heads, query_seq_length, key_seq_length]
+            Returns:
+                ``TransformerOutput``
         layernorm (nn.Module, optional): Module for layernorm to be applied after encoder, if provided.
         pooler (nn.Module, optional): Module for pooler to be applied after layernorm, if provided.
 
@@ -131,7 +134,7 @@ def text_encoder(
     pad_token_id: int = 0,
     offset_pos_ids: bool = False,
 ) -> TextEncoder:
-    embeddings = TextEmbeddings(
+    embeddings = BERTTextEmbeddings(
         hidden_size=hidden_size,
         vocab_size=vocab_size,
         pad_token_id=pad_token_id,

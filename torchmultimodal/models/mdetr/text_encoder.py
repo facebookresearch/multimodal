@@ -4,12 +4,14 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import List, Optional, Union
+from typing import Optional
 
 import torch
 from torch import nn, Tensor
+from torchmultimodal.modules.encoders.text_encoder import TextEncoder
 
-from torchmultimodal.modules.layers.text_embedding import TextEmbeddings
+from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
+from torchmultimodal.modules.layers.transformer import TransformerOutput
 
 
 class ModifiedTransformerEncoder(nn.Module):
@@ -32,7 +34,7 @@ class ModifiedTransformerEncoder(nn.Module):
             attention_mask (Optional[Tensor]) Batch attention mask returned from
                 tokenizer (applied as padding mask inside self-attention).
                 Default: None
-    """ ""
+    """
 
     def __init__(
         self,
@@ -62,57 +64,13 @@ class ModifiedTransformerEncoder(nn.Module):
         self,
         embeddings: Tensor,
         attention_mask: Optional[Tensor] = None,
-    ) -> Union[Tensor, List[Tensor]]:
+    ) -> TransformerOutput:
         encoded = embeddings
+        mask = torch.squeeze(attention_mask.to(dtype=torch.bool))
         # Do this in a loop because otherwise it can cause OOM
         for layer in self.layers.layers:
-            encoded = layer(
-                encoded, src_key_padding_mask=attention_mask.to(dtype=torch.bool)
-            )
-        return encoded
-
-
-class MDETRTextEncoder(nn.Module):
-    """
-    Text encoder for MDETR. Combines an embedding module with a transformer encoder.
-
-    Args:   embeddings (nn.Module): Embedding module (input IDs -> embeddings).
-            encoder (nn.Module): Transformer encoder module
-                (embeddings -> encoder outputs).
-
-    Inputs: input_ids (Tensor): Tensor of input IDs to encode.
-            attention_mask (Optional[Tensor]): Attention mask for batch. Should equal True
-                on masked tokens on False on non-masked tokens. Default: None (no masking)
-            token_type_ids (Optional[Tensor]): Optional tensor of token type IDs to use
-                in token type embedding. Default: None
-            position_ids (Optional[Tensor]): Optional tensor of position IDs to use in
-                embeddings. Default: None
-    """ ""
-
-    def __init__(self, embeddings: nn.Module, encoder: nn.Module):
-        super().__init__()
-        self.embeddings = embeddings
-        self.encoder = encoder
-
-    def forward(
-        self,
-        input_ids: Tensor = None,
-        attention_mask: Optional[Tensor] = None,
-        token_type_ids: Optional[Tensor] = None,
-        position_ids: Optional[Tensor] = None,
-    ) -> Tensor:
-
-        embedding_output = self.embeddings(
-            input_ids=input_ids,
-            position_ids=position_ids,
-            token_type_ids=token_type_ids,
-        )
-        out = self.encoder(
-            embedding_output,
-            attention_mask=attention_mask,
-        )
-
-        return out
+            encoded = layer(encoded, src_key_padding_mask=mask)
+        return TransformerOutput(last_hidden_state=encoded)
 
 
 class FeatureResizer(nn.Module):
@@ -161,8 +119,8 @@ def mdetr_roberta_text_encoder(
     num_encoder_layers: int = 12,
     encoder_dropout_prob: float = 0.1,
     normalize_before: bool = False,
-) -> MDETRTextEncoder:
-    embeddings = TextEmbeddings(
+) -> TextEncoder:
+    embeddings = BERTTextEmbeddings(
         hidden_size=embedding_dim,
         vocab_size=vocab_size,
         pad_token_id=pad_token_id,
@@ -182,7 +140,7 @@ def mdetr_roberta_text_encoder(
         normalize_before=normalize_before,
     )
 
-    text_encoder = MDETRTextEncoder(
+    text_encoder = TextEncoder(
         embeddings=embeddings, encoder=modified_transformer_encoder
     )
     return text_encoder

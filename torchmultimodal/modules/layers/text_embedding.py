@@ -10,8 +10,8 @@ import torch
 from torch import nn, Tensor
 
 
-class TextEmbeddings(nn.Module):
-    """Construct word, position, and token type embeddings following BERT.
+class BERTTextEmbeddings(nn.Module):
+    """Construct word, position, and token type embeddings following BERT, similar to HuggingFace BertEmbeddings
 
     Attributes:
         hidden_size (int): size of embedding space. Default is 768.
