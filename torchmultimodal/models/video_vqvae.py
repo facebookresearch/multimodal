@@ -167,7 +167,10 @@ class VideoEncoder(nn.Module):
         for layer in self.convs:  # ignore conv_out since it has a stride of 1
             if isinstance(layer, SamePadConv3d):
                 # SamePadConv should downsample input shape by factor of stride
-                latent_shape = [latent_shape[dim] // layer.conv.stride[dim] for dim in range(len(input_shape))]
+                latent_shape = [
+                    latent_shape[dim] // layer.conv.stride[dim]
+                    for dim in range(len(input_shape))
+                ]
 
         return tuple(latent_shape)
 
