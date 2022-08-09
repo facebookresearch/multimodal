@@ -13,7 +13,7 @@ from torchmultimodal.models.mdetr.text_encoder import (
     MDETRTextEncoder,
     ModifiedTransformerEncoder,
 )
-from torchmultimodal.modules.layers.text_embedding import TextEmbeddings
+from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 
 
 class TestMDETRTextEncoder(unittest.TestCase):
@@ -21,7 +21,7 @@ class TestMDETRTextEncoder(unittest.TestCase):
         set_rng_seed(0)
         self.max_position_embeddings = 514
         self.hidden_size = 768
-        self.embeddings = TextEmbeddings(
+        self.embeddings = BERTTextEmbeddings(
             hidden_size=self.hidden_size,
             vocab_size=50265,
             pad_token_id=1,

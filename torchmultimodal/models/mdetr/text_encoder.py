@@ -9,7 +9,7 @@ from typing import List, Optional, Union
 import torch
 from torch import nn, Tensor
 
-from torchmultimodal.modules.layers.text_embedding import TextEmbeddings
+from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 
 
 class ModifiedTransformerEncoder(nn.Module):
@@ -162,7 +162,7 @@ def mdetr_roberta_text_encoder(
     encoder_dropout_prob: float = 0.1,
     normalize_before: bool = False,
 ) -> MDETRTextEncoder:
-    embeddings = TextEmbeddings(
+    embeddings = BERTTextEmbeddings(
         hidden_size=embedding_dim,
         vocab_size=vocab_size,
         pad_token_id=pad_token_id,
