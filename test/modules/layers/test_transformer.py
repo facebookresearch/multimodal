@@ -128,7 +128,7 @@ class TestTransformerCrossAttentionLayer:
 class TestTransformerEncoder:
     @pytest.fixture
     def encoder(self):
-        return TransformerEncoder(
+        model = TransformerEncoder(
             n_layer=2,
             d_model=2,
             n_head=2,
@@ -136,12 +136,14 @@ class TestTransformerEncoder:
             activation=nn.GELU,
             norm_first=True,
         )
+        model.eval()
+        return model
 
     @pytest.fixture
     def inputs(self):
         return torch.rand((2, 3, 2))
 
-    def test_forward(self, encoder, inputs):
+    def test_forward(self, inputs, encoder):
         output = encoder(inputs, return_hidden_states=True, return_attn_weights=True)
 
         actual_last_hidden_state = output.last_hidden_state
@@ -150,48 +152,40 @@ class TestTransformerEncoder:
 
         expected_last_hidden_state = torch.Tensor(
             [
-                [
-                    [0.4387462735, 2.2609438896],
-                    [0.4937185347, 2.1975874901],
-                    [0.1847360730, 2.4323265553],
-                ],
-                [
-                    [0.4651480913, 2.1417639256],
-                    [0.0404203087, 2.1411576271],
-                    [-0.1758930087, 1.9571313858],
-                ],
+                [[1.6669, 0.3613], [1.0610, 0.0896], [0.9768, -0.0814]],
+                [[2.3306, 0.6623], [1.8439, 0.7909], [1.6566, -0.0360]],
             ]
         )
         expected_hidden_states = torch.Tensor(
             [
-                [[1.7473, 4.3043], [2.0372, 3.5570], [1.1414, 4.2733]],
-                [[2.0239, 3.2944], [0.7497, 3.2925], [0.1008, 2.7405]],
+                [[3.4371, 0.9657], [1.7571, 0.0734], [1.5043, -0.4397]],
+                [[5.1976, 1.9218], [3.8499, 2.2402], [3.1757, -0.1730]],
             ]
         )
         expected_attentions = torch.Tensor(
             [
                 [
                     [
-                        [0.6837, 0.6326, 0.6837],
-                        [0.6836, 0.6327, 0.6836],
-                        [0.6837, 0.6326, 0.6837],
+                        [0.8520, 0.5740, 0.5740],
+                        [0.6232, 0.6884, 0.6884],
+                        [0.6232, 0.6884, 0.6884],
                     ],
                     [
-                        [0.6090, 0.7821, 0.6090],
-                        [0.5669, 0.8662, 0.5669],
-                        [0.6090, 0.7821, 0.6090],
+                        [0.5859, 0.7071, 0.7071],
+                        [0.6515, 0.6742, 0.6742],
+                        [0.6515, 0.6742, 0.6742],
                     ],
                 ],
                 [
                     [
-                        [0.6667, 0.6667, 0.6667],
-                        [0.6667, 0.6667, 0.6667],
-                        [0.6667, 0.6667, 0.6667],
+                        [0.7392, 0.5216, 0.7392],
+                        [0.6434, 0.7132, 0.6434],
+                        [0.7392, 0.5216, 0.7392],
                     ],
                     [
-                        [0.6667, 0.6667, 0.6667],
-                        [0.6667, 0.6667, 0.6667],
-                        [0.6667, 0.6667, 0.6667],
+                        [0.6207, 0.7586, 0.6207],
+                        [0.6589, 0.6822, 0.6589],
+                        [0.6207, 0.7586, 0.6207],
                     ],
                 ],
             ]
@@ -204,3 +198,10 @@ class TestTransformerEncoder:
             actual_hidden_states, expected_hidden_states, rtol=0.0, atol=1e-4
         )
         assert_expected(actual_attentions, expected_attentions, rtol=0.0, atol=1e-4)
+
+        # set flags to false
+        output = encoder(inputs)
+        actual_last_hidden_state = output.last_hidden_state
+        assert_expected(
+            actual_last_hidden_state, expected_last_hidden_state, rtol=0.0, atol=1e-4
+        )
