@@ -32,8 +32,10 @@ class TextEncoder(nn.Module):
                 inputs_embeds: Optional[Tensor],
         encoder (nn.Module): Module for transformer encoder. ``forward()`` should follow interface:
             Inputs:
-                hidden_states: Tensor,
+                hidden_states: Tensor, input for encoder
                 attention_mask: Optional[Tensor], shape [batch_size, num_heads, query_seq_length, key_seq_length]
+                return_attn_weights: bool. See ``TransformerEncoder``.
+                return_hidden_states: bool. See ``TransformerEncoder``.
             Returns:
                 ``TransformerOutput``
         layernorm (nn.Module, optional): Module for layernorm to be applied after encoder, if provided.
@@ -77,6 +79,8 @@ class TextEncoder(nn.Module):
         token_type_ids: Optional[Tensor] = None,
         position_ids: Optional[Tensor] = None,
         inputs_embeds: Optional[Tensor] = None,
+        return_attn_weights: bool = False,
+        return_hidden_states: bool = False,
     ) -> TransformerOutput:
         if input_ids is not None:
             input_shape = input_ids.size()
@@ -101,7 +105,12 @@ class TextEncoder(nn.Module):
             token_type_ids=token_type_ids,
             inputs_embeds=inputs_embeds,
         )
-        encoder_output = self.encoder(embedding_output, attention_mask=attention_mask)
+        encoder_output = self.encoder(
+            embedding_output,
+            attention_mask=attention_mask,
+            return_attn_weights=return_attn_weights,
+            return_hidden_states=return_hidden_states,
+        )
 
         sequence_output = encoder_output.last_hidden_state
         pooled_output = encoder_output.pooler_output

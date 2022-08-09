@@ -62,11 +62,11 @@ FLAVAOutput.__annotations__ = {
 FLAVA_FOR_PRETRAINED_MAPPING = {
     # This will no longer load with the updated model, but keeping here just in case
     # "flava_full": "https://huggingface.co/aps/flava_full_pretrained_encoders_torchmm/resolve/main/pytorch_model.bin",
-    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_for_pretraining_unified.pt",
+    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_for_pretraining_unified_text_encoder.pt",
 }
 
 FLAVA_MODEL_MAPPING = {
-    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_model_unified.pt",
+    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_model_unified_text_encoder.pt",
 }
 
 
