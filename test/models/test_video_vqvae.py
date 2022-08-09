@@ -74,20 +74,34 @@ class TestAttentionResidualBlock:
 class TestVideoEncoder:
     @pytest.fixture
     def encoder(self, params):
-        in_channel_dims, _, kernel_sizes, strides = params
-        enc = VideoEncoder(
-            in_channel_dims=in_channel_dims,
-            kernel_sizes=kernel_sizes,
-            strides=strides,
-            output_dim=2,
-            n_res_layers=1,
-            attn_hidden_dim=2,
-        )
-        enc.eval()
-        return enc
+        in_channel_dims, _, kernel_sizes, _ = params
 
-    def test_forward(self, input_tensor, encoder):
-        actual = encoder(input_tensor)
+        def get_encoder(strides):
+            enc = VideoEncoder(
+                in_channel_dims=in_channel_dims,
+                kernel_sizes=kernel_sizes,
+                strides=strides,
+                output_dim=2,
+                n_res_layers=1,
+                attn_hidden_dim=2,
+            )
+            enc.eval()
+            return enc
+
+        return get_encoder
+
+    @pytest.fixture
+    def uneven_strides(self):
+        return ((2, 2, 2), (1, 2, 2))
+
+    @pytest.fixture
+    def big_input(self):
+        return torch.ones(1, 2, 4, 8, 8)
+
+    def test_forward(self, input_tensor, encoder, params):
+        strides = params[-1]
+        model = encoder(strides)
+        actual = model(input_tensor)
         expected = torch.tensor(
             [
                 [
@@ -103,6 +117,13 @@ class TestVideoEncoder:
             ]
         )
         assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+    def test_latent_shape(self, big_input, encoder, uneven_strides):
+        downsampler = encoder(uneven_strides)
+        output = downsampler(big_input)
+        actual = output.shape[2:]
+        expected = downsampler.get_latent_shape(big_input.shape[2:])
+        assert_expected(actual, expected)
 
 
 class TestVideoDecoder:
