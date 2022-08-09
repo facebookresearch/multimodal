@@ -33,8 +33,13 @@ def set_seed():
 
 
 @pytest.fixture
-def emb_dim():
+def d_model():
     return 4
+
+
+@pytest.fixture
+def emb_dim():
+    return 5
 
 
 @pytest.fixture
@@ -53,32 +58,57 @@ def n_head():
 
 
 @pytest.fixture
-def right_shift(emb_dim):
-    return RightShift(emb_dim)
+def right_shift(d_model):
+    return RightShift(d_model)
+
+
+@pytest.fixture
+def in_token_emb(d_model, emb_dim):
+    return nn.Linear(emb_dim, d_model)
+
+
+@pytest.fixture
+def out_token_emb(d_model, emb_dim):
+    return nn.Linear(emb_dim, d_model)
+
+
+@pytest.fixture
+def in_pos_emb(in_seq_len, d_model):
+    return nn.Embedding(in_seq_len, d_model)
+
+
+@pytest.fixture
+def out_pos_emb(out_seq_len, d_model):
+    return nn.Embedding(out_seq_len, d_model)
 
 
 @pytest.fixture
 def in_modality(in_seq_len, emb_dim):
-    return torch.rand(1, in_seq_len, emb_dim)  # (bs, seq_len, emb_dim)
+    return torch.rand(1, in_seq_len, emb_dim)  # (b, seq_len, emb_dim)
 
 
 @pytest.fixture
 def out_modality(out_seq_len, emb_dim):
-    return torch.rand(1, out_seq_len, emb_dim)  # (bs, seq_len, emb_dim)
+    return torch.rand(1, out_seq_len, emb_dim)  # (b, seq_len, emb_dim)
+
+
+@pytest.fixture
+def x_input(d_model):
+    return torch.rand(1, 3, d_model)  # (b, seq_len, emb_dim)
 
 
 @pytest.fixture
 def self_attn_mask(in_seq_len):
     return torch.tril(torch.ones(in_seq_len, in_seq_len))[
         None, :
-    ]  # (bs, seq_len, seq_len)
+    ]  # (b, seq_len, seq_len)
 
 
 @pytest.fixture
 def self_head_mask(n_head, in_seq_len):
     masked = torch.zeros(1, in_seq_len, in_seq_len)
     unmasked = torch.ones(n_head - 1, in_seq_len, in_seq_len)
-    return torch.cat((masked, unmasked), dim=0)[None, :]  # (bs, h, seq_len, seq_len)
+    return torch.cat((masked, unmasked), dim=0)[None, :]  # (b, h, seq_len, seq_len)
 
 
 @pytest.fixture
@@ -87,8 +117,8 @@ def num_layers():
 
 
 @pytest.fixture
-def decoder_layer(n_head, emb_dim):
-    return TransformerDecoderLayer(d_model=emb_dim, n_head=n_head).eval()
+def decoder_layer(n_head, d_model):
+    return TransformerDecoderLayer(d_model, n_head=n_head).eval()
 
 
 @pytest.fixture
@@ -97,94 +127,152 @@ def decoder(decoder_layer, num_layers):
 
 
 @pytest.fixture
-def gpt(decoder, in_seq_len, out_seq_len, emb_dim):
+def mm_decoder(
+    in_token_emb, out_token_emb, in_pos_emb, out_pos_emb, decoder, right_shift
+):
     return MultimodalTransformerDecoder(
-        in_token_emb=nn.Identity(),
-        out_token_emb=nn.Identity(),
-        in_pos_emb=nn.Embedding(in_seq_len, emb_dim),
-        out_pos_emb=nn.Embedding(out_seq_len, emb_dim),
-        decoder=decoder,
+        in_token_emb, out_token_emb, in_pos_emb, out_pos_emb, decoder, right_shift
     )
 
 
 class TestMultimodalTransformerDecoder:
     def _pos_ids(self, x):
-        bs, seq_len, _ = x.shape
+        b, seq_len, _ = x.shape
         pos_ids = torch.arange(seq_len, dtype=torch.long, device=x.device)
-        return pos_ids[None, :]  # (bs, seq_len)
+        return pos_ids[None, :]  # (b, seq_len)
 
-    def test_bad_input(self, gpt):
+    def test_bad_input(self, mm_decoder):
         with pytest.raises(ValueError):
-            gpt()
+            mm_decoder()
 
-    def test_forward_in_modality(self, gpt, in_modality):
-        actual = gpt(in_modality=in_modality, in_pos_ids=self._pos_ids(in_modality))
+    def test_forward_in_modality(self, mm_decoder, in_modality):
+        actual = mm_decoder(
+            in_modality=in_modality, in_pos_ids=self._pos_ids(in_modality)
+        )
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 3, 4]),
-                -0.4598,
-            ),  # (bs, in_seq_len, emb_dim)
+                -0.5538,
+            ),  # (b, in_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
             "past_key_values": None,
         }
         assert_expected_wrapper(actual, expected)
 
-    def test_forward_out_modality(self, gpt, out_modality):
-        actual = gpt(out_modality=out_modality, out_pos_ids=self._pos_ids(out_modality))
+    def test_forward_out_modality(self, mm_decoder, out_modality):
+        actual = mm_decoder(
+            out_modality=out_modality, out_pos_ids=self._pos_ids(out_modality)
+        )
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 4, 4]),
-                -1.3095,
-            ),  # (bs, out_seq_len, emb_dim)
+                -0.3621,
+            ),  # (b, out_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
             "past_key_values": None,
         }
         assert_expected_wrapper(actual, expected)
 
-    def test_forward_two_modality(self, gpt, in_modality, out_modality):
-        actual = gpt(
+    def test_forward_two_modality(self, mm_decoder, in_modality, out_modality):
+        actual = mm_decoder(
             in_modality=in_modality,
             out_modality=out_modality,
             in_pos_ids=self._pos_ids(in_modality),
             out_pos_ids=self._pos_ids(out_modality),
         )
+        print(actual.last_hidden_states.sum())
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 7, 4]),
-                -1.1800,
-            ),  # (bs, in_seq_len + out_seq_len, emb_dim)
+                -0.8250,
+            ),  # (b, in_seq_len + out_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
             "past_key_values": None,
         }
         assert_expected_wrapper(actual, expected)
 
-    def test_bad_pos_ids(self, gpt, in_modality, in_seq_len):
+    def test_forward_eval_right_shift_on(
+        self, mm_decoder, in_modality, out_modality, mocker
+    ):
+        """Test right shift is switched on during eval mode"""
+        mock_right_shift = mocker.patch.object(
+            mm_decoder.right_shift, "forward", wraps=mm_decoder.right_shift.forward
+        )
+
+        mm_decoder.eval()
+        actual = mm_decoder(
+            in_modality=in_modality,
+            out_modality=out_modality,
+            in_pos_ids=self._pos_ids(in_modality),
+            out_pos_ids=self._pos_ids(out_modality),
+            right_shift=True,
+        )
+        mock_right_shift.assert_called_once()
+        expected = {
+            "last_hidden_states": (
+                torch.Size([1, 7, 4]),
+                -0.8250,
+            ),  # (b, in_seq_len + out_seq_len, d_model)
+            "hidden_states": None,
+            "attention_weights": None,
+            "past_key_values": None,
+        }
+        assert_expected_wrapper(actual, expected)
+
+    def test_forward_eval_right_shift_off(
+        self, mm_decoder, in_modality, out_modality, mocker
+    ):
+        """Test right shift is switched off during eval mode"""
+        mock_right_shift = mocker.patch.object(
+            mm_decoder.right_shift, "forward", wraps=mm_decoder.right_shift.forward
+        )
+
+        mm_decoder.eval()
+        actual = mm_decoder(
+            in_modality=in_modality,
+            out_modality=out_modality,
+            in_pos_ids=self._pos_ids(in_modality),
+            out_pos_ids=self._pos_ids(out_modality),
+        )
+        mock_right_shift.assert_not_called()
+        expected = {
+            "last_hidden_states": (
+                torch.Size([1, 7, 4]),
+                -1.0925,
+            ),  # (b, in_seq_len + out_seq_len, d_model)
+            "hidden_states": None,
+            "attention_weights": None,
+            "past_key_values": None,
+        }
+        assert_expected_wrapper(actual, expected)
+
+    def test_bad_pos_ids(self, mm_decoder, in_modality, in_seq_len):
         in_pos_ids = torch.arange(
             in_seq_len + 1, dtype=torch.long, device=in_modality.device
         )[None, :]
         with pytest.raises(ValueError):
-            gpt._norm_pos_ids(in_modality, in_pos_ids)
+            mm_decoder._norm_pos_ids(in_modality, in_pos_ids)
 
-    def test_optional_pos_ids(self, gpt, in_modality):
-        actual = gpt._norm_pos_ids(in_modality)
+    def test_optional_pos_ids(self, mm_decoder, in_modality):
+        actual = mm_decoder._norm_pos_ids(in_modality)
         expected = self._pos_ids(in_modality)
         assert_expected(actual, expected)
 
 
 class TestTransformerDecoder:
     def test_forward(
-        self, decoder, in_modality, self_attn_mask, self_head_mask, num_layers
+        self, decoder, x_input, self_attn_mask, self_head_mask, num_layers
     ):
-        actual = decoder(in_modality, self_attn_mask, self_head_mask)
+        actual = decoder(x_input, self_attn_mask, self_head_mask)
         assert isinstance(actual, TransformerDecoderOutput)
         assert_expected(actual.last_hidden_states.shape, torch.Size([1, 3, 4]))
 
-    def test_forward_additional_output(self, decoder, in_modality, num_layers):
+    def test_forward_additional_output(self, decoder, x_input, num_layers):
         actual = decoder(
-            in_modality,
+            x_input,
             use_cache=True,
             return_attn_weights=True,
             return_hidden_states=True,
@@ -199,41 +287,41 @@ class TestTransformerDecoder:
 
 
 class TestTransformerDecoderLayer:
-    def test_forward(self, decoder_layer, in_modality):
-        actual = decoder_layer(in_modality)
+    def test_forward(self, decoder_layer, x_input):
+        actual = decoder_layer(x_input)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
-            "hidden_states": (torch.Size([1, 3, 4]), 0.4808),  # (bs, seq_len, emb_dim)
+            "hidden_states": (torch.Size([1, 3, 4]), 0.4808),  # (b, seq_len, d_model)
             "attention_weights": None,
             "past_key_values": None,
         }
         assert_expected_wrapper(actual, expected)
 
     def test_forward_masked(
-        self, decoder_layer, in_modality, self_attn_mask, self_head_mask
+        self, decoder_layer, x_input, self_attn_mask, self_head_mask
     ):
-        actual = decoder_layer(in_modality, self_attn_mask, self_head_mask)
+        actual = decoder_layer(x_input, self_attn_mask, self_head_mask)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
-            "hidden_states": (torch.Size([1, 3, 4]), 1.5776),  # (bs, seq_len, seq_len)
+            "hidden_states": (torch.Size([1, 3, 4]), 1.5776),  # (b, seq_len, seq_len)
             "attention_weights": None,
             "past_key_values": None,
         }
         assert_expected_wrapper(actual, expected)
 
-    def test_forward_additional_output(self, decoder_layer, in_modality):
-        actual = decoder_layer(in_modality, use_cache=True, return_attn_weights=True)
+    def test_forward_additional_output(self, decoder_layer, x_input):
+        actual = decoder_layer(x_input, use_cache=True, return_attn_weights=True)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
-            "hidden_states": (torch.Size([1, 3, 4]), 0.4808),  # (bs, seq_len, seq_len)
+            "hidden_states": (torch.Size([1, 3, 4]), 0.4808),  # (b, seq_len, seq_len)
             "attention_weights": (
                 torch.Size([1, 2, 3, 3]),
                 6.0,
-            ),  # (bs, h, seq_len, seq_len)
+            ),  # (b, h, seq_len, seq_len)
             "past_key_values": {
                 "k": ([1, 2, 3, 2], -0.3156),
                 "v": ([1, 2, 3, 2], 5.1630),
-            },  # (bs, h, seq_len, emb_dim//h)
+            },  # (b, h, seq_len, d_model//h)
         }
         assert_expected_wrapper(actual, expected)
 
@@ -245,8 +333,8 @@ def test_sigmoid_linear_unit():
     assert_expected(actual, expected)
 
 
-def test_right_shift(right_shift, emb_dim):
-    x = torch.ones(1, 3, emb_dim)  # (bs, seq_len, emb_dim)
+def test_right_shift(right_shift, d_model):
+    x = torch.ones(1, 3, d_model)  # (b, seq_len, d_model)
     actual = right_shift(x)
     expected = torch.tensor(
         [

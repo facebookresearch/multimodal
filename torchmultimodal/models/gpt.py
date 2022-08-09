@@ -28,6 +28,154 @@ class TransformerLayerOutput(NamedTuple):
     past_key_values: Optional[Dict[str, Tensor]] = None
 
 
+class MultimodalGPTOutput(NamedTuple):
+    decoder_output: TransformerDecoderOutput
+    logits: Tensor
+
+
+# TODO: Add docstring
+class MultimodalGPT(nn.Module):
+    def __init__(
+        self,
+        d_model: int,
+        num_tokens: int,
+        in_tokenizer: nn.Module,
+        out_tokenizer: nn.Module,
+        mm_decoder: nn.Module,
+    ) -> None:
+        super().__init__()
+
+        if not hasattr(in_tokenizer, "encode") and not hasattr(in_tokenizer, "decode"):
+            raise AttributeError(
+                "Input modality tokenizer must have methods 'encode' and 'decode'."
+            )
+
+        if not hasattr(out_tokenizer, "encode") and not hasattr(
+            out_tokenizer, "decode"
+        ):
+            raise AttributeError(
+                "output modality tokenizer must have methods 'encode' and 'decode'."
+            )
+
+        self.d_model = d_model
+        self.num_tokens = num_tokens
+        self.in_tokenizer = in_tokenizer
+        self.out_tokenizer = out_tokenizer
+        self.mm_decoder = mm_decoder
+        self.norm = nn.LayerNorm(d_model)
+        self.to_logit = nn.Linear(d_model, num_tokens, bias=False)
+        # This will give us equal probabilities after the soft max layer initially to avoid biasing
+        # towards any particular prediction category
+        self.to_logit.weight.data.copy_(torch.zeros(self.num_tokens, self.d_model))
+
+    def encode(self, x: Any, modality: str, **kwargs: Any) -> Tuple[Tensor, Tensor]:
+        """Encodes data to token ids and tokenized embeddings
+
+        Encodes data for both modalities during training and the input modality for generation.
+
+        Args:
+            x (Any): Data to be encoded with arbitrary type, e.g., ``List[str]`` for text, ``Tensor`` for video.
+            modality (str): Input or output modality string.
+            kwargs (Any): Other keyword arguments suitable for the chosen encoder.
+
+        Returns:
+            A tuple of ``(token_ids, token_ids)`` for text tokenizer;
+            A tuple of ``(token_ids, token_embeddings)`` for audio & video tokenizers.
+
+        Rasies:
+            ValueError: If ``modality`` is neither ``in`` nor ``out``.
+        """
+        if modality == "in":
+            return self.in_tokenizer.encode(x, **kwargs)
+        elif modality == "out":
+            return self.out_tokenizer.encode(x, **kwargs)
+        else:
+            raise ValueError(f"Invalid modality parameter: {modality}")
+
+    def decode(self, x: Tensor, modality: str) -> Tensor:
+        """Decodes tokens ids back to data"""
+        if modality == "in":
+            return self.in_tokenizer.decode(x)
+        elif modality == "out":
+            return self.out_tokenizer.decode(x)
+        else:
+            raise ValueError(f"Invalid modality parameter: {modality}")
+
+    def fwd(
+        self,
+        in_modality: Optional[Tensor] = None,
+        out_modality: Optional[Tensor] = None,
+        in_pos_ids: Optional[Tensor] = None,
+        out_pos_ids: Optional[Tensor] = None,
+        attn_mask: Optional[Tensor] = None,
+        head_mask: Optional[Tensor] = None,
+        use_cache: bool = False,
+        causal: bool = False,
+        right_shift: bool = False,
+        return_attn_weights: bool = False,
+        return_hidden_states: bool = False,
+    ) -> TransformerDecoderOutput:
+        return self.mm_decoder(
+            in_modality=in_modality,
+            out_modality=out_modality,
+            in_pos_ids=in_pos_ids,
+            out_pos_ids=out_pos_ids,
+            attn_mask=attn_mask,
+            head_mask=head_mask,
+            use_cache=use_cache,
+            causal=causal,
+            right_shift=right_shift,
+            return_attn_weights=return_attn_weights,
+            return_hidden_states=return_hidden_states,
+        )
+
+    def head(
+        self, hidden_states: Tensor, logits_mask: Optional[Tensor] = None
+    ) -> Tensor:
+        out = self.norm(hidden_states)
+        logits = self.to_logit(hidden_states)
+        max_neg_value = -torch.finfo(logits.dtype).max
+        if logits_mask is not None:
+            logits.masked_fill_(logits_mask == 0, max_neg_value)
+        logits = shift_dim(logits, -1, 1)  # (bs, num_tokens, seq_len)
+
+        return logits
+
+    def forward(
+        self,
+        in_modality: Optional[Tensor] = None,
+        out_modality: Optional[Tensor] = None,
+        in_pos_ids: Optional[Tensor] = None,
+        out_pos_ids: Optional[Tensor] = None,
+        attn_mask: Optional[Tensor] = None,
+        head_mask: Optional[Tensor] = None,
+        logits_mask: Optional[Tensor] = None,
+        use_cache: bool = False,
+        causal: bool = False,
+        right_shift: bool = False,
+        return_attn_weights: bool = False,
+        return_hidden_states: bool = False,
+    ) -> MultimodalGPTOutput:
+        decoder_output = self.fwd(
+            in_modality=in_modality,
+            out_modality=out_modality,
+            in_pos_ids=in_pos_ids,
+            out_pos_ids=out_pos_ids,
+            attn_mask=attn_mask,
+            head_mask=head_mask,
+            use_cache=use_cache,
+            causal=causal,
+            right_shift=right_shift,
+            return_attn_weights=return_attn_weights,
+            return_hidden_states=return_hidden_states,
+        )
+
+        hidden_states = decoder_output.last_hidden_states
+        logits = self.head(hidden_states, logits_mask)
+
+        return MultimodalGPTOutput(decoder_output, logits)
+
+
 class MultimodalTransformerDecoder(nn.Module):
     """Extends the transformer decoder of GPT (Generative Pre-Training) model for cross-modality generation.
 
@@ -47,6 +195,15 @@ class MultimodalTransformerDecoder(nn.Module):
         in_pos_emb (nn.Module): input modality position embedding layer.
         out_pos_emb (nn.Module): output modality position embedding layer.
         decoder (nn.Module): the transformer decoder (see ``torchmultimodal.models.gpt.TransformerDecoder``)
+        right_shift (nn.Module): layer that shifts the embedding vectors to the right and prepends it with
+            start of sentence token (SOS).
+
+        Note:
+            * During training mode, the SOS token is prepended to the left of the concatenated input and
+                output modality sequence;
+            * During generation mode, the SOS token is only required for the input modality sequence as
+                the initial token to be learnt from. Right shift should be turned off
+                (``right_shift = False``, see args) when we start to generate the output modality samples.
 
     Args:
         in_modality (Tensor, optional): Tensor of dimension ``(b, in_seq_len, c)`` containing tokenized
@@ -64,6 +221,8 @@ class MultimodalTransformerDecoder(nn.Module):
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
         causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
+        right_shift (bool): If ``True``, shifts the embedding vectors to the right and prepends it with start of
+            sentence token. Defaults to ``False``. This option is disregarded during training mode
         return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
             layer. Defaults to ``False``.
         return_hidden_states (bool): If ``True``, returns the embeddings of each transformer layer. Defaults to
@@ -77,6 +236,7 @@ class MultimodalTransformerDecoder(nn.Module):
         in_pos_emb: nn.Module,
         out_pos_emb: nn.Module,
         decoder: nn.Module,
+        right_shift: nn.Module,
     ) -> None:
         super().__init__()
 
@@ -85,6 +245,7 @@ class MultimodalTransformerDecoder(nn.Module):
         self.in_pos_emb = in_pos_emb
         self.out_pos_emb = out_pos_emb
         self.decoder = decoder
+        self.right_shift = right_shift
 
     def forward(
         self,
@@ -96,6 +257,7 @@ class MultimodalTransformerDecoder(nn.Module):
         head_mask: Optional[Tensor] = None,
         use_cache: bool = False,
         causal: bool = False,
+        right_shift: bool = False,
         return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> TransformerDecoderOutput:
@@ -122,6 +284,9 @@ class MultimodalTransformerDecoder(nn.Module):
             x_in = self.in_token_emb(in_modality) + self.in_pos_emb(in_pos_ids)
             x_out = self.out_token_emb(out_modality) + self.out_pos_emb(out_pos_ids)
             x = torch.cat((x_in, x_out), dim=1)
+
+        if self.training or right_shift:
+            x = self.right_shift(x)
 
         return self.decoder(
             x,
@@ -366,7 +531,7 @@ class TransformerDecoderLayer(nn.Module):
 
 
 class RightShift(nn.Module):
-    """Shift the input sequence by 1 unit to the right and prepend with start of sentence token.
+    """Shifts the embedding vectors along the sequence dimension to the right.
 
     Since the decoder progresses by taking the token it generates in the previous step, before it
     has generated anything it needs a token to start with. Hence, the start-of-sentence (SOS) token.
