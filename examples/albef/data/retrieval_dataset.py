@@ -69,9 +69,9 @@ class ImageToTextRetrievalDataset(Dataset):
     Create the dataset for Image-to-Text Retrieval task.
 
     Args:
-        ann_file (List[str]): The paths to annonation json files.
+        ann_file (List[str]): The paths to annotation json files.
         image_root (str): The path to image data directory.
-        transform (Callable[[Image.Image], Tensor]): Image data transform.
+        image_transform (Callable[[Image.Image], Tensor]): Image data transform.
 
     Dataset Outputs:
         image (Tensor): Transformed image input tensor of shape (C, H, W).
@@ -81,10 +81,10 @@ class ImageToTextRetrievalDataset(Dataset):
         self,
         ann_file: List[str],
         image_root: str,
-        transform: Callable[[Image.Image], Tensor],
+        image_transform: Callable[[Image.Image], Tensor],
     ) -> None:
         self.image_root = image_root
-        self.transform = transform
+        self.image_transform = image_transform
 
         self.ann = []
         self.images = []  # paths to all images in the dataset
@@ -105,7 +105,7 @@ class ImageToTextRetrievalDataset(Dataset):
     def __getitem__(self, index: int) -> Tensor:
         image_path = os.path.join(self.image_root, self.images[index])
         image = Image.open(image_path).convert("RGB")
-        image = self.transform(image)
+        image = self.image_transform(image)
         return image
 
 
@@ -115,7 +115,7 @@ class TextToImageRetrievalDataset(Dataset):
 
     Args:
         ann_file (List[str]): The paths to annotation json files.
-        transform (Callable[[Union[List[str], str]], Tensor]): Text data transform.
+        text_transform (Callable[[Union[List[str], str]], Tensor]): Text data transform.
 
     Dataset Outputs:
         text (Tensor): Transformed text token input ids.
@@ -124,9 +124,9 @@ class TextToImageRetrievalDataset(Dataset):
     def __init__(
         self,
         ann_file: List[str],
-        transform: Callable[[Union[List[str], str]], Tensor],
+        text_transform: Callable[[Union[List[str], str]], Tensor],
     ) -> None:
-        self.transform = transform
+        self.text_transform = text_transform
 
         self.ann = []
         self.text = []  # all text strings in the dataset
@@ -145,4 +145,5 @@ class TextToImageRetrievalDataset(Dataset):
         return len(self.text)
 
     def __getitem__(self, index: int) -> Tensor:
-        return self.transform(self.text[index])
+        text = self.text_transform(self.text[index])
+        return text
