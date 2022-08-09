@@ -9,10 +9,9 @@ import torch
 from test.test_utils import assert_expected, set_rng_seed
 
 from torchmultimodal.models.video_vqvae import (
-    _preprocess_int_conv_params,
     AttentionResidualBlock,
+    preprocess_int_conv_params,
     video_vqvae,
-    video_vqvae_mugen,
     VideoDecoder,
     VideoEncoder,
 )
@@ -277,46 +276,22 @@ class TestVideoVQVAE:
         assert_expected(actual_codebook_indices, expected_codebook_indices)
 
 
-class TestVideoVQVAEMUGEN:
-    @pytest.fixture
-    def vv(self):
-        def create_model(model_key):
-            return video_vqvae_mugen(pretrained_model_key=model_key)
-
-        return create_model
-
-    @pytest.fixture
-    def input_data(self):
-        def create_data(seq_len):
-            return torch.randn(1, 3, seq_len, 256, 256)
-
-        return create_data
-
-    def test_forward(self, vv, input_data):
-        model = vv(None)
-        x = input_data(32)
-        output = model(x)
-        actual = torch.tensor(output.decoded.shape)
-        expected = torch.tensor((1, 3, 32, 256, 256))
-        assert_expected(actual, expected)
-
-
 def test_preprocess_int_conv_params():
     channels = (3, 3, 3)
     kernel = 2
     stride = 1
     expected_kernel = torch.tensor(((2, 2, 2), (2, 2, 2), (2, 2, 2)))
     expected_stride = torch.tensor(((1, 1, 1), (1, 1, 1), (1, 1, 1)))
-    actual_kernel, actual_stride = _preprocess_int_conv_params(channels, kernel, stride)
+    actual_kernel, actual_stride = preprocess_int_conv_params(channels, kernel, stride)
     actual_kernel = torch.tensor(actual_kernel)
     actual_stride = torch.tensor(actual_stride)
     assert_expected(actual_kernel, expected_kernel)
     assert_expected(actual_stride, expected_stride)
 
-    actual_kernel = _preprocess_int_conv_params(channels, kernel_sizes=kernel)
+    actual_kernel = preprocess_int_conv_params(channels, kernel_sizes=kernel)
     actual_kernel = torch.tensor(actual_kernel)
     assert_expected(actual_kernel, expected_kernel)
 
-    actual_stride = _preprocess_int_conv_params(channels, strides=stride)
+    actual_stride = preprocess_int_conv_params(channels, strides=stride)
     actual_stride = torch.tensor(actual_stride)
     assert_expected(actual_stride, expected_stride)
