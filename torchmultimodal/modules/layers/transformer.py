@@ -374,7 +374,7 @@ class TransformerEncoder(nn.Module):
         all_hidden_states: Tuple[Tensor, ...] = () if return_hidden_states else None
         all_self_attentions: Tuple[Tensor, ...] = () if return_attn_weights else None
 
-        for i, layer_module in enumerate(self.layer):
+        for layer_module in self.layer:
             if return_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
