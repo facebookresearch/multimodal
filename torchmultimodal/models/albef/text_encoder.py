@@ -7,7 +7,7 @@
 from typing import Callable
 
 from torch import nn, Tensor
-from torchmultimodal.modules.layers.text_embedding import TextEmbeddings
+from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 from torchmultimodal.modules.layers.transformer import (
     TransformerEncoder,
     TransformerOutput,
@@ -55,7 +55,7 @@ class ALBEFTextEncoder(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.embeddings = TextEmbeddings(
+        self.embeddings = BERTTextEmbeddings(
             vocab_size=vocab_size,
             hidden_size=hidden_size,
             pad_token_id=pad_token_id,
