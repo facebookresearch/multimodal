@@ -26,22 +26,24 @@ class VQVAE(nn.Module):
     Discrete Representation Learning" (Oord et al. 2017) and has since seen success in
     tokenizing and generating high-resolution image, audio, and video data.
 
-    Args:
-        encoder (nn.Module): model that accepts single Tensor as input in forward, ``encoder(x)``.
+    Attributes:
+        input_shape (Tuple[int, ...]): Shape of data to be encoded ``[b, c, d1. ,,,. dn]``.
+        encoder (nn.Module): Model that accepts single Tensor as input in forward, ``encoder(x)``.
                              Will be used to project input into codebook layer. Expects channel
                              dim of encoder output to match ``codebook_embedding_dim``.
-        decoder (nn.Module): model that accepts single Tensor as input in forward, ``decoder(x)``.
+        decoder (nn.Module): Model that accepts single Tensor as input in forward, ``decoder(x)``.
                              Should be able to accept output shape of codebook layer, which matches
                              output shape of encoder.
-        codebook_num_embeddings (int): number of embedding vectors in codebook
-        codebook_embedding_dim (int): dimensionality of embedding vectors in codebook
+        codebook_num_embeddings (int): Number of embedding vectors in codebook
+        codebook_embedding_dim (int): Dimensionality of embedding vectors in codebook
 
-    Inputs:
-        x (Tensor): [b, c, d1, ..., dn] tensor
+    Args:
+        x (Tensor): Input data of shape ``[b, c, d1, ..., dn]``.
     """
 
     def __init__(
         self,
+        input_shape: Tuple[int, ...],
         encoder: nn.Module,
         decoder: nn.Module,
         codebook_num_embeddings: int,
@@ -51,19 +53,29 @@ class VQVAE(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
         self.codebook = Codebook(codebook_num_embeddings, codebook_embedding_dim)
+        self.latent_shape = self.encoder.get_latent_shape(input_shape)
 
-    def encode(self, x: Tensor) -> CodebookOutput:
-        return self.codebook(self.encoder(x))
+    def _reshape(self, quantized_flat: Tensor) -> Tensor:
+        b, _, emb_dim = quantized_flat.shape
+        shape = (b,) + latent_shape + (emb_dim,)
+        quantized_flat = quantized_flat.view(shape)  # (b, *latent_shape, emb_dim)
+        quantized = shift_dim(quantized_flat, -1, 1)  # (b, emb_dim, *latent_shape)
+        return quantized
 
-    def decode(self, x: Tensor) -> Tensor:
-        return self.decoder(x)
+    def encode(self, x: Tensor) -> Tuple[Tensor, Tensor]:
+        codebook_output = self.codebook(self.encoder(x))
+        return codebook_output.codebook_indices, codebook_output.quantized_flat
 
-    def tokenize(self, x: Tensor) -> Tensor:
-        """Similar to encode, but return flattened quantized outputs"""
-        quantized = self.encode(x)
-        return quantized.quantized_flat
+    def decode(self, token_ids: Tensor) -> Tensor:
+        quantized_flat = self.lookup(token_ids)  # (b, seq_len, emb_dim)
+        quantized = self._reshape(quantized_flat)  # (b, emb_dim, latent_shape)
+        return self.decoder(quantized)  # (b, c, input_shape)
+
+    def lookup(self, token_ids: Tensor) -> Tensor:
+        return self.codebook.lookup(token_ids)
 
     def forward(self, x: Tensor) -> VQVAEOutput:
-        quantized = self.encode(x)
-        decoded = self.decode(quantized.quantized)
+        quantized_flat = self.codebook(self.encoder(x)).quantized_flat
+        quantized = self._reshape(quantized_flat)
+        decoded = self.decoder(quantized)
         return VQVAEOutput(decoded, quantized)

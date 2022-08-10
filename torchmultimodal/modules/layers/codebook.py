@@ -7,6 +7,7 @@
 from typing import Any, List, Mapping, NamedTuple, Tuple, Union
 
 import torch
+import torch.nn.functional as F  # noqa: N817
 from torch import nn, Size, Tensor
 from torchmultimodal.utils.common import shift_dim
 
@@ -66,6 +67,33 @@ class Codebook(nn.Module):
 
         # Flag to track if we need to initialize embedding with encoder output
         self._is_embedding_init = False
+
+    def _load_from_state_dict(
+        self,
+        state_dict: Mapping[str, Any],
+        prefix: str,
+        local_metadata: Mapping,
+        strict: bool,
+        missing_keys: List[str],
+        unexpected_keys: List[str],
+        error_msgs: List[str],
+    ) -> None:
+        # Override nn.Module's _load_from_state_dict to ensure embedding init is turned off
+        # when state dict is loaded.
+        #
+        # This can also be handled with _register_load_state_dict_pre_hook but since this is
+        # an internal function, it may change. Overriding _load_from_state_dict seems more
+        # stable and cleaner.
+        super()._load_from_state_dict(
+            state_dict,
+            prefix,
+            local_metadata,
+            strict,
+            missing_keys,
+            unexpected_keys,
+            error_msgs,
+        )
+        self._is_embedding_init = True
 
     def _tile(self, x: Tensor, n: int) -> Tensor:
         # Repeat vectors in x if x has less than n vectors
@@ -208,29 +236,5 @@ class Codebook(nn.Module):
             self.num_embeddings, self.embedding_dim
         )
 
-    def _load_from_state_dict(
-        self,
-        state_dict: Mapping[str, Any],
-        prefix: str,
-        local_metadata: Mapping,
-        strict: bool,
-        missing_keys: List[str],
-        unexpected_keys: List[str],
-        error_msgs: List[str],
-    ) -> None:
-        # Override nn.Module's _load_from_state_dict to ensure embedding init is turned off
-        # when state dict is loaded.
-        #
-        # This can also be handled with _register_load_state_dict_pre_hook but since this is
-        # an internal function, it may change. Overriding _load_from_state_dict seems more
-        # stable and cleaner.
-        super()._load_from_state_dict(
-            state_dict,
-            prefix,
-            local_metadata,
-            strict,
-            missing_keys,
-            unexpected_keys,
-            error_msgs,
-        )
-        self._is_embedding_init = True
+    def lookup(self, indices: Tensor) -> Tensor:
+        return F.embedding(indices, self.embedding)

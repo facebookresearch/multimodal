@@ -304,6 +304,21 @@ def test_load_state_dict():
 
 
 def test_lookup(codebook, embedding_weights):
-    codebook.embeddings = embedding_weights
-    x_input = tensor([])
-    # tensor([[1, 0, -1, -1, 2], [2, -2, 0, 0, 1], [2, 1, 0, 1, 1], [-1, -2, 0, 2, 0]])
+    codebook.embedding = embedding_weights
+    indices_flat = tensor([[0, 1]])  # (b, seq_len)
+    indices_shaped = tensor([[[0, 1], [2, 3]]])  # (b, shape)
+    actual_quantized_flat = codebook.lookup(indices_flat)
+    actual_quantized = codebook.lookup(indices_shaped)
+    expected_quantized_flat = tensor(
+        [[[1.0, 0.0, -1.0, -1.0, 2.0], [2.0, -2.0, 0.0, 0.0, 1.0]]]
+    )
+    expected_quantized = tensor(
+        [
+            [
+                [[1.0, 0.0, -1.0, -1.0, 2.0], [2.0, -2.0, 0.0, 0.0, 1.0]],
+                [[2.0, 1.0, 0.0, 1.0, 1.0], [-1.0, -2.0, 0.0, 2.0, 0.0]],
+            ]
+        ]
+    )
+    assert_expected(actual_quantized_flat, expected_quantized_flat, rtol=0.0, atol=1e-4)
+    assert_expected(actual_quantized, expected_quantized, rtol=0.0, atol=1e-4)
