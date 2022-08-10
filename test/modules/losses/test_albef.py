@@ -11,7 +11,6 @@ from test.test_utils import assert_expected, set_rng_seed
 from torch import Tensor
 from torchmultimodal.modules.losses.albef import (
     ImageTextContrastiveLoss,
-    ImageTextMatchingLoss,
     MaskedLanguageModelingLoss,
 )
 
@@ -76,27 +75,6 @@ class TestImageTextContrastiveLoss:
             sim_i2t, sim_t2i, sim_i2t_m, sim_t2i_m, sim_targets, alpha=0.4
         ).item()
         expected = -0.512445
-        assert_expected(output, expected, rtol=0, atol=1e-4)
-
-
-class TestImageTextMatchingLoss:
-    @pytest.fixture(autouse=True)
-    def setup(self):
-        set_rng_seed(0)
-        self.loss = ImageTextMatchingLoss(hidden_size=3)
-
-    def test_itm_loss_invalid_input_hidden_size(self):
-        # embeddings hidden size (dim 2) should match the hidden size of ImageTextMatchingLoss
-        embeddings_pos = torch.randn(2, 4)
-        embeddings_neg = torch.randn(4, 4)
-        with pytest.raises(RuntimeError):
-            self.loss(embeddings_pos, embeddings_neg)
-
-    def test_itm_loss(self):
-        embeddings_pos = torch.randn(2, 3)
-        embeddings_neg = torch.randn(4, 3)
-        output = self.loss(embeddings_pos, embeddings_neg).item()
-        expected = 0.860578
         assert_expected(output, expected, rtol=0, atol=1e-4)
 
 
