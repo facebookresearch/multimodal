@@ -22,7 +22,7 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
 
 
-def train(model, datamodule, args, checkpoint_root, device):
+def train(model, datamodule, args, device):
     model.train()
 
     model_without_ddp = (
@@ -45,9 +45,7 @@ def train(model, datamodule, args, checkpoint_root, device):
         global_rank=dist_utils.get_rank(),
     )
 
-    dataset_length = len(datamodule.train_dataset)
     start_time = time.time()
-    log_every_n_steps = 100
 
     for epoch in range(args["max_epochs"]):
         if epoch > 0:
@@ -57,7 +55,7 @@ def train(model, datamodule, args, checkpoint_root, device):
             if epoch > 0:
                 alpha = args["alpha"]
             else:
-                alpha = args["alpha"] * min(1, batch / dataset_length)
+                alpha = args["alpha"] * min(1, batch / len(data_loader))
 
             image = image.to(device, non_blocking=True)
             text = text.to(device)
@@ -72,7 +70,7 @@ def train(model, datamodule, args, checkpoint_root, device):
             if epoch == 0 and batch % step_size == 0 and batch <= warmup_iterations:
                 scheduler.step(batch // step_size)
 
-            if batch % log_every_n_steps == 0:
+            if batch % args["log_every_n_steps"] == 0:
                 total_time = time.time() - start_time
                 time_str = "time {},".format(
                     datetime.timedelta(seconds=int(total_time))
@@ -82,34 +80,31 @@ def train(model, datamodule, args, checkpoint_root, device):
                 loss_str = "loss {}".format(loss.item())
                 print(time_str, epoch_str, batch_str, loss_str)
 
-        save_obj = {
-            "model": model_without_ddp.state_dict(),
-            "optimizer": optimizer.state_dict(),
-            "lr_scheduler": scheduler.state_dict(),
-            "epoch": epoch,
-        }
-        torch.save(
-            save_obj,
-            os.path.join(checkpoint_root, "retrieval_checkpoint_%02d.pth" % epoch),
-        )
+        if dist_utils.is_main_process():
+            save_obj = {
+                "model": model_without_ddp.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "lr_scheduler": scheduler.state_dict(),
+                "epoch": epoch,
+            }
+            torch.save(
+                save_obj,
+                os.path.join(
+                    args["checkpoint_root"], "retrieval_checkpoint_%02d.pt" % epoch
+                ),
+            )
+
+        if dist_utils.is_dist_avail_and_initialized():
+            dist.barrier()
+            torch.cuda.empty_cache()
 
 
 @torch.no_grad()
-def evaluation(model, datamodule, k, device):
-    model.eval()
-
-    text_loader = datamodule.text_dataloader()
-    image_loader = datamodule.image_dataloader()
-    num_images = len(datamodule.image_dataset)
-    num_text = len(datamodule.text_dataset)
-
-    start_time = time.time()
-    log_every_n_steps = 100
-
+def encode_text(model, text_dataloader, device):
     text_embeds = []
     text_feats = []
     text_atts = []
-    for text, text_att in text_loader:
+    for text, text_att in text_dataloader:
         text = text.to(device)
         text_att = text_att.to(device)
         text_embed, text_feat = model(
@@ -121,26 +116,44 @@ def evaluation(model, datamodule, k, device):
     text_embeds = torch.cat(text_embeds, dim=0)
     text_feats = torch.cat(text_feats, dim=0)
     text_atts = torch.cat(text_atts, dim=0)
+    return text_embeds, text_feats, text_atts
 
+
+@torch.no_grad()
+def encode_image(model, image_dataloader, device):
     image_embeds = []
     image_feats = []
-    for image in image_loader:
+    for image in image_dataloader:
         image = image.to(device)
         image_embed, image_feat = model(image=image, input_type="image", is_train=False)
         image_embeds.append(image_embed)
         image_feats.append(image_feat)
     image_embeds = torch.cat(image_embeds, dim=0)
     image_feats = torch.cat(image_feats, dim=0)
+    return image_embeds, image_feats
 
-    sims_matrix = image_feats @ text_feats.t()
-    image_to_text_scores = torch.full((num_images, num_text), -100.0).to(device)
 
-    num_tasks = dist_utils.get_world_size()
+@torch.no_grad()
+def image_to_text(
+    model,
+    image_embeds,
+    text_embeds,
+    text_atts,
+    sims_matrix,
+    num_images,
+    num_text,
+    device,
+    args,
+):
+    start_time = time.time()
+    world_size = dist_utils.get_world_size()
     rank = dist_utils.get_rank()
-    step = sims_matrix.size(0) // num_tasks + 1
+    step = sims_matrix.size(0) // world_size + 1
     start = rank * step
     end = min(sims_matrix.size(0), start + step)
+    k = args["k_test"]
 
+    image_to_text_scores = torch.full((num_images, num_text), -100.0).to(device)
     for i, sims in enumerate(sims_matrix[start:end]):
         _, topk_idx = sims.topk(k, dim=0)
 
@@ -153,19 +166,35 @@ def evaluation(model, datamodule, k, device):
         )
         image_to_text_scores[start + i, topk_idx] = score
 
-        if i % log_every_n_steps == 0:
+        if i % args["log_every_n_steps"] == 0:
             total_time = time.time() - start_time
             time_str = "time {},".format(datetime.timedelta(seconds=int(total_time)))
             batch_str = "batch {}/{},".format(i, len(sims_matrix[start:end]))
             print("image to text retrieval", time_str, batch_str)
+    return image_to_text_scores
 
-    sims_matrix = sims_matrix.t()
-    text_to_image_scores = torch.full((num_text, num_images), -100.0).to(device)
 
-    step = sims_matrix.size(0) // num_tasks + 1
+@torch.no_grad()
+def text_to_image(
+    model,
+    image_embeds,
+    text_embeds,
+    text_atts,
+    sims_matrix,
+    num_images,
+    num_text,
+    device,
+    args,
+):
+    start_time = time.time()
+    world_size = dist_utils.get_world_size()
+    rank = dist_utils.get_rank()
+    step = sims_matrix.size(0) // world_size + 1
     start = rank * step
     end = min(sims_matrix.size(0), start + step)
+    k = args["k_test"]
 
+    text_to_image_scores = torch.full((num_text, num_images), -100.0).to(device)
     for i, sims in enumerate(sims_matrix[start:end]):
         _, topk_idx = sims.topk(k, dim=0)
         score = model(
@@ -177,11 +206,51 @@ def evaluation(model, datamodule, k, device):
         )
         text_to_image_scores[start + i, topk_idx] = score
 
-        if i % log_every_n_steps == 0:
+        if i % args["log_every_n_steps"] == 0:
             total_time = time.time() - start_time
             time_str = "time {},".format(datetime.timedelta(seconds=int(total_time)))
             batch_str = "batch {}/{},".format(i, len(sims_matrix[start:end]))
             print("text to image retrieval", time_str, batch_str)
+    return text_to_image_scores
+
+
+@torch.no_grad()
+def evaluation(model, datamodule, args, device):
+    model.eval()
+
+    text_loader = datamodule.text_dataloader()
+    image_loader = datamodule.image_dataloader()
+    num_images = len(datamodule.image_dataset)
+    num_text = len(datamodule.text_dataset)
+
+    text_embeds, text_feats, text_atts = encode_text(model, text_loader, device)
+    image_embeds, image_feats = encode_image(model, image_loader, device)
+
+    sims_matrix = image_feats @ text_feats.t()
+    image_to_text_scores = image_to_text(
+        model,
+        image_embeds,
+        text_embeds,
+        text_atts,
+        sims_matrix,
+        num_images,
+        num_text,
+        device,
+        args,
+    )
+
+    sims_matrix = sims_matrix.t()
+    text_to_image_scores = text_to_image(
+        model,
+        image_embeds,
+        text_embeds,
+        text_atts,
+        sims_matrix,
+        num_images,
+        num_text,
+        device,
+        args,
+    )
 
     if dist_utils.is_dist_avail_and_initialized():
         dist.barrier()
@@ -249,42 +318,59 @@ def itm_eval(
     return eval_result
 
 
+@torch.no_grad()
+def format_output(
+    image_to_text_scores,
+    text_to_image_scores,
+    image_dataset,
+    text_dataset,
+):
+    image_to_text_output = {}
+    for index, score in enumerate(image_to_text_scores):
+        image = image_dataset.images[index]
+        top10_ids = torch.flip(torch.argsort(score), dims=[0])[:10]
+        top10_text = [text_dataset.text[i] for i in top10_ids]
+        image_to_text_output[index] = {
+            "image": image,
+            "output": top10_text,
+        }
+    text_to_image_output = {}
+    for index, score in enumerate(text_to_image_scores):
+        text = text_dataset.text[index]
+        top10_ids = torch.flip(torch.argsort(score), dims=[0])[:10]
+        top10_images = [image_dataset.images[i] for i in top10_ids]
+        text_to_image_output[index] = {
+            "text": text,
+            "output": top10_images,
+        }
+    return image_to_text_output, text_to_image_output
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="./examples/albef/configs/retrieval.yaml")
-    parser.add_argument("--device", default="cuda")
-    parser.add_argument(
-        "--world_size", default=1, type=int, help="number of distributed processes"
-    )
-    parser.add_argument(
-        "--dist_url", default="env://", help="url used to set up distributed training"
-    )
     args = parser.parse_args()
     config = yaml.load(open(args.config, "r"), Loader=yaml.Loader)
 
-    dist_utils.init_distributed_mode(args)
-    device = torch.device(args.device)
+    dist_utils.init_distributed_mode(config)
+    device = torch.device(config["device"])
 
-    seed = 42 + dist_utils.get_rank()
+    seed = config["seed"] + dist_utils.get_rank()
     torch.manual_seed(seed)
     random.seed(seed)
     cudnn.benchmark = True
 
     datamodule = RetrievalDataModule(**config["datamodule_args"])
-    model = albef_model_for_retrieval(config)
-
-    pretrained_checkpoint_path = os.path.join(
-        config["checkpoint_root"], config["pretrained_checkpoint"]
-    )
-    model.load_state_dict(torch.load(pretrained_checkpoint_path, map_location="cpu"))
-
+    model = albef_model_for_retrieval(config, pretrained=True)
     model = model.to(device)
-    if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
+    if dist_utils.is_dist_avail_and_initialized():
+        model = torch.nn.parallel.DistributedDataParallel(
+            model, device_ids=[config["gpu"]]
+        )
 
-    train(model, datamodule, config["training_args"], config["checkpoint_root"], device)
+    train(model, datamodule, config["training_args"], device)
     image_to_text_scores, text_to_image_scores = evaluation(
-        model, datamodule, config["k_test"], device
+        model, datamodule, config["eval_args"], device
     )
     val_result = itm_eval(
         image_to_text_scores,
@@ -292,9 +378,15 @@ def main():
         datamodule.image_dataset.image_to_text,
         datamodule.text_dataset.text_to_image,
     )
+    image_to_text_output, text_to_image_output = format_output(
+        image_to_text_scores,
+        text_to_image_scores,
+        datamodule.image_dataset,
+        datamodule.text_dataset,
+    )
     result = {
-        "image_to_text_scores": image_to_text_scores,
-        "text_to_image_scores": text_to_image_scores,
+        "image_to_text_output": image_to_text_output,
+        "text_to_image_output": text_to_image_output,
         **val_result,
     }
     torch.save(result, config["output_path"])
