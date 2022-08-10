@@ -361,7 +361,6 @@ class TransformerEncoder(nn.Module):
                 for _ in range(n_layer)
             ]
         )
-        self.num_layers = n_layer
 
     def forward(
         self,
