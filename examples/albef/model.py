@@ -21,15 +21,10 @@ from torchmultimodal.modules.encoders.albef_text_encoder import (
 from torchmultimodal.modules.encoders.albef_vision_encoder import ALBEFVisionEncoder
 from torchmultimodal.modules.losses.albef import (
     ImageTextContrastiveLoss,
-    ImageTextMatchingLoss,
     MaskedLanguageModelingLoss,
 )
 from torchmultimodal.utils.attention import get_causal_attention_mask
-from torchmultimodal.utils.common import (
-    load_module_from_url,
-    momentum_update,
-    remove_grad,
-)
+from torchmultimodal.utils.common import momentum_update, remove_grad
 
 
 _ALBEF_PRETRAINED_URLS = {
@@ -442,7 +437,7 @@ class ALBEFModelForRetrieval(nn.Module):
     Args:
         model_with_similarity (ALBEFModelWithSimilarity): Instantiated ALBEFModelWithSimilarity.
         itc_loss (ImageTextContrastiveLoss): Instantiated ImageTextContrastiveLoss.
-        itm_loss (ImageTextMatchingLoss): Instantiated ImageTextMatchingLoss.
+        hidden_size (int): Dimensionality of encoder outputs.
 
     Inputs:
         image (Optional[Tensor] of shape (B, C, H, W)): Image features.
@@ -479,14 +474,12 @@ class ALBEFModelForRetrieval(nn.Module):
         self,
         model_with_similarity: ALBEFModelWithSimilarity,
         itc_loss: ImageTextContrastiveLoss,
-        itm_loss: ImageTextMatchingLoss,
+        hidden_size: int,
     ) -> None:
         super().__init__()
-        self.model_with_similarity = (
-            model_with_similarity  # TODO: rename model to model_with_similarity
-        )
+        self.model_with_similarity = model_with_similarity
         self.itc_loss = itc_loss
-        self.itm_loss = itm_loss
+        self.itm_head = nn.Linear(hidden_size, 2)
 
     def _train_forward(
         self,
@@ -498,6 +491,7 @@ class ALBEFModelForRetrieval(nn.Module):
     ) -> Tensor:
         encoder_output = self.model_with_similarity(image, text, text_atts, idx)
 
+        # compute image-text contrastive loss
         similarity_outputs = encoder_output.similarity
         similarity_targets = encoder_output.sim_targets
         itc_loss = self.itc_loss(
@@ -509,12 +503,59 @@ class ALBEFModelForRetrieval(nn.Module):
             alpha,
         )
 
+        # compute image-text matching loss
         pos_embeddings = encoder_output.multimodal_embeddings[:, 0, :]
         neg_embeddings = encoder_output.multimodal_embeddings_neg[:, 0, :]
-        itm_loss = self.itm_loss(pos_embeddings, neg_embeddings)
+        vl_embeddings = torch.cat([pos_embeddings, neg_embeddings], dim=0)
+        vl_output = self.itm_head(vl_embeddings)
+        itm_labels = torch.cat(
+            [
+                torch.ones(pos_embeddings.size(0), dtype=torch.long),
+                torch.zeros(neg_embeddings.size(0), dtype=torch.long),
+            ],
+            dim=0,
+        ).to(vl_embeddings.device)
+        itm_loss = F.cross_entropy(vl_output, itm_labels)
 
         loss = itc_loss + itm_loss
         return loss
+
+    def _encode_image(
+        self,
+        image: Tensor,
+    ) -> Tuple[Tensor, Tensor]:
+        image_embed = self.model_with_similarity.albef_model.vision_encoder(image)
+        image_feat = F.normalize(
+            self.model_with_similarity.vision_proj(image_embed[:, 0, :]), dim=-1
+        )
+        return image_embed, image_feat
+
+    def _encode_text(
+        self,
+        text: Tensor,
+        text_atts: Tensor,
+    ) -> Tuple[Tensor, Tensor]:
+        text_embed = self.model_with_similarity.albef_model.text_encoder(
+            text, text_atts
+        )
+        text_feat = F.normalize(
+            self.model_with_similarity.text_proj(text_embed[:, 0, :]), dim=-1
+        )
+        return text_embed, text_feat
+
+    def _image_text_matching_score(
+        self,
+        image: Tensor,
+        text: Tensor,
+        text_atts: Tensor,
+    ) -> Tensor:
+        multimodal_embeds = self.model_with_similarity.albef_model.multimodal_encoder(
+            text,
+            text_atts,
+            image,
+        )
+        score = self.itm_head(multimodal_embeds[:, 0, :])[:, 1]
+        return score
 
     def _eval_forward(
         self,
@@ -525,35 +566,20 @@ class ALBEFModelForRetrieval(nn.Module):
     ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         if input_type == "image":
             assert image is not None, "image input tensor cannot be None"
-            image_embed = self.model_with_similarity.albef_model.vision_encoder(image)
-            image_feat = F.normalize(
-                self.model_with_similarity.vision_proj(image_embed[:, 0, :]), dim=-1
-            )
-            return image_embed, image_feat
+            return self._encode_image(image)
+
         elif input_type == "text":
             assert (
                 text is not None and text_atts is not None
             ), "text and text attention mask cannot be None"
-            text_embed = self.model_with_similarity.albef_model.text_encoder(
-                text, text_atts
-            )
-            text_feat = F.normalize(
-                self.model_with_similarity.text_proj(text_embed[:, 0, :]), dim=-1
-            )
-            return text_embed, text_feat
+            return self._encode_text(text, text_atts)
+
         elif input_type == "multimodal":
             assert (
                 image is not None and text is not None and text_atts is not None
             ), "image embeddings, text embeddings, and text attention mask cannot be None"
-            multimodal_embeds = (
-                self.model_with_similarity.albef_model.multimodal_encoder(
-                    text,
-                    text_atts,
-                    image,
-                )
-            )
-            score = self.itm_loss.itm_head(multimodal_embeds[:, 0, :])[:, 1]
-            return score
+            return self._image_text_matching_score(image, text, text_atts)
+
         else:
             raise ValueError("input_type must be image, text, or multimodal")
 
@@ -601,11 +627,16 @@ def albef_model_for_vqa(config: dict, pretrained: bool = False) -> ALBEFModelFor
     model = ALBEFModelForVQA(albef_model, decoder, loss)
 
     if pretrained:
-        load_module_from_url(model, _ALBEF_PRETRAINED_URLS["vqa"])
+        checkpoint = torch.hub.load_state_dict_from_url(
+            _ALBEF_PRETRAINED_URLS["vqa"], map_location="cpu"
+        )
+        model.load_state_dict(checkpoint)
     return model
 
 
-def albef_model_for_retrieval(config: dict) -> ALBEFModelForRetrieval:
+def albef_model_for_retrieval(
+    config: dict, pretrained: bool = False
+) -> ALBEFModelForRetrieval:
     vision_encoder = ALBEFVisionEncoder(**config["vision_encoder_args"])
     text_encoder = ALBEFTextEncoder(**config["text_encoder_args"])
     multimodal_encoder = ALBEFMultimodalEncoder(**config["multimodal_encoder_args"])
@@ -617,6 +648,14 @@ def albef_model_for_retrieval(config: dict) -> ALBEFModelForRetrieval:
         albef_model, vision_proj, text_proj, **config["similarity_args"]
     )
     itc_loss = ImageTextContrastiveLoss()
-    itm_loss = ImageTextMatchingLoss()
 
-    return ALBEFModelForRetrieval(albef_model_with_sim, itc_loss, itm_loss)
+    model = ALBEFModelForRetrieval(
+        albef_model_with_sim, itc_loss, config["hidden_size"]
+    )
+
+    if pretrained:
+        checkpoint = torch.hub.load_state_dict_from_url(
+            _ALBEF_PRETRAINED_URLS["retrieval"], map_location="cpu"
+        )
+        model.load_state_dict(checkpoint)
+    return model

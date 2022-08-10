@@ -5,11 +5,11 @@ max_position_embeddings: &max_position_embeddings 512
 pad_token_id: &pad_token_id 0
 embed_size: &embed_size 256
 
-k_test: 256
-checkpoint_root: "./examples/albef/checkpoints"
-pretrained_checkpoint: "pretrained_retrieval_checkpoint.pth"
-output_path: "./examples/albef/outputs/retrieval_output.pth"
-
+seed: 42
+world_size: 1
+device: "cuda"
+dist_url: "env://"
+output_path: "./examples/albef/outputs/retrieval_output.pt"
 
 datamodule_args:
   train_files: ["./examples/albef/data_files/coco_train.json"]
@@ -57,6 +57,7 @@ similarity_args:
   temp: 0.07
 
 training_args:
+  log_every_n_steps: 100
   alpha: 0.4
   weight_decay: 0.02
   lr: 1e-5
@@ -64,3 +65,8 @@ training_args:
   max_epochs: 5
   step_size: 100
   warmup_steps: 1
+  checkpoint_root: "./examples/albef/checkpoints"
+
+eval_args:
+  log_every_n_steps: 100
+  k_test: 256
