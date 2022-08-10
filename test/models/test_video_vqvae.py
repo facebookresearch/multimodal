@@ -10,6 +10,7 @@ from test.test_utils import assert_expected, set_rng_seed
 
 from torchmultimodal.models.video_vqvae import (
     AttentionResidualBlock,
+    preprocess_int_conv_params,
     video_vqvae,
     VideoDecoder,
     VideoEncoder,
@@ -73,20 +74,34 @@ class TestAttentionResidualBlock:
 class TestVideoEncoder:
     @pytest.fixture
     def encoder(self, params):
-        in_channel_dims, _, kernel_sizes, strides = params
-        enc = VideoEncoder(
-            in_channel_dims=in_channel_dims,
-            kernel_sizes=kernel_sizes,
-            strides=strides,
-            output_dim=2,
-            n_res_layers=1,
-            attn_hidden_dim=2,
-        )
-        enc.eval()
-        return enc
+        in_channel_dims, _, kernel_sizes, _ = params
 
-    def test_forward(self, input_tensor, encoder):
-        actual = encoder(input_tensor)
+        def get_encoder(strides):
+            enc = VideoEncoder(
+                in_channel_dims=in_channel_dims,
+                kernel_sizes=kernel_sizes,
+                strides=strides,
+                output_dim=2,
+                n_res_layers=1,
+                attn_hidden_dim=2,
+            )
+            enc.eval()
+            return enc
+
+        return get_encoder
+
+    @pytest.fixture
+    def uneven_strides(self):
+        return ((2, 2, 2), (1, 2, 2))
+
+    @pytest.fixture
+    def big_input(self):
+        return torch.ones(1, 2, 4, 8, 8)
+
+    def test_forward(self, input_tensor, encoder, params):
+        strides = params[-1]
+        model = encoder(strides)
+        actual = model(input_tensor)
         expected = torch.tensor(
             [
                 [
@@ -102,6 +117,13 @@ class TestVideoEncoder:
             ]
         )
         assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+    def test_latent_shape(self, big_input, encoder, uneven_strides):
+        downsampler = encoder(uneven_strides)
+        output = downsampler(big_input)
+        actual = output.shape[2:]
+        expected = downsampler.get_latent_shape(big_input.shape[2:])
+        assert_expected(actual, expected)
 
 
 class TestVideoDecoder:
@@ -140,19 +162,21 @@ class TestVideoDecoder:
 
 class TestVideoVQVAE:
     @pytest.fixture(scope="function")
-    def vv(self, params):
-        in_channel_dims, out_channel_dims, kernel_sizes, strides = params
+    def vv(self):
         model = video_vqvae(
-            encoder_in_channel_dims=in_channel_dims,
-            encoder_kernel_sizes=kernel_sizes[0][0],
-            encoder_strides=strides[0][0],
+            in_channel_dim=2,
+            encoder_hidden_dim=2,
+            encoder_kernel_size=2,
+            encoder_stride=1,
+            encoder_n_layers=2,
             n_res_layers=1,
             attn_hidden_dim=2,
             num_embeddings=8,
             embedding_dim=2,
-            decoder_out_channel_dims=out_channel_dims,
-            decoder_kernel_sizes=kernel_sizes[0][0],
-            decoder_strides=strides[0][0],
+            decoder_hidden_dim=2,
+            decoder_kernel_size=2,
+            decoder_stride=1,
+            decoder_n_layers=2,
         )
         model.eval()
         return model
@@ -271,3 +295,24 @@ class TestVideoVQVAE:
         actual_codebook_indices = out.codebook_output.codebook_indices
         expected_codebook_indices = expected_out.codebook_indices
         assert_expected(actual_codebook_indices, expected_codebook_indices)
+
+
+def test_preprocess_int_conv_params():
+    channels = (3, 3, 3)
+    kernel = 2
+    stride = 1
+    expected_kernel = torch.tensor(((2, 2, 2), (2, 2, 2), (2, 2, 2)))
+    expected_stride = torch.tensor(((1, 1, 1), (1, 1, 1), (1, 1, 1)))
+    actual_kernel, actual_stride = preprocess_int_conv_params(channels, kernel, stride)
+    actual_kernel = torch.tensor(actual_kernel)
+    actual_stride = torch.tensor(actual_stride)
+    assert_expected(actual_kernel, expected_kernel)
+    assert_expected(actual_stride, expected_stride)
+
+    actual_kernel = preprocess_int_conv_params(channels, kernel_sizes=kernel)
+    actual_kernel = torch.tensor(actual_kernel)
+    assert_expected(actual_kernel, expected_kernel)
+
+    actual_stride = preprocess_int_conv_params(channels, strides=stride)
+    actual_stride = torch.tensor(actual_stride)
+    assert_expected(actual_stride, expected_stride)
