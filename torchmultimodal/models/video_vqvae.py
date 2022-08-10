@@ -4,9 +4,9 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Any, cast, List, Tuple
+from typing import Any, cast, List, Optional, Tuple, Union
 
-from torch import nn, Tensor
+from torch import nn, Size, Tensor
 
 from torchmultimodal.models.vqvae import VQVAE
 from torchmultimodal.modules.layers.attention import AxialAttentionBlock
@@ -14,47 +14,57 @@ from torchmultimodal.modules.layers.conv import SamePadConv3d, SamePadConvTransp
 from torchmultimodal.utils.assertion import assert_equal_lengths
 from torchmultimodal.utils.common import to_tuple_tuple
 
-DEFAULT_ENCODER_IN_CHANNEL_DIMS = (3, 240, 240, 240, 240, 240)
-DEFAULT_DECODER_OUT_CHANNEL_DIMS = (240, 240, 240, 240, 3)
-
 
 def video_vqvae(
-    encoder_in_channel_dims: Tuple[int, ...] = DEFAULT_ENCODER_IN_CHANNEL_DIMS,
-    encoder_kernel_sizes: int = 4,
-    encoder_strides: int = 2,
-    n_res_layers: int = 4,
-    attn_hidden_dim: int = 240,
-    num_embeddings: int = 2048,
-    embedding_dim: int = 256,
-    decoder_out_channel_dims: Tuple[int, ...] = DEFAULT_DECODER_OUT_CHANNEL_DIMS,
-    decoder_kernel_sizes: int = 4,
-    decoder_strides: int = 2,
+    in_channel_dim: int,
+    encoder_hidden_dim: int,
+    encoder_kernel_size: int,
+    encoder_stride: int,
+    encoder_n_layers: int,
+    n_res_layers: int,
+    attn_hidden_dim: int,
+    num_embeddings: int,
+    embedding_dim: int,
+    decoder_hidden_dim: int,
+    decoder_kernel_size: int,
+    decoder_stride: int,
+    decoder_n_layers: int,
 ) -> VQVAE:
-    """Construct Video VQVAE with default parameters used in VideoGPT (Yan et al. 2022). Code ref:
-    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
+    """Generic Video VQVAE builder
 
     Args:
-        encoder_in_channel_dims (Tuple[int, ...], optional): See ``VideoEncoder``. Defaults to (3, 240, 240, 240, 240, 240).
-        encoder_kernel_sizes (int, optional): See ``VideoEncoder``. Defaults to 4.
-        encoder_strides (int, optional): See ``VideoEncoder``. Defaults to 2.
-        n_res_layers (int, optional): See ``VideoEncoder``. Used in both encoder and decoder. Defaults to 4.
-        attn_hidden_dim (int, optional): See ``VideoEncoder``. Used in both encoder and decoder. Defaults to 240.
-        num_embeddings (int, optional): Number of embedding vectors used in ``Codebook``. Defaults to 2048.
-        embedding_dim (int, optional): Dimensionality of embedding vectors in ``Codebook``. Defaults to 256.
-        decoder_out_channel_dims (Tuple[int, ...], optional): See ``VideoDecoder``. Defaults to (240, 240, 240, 240, 3).
-        decoder_kernel_sizes (int, optional): See ``VideoDecoder``. Defaults to 3.
-        decoder_strides (int, optional): See ``VideoDecoder``. Defaults to 2.
+        in_channel_dim (int, optional): Size of channel dim in input.
+        encoder_hidden_dim (int, optional): Size of channel dims in encoder conv layers.
+        encoder_kernel_size (int, optional): Kernel size for encoder.
+        encoder_stride (int, optional): Stride for encoder.
+        encoder_n_layers (int, optional): Number of layers in encoder. Does not include attention stack and pre-codebook conv layer.
+        n_res_layers (int, optional): Number of ``AttentionResidualBlocks`` to include in encoder and decoder.
+        attn_hidden_dim (int, optional): Size of hidden dim of ``AttentionResidualBlocks``.
+        num_embeddings (int, optional): Number of embedding vectors used in ``Codebook``.
+        embedding_dim (int, optional): Dimensionality of embedding vectors in ``Codebook``.
+        decoder_hidden_dim (int, optional): Size of channel dims in decoder conv tranpose layers.
+        decoder_kernel_size (int, optional): Kernel size for decoder.
+        decoder_stride (int, optional): Stride for decoder.
+        decoder_n_layers (int, optional): Number of layers in decoder. Does not include attention stack and
+            post-codebook conv transpose layer.
 
     Returns:
         VQVAE: constructed ``VQVAE`` model using ``VideoEncoder``, ``Codebook``, and ``VideoDecoder``
     """
 
-    # Reformat kernel and strides to be tuple of tuple for encoder/decoder constructors
-    encoder_kernel_sizes_fixed, encoder_strides_fixed = _preprocess_int_conv_params(
-        encoder_in_channel_dims, encoder_kernel_sizes, encoder_strides
+    encoder_in_channel_dims = (in_channel_dim,) + (encoder_hidden_dim,) * max(
+        encoder_n_layers - 1, 0
     )
-    decoder_kernel_sizes_fixed, decoder_strides_fixed = _preprocess_int_conv_params(
-        decoder_out_channel_dims, decoder_kernel_sizes, decoder_strides
+    decoder_out_channel_dims = (decoder_hidden_dim,) * max(decoder_n_layers - 1, 0) + (
+        in_channel_dim,
+    )
+
+    # Reformat kernel and strides to be tuple of tuple for encoder/decoder constructors
+    encoder_kernel_sizes_fixed, encoder_strides_fixed = preprocess_int_conv_params(
+        encoder_in_channel_dims, encoder_kernel_size, encoder_stride
+    )
+    decoder_kernel_sizes_fixed, decoder_strides_fixed = preprocess_int_conv_params(
+        decoder_out_channel_dims, decoder_kernel_size, decoder_stride
     )
 
     encoder = VideoEncoder(
@@ -150,6 +160,19 @@ class VideoEncoder(nn.Module):
         self.conv_out = SamePadConv3d(
             attn_hidden_dim, output_dim, kernel_size=1, stride=1
         )
+
+    def get_latent_shape(self, input_shape: Union[Tuple, Size]) -> Tuple:
+        """Return shape of encoder output based on number of downsampling conv layers"""
+        latent_shape = list(input_shape)
+        for layer in self.convs:  # ignore conv_out since it has a stride of 1
+            if isinstance(layer, SamePadConv3d):
+                # SamePadConv should downsample input shape by factor of stride
+                latent_shape = [
+                    latent_shape[dim] // layer.conv.stride[dim]
+                    for dim in range(len(input_shape))
+                ]
+
+        return tuple(latent_shape)
 
     def forward(self, x: Tensor) -> Tensor:
         in_channel = x.shape[1]
@@ -285,18 +308,29 @@ class AttentionResidualBlock(nn.Module):
         return x + self.block(x)
 
 
-def _preprocess_int_conv_params(
+def preprocess_int_conv_params(
     channel_dims: Tuple[int, ...],
-    kernel_sizes: int,
-    strides: int,
-) -> Tuple[Tuple, Tuple]:
+    kernel_sizes: Optional[int] = None,
+    strides: Optional[int] = None,
+) -> Tuple:
     """Reformats conv params from int to tuple of tuple and assigns correct type"""
+    if kernel_sizes is None and strides is None:
+        raise ValueError("must specify at least one of kernel_sizes or strides")
+    kernel_sizes_fixed = None
+    strides_fixed = None
     n_conv_layers = len(channel_dims)
-    kernel_sizes_fixed = to_tuple_tuple(
-        kernel_sizes, dim_tuple=3, num_tuple=n_conv_layers
-    )
-    kernel_sizes_fixed = cast(Tuple[Tuple[int, int, int], ...], kernel_sizes_fixed)
-    strides_fixed = to_tuple_tuple(strides, dim_tuple=3, num_tuple=n_conv_layers)
-    strides_fixed = cast(Tuple[Tuple[int, int, int], ...], strides_fixed)
+    if kernel_sizes:
+        kernel_sizes_fixed = to_tuple_tuple(
+            kernel_sizes, dim_tuple=3, num_tuple=n_conv_layers
+        )
+        kernel_sizes_fixed = cast(Tuple[Tuple[int, int, int], ...], kernel_sizes_fixed)
+    if strides:
+        strides_fixed = to_tuple_tuple(strides, dim_tuple=3, num_tuple=n_conv_layers)
+        strides_fixed = cast(Tuple[Tuple[int, int, int], ...], strides_fixed)
 
-    return kernel_sizes_fixed, strides_fixed
+    if kernel_sizes_fixed and strides_fixed:
+        return kernel_sizes_fixed, strides_fixed
+    elif kernel_sizes_fixed:
+        return kernel_sizes_fixed
+    else:
+        return strides_fixed
