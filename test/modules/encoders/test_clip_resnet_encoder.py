@@ -7,20 +7,22 @@
 import pytest
 
 import torch
-from test.test_utils import assert_expected
+from test.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.modules.encoders.clip_resnet_encoder import ResNetForCLIP
 from torchmultimodal.utils.common import get_current_device
 
 
+@pytest.fixture(autouse=True)
+def set_seed():
+    set_rng_seed(1234)
+
+
+@pytest.fixture
+def device():
+    return get_current_device()
+
+
 class TestResnetEncoder:
-    @pytest.fixture(autouse=True)
-    def set_seed(self):
-        torch.manual_seed(1234)
-
-    @pytest.fixture
-    def device(self):
-        return get_current_device()
-
     def test_resnet(self, device):
         resnet = ResNetForCLIP(
             layers=(3, 4, 6, 3),
