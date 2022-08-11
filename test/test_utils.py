@@ -82,12 +82,33 @@ def assert_expected(actual: Any, expected: Any, rtol: float = None, atol: float 
     )
 
 
+def tuple_to_dict(t):
+    if not isinstance(t, tuple):
+        raise TypeError(f"Input must be of type tuple but got {type(t)}")
+
+    return {k: v for k, v in enumerate(t)}
+
+
+def is_named_tuple(nt):
+    # namedtuple is a subclass of tuple with additional attributes
+    # we verify specifically here the attribute `_fields` which should be a tuple of field names
+    # from the namedtuple instance
+    if not isinstance(nt, tuple):
+        return False
+    f = getattr(nt, "_fields", None)
+    if not isinstance(f, tuple):
+        return False
+    return all(type(name) == str for name in f)
+
+
 def assert_expected_wrapper(actual, expected):
     """Helper function that calls assert_expected recursively on nested Dict/NamedTuple"""
     # convert NamedTuple to dictionary
-    if isinstance(actual, tuple) and hasattr(
-        actual, "_asdict"
-    ):  # hacky way to assert an instance of NamedTuple
+    if is_named_tuple(actual):
+        # Do this for safety.  _asdict is a public method as of python 3.8:
+        # https://docs.python.org/3/library/collections.html#collections.somenamedtuple._asdict
+        if not hasattr(actual, "_asdict"):
+            raise AttributeError(f"{actual} must have the attribute `_asdict`.")
         actual = actual._asdict()
 
     if not isinstance(actual, Dict):
@@ -108,6 +129,9 @@ def assert_expected_wrapper(actual, expected):
         elif isinstance(_actual, tuple):
             # outputs are from multiple layers: (Tensor, Tensor, ...)
             assert_expected_wrapper(tuple_to_dict(_actual), tuple_to_dict(_expected))
+        elif is_named_tuple(_actual):
+            # output is another named tuple instance
+            assert_expected_wrapper(_actual, _expected)
         elif isinstance(_actual, Tensor):
             # single tensor output
             _expected_shape, _expected_sum = _expected
