@@ -433,6 +433,13 @@ class ALBEFModelForVQA(nn.Module):
 class ALBEFModelForRetrieval(nn.Module):
     """
     ALBEF Model for Retrieval finetuning and inference.
+    In training mode, the forward step computes image-text contrastive loss and
+    image-text matching loss.
+    In evaluation mode, the forward step takes 3 types of input:
+        image: encode image input, project and normalize the embeddings.
+        text: encode text input, project and normalize the embeddings.
+        multimodal: create multimodal embeddings from image and text
+            embeddings, and compute image-text matching scores.
 
     Args:
         model_with_similarity (ALBEFModelWithSimilarity): Instantiated ALBEFModelWithSimilarity.
