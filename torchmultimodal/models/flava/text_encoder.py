@@ -10,12 +10,12 @@ from typing import Any, Callable, Optional
 import torch
 from packaging import version
 from torch import nn, Tensor
-from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
-from torchmultimodal.modules.layers.transformer import (
+from torchmultimodal.models.flava.transformer import (
     FLAVATransformerEncoder,
     FLAVATransformerOutput,
     init_transformer_weights,
 )
+from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.modules.losses.flava import Pooler
 from torchmultimodal.utils.attention import get_extended_attention_mask
 

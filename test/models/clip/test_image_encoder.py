@@ -8,7 +8,7 @@ import pytest
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.modules.encoders.clip_resnet_encoder import ResNetForCLIP
+from torchmultimodal.models.clip.image_encoder import ResNetForCLIP
 from torchmultimodal.utils.common import get_current_device
 
 

@@ -8,7 +8,7 @@ import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import Tensor
-from torchmultimodal.modules.encoders.albef_text_encoder import ALBEFTextEncoder
+from torchmultimodal.models.albef.text_encoder import ALBEFTextEncoder
 
 
 @pytest.fixture(autouse=True)

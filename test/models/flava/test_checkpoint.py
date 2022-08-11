@@ -7,7 +7,7 @@
 import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.models.flava.flava_model import (
+from torchmultimodal.models.flava.model import (
     flava_model,
     flava_model_for_classification,
     flava_model_for_pretraining,

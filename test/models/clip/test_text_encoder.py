@@ -9,7 +9,7 @@ from math import inf
 import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.modules.encoders.clip_text_encoder import CLIPTextEncoder
+from torchmultimodal.models.clip.text_encoder import CLIPTextEncoder
 
 
 class TestCLIPTextEncoder:
