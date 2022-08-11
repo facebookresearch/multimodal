@@ -6,7 +6,7 @@
 
 import pytest
 import torch
-from test.test_utils import assert_expected, set_rng_seed
+from test.test_utils import assert_expected, assert_expected_wrapper, set_rng_seed
 
 from torchmultimodal.models.video_vqvae import (
     AttentionResidualBlock,
@@ -15,7 +15,6 @@ from torchmultimodal.models.video_vqvae import (
     VideoDecoder,
     VideoEncoder,
 )
-from torchmultimodal.modules.layers.codebook import CodebookOutput
 
 
 @pytest.fixture(autouse=True)
@@ -161,7 +160,7 @@ class TestVideoDecoder:
 
 
 class TestVideoVQVAE:
-    @pytest.fixture(scope="function")
+    @pytest.fixture
     def vv(self):
         model = video_vqvae(
             in_channel_dim=2,
@@ -181,9 +180,9 @@ class TestVideoVQVAE:
         model.eval()
         return model
 
-    @pytest.fixture(scope="class")
-    def test_data(self):
-        decoded = torch.tensor(
+    @pytest.fixture
+    def expected_decoded(self):
+        return torch.tensor(
             [
                 [
                     [
@@ -197,8 +196,11 @@ class TestVideoVQVAE:
                 ]
             ]
         )
-        out = CodebookOutput(
-            encoded_flat=torch.tensor(
+
+    @pytest.fixture
+    def expected_codebook_output(self):
+        return {
+            "encoded_flat": torch.tensor(
                 [
                     [-0.6480, -0.1906],
                     [-0.5961, -0.1636],
@@ -210,7 +212,7 @@ class TestVideoVQVAE:
                     [-0.5710, -0.1510],
                 ]
             ),
-            quantized_flat=torch.tensor(
+            "quantized_flat": torch.tensor(
                 [
                     [-0.1801, 0.2553],
                     [-0.1801, 0.2553],
@@ -222,8 +224,15 @@ class TestVideoVQVAE:
                     [-0.1801, 0.2553],
                 ]
             ),
-            codebook_indices=torch.tensor([4, 4, 4, 4, 4, 4, 4, 4]),
-            quantized=torch.tensor(
+            "codebook_indices": torch.tensor(
+                [
+                    [
+                        [[4, 4], [4, 4]],
+                        [[4, 4], [4, 4]],
+                    ],
+                ]
+            ),
+            "quantized": torch.tensor(
                 [
                     [
                         [
@@ -237,50 +246,41 @@ class TestVideoVQVAE:
                     ]
                 ]
             ),
-        )
-        return decoded, out
+        }
 
-    def test_encode(self, vv, input_tensor, test_data):
-        _, expected_out = test_data
-        out = vv.encode(input_tensor)
-        actual_quantized = out.quantized
-        expected_quantized = expected_out.quantized
-        assert_expected(actual_quantized, expected_quantized, rtol=0, atol=1e-4)
-
-        actual_encoded_flat = out.encoded_flat
-        expected_encoded_flat = expected_out.encoded_flat
-        assert_expected(actual_encoded_flat, expected_encoded_flat, rtol=0, atol=1e-4)
-
-        actual_codebook_indices = out.codebook_indices
-        expected_codebook_indices = expected_out.codebook_indices
-        assert_expected(actual_codebook_indices, expected_codebook_indices)
-
-    def test_decode(self, vv, input_tensor):
-        actual = vv.decode(input_tensor)
-        expected = torch.tensor(
+    @pytest.fixture
+    def indices(self):
+        return torch.tensor(
             [
                 [
-                    [
-                        [[0.1279, 0.1485], [0.1215, 0.1099]],
-                        [[0.0885, 0.1093], [0.0869, 0.0764]],
-                    ],
-                    [
-                        [[0.1915, 0.1300], [0.1632, 0.0759]],
-                        [[0.1178, 0.0366], [0.1071, 0.0526]],
-                    ],
-                ]
+                    [[4, 4], [4, 4]],
+                    [[4, 4], [4, 4]],
+                ],
             ]
         )
+
+    def test_encode(self, vv, input_tensor, indices):
+        actual_codebook_indices = vv.encode(input_tensor)
+        expected_codebook_indices = indices
+        assert_expected(actual_codebook_indices, expected_codebook_indices)
+
+    def test_decode(self, vv, indices, expected_decoded):
+        actual = vv.decode(indices)
+        expected = expected_decoded
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
-    def test_tokenize(self, vv, input_tensor, test_data):
-        expected = test_data[1].quantized_flat
-        actual = vv.tokenize(input_tensor)
-        assert_expected(actual, expected, rtol=0, atol=1e-4)
+    def test_forward(
+        self, vv, input_tensor, expected_decoded, expected_codebook_output
+    ):
+        actual = vv(input_tensor)
+        expected = {
+            "decoded": expected_decoded,
+            "codebook_output": expected_codebook_output,
+        }
 
-    def test_forward(self, vv, input_tensor, test_data):
-        expected_decoded, expected_out = test_data
-        out = vv(input_tensor)
+        assert_expected_wrapper(actual, expected, rtol=0, atol=1e-4)
+
+        """
         actual_decoded = out.decoded
         assert_expected(actual_decoded, expected_decoded, rtol=0, atol=1e-4)
 
@@ -295,6 +295,7 @@ class TestVideoVQVAE:
         actual_codebook_indices = out.codebook_output.codebook_indices
         expected_codebook_indices = expected_out.codebook_indices
         assert_expected(actual_codebook_indices, expected_codebook_indices)
+        """
 
 
 def test_preprocess_int_conv_params():
