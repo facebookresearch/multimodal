@@ -14,18 +14,47 @@ from torchmultimodal.models.vqvae import VQVAE
 from torchmultimodal.modules.layers.codebook import CodebookOutput
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(autouse=True)
 def random():
     set_rng_seed(4)
 
 
+@pytest.fixture
+def num_embeddings():
+    return 4
+
+
+@pytest.fixture
+def embedding_dim():
+    return 2
+
+
+@pytest.fixture
+def encoder():
+    enc = nn.Linear(2, 2, bias=False)
+    enc.weight = nn.Parameter(torch.tensor([[1.0, 2.0], [3.0, 4.0]]))
+    return enc
+
+
+@pytest.fixture
+def decoder():
+    dec = nn.Linear(2, 2, bias=False)
+    dec.weight = nn.Parameter(torch.tensor([[1.0, 2.0], [3.0, 4.0]]))
+    return dec
+
+
+@pytest.fixture
+def vqvae(encoder, decoder, num_embeddings, embedding_dim):
+    return VQVAE(encoder, decoder, num_embeddings, embedding_dim)
+
+
 class TestVQVAE:
-    @pytest.fixture(scope="class")
+    @pytest.fixture
     def decoder_input(self):
         d = torch.tensor([[[[3.0, 7.0], [6.0, 14.0]], [[9.0, 21.0], [12.0, 28.0]]]])
         return d
 
-    @pytest.fixture(scope="class")
+    @pytest.fixture
     def test_data(self, decoder_input):
         x = torch.tensor([[[[1.0, 1.0], [2.0, 2.0]], [[3.0, 3.0], [4.0, 4.0]]]])
         expected_decoded = torch.tensor(
@@ -39,25 +68,9 @@ class TestVQVAE:
             quantized_flat=torch.tensor(
                 [[3.0, 9.0], [7.0, 21.0], [6.0, 12.0], [14.0, 28.0]]
             ),
-            codebook_indices=torch.tensor([3, 2, 1, 0]),
+            codebook_indices=torch.tensor([1, 3, 0, 2]),
         )
         return x, expected_decoded, expected_out
-
-    @pytest.fixture(scope="class")
-    def encoder(self):
-        enc = nn.Linear(2, 2, bias=False)
-        enc.weight = nn.Parameter(torch.tensor([[1.0, 2.0], [3.0, 4.0]]))
-        return enc
-
-    @pytest.fixture(scope="class")
-    def decoder(self):
-        dec = nn.Linear(2, 2, bias=False)
-        dec.weight = nn.Parameter(torch.tensor([[1.0, 2.0], [3.0, 4.0]]))
-        return dec
-
-    @pytest.fixture(scope="class")
-    def vqvae(self, encoder, decoder, random):
-        return VQVAE(encoder, decoder, 4, 2)
 
     def test_encode(self, test_data, vqvae):
         x, _, expected_out = test_data
