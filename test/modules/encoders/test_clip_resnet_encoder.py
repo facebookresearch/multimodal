@@ -4,29 +4,36 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import unittest
+import pytest
 
 import torch
+from test.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.modules.encoders.clip_resnet_encoder import ResNetForCLIP
 from torchmultimodal.utils.common import get_current_device
 
 
-class TestCLIPModule(unittest.TestCase):
-    def setUp(self):
-        torch.manual_seed(1234)
-        self.device = get_current_device()
+@pytest.fixture(autouse=True)
+def set_seed():
+    set_rng_seed(1234)
 
-    def test_resnet(self):
+
+@pytest.fixture
+def device():
+    return get_current_device()
+
+
+class TestResnetEncoder:
+    def test_resnet(self, device):
         resnet = ResNetForCLIP(
             layers=(3, 4, 6, 3),
             output_dim=512,
             heads=1024,
         )
 
-        self.assertTrue(isinstance(resnet, torch.nn.Module))
+        assert isinstance(resnet, torch.nn.Module)
         image = torch.randn(3, 224, 224).unsqueeze(0)
-        resnet = resnet.to(self.device)
+        resnet = resnet.to(device)
 
         scores = resnet(image)
-        self.assertEqual(scores.size(), torch.Size((1, 512)))
-        self.assertAlmostEqual(scores.sum().item(), 2.1351, 3)
+        assert_expected(actual=scores.size(), expected=torch.Size((1, 512)))
+        assert_expected(actual=scores.sum().item(), expected=2.1351, rtol=0, atol=1e-3)
