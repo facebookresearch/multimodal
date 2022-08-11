@@ -9,7 +9,7 @@ import random
 import tempfile
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, NamedTuple, Optional
 
 import torch
 import torch.distributed as dist
@@ -72,7 +72,12 @@ def get_asset_path(file_name: str) -> str:
     return str(_ASSET_DIR.joinpath(file_name))
 
 
-def assert_expected(actual: Any, expected: Any, rtol: float = None, atol: float = None):
+def assert_expected(
+    actual: Any,
+    expected: Any,
+    rtol: Optional[float] = None,
+    atol: Optional[float] = None,
+):
     torch.testing.assert_close(
         actual,
         expected,
@@ -101,7 +106,12 @@ def is_named_tuple(nt):
     return all(type(name) == str for name in f)
 
 
-def assert_expected_wrapper(actual, expected):
+def assert_expected_wrapper(
+    actual: NamedTuple,
+    expected: Dict,
+    rtol: Optional[float] = None,
+    atol: Optional[float] = None,
+):
     """Helper function that calls assert_expected recursively on nested Dict/NamedTuple"""
     # convert NamedTuple to dictionary
     if is_named_tuple(actual):
@@ -125,18 +135,31 @@ def assert_expected_wrapper(actual, expected):
             assert _expected is None
         elif isinstance(_actual, Dict):
             # dictionary output, e.g., cache of k/v
-            assert_expected_wrapper(_actual, _expected)
-        elif isinstance(_actual, tuple):
+            assert_expected_wrapper(_actual, _expected, rtol=rtol, atol=atol)
+        elif isinstance(_actual, tuple) and (not is_named_tuple(_actual)):
             # outputs are from multiple layers: (Tensor, Tensor, ...)
-            assert_expected_wrapper(tuple_to_dict(_actual), tuple_to_dict(_expected))
+            assert_expected_wrapper(
+                tuple_to_dict(_actual), tuple_to_dict(_expected), rtol=rtol, atol=atol
+            )
         elif is_named_tuple(_actual):
             # output is another named tuple instance
-            assert_expected_wrapper(_actual, _expected)
+            assert_expected_wrapper(_actual, _expected, rtol=rtol, atol=atol)
         elif isinstance(_actual, Tensor):
             # single tensor output
-            _expected_shape, _expected_sum = _expected
-            assert_expected(_actual.shape, _expected_shape)
-            assert_expected(_actual.sum().item(), _expected_sum, rtol=1e-5, atol=1e-4)
+            if isinstance(_expected, tuple) and len(_expected) == 2:
+                # test shape and sum
+                _expected_shape, _expected_sum = _expected
+                assert_expected(_actual.shape, _expected_shape)
+                assert_expected(
+                    _actual.sum().item(), _expected_sum, rtol=rtol, atol=atol
+                )
+            elif isinstance(_expected, Tensor):
+                # test value
+                assert_expected(_actual, _expected, rtol=rtol, atol=atol)
+            else:
+                raise TypeError(
+                    f"Unsupported type for expected when actual is a tensor: {_expected}"
+                )
         else:
             raise TypeError(
                 f"Unsupported types for test assertion: {_actual}, {_expected}"
