@@ -47,7 +47,8 @@ def train():
 
     trainer = Trainer(
         accelerator=args.accelerator,
-        devices=1,
+        devices=args.devices,
+        strategy="ddp_find_unused_parameters_false",
         max_epochs=args.max_epochs,
         log_every_n_steps=args.log_every_n_steps,
         default_root_dir=args.default_root_dir,

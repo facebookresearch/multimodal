@@ -7,7 +7,7 @@ dataset_args:
   sequence_length: 32
   audio_sample_rate: 22050
   audio_sample_length: 70560
-  resolution: 224
+  resolution: 256
   bbox_smap_for_agent: False
   bbox_smap_for_monsters: False
   use_manual_annotation: True

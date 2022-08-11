@@ -99,6 +99,7 @@ class TrainingArgs:
     lightningmodule_args: LightningModuleArgs = LightningModuleArgs()
     videoclip_args: VideoCLIPArgs = VideoCLIPArgs()
     accelerator: str = "auto"
+    devices: int = 4
     max_epochs: int = 1000
     log_every_n_steps: int = 100
     default_root_dir: Optional[str] = None
