@@ -47,6 +47,15 @@ class MultimodalTransformerDecoder(nn.Module):
         in_pos_emb (nn.Module): input modality position embedding layer.
         out_pos_emb (nn.Module): output modality position embedding layer.
         decoder (nn.Module): the transformer decoder (see ``torchmultimodal.models.gpt.TransformerDecoder``)
+        right_shift (nn.Module): layer that shifts the embedding vectors to the right and prepends it with
+            start of sentence token (SOS).
+
+        Note:
+            * During training mode, the SOS token is prepended to the left of the concatenated input and
+                output modality sequence;
+            * During generation mode, the SOS token is only required for the input modality sequence as
+                the initial token to be learnt from. Right shift should be turned off
+                (``right_shift = False``, see args) when we start to generate the output modality samples.
 
     Args:
         in_modality (Tensor, optional): Tensor of dimension ``(b, in_seq_len, c)`` containing tokenized
@@ -64,6 +73,8 @@ class MultimodalTransformerDecoder(nn.Module):
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
         causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
+        right_shift (bool): If ``True``, shifts the embedding vectors to the right and prepends it with start of
+            sentence token. Defaults to ``False``. This option is disregarded during training mode
         return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
             layer. Defaults to ``False``.
         return_hidden_states (bool): If ``True``, returns the embeddings of each transformer layer. Defaults to
@@ -77,6 +88,7 @@ class MultimodalTransformerDecoder(nn.Module):
         in_pos_emb: nn.Module,
         out_pos_emb: nn.Module,
         decoder: nn.Module,
+        right_shift: nn.Module,
     ) -> None:
         super().__init__()
 
@@ -85,6 +97,7 @@ class MultimodalTransformerDecoder(nn.Module):
         self.in_pos_emb = in_pos_emb
         self.out_pos_emb = out_pos_emb
         self.decoder = decoder
+        self.right_shift = right_shift
 
     def forward(
         self,
@@ -96,6 +109,7 @@ class MultimodalTransformerDecoder(nn.Module):
         head_mask: Optional[Tensor] = None,
         use_cache: bool = False,
         causal: bool = False,
+        right_shift: bool = False,
         return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> TransformerDecoderOutput:
@@ -122,6 +136,9 @@ class MultimodalTransformerDecoder(nn.Module):
             x_in = self.in_token_emb(in_modality) + self.in_pos_emb(in_pos_ids)
             x_out = self.out_token_emb(out_modality) + self.out_pos_emb(out_pos_ids)
             x = torch.cat((x_in, x_out), dim=1)
+
+        if self.training or right_shift:
+            x = self.right_shift(x)
 
         return self.decoder(
             x,
@@ -366,7 +383,7 @@ class TransformerDecoderLayer(nn.Module):
 
 
 class RightShift(nn.Module):
-    """Shift the input sequence by 1 unit to the right and prepend with start of sentence token.
+    """Shifts the embedding vectors along the sequence dimension to the right.
 
     Since the decoder progresses by taking the token it generates in the previous step, before it
     has generated anything it needs a token to start with. Hence, the start-of-sentence (SOS) token.
