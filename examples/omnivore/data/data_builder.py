@@ -8,14 +8,15 @@
 # for training in torchmultimodal/examples/omnivore/train.py
 # Since there are a lot of parameters, we allow to pass args here
 
+import datetime
 import logging
 import os
-import datetime
 import time
+
+import examples.omnivore.utils as utils
 import torch
 import torchvision
 import torchvision.datasets.samplers as video_samplers
-import examples.omnivore.utils as utils
 from examples.omnivore.data import datasets, presets, transforms
 from torch.utils.data.dataloader import default_collate
 from torchvision.transforms.functional import InterpolationMode
@@ -75,7 +76,9 @@ def construct_data_loader(dataset, sampler, num_workers, mode, args, drop_last=F
             mixupcutmix = torchvision.transforms.RandomChoice(mixup_transforms)
             # Since not all dataset return tuple of same length, we take the
             # first two elements for mixupcutmix during training
-            collate_fn = lambda batch: mixupcutmix(*(default_collate(batch)[:2]))  # noqa: E731
+            collate_fn = lambda batch: mixupcutmix(
+                *(default_collate(batch)[:2])
+            )  # noqa: E731
 
     data_loader = torch.utils.data.DataLoader(
         dataset,
@@ -163,7 +166,9 @@ def get_imagenet_data_loader(mode, num_workers, args):
     dataset_dir = os.path.join(imagenet_path, mode)
     dataset = torchvision.datasets.folder.ImageFolder(dataset_dir, preset)
     sampler = get_image_sampler(dataset, mode, args)
-    data_loader = construct_data_loader(dataset, sampler, num_workers, mode, args, drop_last=drop_last)
+    data_loader = construct_data_loader(
+        dataset, sampler, num_workers, mode, args, drop_last=drop_last
+    )
 
     logger.info(f"Finish getting {mode} imagenet data_loader")
     return data_loader
@@ -198,7 +203,9 @@ def get_kinetics_data_loader(mode, num_workers, args):
     logger.info(f"Took {time.time() - start_time} seconds to get {mode} video dataset")
 
     sampler = get_video_sampler(dataset, mode, args)
-    data_loader = construct_data_loader(dataset, sampler, num_workers, mode, args, drop_last=drop_last)
+    data_loader = construct_data_loader(
+        dataset, sampler, num_workers, mode, args, drop_last=drop_last
+    )
     logger.info(f"Finish getting {mode} video data_loader")
     return data_loader
 
@@ -232,7 +239,9 @@ def get_sunrgbd_data_loader(mode, num_workers, args):
         root=sunrgbd_path, split=mode, transform=preset
     )
     sampler = get_image_sampler(dataset, mode, args)
-    data_loader = construct_data_loader(dataset, sampler, num_workers, mode, args, drop_last=drop_last)
+    data_loader = construct_data_loader(
+        dataset, sampler, num_workers, mode, args, drop_last=drop_last
+    )
     logger.info(f"Finish getting {mode} depth dataset")
     return data_loader
 
@@ -275,4 +284,3 @@ def get_omnivore_data_loader(mode, args):
         shuffle=shuffle,
     )
     return omnivore_data_loader
-
