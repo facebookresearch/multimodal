@@ -280,23 +280,6 @@ class TestVideoVQVAE:
 
         assert_expected_wrapper(actual, expected, rtol=0, atol=1e-4)
 
-        """
-        actual_decoded = out.decoded
-        assert_expected(actual_decoded, expected_decoded, rtol=0, atol=1e-4)
-
-        actual_quantized = out.codebook_output.quantized
-        expected_quantized = expected_out.quantized
-        assert_expected(actual_quantized, expected_quantized, rtol=0, atol=1e-4)
-
-        actual_encoded_flat = out.codebook_output.encoded_flat
-        expected_encoded_flat = expected_out.encoded_flat
-        assert_expected(actual_encoded_flat, expected_encoded_flat, rtol=0, atol=1e-4)
-
-        actual_codebook_indices = out.codebook_output.codebook_indices
-        expected_codebook_indices = expected_out.codebook_indices
-        assert_expected(actual_codebook_indices, expected_codebook_indices)
-        """
-
 
 def test_preprocess_int_conv_params():
     channels = (3, 3, 3)
