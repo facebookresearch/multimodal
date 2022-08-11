@@ -79,6 +79,7 @@ class RetrievalDataModule(LightningDataModule):
         global_rank: int,
     ) -> Optional[DistributedSampler]:
         # do not return a sampler if is not in distributed mode
+        # a default RandomSampler is used in this case
         if not is_distributed:
             return None
 
