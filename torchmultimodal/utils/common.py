@@ -100,7 +100,7 @@ def tensor_slice(x: Tensor, begin: List[int], size: List[int]) -> Tensor:
 
 
 def load_module_from_url(
-    model: torch.nn.Module, url: str, strict: bool = True, progress: bool = True
+    model: nn.Module, url: str, strict: bool = True, progress: bool = True
 ) -> None:
     local_path = _PATH_MANAGER.get_local_path(url)
     if not torch.cuda.is_available():
@@ -138,7 +138,7 @@ class PretrainedMixin:
         strict: bool = True,
     ) -> Any:
         assert isinstance(
-            self, torch.nn.Module
+            self, nn.Module
         ), "load_model can only be called on an nn.Module instance"
         if os.path.exists(pretrained_url):
             state_dict = torch.load(pretrained_url)
