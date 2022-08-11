@@ -8,6 +8,7 @@ from typing import Any, List, Mapping, NamedTuple, Tuple, Union
 
 import torch
 from torch import nn, Size, Tensor
+from torch.nn import functional as F
 from torchmultimodal.utils.common import shift_dim
 
 
@@ -19,22 +20,38 @@ class CodebookOutput(NamedTuple):
 
 
 class Codebook(nn.Module):
-    """Codebook provides an embedding layer that takes in the output of an encoder
+    """Bottleneck layer of VQVAE model
+
+    Codebook provides an embedding layer that takes in the output of an encoder
     and performs a nearest-neighbor lookup in the embedding space.
     Vector quantization was introduced in Oord et al. 2017 (https://arxiv.org/pdf/1711.00937.pdf)
     to generate high-fidelity images, videos, and audio data.
     The embedding weights are trained with exponential moving average updates as described
     in original paper.
+
     Code was largely inspired by a PyTorch implementation of the author's original code, found here:
     https://colab.research.google.com/github/zalandoresearch/pytorch-vq-vae/blob/master/vq-vae.ipynb
     and by the implementation in MUGEN (Hayes et al. 2022), found here:
     https://github.com/mugen-org/MUGEN_baseline/blob/main/lib/models/video_vqvae/vqvae.py
+
+    Attributes:
+        num_embeddings (int): Number of vectors in the embedding space.
+        embedding_dim (int): Dimensionality of the embedding vectors.
+        decay (float): Factor used in exponential moving average update of the embeddings.
+            Defaults to ``0.99``.
+        codebook_usage_threshold (float): Threshold for the average number of times an embedding vector
+            is chosen below which it will be re-initialized. Defaults to ``1.0``.
+        epsilon (float): Noise used in Laplace smoothing of codebook usage. Defaults to ``1e-7``.
+
     Args:
-        num_embeddings (int): the number of vectors in the embedding space
-        embedding_dim (int): the dimensionality of the embedding vectors
-    Inputs:
-        z (Tensor): Tensor containing a batch of encoder outputs.
-                    Expects dimensions to be batch x channel x n dims.
+        z (Tensor): Tensor containing a batch of encoder outputs of shape ``[b, c, d1, ..., dn]``.
+
+    Returns:
+        A namedtuple of fields including:
+            * encoded_flat (Tensor): Input from encoder flattened to ``[b x d1 x d2 .... x dn, c]``.
+            * quantized_flat (Tensor): Quantized embeddings flattened of shape ``[b x d1 x d2 ... x dn, emb_dim]``.
+            * codebook_indices (Tensor): Indices of the chosen embeddings of shape ``[b, d1, ..., dn]``.
+            * quantized (Tensor): The chosen nearest embeddings of shape ``[b, c, d1, ..., dn]``.
     """
 
     def __init__(
@@ -66,6 +83,33 @@ class Codebook(nn.Module):
 
         # Flag to track if we need to initialize embedding with encoder output
         self._is_embedding_init = False
+
+    def _load_from_state_dict(
+        self,
+        state_dict: Mapping[str, Any],
+        prefix: str,
+        local_metadata: Mapping,
+        strict: bool,
+        missing_keys: List[str],
+        unexpected_keys: List[str],
+        error_msgs: List[str],
+    ) -> None:
+        # Override nn.Module's _load_from_state_dict to ensure embedding init is turned off
+        # when state dict is loaded.
+        #
+        # This can also be handled with _register_load_state_dict_pre_hook but since this is
+        # an internal function, it may change. Overriding _load_from_state_dict seems more
+        # stable and cleaner.
+        super()._load_from_state_dict(
+            state_dict,
+            prefix,
+            local_metadata,
+            strict,
+            missing_keys,
+            unexpected_keys,
+            error_msgs,
+        )
+        self._is_embedding_init = True
 
     def _tile(self, x: Tensor, n: int) -> Tensor:
         # Repeat vectors in x if x has less than n vectors
@@ -110,24 +154,20 @@ class Codebook(nn.Module):
 
         return quantized
 
-    def _init_embedding_and_preprocess(self, z: Tensor) -> Tuple[Tensor, Size]:
+    def _init_embedding(self, encoded_flat: Tensor) -> None:
         # Embedding should be initialized with random output vectors from the encoder
         # on the first forward pass for faster convergence, as in VideoGPT (Yan et al. 2021)
         #
-        # This requires preprocessing the encoder output, so return this as well.
+        # This requires the preprocessed encoder output to flattened
 
         self._is_embedding_init = True
 
-        # Flatten encoder outputs, tile to match num embeddings, get random encoder outputs
-        encoded_flat, permuted_shape = self._preprocess(z)
         encoded_flat_rand = self._get_random_vectors(encoded_flat, self.num_embeddings)
 
         # Initialize embedding and intermediate values for EMA updates
         self.embedding = encoded_flat_rand
         self.code_avg = encoded_flat_rand
         self.code_usage = torch.ones(self.num_embeddings)
-
-        return encoded_flat, permuted_shape
 
     def _ema_update_embedding(
         self, encoded_flat: Tensor, codebook_indices: Tensor
@@ -172,34 +212,44 @@ class Codebook(nn.Module):
         distances = torch.cdist(encoded_flat, self.embedding, p=2.0) ** 2
 
         # Encoding - select closest embedding vectors
-        codebook_indices = torch.argmin(distances, dim=1)
+        codebook_indices_flat = torch.argmin(distances, dim=1)
 
         # Quantize
-        quantized_flat = self.embedding[codebook_indices]
+        quantized_flat = self.embedding[codebook_indices_flat]
 
         # Use exponential moving average to update the embedding instead of a codebook loss,
         # as suggested by Oord et al. 2017 and Razavi et al. 2019.
         if self.training:
-            self._ema_update_embedding(encoded_flat, codebook_indices)
+            self._ema_update_embedding(encoded_flat, codebook_indices_flat)
 
         # Straight through estimator
         quantized_flat = encoded_flat + (quantized_flat - encoded_flat).detach()
 
-        return quantized_flat, codebook_indices
+        return quantized_flat, codebook_indices_flat
 
     def forward(self, z: Tensor) -> CodebookOutput:
+        # Flatten encoder outputs, tile to match num embeddings, get random encoder outputs
+        encoded_flat, permuted_shape = self._preprocess(z)
+
         # First check if embedding is initialized correctly
         if not self._is_embedding_init and self.training:
-            encoded_flat, permuted_shape = self._init_embedding_and_preprocess(z)
-        else:
-            # Reshape and flatten encoder output for quantization
-            encoded_flat, permuted_shape = self._preprocess(z)
+            self._init_embedding(encoded_flat)
 
         # Quantization via nearest neighbor lookup
-        quantized_flat, codebook_indices = self._quantize(encoded_flat)
+        quantized_flat, codebook_indices_flat = self._quantize(
+            encoded_flat
+        )  # (b x d1 x ... x dn, emb_dim)
 
         # Reshape back to original dims
-        quantized = self._postprocess(quantized_flat, permuted_shape)
+        # Note: This part could also happen before emq_update_embedding by first reshaping the indices
+        # and then looking up the codebook for quantized. But that will require us to pass shape info
+        # into `self._quantized`. We decide to keep the reshape and the quantized ops separate for clarity.
+        quantized = self._postprocess(
+            quantized_flat, permuted_shape
+        )  # (b, emb_dim, d1, ...., dn)
+        codebook_indices = codebook_indices_flat.view(
+            z.shape[0], *z.shape[2:]
+        )  # (b, d1, ..., dn)
 
         return CodebookOutput(encoded_flat, quantized_flat, codebook_indices, quantized)
 
@@ -208,29 +258,6 @@ class Codebook(nn.Module):
             self.num_embeddings, self.embedding_dim
         )
 
-    def _load_from_state_dict(
-        self,
-        state_dict: Mapping[str, Any],
-        prefix: str,
-        local_metadata: Mapping,
-        strict: bool,
-        missing_keys: List[str],
-        unexpected_keys: List[str],
-        error_msgs: List[str],
-    ) -> None:
-        # Override nn.Module's _load_from_state_dict to ensure embedding init is turned off
-        # when state dict is loaded.
-        #
-        # This can also be handled with _register_load_state_dict_pre_hook but since this is
-        # an internal function, it may change. Overriding _load_from_state_dict seems more
-        # stable and cleaner.
-        super()._load_from_state_dict(
-            state_dict,
-            prefix,
-            local_metadata,
-            strict,
-            missing_keys,
-            unexpected_keys,
-            error_msgs,
-        )
-        self._is_embedding_init = True
+    def lookup(self, indices: Tensor) -> Tensor:
+        # Returns the embeddings of shape ``[b, indices.shape, emb_dim]``
+        return F.embedding(indices, self.embedding)
