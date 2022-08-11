@@ -89,7 +89,7 @@ class TestCodebook:
         codebook.embedding = embedding_weights
         codebook._is_embedding_init = True
         actual = codebook(encoded)
-        
+
         # This is shape (2,5,3)
         expected_quantized = tensor(
             [
@@ -118,7 +118,7 @@ class TestCodebook:
             "quantized_flat": expected_quantized_flat,
             "codebook_indices": tensor([[2.0, 2.0, 0.0], [2.0, 1.0, 3.0]]).type(
                 torch.LongTensor
-            ),  # shape (2, 3)
+            ),
             "quantized": expected_quantized,
         }
 
@@ -147,7 +147,6 @@ class TestCodebook:
         expected_quantized_shape = torch.tensor([2, 3, 2])
 
         assert_expected(actual_quantized_shape, expected_quantized_shape)
-
 
     def test_init_embedding(self, codebook, encoded, num_embeddings):
         assert (
@@ -224,7 +223,7 @@ class TestCodebook:
 
         assert not list(
             codebook.parameters()
-        ), "buffer variables incorrectly assigned as params"    
+        ), "buffer variables incorrectly assigned as params"
 
     def test_init_embedding_smaller_encoded(self, codebook, encoded):
         encoded_small = encoded[:1, :, :2]
