@@ -115,9 +115,9 @@ class TestCodebook:
         expected = {
             "encoded_flat": encoded.permute(0, 2, 1).contiguous().view(-1, 5),
             "quantized_flat": expected_quantized_flat,
-            "codebook_indices": tensor([[2.0, 2.0, 0.0], [2.0, 1.0, 3.0]]).type(
+            "codebook_indices": tensor([2.0, 2.0, 0.0, 2.0, 1.0, 3.0]).type(
                 torch.LongTensor
-            ),  # shape (2, 3)
+            ),
             "quantized": expected_quantized,
         }
 
