@@ -6,8 +6,8 @@
 
 from typing import Callable
 
-import torch
 from torch import nn, Tensor
+from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 from torchmultimodal.modules.layers.transformer import (
     TransformerEncoder,
     TransformerOutput,
@@ -55,13 +55,13 @@ class ALBEFTextEncoder(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.embeddings = ALBEFTextEmbeddings(
-            vocab_size,
-            hidden_size,
-            pad_token_id,
-            max_position_embeddings,
-            type_vocab_size,
-            layer_norm_eps,
+        self.embeddings = BERTTextEmbeddings(
+            vocab_size=vocab_size,
+            hidden_size=hidden_size,
+            pad_token_id=pad_token_id,
+            max_position_embeddings=max_position_embeddings,
+            type_vocab_size=type_vocab_size,
+            layer_norm_eps=layer_norm_eps,
         )
         self.encoder = TransformerEncoder(
             n_layer=num_hidden_layers,
@@ -83,37 +83,3 @@ class ALBEFTextEncoder(nn.Module):
         encoder_outputs = self.encoder(embedding_output, extended_attention_mask)
 
         return encoder_outputs
-
-
-class ALBEFTextEmbeddings(nn.Module):
-    def __init__(
-        self,
-        vocab_size: int,
-        hidden_size: int,
-        padding_idx: int,
-        max_position_embeddings: int,
-        type_vocab_size: int,
-        layer_norm_eps: float,
-    ) -> None:
-        super().__init__()
-        self.word_embeddings = nn.Embedding(vocab_size, hidden_size, padding_idx)
-        self.position_embeddings = nn.Embedding(max_position_embeddings, hidden_size)
-        self.token_type_embeddings = nn.Embedding(type_vocab_size, hidden_size)
-        self.layer_norm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
-
-    def forward(self, input_ids: Tensor) -> Tensor:
-        input_shape = input_ids.size()
-        seq_length = input_shape[1]
-        device = input_ids.device
-
-        position_ids = torch.arange(seq_length, dtype=torch.long, device=device)
-        position_ids = position_ids.unsqueeze(0).expand(input_shape)
-        token_type_ids = torch.zeros(input_shape, dtype=torch.long, device=device)
-
-        inputs_embeds = self.word_embeddings(input_ids)
-        position_embeddings = self.position_embeddings(position_ids)
-        token_type_embeddings = self.token_type_embeddings(token_type_ids)
-
-        embeddings = inputs_embeds + position_embeddings + token_type_embeddings
-        embeddings = self.layer_norm(embeddings)
-        return embeddings
