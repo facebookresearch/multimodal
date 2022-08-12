@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Any, Callable, Dict, NamedTuple, Optional, Tuple, Union
+from typing import Callable, Dict, NamedTuple, Optional, Tuple, Union
 
 import torch
 from torch import nn, Tensor
@@ -12,7 +12,7 @@ from torch import nn, Tensor
 from torchmultimodal.modules.layers.attention import MultiHeadAttention, SelfAttention
 from torchmultimodal.modules.layers.mlp import MLP
 from torchmultimodal.utils.attention import get_extended_attention_mask
-from torchmultimodal.utils.common import checkpoint_wrapper, get_clones, shift_dim
+from torchmultimodal.utils.common import checkpoint_wrapper, get_clones
 
 
 class TransformerDecoderOutput(NamedTuple):
@@ -28,221 +28,12 @@ class TransformerLayerOutput(NamedTuple):
     past_key_values: Optional[Dict[str, Tensor]] = None
 
 
-class MultimodalGPTOutput(NamedTuple):
-    decoder_output: TransformerDecoderOutput
-    logits: Tensor
+class MultimodalTransformerDecoder(nn.Module):
+    """Extends the transformer decoder of GPT (Generative Pre-Training) model for cross-modality generation.
 
-
-class MultimodalGPT(nn.Module):
-    """Extends the GPT (Generative Pre-Training) model for cross-modality generation.
-
-    This module implements the GPT model for generation of one modality given another
+    This module implements the transformer decoder of GPT model for generation of one modality given another
     following the paper `"Improving Language Understanding by Generative Pre-Training
     "<https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf>`_.
-
-    Attributes:
-        d_model (int): Embedding dimension of the transformer decoder.
-        num_tokens (int): Total number of tokens for the input and output modalities.
-        in_tokenizer (nn.Module): Tokenizer for the input modality.
-        out_tokenizer (nn.Module): Tokenizer for the output modality.
-        mm_decoder (nn.Module): Multimodal transformer decoder.
-
-    Args:
-        in_modality (Tensor, optional): Tensor of dimension ``(b, in_seq_len, c)`` containing tokenized
-            embeddings for the input modality. Defaults to ``None``.
-        out_modality (Tensor, optional): Tensor of dimension ``(b, out_seq_len, c')`` containing tokenized
-            embeddings for the output modality. Defaults to ``None``.
-        in_pos_ids (Tensor, optional): Tensor of dimension ``(b, in_seq_len)`` containing indices for the
-            input modality position embeddings. Defaults to ``None``.
-        out_pos_ids (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing indices for the
-            output modality position embeddings. Defaults to ``None``.
-        attn_mask (Tensor, optional): Tensor of dimension ``(b, total_seq_len, total_seq_len)``. Contains 1s for
-            positions to attend to and 0s for masked positions. Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(b, h, total_seq_len, total_seq_len)``. Contains 1s
-            for attention heads to use and 0s for masked heads. Defaults to ``None``.
-        use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
-            recomputes key and value for each decoding step. Defaults to ``False``.
-        causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
-        right_shift (bool): If ``True``, shifts the embedding vectors to the right and prepends it with start of
-            sentence token. Defaults to ``False``. This option is disregarded during training mode
-        return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
-            layer. Defaults to ``False``.
-        return_hidden_states (bool): If ``True``, returns the embeddings of each transformer layer. Defaults to
-            ``False``.
-
-    Raises:
-        AttributeError: If input tokenizer does not implement methods ``encode`` and ``decode`` or output
-            tokenizer does not implement methods ``encode``, ``decode`` and ``lookup``.
-    """
-
-    def __init__(
-        self,
-        d_model: int,
-        num_tokens: int,
-        in_tokenizer: nn.Module,
-        out_tokenizer: nn.Module,
-        mm_decoder: nn.Module,
-    ) -> None:
-        super().__init__()
-        if not all(
-            [hasattr(in_tokenizer, attr_name) for attr_name in ["encode", "decode"]]
-        ):
-            raise AttributeError(
-                "Input modality tokenizer must have methods 'encode', 'decode' and 'lookup'."
-            )
-
-        if not all(
-            [
-                hasattr(out_tokenizer, attr_name)
-                for attr_name in ["encode", "decode", "lookup"]
-            ]
-        ):
-            raise AttributeError(
-                "Output modality tokenizer must have methods 'encode', 'decode' and 'lookup'."
-            )
-
-        self.d_model = d_model
-        self.num_tokens = num_tokens
-        self.in_tokenizer = in_tokenizer
-        self.out_tokenizer = out_tokenizer
-        self.mm_decoder = mm_decoder
-        self.norm = nn.LayerNorm(d_model)
-        self.to_logit = nn.Linear(d_model, num_tokens, bias=False)
-        # This will give us equal probabilities after the soft max layer initially to avoid biasing
-        # towards any particular prediction category
-        self.to_logit.weight.data.copy_(torch.zeros(self.num_tokens, self.d_model))
-
-    def forward(
-        self,
-        in_modality: Optional[Tensor] = None,
-        out_modality: Optional[Tensor] = None,
-        in_pos_ids: Optional[Tensor] = None,
-        out_pos_ids: Optional[Tensor] = None,
-        attn_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
-        logits_mask: Optional[Tensor] = None,
-        use_cache: bool = False,
-        causal: bool = False,
-        right_shift: bool = False,
-        return_attn_weights: bool = False,
-        return_hidden_states: bool = False,
-    ) -> MultimodalGPTOutput:
-        decoder_output = self.fwd(
-            in_modality=in_modality,
-            out_modality=out_modality,
-            in_pos_ids=in_pos_ids,
-            out_pos_ids=out_pos_ids,
-            attn_mask=attn_mask,
-            head_mask=head_mask,
-            use_cache=use_cache,
-            causal=causal,
-            right_shift=right_shift,
-            return_attn_weights=return_attn_weights,
-            return_hidden_states=return_hidden_states,
-        )
-
-        hidden_states = decoder_output.last_hidden_states
-        logits = self.head(hidden_states, logits_mask)
-
-        return MultimodalGPTOutput(decoder_output, logits)
-
-    def fwd(
-        self,
-        in_modality: Optional[Tensor] = None,
-        out_modality: Optional[Tensor] = None,
-        in_pos_ids: Optional[Tensor] = None,
-        out_pos_ids: Optional[Tensor] = None,
-        attn_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
-        use_cache: bool = False,
-        causal: bool = False,
-        right_shift: bool = False,
-        return_attn_weights: bool = False,
-        return_hidden_states: bool = False,
-    ) -> TransformerDecoderOutput:
-        # During training this method is used in the forward pass to decode input- and output- tokens.
-        # During generation this method is used for autoregressive decoding.
-        return self.mm_decoder(
-            in_modality=in_modality,
-            out_modality=out_modality,
-            in_pos_ids=in_pos_ids,
-            out_pos_ids=out_pos_ids,
-            attn_mask=attn_mask,
-            head_mask=head_mask,
-            use_cache=use_cache,
-            causal=causal,
-            right_shift=right_shift,
-            return_attn_weights=return_attn_weights,
-            return_hidden_states=return_hidden_states,
-        )
-
-    def head(
-        self, hidden_states: Tensor, logits_mask: Optional[Tensor] = None
-    ) -> Tensor:
-        out = self.norm(hidden_states)
-        logits = self.to_logit(hidden_states)
-        max_neg_value = -torch.finfo(logits.dtype).max
-        if logits_mask is not None:
-            logits.masked_fill_(logits_mask == 0, max_neg_value)
-        logits = shift_dim(logits, -1, 1)  # (bs, num_tokens, seq_len)
-
-        return logits
-
-    def encode(self, x: Any, modality: str, **kwargs: Any) -> Tuple[Tensor, Tensor]:
-        """Converts data to token ids and tokenized embeddings during generation.
-
-        Args:
-            x (Any): Data to be encoded, e.g., ``List[str]`` for text, ``Tensor`` for audio/image/video.
-            modality (str): Input or output modality string used to select the encoder.
-            kwargs (Any): Other keyword arguments suitable for the encoder.
-
-        Returns:
-            A tuple of ``(token_ids, token_ids)`` for text;
-            A tuple of ``(token_ids, token_embeddings)`` for audio, image and video.
-
-        Rasies:
-            ValueError: If ``modality`` is neither ``in`` nor ``out``.
-        """
-        if modality == "in":
-            encoder = self.in_tokenizer.encode
-        elif modality == "out":
-            encoder = self.out_tokenizer.encode
-        else:
-            raise ValueError(f"Invalid modality parameter: {modality}")
-
-        return encoder(x, **kwargs)  # type: ignore
-
-    def decode(self, x: Tensor, modality: str, **kwargs: Any) -> Tensor:
-        """Converts tokens ids back to data during generation.
-
-        Args:
-            x (Tensor): Token IDs to be decoded.
-            modality (str): Input and output modality string used to select the decoder.
-            kwargs (Any): Other keywords arguments suitable for the decoder.
-
-        Returns:
-            A tensor for the decoded data.
-
-        Raises:
-            ValueError: If ``modality`` is neither ``in`` nor ``out``.
-        """
-        if modality == "in":
-            decoder = self.in_tokenizer.decode
-        elif modality == "out":
-            decoder = self.out_tokenizer.decode
-        else:
-            raise ValueError(f"Invalid modality parameter: {modality}")
-
-        return decoder(x, **kwargs)  # type: ignore
-
-    def lookup(self, x: Tensor) -> Tensor:
-        """Looks up the latent embeddings corresponding to the token ids during generation."""
-        return self.out_tokenizer.lookup(x)  # type: ignore
-
-
-class MultimodalTransformerDecoder(nn.Module):
-    """A transformer decoder for two modalities
-
     The token- and position- embedding layers are per modality:
         * During training both modalities are fed into the module and concatenated as a single sequence of
             tokenized embedding vectors
@@ -251,12 +42,12 @@ class MultimodalTransformerDecoder(nn.Module):
             at any point in time the input data contains only one modality.
 
     Attributes:
-        in_token_emb (nn.Module): Embedding layer that converts input tokens to embedding vectors.
-        out_token_emb (nn.Module): Embedding layer that converts output tokens to embedding vectors.
-        in_pos_emb (nn.Module): Input modality position embedding layer.
-        out_pos_emb (nn.Module): Output modality position embedding layer.
-        decoder (nn.Module): The transformer decoder (see ``torchmultimodal.models.gpt.TransformerDecoder``)
-        right_shift (nn.Module): Layer that shifts the embedding vectors to the right and prepends it with
+        in_token_emb (nn.Module): embedding layer that converts input tokens to embedding vectors.
+        out_token_emb (nn.Module): embedding layer that converts output tokens to embedding vectors.
+        in_pos_emb (nn.Module): input modality position embedding layer.
+        out_pos_emb (nn.Module): output modality position embedding layer.
+        decoder (nn.Module): the transformer decoder (see ``torchmultimodal.models.gpt.TransformerDecoder``)
+        right_shift (nn.Module): layer that shifts the embedding vectors to the right and prepends it with
             start of sentence token (SOS).
 
         Note:
@@ -473,7 +264,7 @@ class TransformerDecoderLayer(nn.Module):
     `"On Layer Normalization in the Transformer Architecture"<https://arxiv.org/pdf/2002.04745.pdf>`_
 
     Attributes:
-        d_model (int): Dimension of the embeddings.
+        d_model (int): Dimension of the input embedding vector.
         n_head (int): Number of attention heads.
         dropout (float, optional): Dropout probability used in the dropout layers. Defaults to ``0.1``.
         activation (Union[str, Callable], optional): Activation used by the feedforward layer. Defaults to
