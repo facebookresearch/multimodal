@@ -94,7 +94,7 @@ def tuple_to_dict(t: Tuple) -> Dict:
     return {k: v for k, v in enumerate(t)}
 
 
-def is_named_tuple(nt: Any) -> bool:
+def is_namedtuple(nt: Any) -> bool:
     # namedtuple is a subclass of tuple with additional attributes
     # we verify specifically here the attribute `_fields` which should be a tuple of field names
     # from the namedtuple instance
@@ -106,7 +106,7 @@ def is_named_tuple(nt: Any) -> bool:
     return all(type(name) == str for name in f)
 
 
-def named_tuple_to_dict(nt: NamedTuple) -> Dict:
+def namedtuple_to_dict(nt: NamedTuple) -> Dict:
     # Do this for safety.  _asdict is a public method as of python 3.8:
     # https://docs.python.org/3/library/collections.html#collections.somenamedtuple._asdict
     if not hasattr(nt, "_asdict"):
@@ -115,19 +115,28 @@ def named_tuple_to_dict(nt: NamedTuple) -> Dict:
     return nt._asdict()
 
 
-def assert_expected_wrapper(
+def assert_expected_namedtuple(
     actual: Union[Dict, NamedTuple],
     expected: Union[Dict, NamedTuple],
     rtol: Optional[float] = None,
     atol: Optional[float] = None,
 ):
-    """Helper function that calls assert_expected recursively on nested Dict/NamedTuple"""
-    # convert NamedTuple to dictionary
-    if is_named_tuple(actual):
-        actual = named_tuple_to_dict(actual)
+    """Helper function that calls assert_expected recursively on nested Dict/NamedTuple
 
-    if is_named_tuple(expected):
-        expected = named_tuple_to_dict(expected)
+    Example::
+        >>>from collections import namedtuple
+        >>>Out = namedtuple("Out", "x y")
+        >>>InnerOut = namedtuple("InnerOut", "z")
+        >>>actual = Out(x=InnerOut(z=tensor([1])), y=tensor([2]))
+        >>>expected = Out(x=InnerOut(z=tensor([1])), y=tensor([2]))
+        >>>assert_expected_namedtuple(actual, expected)
+    """
+    # convert NamedTuple to dictionary
+    if is_namedtuple(actual):
+        actual = namedtuple_to_dict(actual)
+
+    if is_namedtuple(expected):
+        expected = namedtuple_to_dict(expected)
 
     if not isinstance(actual, Dict):
         raise TypeError(
@@ -147,15 +156,15 @@ def assert_expected_wrapper(
             assert _expected is None
         elif isinstance(_actual, Dict):
             # dictionary output, e.g., cache of k/v
-            assert_expected_wrapper(_actual, _expected, rtol=rtol, atol=atol)
-        elif isinstance(_actual, tuple) and (not is_named_tuple(_actual)):
+            assert_expected_namedtuple(_actual, _expected, rtol=rtol, atol=atol)
+        elif isinstance(_actual, tuple) and (not is_namedtuple(_actual)):
             # outputs are from multiple layers: (Tensor, Tensor, ...)
-            assert_expected_wrapper(
+            assert_expected_namedtuple(
                 tuple_to_dict(_actual), tuple_to_dict(_expected), rtol=rtol, atol=atol
             )
-        elif is_named_tuple(_actual):
+        elif is_namedtuple(_actual):
             # output is another named tuple instance
-            assert_expected_wrapper(_actual, _expected, rtol=rtol, atol=atol)
+            assert_expected_namedtuple(_actual, _expected, rtol=rtol, atol=atol)
         elif isinstance(_actual, Tensor):
             # single tensor output
             if isinstance(_expected, tuple) and len(_expected) == 2:
@@ -170,9 +179,9 @@ def assert_expected_wrapper(
                 assert_expected(_actual, _expected, rtol=rtol, atol=atol)
             else:
                 raise TypeError(
-                    f"Unsupported type for expected when actual is a tensor: {_expected}"
+                    f"Unsupported type for expected when actual is a tensor: {type(_expected)}"
                 )
         else:
             raise TypeError(
-                f"Unsupported types for test assertion: {_actual}, {_expected}"
+                f"Unsupported types for test assertion: actual {type(_actual)}, expected {type(_expected)}"
             )

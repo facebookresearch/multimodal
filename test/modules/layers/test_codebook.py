@@ -10,7 +10,7 @@ from collections import OrderedDict
 import pytest
 
 import torch
-from test.test_utils import assert_expected, assert_expected_wrapper, set_rng_seed
+from test.test_utils import assert_expected, assert_expected_namedtuple, set_rng_seed
 from torch import nn, tensor
 from torchmultimodal.modules.layers.codebook import Codebook
 
@@ -121,7 +121,7 @@ class TestCodebook:
             "quantized": expected_quantized,
         }
 
-        assert_expected_wrapper(actual, expected)
+        assert_expected_namedtuple(actual, expected)
 
     def test_preprocess(self, codebook, encoded):
         encoded_flat, permuted_shape = codebook._preprocess(encoded)
