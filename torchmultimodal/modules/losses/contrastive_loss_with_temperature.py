@@ -6,7 +6,7 @@
 
 import math
 from dataclasses import dataclass
-from typing import Optional, OrderedDict, Tuple, Union
+from typing import Any, Dict, Optional, OrderedDict, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -74,6 +74,7 @@ def contrastive_loss_with_temperature(
     logit_scale: nn.Parameter,
     mask: Optional[Tensor] = None,
     backprop_in_gather: bool = True,
+    cross_entropy_kwargs: Optional[Dict[str, Any]] = None,
 ) -> ContrastiveLossOutput:
     """Functional component for the ContrastiveLossWithTemperature. Please
     check the class for more details
@@ -89,6 +90,7 @@ def contrastive_loss_with_temperature(
             mask. Size is (BatchSize,). Defaults to None.
         backprop_in_gather (bool): Whether to backpropagate the gradients from
             all_gather to all workers (versus just the local worker).
+        cross_entropy_kwargs (Optional[Dict[str, Any]]): Any additional inputs to cross entropy loss (ex: label_smoothing)
 
     Returns:
         ContrastiveLossOutput: instance of ContrastiveLossOutput with all of the
@@ -121,8 +123,11 @@ def contrastive_loss_with_temperature(
         logits_per_text = logits_per_text[mask]
         labels = labels[mask]
 
-    loss_i = F.cross_entropy(logits_per_image, labels)
-    loss_t = F.cross_entropy(logits_per_text, labels)
+    if cross_entropy_kwargs is None:
+        cross_entropy_kwargs = {}
+
+    loss_i = F.cross_entropy(logits_per_image, labels, **cross_entropy_kwargs)
+    loss_t = F.cross_entropy(logits_per_text, labels, **cross_entropy_kwargs)
     loss = (loss_i + loss_t) / 2
 
     return ContrastiveLossOutput(
@@ -172,6 +177,7 @@ class ContrastiveLossWithTemperature(nn.Module):
                 (In the CLIP model, these are the outputs of the text encoder.)
             backprop_in_gather (bool): Whether to backpropagate the gradients from
                 all_gather to all workers (versus just the local worker).
+            cross_entropy_kwargs (Optional[Dict[str, Any]]): Any additional inputs to cross entropy loss (ex: label_smoothing)
     """
 
     def __init__(
@@ -200,6 +206,7 @@ class ContrastiveLossWithTemperature(nn.Module):
         image_embeddings: Tensor,
         text_embeddings: Tensor,
         backprop_in_gather: bool = True,
+        cross_entropy_kwargs: Optional[Dict[str, Any]] = None,
     ) -> Tensor:
 
         self.logit_scale.data.clamp_(self.logit_scale_min, self.logit_scale_max)
@@ -208,4 +215,5 @@ class ContrastiveLossWithTemperature(nn.Module):
             text_embeddings=text_embeddings,
             logit_scale=self.logit_scale,
             backprop_in_gather=backprop_in_gather,
+            cross_entropy_kwargs=cross_entropy_kwargs,
         ).loss
