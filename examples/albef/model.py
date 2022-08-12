@@ -10,15 +10,11 @@ from typing import Callable, List, Optional, Tuple, Union
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
-from torchmultimodal.models.albef import ALBEFModel
-from torchmultimodal.modules.encoders.albef_multimodal_encoder import (
-    ALBEFMultimodalEncoder,
-)
-from torchmultimodal.modules.encoders.albef_text_encoder import (
-    ALBEFTextEmbeddings,
-    ALBEFTextEncoder,
-)
-from torchmultimodal.modules.encoders.albef_vision_encoder import ALBEFVisionEncoder
+from torchmultimodal.models.albef.image_encoder import ALBEFVisionEncoder
+from torchmultimodal.models.albef.model import ALBEFModel
+from torchmultimodal.models.albef.multimodal_encoder import ALBEFMultimodalEncoder
+from torchmultimodal.models.albef.text_encoder import ALBEFTextEncoder
+from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 from torchmultimodal.modules.losses.albef import MaskedLanguageModelingLoss
 from torchmultimodal.utils.attention import get_causal_attention_mask
 from torchmultimodal.utils.common import (
@@ -97,7 +93,7 @@ class ALBEFDecoder(nn.Module):
 
     def __init__(
         self,
-        text_embeddings: ALBEFTextEmbeddings,
+        text_embeddings: BERTTextEmbeddings,
         multimodal_encoder: ALBEFMultimodalEncoder,
         prediction_head: PredictionHead,
     ) -> None:
@@ -437,7 +433,7 @@ def albef_model_for_vqa(config: dict, pretrained: bool = False) -> ALBEFModelFor
     question_multimodal_encoder = ALBEFMultimodalEncoder(
         **config["multimodal_encoder_args"]
     )
-    text_embeddings = ALBEFTextEmbeddings(**config["text_embeddings_args"])
+    text_embeddings = BERTTextEmbeddings(**config["text_embeddings_args"])
     answer_multimodal_encoder = ALBEFMultimodalEncoder(
         **config["multimodal_encoder_args"]
     )
