@@ -9,6 +9,7 @@ import torch
 from torch import nn, Tensor
 
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
+from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 
 # Taken from original clip implementation https://github.com/openai/CLIP/blob/main/clip/model.py#L167
 def quick_gelu(x: Tensor) -> Tensor:
@@ -63,7 +64,7 @@ class CLIPTextEncoder(nn.Module):
         self.width = width
         self.context_length = context_length
 
-        self.ln_final = nn.LayerNorm(width)
+        self.ln_final = Fp32LayerNorm(width)
         self.projection = nn.Linear(width, embedding_dim, bias=False)
 
         if use_clip_init:
