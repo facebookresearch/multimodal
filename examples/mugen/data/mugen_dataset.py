@@ -6,7 +6,7 @@
 
 import json
 import os
-from typing import NamedTuple
+from dataclasses import dataclass
 
 import numpy as np
 import torch
@@ -19,12 +19,14 @@ from examples.mugen.data.coinrun.construct_from_json import (
 )
 
 from examples.mugen.data.coinrun.game import Game
+
 from torch.utils.data import Dataset
 
 from .audio_utils import AUDIO_SAMPLE_LENGTH, AUDIO_SAMPLE_RATE, load_audio
 
 
-class MUGENDatasetArgs(NamedTuple):
+@dataclass
+class MUGENDatasetArgs:
     data_path: str = "datasets/coinrun/coinrun_dataset_jsons/release"
     asset_path: str = "datasets/coinrun/assets"
     sample_every_n_frames: int = 3
@@ -44,11 +46,11 @@ class MUGENDatasetArgs(NamedTuple):
         False  # if True will only use downsampled training set
     )
     fixed_start_idx: bool = True  # fx starting game frame idx to 0
-    get_game_frame: bool = True  # load video data
-    get_seg_map: bool = True  # load semantic map
-    get_text_desc: bool = True  # load text data
+    get_game_frame: bool = False  # load video data
+    get_seg_map: bool = False  # load semantic map
+    get_text_desc: bool = False  # load text data
     get_audio: bool = (
-        True  # load full mix audio for each video, for audio generation models
+        False  # load full mix audio for each video, for audio generation models
     )
     debug: bool = False
 

@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import NamedTuple, Tuple, Union
+from typing import Any, List, Mapping, NamedTuple, Tuple, Union
 
 import torch
 from torch import nn, Size, Tensor
@@ -21,22 +21,17 @@ class CodebookOutput(NamedTuple):
 class Codebook(nn.Module):
     """Codebook provides an embedding layer that takes in the output of an encoder
     and performs a nearest-neighbor lookup in the embedding space.
-
     Vector quantization was introduced in Oord et al. 2017 (https://arxiv.org/pdf/1711.00937.pdf)
     to generate high-fidelity images, videos, and audio data.
-
     The embedding weights are trained with exponential moving average updates as described
     in original paper.
-
     Code was largely inspired by a PyTorch implementation of the author's original code, found here:
     https://colab.research.google.com/github/zalandoresearch/pytorch-vq-vae/blob/master/vq-vae.ipynb
     and by the implementation in MUGEN (Hayes et al. 2022), found here:
     https://github.com/mugen-org/MUGEN_baseline/blob/main/lib/models/video_vqvae/vqvae.py
-
     Args:
         num_embeddings (int): the number of vectors in the embedding space
         embedding_dim (int): the dimensionality of the embedding vectors
-
     Inputs:
         z (Tensor): Tensor containing a batch of encoder outputs.
                     Expects dimensions to be batch x channel x n dims.
@@ -110,7 +105,6 @@ class Codebook(nn.Module):
         self, quantized_flat: Tensor, permuted_shape: Union[Size, Tuple]
     ) -> Tensor:
         # Rearrange back to batch x channel x n dims
-        num_dims = len(permuted_shape)
         quantized_permuted = quantized_flat.view(permuted_shape)
         quantized = shift_dim(quantized_permuted, -1, 1)
 
@@ -213,3 +207,30 @@ class Codebook(nn.Module):
         return "num_embeddings={}, embedding_dim={}".format(
             self.num_embeddings, self.embedding_dim
         )
+
+    def _load_from_state_dict(
+        self,
+        state_dict: Mapping[str, Any],
+        prefix: str,
+        local_metadata: Mapping,
+        strict: bool,
+        missing_keys: List[str],
+        unexpected_keys: List[str],
+        error_msgs: List[str],
+    ) -> None:
+        # Override nn.Module's _load_from_state_dict to ensure embedding init is turned off
+        # when state dict is loaded.
+        #
+        # This can also be handled with _register_load_state_dict_pre_hook but since this is
+        # an internal function, it may change. Overriding _load_from_state_dict seems more
+        # stable and cleaner.
+        super()._load_from_state_dict(
+            state_dict,
+            prefix,
+            local_metadata,
+            strict,
+            missing_keys,
+            unexpected_keys,
+            error_msgs,
+        )
+        self._is_embedding_init = True
