@@ -11,10 +11,9 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from torchmultimodal.models.clip.image_encoder import ResNetForCLIP
+from torchmultimodal.models.clip.image_encoder import CLIPViTEncoder, ResNetForCLIP
 from torchmultimodal.models.clip.text_encoder import CLIPTextEncoder
 from torchvision.models.resnet import Bottleneck, ResNet
-from torchvision.models.vision_transformer import VisionTransformer
 
 
 class CLIPOutput(NamedTuple):
@@ -63,42 +62,29 @@ class CLIP(nn.Module):
 
 
 def clip_vit_b16() -> CLIP:
-    vision_encoder = VisionTransformer(
-        image_size=224,
-        patch_size=16,
-        num_layers=12,
-        num_heads=12,
-        hidden_dim=768,
-        mlp_dim=3072,  # based on https://git.io/JMpJK
-        num_classes=512,
+    vision_encoder = CLIPViTEncoder(
+        image_size=224, patch_size=16, layers=12, heads=12, width=768, embedding_dim=512
     )
     text_encoder = CLIPTextEncoder(embedding_dim=512)
     return CLIP(vision_encoder, text_encoder)
 
 
 def clip_vit_b32() -> CLIP:
-    vision_encoder = VisionTransformer(
-        image_size=224,
-        patch_size=32,
-        num_layers=12,
-        num_heads=12,
-        hidden_dim=768,
-        mlp_dim=3072,
-        num_classes=512,
+    vision_encoder = CLIPViTEncoder(
+        image_size=224, patch_size=32, layers=12, heads=12, width=768, embedding_dim=512
     )
     text_encoder = CLIPTextEncoder(embedding_dim=512)
     return CLIP(vision_encoder, text_encoder)
 
 
 def clip_vit_l14() -> CLIP:
-    vision_encoder = VisionTransformer(
+    vision_encoder = CLIPViTEncoder(
         image_size=224,
         patch_size=14,
-        num_layers=24,
-        num_heads=16,
-        hidden_dim=1024,
-        mlp_dim=4096,
-        num_classes=768,
+        layers=24,
+        heads=16,
+        width=1024,
+        embedding_dim=768,
     )
     text_encoder = CLIPTextEncoder(embedding_dim=768, width=768, heads=12)
     return CLIP(vision_encoder, text_encoder)
