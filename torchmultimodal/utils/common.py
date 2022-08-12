@@ -6,12 +6,15 @@
 
 import hashlib
 import os
+import warnings
 from collections import OrderedDict
+from copy import deepcopy
 from dataclasses import fields
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 import torch
 from torch import nn, Tensor
+from torch.utils.checkpoint import checkpoint
 from torchmultimodal import _PATH_MANAGER
 
 
@@ -97,7 +100,7 @@ def tensor_slice(x: Tensor, begin: List[int], size: List[int]) -> Tensor:
 
 
 def load_module_from_url(
-    model: torch.nn.Module, url: str, strict: bool = True, progress: bool = True
+    model: nn.Module, url: str, strict: bool = True, progress: bool = True
 ) -> None:
     local_path = _PATH_MANAGER.get_local_path(url)
     if not torch.cuda.is_available():
@@ -135,7 +138,7 @@ class PretrainedMixin:
         strict: bool = True,
     ) -> Any:
         assert isinstance(
-            self, torch.nn.Module
+            self, nn.Module
         ), "load_model can only be called on an nn.Module instance"
         if os.path.exists(pretrained_url):
             state_dict = torch.load(pretrained_url)
@@ -183,3 +186,38 @@ def to_tuple_tuple(
     if isinstance(param, tuple):
         param_fixed = (param,) * num_tuple
     return param_fixed
+
+
+def checkpoint_wrapper(fn: Callable) -> Callable:
+    """Decorator to render an nn.Module instance method in checkpointing mode to save memory for training"""
+
+    def inner(cls: nn.Module, *inputs: Any, **kwargs: Any) -> Tensor:
+        if cls.training:
+            # By default the checkpoint API stashes and restores the RNG state during each checkpointed
+            # segment such that checkpointed passes making use of RNG (e.g., through dropout, batch norm)
+            # have deterministic outputs as compared to non-checkpointed passes. This can incur a moderate
+            # performance hit which we mitigate by checkpointing either before and after the layer that
+            # requires RNG.
+            if "use_cache" in kwargs and kwargs["use_cache"] is True:
+                warnings.warn(
+                    "Using `cache` is incompatible with gradient checkpointing. Setting `use_cache=False`..."
+                )
+                kwargs["use_cache"] = False
+
+            def create_custom_forward(fn: Callable) -> Callable:
+                # checkpoint API does not accept user defined kwargs so we need to hide them
+                def custom_forward(*inputs: Any) -> Callable:
+                    return fn(cls, *inputs, **kwargs)
+
+                return custom_forward
+
+            return checkpoint(create_custom_forward(fn), *inputs)
+
+        else:
+            return fn(cls, *inputs, **kwargs)
+
+    return inner
+
+
+def get_clones(module: nn.Module, n: int) -> nn.ModuleList:
+    return nn.ModuleList([deepcopy(module) for i in range(n)])
