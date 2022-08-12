@@ -10,7 +10,7 @@ from typing import Any, Tuple
 import torch
 from pytorch_lightning import LightningModule
 from torchmetrics import Accuracy
-from torch.distributed.fsdp import FullyShardedDataParallel
+from torch.distributed.fsdp import FullyShardedDataParallel, CPUOffload, MixedPrecision
 from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import CheckpointWrapper, apply_activation_checkpointing_wrapper, checkpoint_wrapper, CheckpointImpl
 from torchmultimodal.models.flava.flava_model import (
@@ -114,16 +114,17 @@ class FLAVAPreTrainingLightningModuleFSDP(LightningModule):
             raise RuntimeError("Batch needs to have either or both 'image' and 'text'.")
         # print(self.model)
         print(f"Rank {torch.distributed.get_rank()} keys: {batch.keys()}")
-        output = self.model(
-            image=batch.get("image", None),
-            image_for_codebook=batch.get("image_for_codebook", None),
-            image_patches_mask=batch.get("image_patches_mask", None),
-            text=batch.get("text", None),
-            text_masked=batch.get("text_masked", None),
-            mlm_labels=batch.get("mlm_labels", None),
-            itm_labels=batch.get("itm_labels", None),
-            required_embedding=required_embedding,
-        )
+        with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+            output = self.model(
+                image=batch.get("image", None),
+                image_for_codebook=batch.get("image_for_codebook", None),
+                image_patches_mask=batch.get("image_patches_mask", None),
+                text=batch.get("text", None),
+                text_masked=batch.get("text_masked", None),
+                mlm_labels=batch.get("mlm_labels", None),
+                itm_labels=batch.get("itm_labels", None),
+                required_embedding=required_embedding,
+            )
         return output
 
     def configure_optimizers(self):
@@ -144,20 +145,29 @@ class FLAVAPreTrainingLightningModuleFSDP(LightningModule):
         wrapper_fn = partial(checkpoint_wrapper, checkpoint_impl=CheckpointImpl.NO_REENTRANT)
         print(" -- applying activation checkpoint --")
         wrapper_cls = {
+                #torch.nn.Linear,
                 FLAVATransformerLayer,
-                #ImageTransformer,
-                #TextTransformer,
+                ImageTransformer,
+                TextTransformer,
                 DalleVAEEncoder,
                 DalleEncoderBlock,
                 MaskedPredictionLoss,
                 #ITMLoss,
         }
+        checkpoint_cls = (
+                FLAVATransformerLayer,
+                ImageTransformer,
+                TextTransformer,
+                DalleVAEEncoder,
+                DalleEncoderBlock,
+        )
         p = partial(
             transformer_auto_wrap_policy, transformer_layer_cls=wrapper_cls,
         )
         print(f"Current cuda device {torch.cuda.current_device()}")
-        self.model = FullyShardedDataParallel(self.model, auto_wrap_policy=p, device_id=torch.cuda.current_device())
-        apply_activation_checkpointing_wrapper(self.model, checkpoint_wrapper_fn=wrapper_fn, check_fn=lambda mod: isinstance(mod, FLAVATransformerLayer))
+        mixed_precision = MixedPrecision(param_dtype=torch.bfloat16, buffer_dtype=torch.bfloat16, reduce_dtype=torch.bfloat16)
+        self.model = FullyShardedDataParallel(self.model, auto_wrap_policy=p, device_id=torch.cuda.current_device(), cpu_offload=CPUOffload(offload_params=False), mixed_precision=None)
+        apply_activation_checkpointing_wrapper(self.model, checkpoint_wrapper_fn=wrapper_fn, check_fn=lambda mod: isinstance(mod, checkpoint_cls))
         if torch.distributed.get_rank() == 0: print("My fsdp model ", self.model)
 
 
