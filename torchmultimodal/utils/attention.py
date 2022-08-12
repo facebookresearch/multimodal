@@ -11,8 +11,13 @@ from torch import Tensor
 
 
 def get_extended_attention_mask(attention_mask: Tensor) -> Tensor:
-    """
-    Makes broadcastable attention mask so that masked tokens are ignored.
+    """Makes attention masks broadcastable along head and sequence dimensions.
+
+    Accepting two types of attention masks:
+        - Causal: masks that prevent attending to future positions of dimensions
+            ``(batch_size, query_seq_len, key_seq_len)``
+        - Padding: masks that prevent attending to token paddings of dimensions
+            ``(batch_size, seq_len)``
 
     Args:
         attention_mask (Tensor):
@@ -22,12 +27,12 @@ def get_extended_attention_mask(attention_mask: Tensor) -> Tensor:
         extended_attention_mask (Tensor):
             The broadcastable attention mask, with the same dtype as ``attention_mask.dtype``.
     """
-    # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
-    # ourselves in which case we just need to make it broadcastable to all heads,
-    # [batch_size, num_heads, from_seq_length, to_seq_length].
     if attention_mask.dim() == 4:
         extended_attention_mask = attention_mask
     elif attention_mask.dim() == 3:
+        # We can provide a self-attention mask of dimensions [batch_size, query_seq_length, key_seq_length]
+        # ourselves in which case we just need to make it broadcastable to all heads,
+        # [batch_size, num_heads, query_seq_length, key_seq_length].
         extended_attention_mask = attention_mask[:, None, :, :]
     elif attention_mask.dim() == 2:
         # Provided a padding mask of dimensions [batch_size, seq_length]
