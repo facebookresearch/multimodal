@@ -54,11 +54,27 @@ class VQVAE(nn.Module):
         self.codebook = Codebook(codebook_num_embeddings, codebook_embedding_dim)
 
     def latent_shape(self, input_shape: Union[Size, Tuple]) -> Tuple[int, ...]:
+        """Returns the downsampled shape of the encoder output: (d1, ..., dn)"""
+        if not hasattr(self.encoder, "get_latent_shape"):
+            raise AttributeError(
+                f"Missing attribute 'get_latent_shape' of the encoder {self.encoder}"
+            )
+
         return self.encoder.get_latent_shape(input_shape)  # type: ignore
 
     def encode(
         self, x: Tensor, return_embeddings: bool = False
     ) -> Union[Tuple[Tensor, Tensor], Tensor]:
+        """Converts input data to token ids
+
+        Args:
+            x (Tensor): Input data of shape ``(b, c, d1, ..., dn)``.
+            return_embeddings (bool): Flag to return also the quantized embeddings. Defaults to ``False``.
+
+        Returns:
+            * A tensor of token ids: ``(b, d1, ...., dn)``
+            * A tuple of token ids and quantized embeddings ``(b, emb_dim, d1, ..., dn)``.
+        """
         encoded = self.encoder(x)
         out = self.codebook(encoded)
         indices = out.codebook_indices
@@ -68,11 +84,17 @@ class VQVAE(nn.Module):
         return indices
 
     def decode(self, indices: Tensor) -> Tensor:
-        quantized = self.codebook.lookup(indices)  # (b, latent_shape, emb_dim)
+        """Converts token ids back to data"""
+        quantized = self.lookup(indices)  # (b, latent_shape, emb_dim)
         quantized = shift_dim(quantized, -1, 1)  # (b, emb_dim, latent_shape)
         return self.decoder(quantized)  # (b, c, input_shape)
 
     def lookup(self, indices: Tensor) -> Tensor:
+        if not hasattr(self.codebook, "lookup"):
+            raise AttributeError(
+                f"Missing attribute 'lookup' of the codebook {self.codebook}"
+            )
+
         return self.codebook.lookup(indices)
 
     def forward(self, x: Tensor) -> VQVAEOutput:

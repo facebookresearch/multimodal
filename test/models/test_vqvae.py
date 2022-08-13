@@ -52,10 +52,34 @@ def encoder():
 
 
 @pytest.fixture
+def bad_encoder():
+    class Encoder(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.layer = nn.Linear(2, 2, bias=False)
+            self.layer.weight = nn.Parameter(torch.tensor([[1.0, 2.0], [3.0, 4.0]]))
+
+        def forward(self, x):
+            return self.layer(x)
+
+    return Encoder()
+
+
+@pytest.fixture
 def decoder():
     dec = nn.Linear(2, 2, bias=False)
     dec.weight = nn.Parameter(torch.tensor([[1.0, 2.0], [3.0, 4.0]]))
     return dec
+
+
+@pytest.fixture
+def vqvae_builder(decoder, num_embeddings, embedding_dim, embedding_weights):
+    def _vqvae(encoder):
+        vqvae = VQVAE(encoder, decoder, num_embeddings, embedding_dim)
+        vqvae.codebook.embedding = embedding_weights
+        return vqvae.eval()  # switch off embedding weights initialization
+
+    return _vqvae
 
 
 @pytest.fixture
@@ -65,10 +89,24 @@ def indices():
 
 class TestVQVAE:
     @pytest.fixture
-    def vqvae(self, encoder, decoder, num_embeddings, embedding_dim, embedding_weights):
-        vqvae = VQVAE(encoder, decoder, num_embeddings, embedding_dim)
-        vqvae.codebook.embedding = embedding_weights
-        return vqvae.eval()  # switch off embedding weights initialization
+    def vqvae(self, vqvae_builder, encoder):
+        return vqvae_builder(encoder)
+
+    @pytest.fixture
+    def vqvae_bad_encoder(self, vqvae_builder, bad_encoder):
+        return vqvae_builder(bad_encoder)
+
+    @pytest.fixture
+    def vqvae_bad_codebook(self, vqvae_builder, encoder, mocker):
+        class BadCodebook(nn.Module):
+            def __init__(self, num_embeddings, embedding_dim):
+                super().__init__()
+
+        mock_codebook = mocker.patch(
+            "torchmultimodal.models.vqvae.Codebook", wraps=BadCodebook
+        )
+
+        return vqvae_builder(encoder), mock_codebook
 
     @pytest.fixture
     def x(self):
@@ -163,3 +201,14 @@ class TestVQVAE:
         actual = vqvae.latent_shape(input_shape=(1, 2, 3))
         expected = (1, 2, 3)
         assert_expected(actual, expected)
+
+    def test_latent_shape_bad_encoder(self, vqvae_bad_encoder):
+        with pytest.raises(AttributeError):
+            vqvae_bad_encoder.latent_shape(input_shape=(1, 2, 3))
+
+    def test_lookup_bad_codebook(self, vqvae_bad_codebook, indices):
+        vqvae, mock_codebook = vqvae_bad_codebook
+        with pytest.raises(AttributeError):
+            vqvae.lookup(indices)
+
+        mock_codebook.assert_called_once()

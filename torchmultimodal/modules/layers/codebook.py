@@ -215,7 +215,7 @@ class Codebook(nn.Module):
         codebook_indices_flat = torch.argmin(distances, dim=1)
 
         # Quantize
-        quantized_flat = self.embedding[codebook_indices_flat]
+        quantized_flat = F.embedding(codebook_indices_flat, self.embedding)
 
         # Use exponential moving average to update the embedding instead of a codebook loss,
         # as suggested by Oord et al. 2017 and Razavi et al. 2019.
