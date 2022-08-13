@@ -6,7 +6,7 @@
 
 import pytest
 import torch
-from test.test_utils import assert_expected, assert_expected_wrapper, set_rng_seed
+from test.test_utils import assert_expected, assert_expected_namedtuple, set_rng_seed
 
 from torchmultimodal.models.video_vqvae import (
     AttentionResidualBlock,
@@ -278,7 +278,7 @@ class TestVideoVQVAE:
             "codebook_output": expected_codebook_output,
         }
 
-        assert_expected_wrapper(actual, expected, rtol=0, atol=1e-4)
+        assert_expected_namedtuple(actual, expected, rtol=0, atol=1e-4)
 
 
 def test_preprocess_int_conv_params():
