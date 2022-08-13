@@ -8,7 +8,7 @@ import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import Tensor
-from torchmultimodal.modules.encoders.albef_text_encoder import ALBEFTextEncoder
+from torchmultimodal.models.albef.text_encoder import ALBEFTextEncoder
 
 
 @pytest.fixture(autouse=True)
@@ -31,7 +31,7 @@ def test_text_encoder(text_encoder):
             [[-0.925689, -0.463074, 1.388763], [-1.412740, 0.762259, 0.650481]],
         ]
     )
-    assert_expected(output, expected, rtol=0, atol=1e-4)
+    assert_expected(output.last_hidden_state, expected, rtol=0, atol=1e-4)
 
 
 def test_invalid_input_length(text_encoder):
