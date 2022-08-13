@@ -11,16 +11,14 @@ import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn, Tensor
-from torchmultimodal.models.albef import (
+from torchmultimodal.models.albef.image_encoder import ALBEFVisionEncoder
+from torchmultimodal.models.albef.model import (
     ALBEFModel,
     ALBEFModelWithSimilarity,
     ALBEFSimilarity,
 )
-from torchmultimodal.modules.encoders.albef_multimodal_encoder import (
-    ALBEFMultimodalEncoder,
-)
-from torchmultimodal.modules.encoders.albef_text_encoder import ALBEFTextEncoder
-from torchmultimodal.modules.encoders.albef_vision_encoder import ALBEFVisionEncoder
+from torchmultimodal.models.albef.multimodal_encoder import ALBEFMultimodalEncoder
+from torchmultimodal.models.albef.text_encoder import ALBEFTextEncoder
 from torchmultimodal.utils.common import momentum_update, remove_grad
 
 

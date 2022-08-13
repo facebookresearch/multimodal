@@ -10,7 +10,7 @@ import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn, Tensor
-from torchmultimodal.modules.encoders.albef_vision_encoder import ALBEFVisionEncoder
+from torchmultimodal.models.albef.image_encoder import ALBEFVisionEncoder
 
 
 class TestALBEFVisionEncoder:
