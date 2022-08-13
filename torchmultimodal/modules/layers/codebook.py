@@ -241,7 +241,7 @@ class Codebook(nn.Module):
         )  # (b x d1 x ... x dn, emb_dim)
 
         # Reshape back to original dims
-        # Note: This part could also happen before emq_update_embedding by first reshaping the indices
+        # Note: This part could also happen before ema_update_embedding by first reshaping the indices
         # and then looking up the codebook for quantized. But that will require us to pass shape info
         # into `self._quantized`. We decide to keep the reshape and the quantized ops separate for clarity.
         quantized = self._postprocess(
