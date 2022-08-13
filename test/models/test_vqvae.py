@@ -43,12 +43,11 @@ def decoder():
     return dec
 
 
-@pytest.fixture
-def vqvae(encoder, decoder, num_embeddings, embedding_dim):
-    return VQVAE(encoder, decoder, num_embeddings, embedding_dim)
-
-
 class TestVQVAE:
+    @pytest.fixture
+    def vqvae(self, encoder, decoder, num_embeddings, embedding_dim):
+        return VQVAE(encoder, decoder, num_embeddings, embedding_dim)
+
     @pytest.fixture
     def decoder_input(self):
         d = torch.tensor([[[[3.0, 7.0], [6.0, 14.0]], [[9.0, 21.0], [12.0, 28.0]]]])
