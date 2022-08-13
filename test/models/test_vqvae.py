@@ -8,7 +8,7 @@ import pytest
 
 import torch
 
-from test.test_utils import assert_expected, assert_expected_wrapper, set_rng_seed
+from test.test_utils import assert_expected, assert_expected_namedtuple, set_rng_seed
 from torch import nn
 
 from torchmultimodal.models.vqvae import VQVAE
@@ -59,18 +59,17 @@ def decoder():
 
 
 @pytest.fixture
-def vqvae(encoder, decoder, num_embeddings, embedding_dim, embedding_weights):
-    vqvae = VQVAE(encoder, decoder, num_embeddings, embedding_dim)
-    vqvae.codebook.embedding = embedding_weights
-    return vqvae.eval()  # switch off embedding weights initialization
-
-
-@pytest.fixture
 def indices():
     return torch.tensor([[[1, 3], [0, 2]]])  # (b, d1, d2)
 
 
 class TestVQVAE:
+    @pytest.fixture
+    def vqvae(self, encoder, decoder, num_embeddings, embedding_dim, embedding_weights):
+        vqvae = VQVAE(encoder, decoder, num_embeddings, embedding_dim)
+        vqvae.codebook.embedding = embedding_weights
+        return vqvae.eval()  # switch off embedding weights initialization
+
     @pytest.fixture
     def x(self):
         return torch.tensor(
@@ -151,7 +150,7 @@ class TestVQVAE:
             "decoded": expected_decoded,
             "codebook_output": expected_codebook_output,
         }
-        assert_expected_wrapper(actual, expected)
+        assert_expected_namedtuple(actual, expected)
 
     def test_lookup(self, vqvae, indices):
         actual = vqvae.lookup(indices)
