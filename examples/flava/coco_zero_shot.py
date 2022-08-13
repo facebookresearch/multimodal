@@ -14,7 +14,7 @@ from flava.data.transforms import (
 )
 from torch import nn
 from torch.utils.data import DataLoader
-from torchmultimodal.models.flava.flava_model import flava_model
+from torchmultimodal.models.flava.model import flava_model
 from torchvision.datasets import CocoCaptions
 
 logging.basicConfig(level=logging.INFO)
