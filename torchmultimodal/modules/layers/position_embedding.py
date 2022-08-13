@@ -21,8 +21,8 @@ class BroadcastedPositionEmbedding(nn.Module):
     :math:`N = \prod_{j>i}\text{dim}[j]`.
 
     Attributes:
-        shape (Tuple[int, ...]): shape of raw data before batching and embedding
-        embedding_dim (int): the size of each embedding vector
+        latent_shape (Tuple[int, ...]): Shape of encoded data before batching and embedding.
+        embedding_dim (int): The size of each embedding vector.
 
     Raises:
         ValueError: if ``embedding_dim`` is not an integer multiple of ``len(shape)``
@@ -37,23 +37,23 @@ class BroadcastedPositionEmbedding(nn.Module):
 
     def __init__(
         self,
-        shape: Tuple[int, ...],
+        latent_shape: Tuple[int, ...],
         embedding_dim: int,
     ) -> None:
         super().__init__()
-        if embedding_dim % len(shape) != 0:
+        if embedding_dim % len(latent_shape) != 0:
             raise ValueError(
-                f"Embedding dim {embedding_dim} modulo len(shape) {len(shape)} is not zero"
+                f"Embedding dim {embedding_dim} modulo len(latent_shape) {len(latent_shape)} is not zero"
             )
 
-        self.shape = shape
-        self.n_dim = n_dim = len(shape)
+        self.latent_shape = latent_shape
+        self.n_dim = n_dim = len(self.latent_shape)
         self.embedding_dim = embedding_dim
 
         self.embedding = nn.ParameterDict(
             {
                 f"d_{i}": nn.Parameter(
-                    torch.randn(shape[i], embedding_dim // n_dim) * 0.01
+                    torch.randn(self.latent_shape[i], embedding_dim // n_dim) * 0.01
                 )
                 for i in range(n_dim)
             }
@@ -69,11 +69,11 @@ class BroadcastedPositionEmbedding(nn.Module):
             >>> pos_emb.indices
             tensor([[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2]])
         """
-        return torch.cartesian_prod(*[torch.arange(s) for s in self.shape])
+        return torch.cartesian_prod(*[torch.arange(s) for s in self.latent_shape])
 
     def _broadcast(self, i: int) -> Tensor:
-        """Broadcasts the ``i``-th embedding matrix ``(self.shape[i], self.embedding_dim // n_dim)`` along the other
-        dims of ``self.shape``. The embedding dim is not touched.
+        """Broadcasts the ``i``-th embedding matrix ``(self.latent_shape[i], self.embedding_dim // n_dim)`` along the other
+        dims of ``self.latent_shape``. The embedding dim is not touched.
 
         For example::
 
@@ -92,15 +92,15 @@ class BroadcastedPositionEmbedding(nn.Module):
         first dim ``2``.
         """
         emb = self.embedding[f"d_{i}"]
-        # (1, ..., 1, self.shape[i], 1, ..., embedding_dim)
+        # (1, ..., 1, self.latent_shape[i], 1, ..., embedding_dim)
         emb = emb.view(
             *itertools.repeat(1, i),
-            self.shape[i],
+            self.latent_shape[i],
             *itertools.repeat(1, (self.n_dim - i - 1)),
             -1,
         )
-        # (*self.shape, embedding_dim)
-        emb = emb.expand(*self.shape, -1)
+        # (*self.latent_shape, embedding_dim)
+        emb = emb.expand(*self.latent_shape, -1)
 
         return emb
 
