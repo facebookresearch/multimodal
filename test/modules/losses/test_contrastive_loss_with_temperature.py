@@ -81,6 +81,21 @@ class TestContrastiveLossWithTemperature(unittest.TestCase):
         loss_below_min = clip_loss_below_min(image_embeddings, text_embeddings).item()
         self.assertAlmostEqual(first=loss_below_min, second=loss_at_min, places=3)
 
+    def test_loss_with_ce_kwargs(self):
+        torch.manual_seed(1234)
+        clip_loss = ContrastiveLossWithTemperature()
+        clip_loss = clip_loss.to(get_current_device())
+        image_embeddings = torch.randn(3, 5)
+        text_embeddings = torch.randn(3, 5)
+        loss = clip_loss(
+            image_embeddings=image_embeddings,
+            text_embeddings=text_embeddings,
+            cross_entropy_kwargs={"label_smoothing": 0.1},
+        )
+
+        self.assertEqual(loss.size(), torch.Size([]))
+        self.assertAlmostEqual(loss.item(), 10.2524, 3)
+
     def test_temperature_clamp_invalid(self):
         with self.assertRaises(ValueError):
             ContrastiveLossWithTemperature(logit_scale_max=None, logit_scale_min=None)
