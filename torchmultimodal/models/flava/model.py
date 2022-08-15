@@ -248,6 +248,8 @@ class FLAVAModel(nn.Module, PretrainedMixin):
         encoded_text = self.text_encoder(
             input_ids=text,
             attention_mask=text_mask,
+            return_attn_weights=True,
+            return_hidden_states=True,
         )
         if projection:
             projected_embeddings = self.text_projection(

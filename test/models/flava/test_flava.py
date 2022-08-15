@@ -7,7 +7,7 @@
 import unittest
 
 import torch
-from test.test_utils import assert_expected
+from test.test_utils import assert_expected_namedtuple
 from torch import nn
 from torchmultimodal.models.flava.model import (
     flava_image_encoder,
@@ -15,6 +15,7 @@ from torchmultimodal.models.flava.model import (
     flava_model_for_pretraining,
     flava_text_encoder,
     FLAVAModel,
+    FLAVAOutput,
 )
 from torchmultimodal.modules.layers.transformer import TransformerOutput
 
@@ -181,76 +182,118 @@ class TestFLAVAModel(unittest.TestCase):
     def test_forward_image_text(self):
         image = torch.ones(2, 3, 2, 2)
         text = torch.ones(2, 3, dtype=torch.int32)
-        out = self.flava(image, text)
-        self._assert_empty(out.text_masked)
-        self._assert_empty(out.multimodal_masked)
-        self._assert_empty(out.multimodal)
-        assert_expected(out.text, self.text_encoder(text))
-        assert_expected(out.image, self.image_encoder(image))
-        assert_expected(out.image_masked, self.image_encoder(image))
+        actual = self.flava(image, text)
+        expected = FLAVAOutput(
+            text_masked=TransformerOutput(),
+            multimodal_masked=TransformerOutput(),
+            multimodal=TransformerOutput(),
+            text=self.text_encoder(
+                text, return_attn_weights=True, return_hidden_states=True
+            ),
+            image=self.image_encoder(image),
+            image_masked=self.image_encoder(image),
+            projected_image_embeddings=actual.image.last_hidden_state[:, 0, :],
+            projected_text_embeddings=actual.text.last_hidden_state[:, 0, :],
+        )
+        assert_expected_namedtuple(actual, expected, rtol=0, atol=1e-4)
 
     def test_forward_masked_image_and_text(self):
         image = torch.zeros(2, 3, 2, 2)
         masked_image = torch.ones(2, 1)
         text = torch.ones(2, 3, dtype=torch.int32)
         masked_text = torch.ones(2, 3, dtype=torch.int32)
-        out = self.flava(
+        actual = self.flava(
             text=text,
             image=image,
             image_patches_mask=masked_image,
             text_masked=masked_text,
         )
-        self._assert_empty(out.multimodal)
-        assert_expected(out.text, self.text_encoder(text))
-        assert_expected(out.text_masked, self.text_encoder(masked_text))
-        assert_expected(out.image, self.image_encoder(image))
-        assert_expected(out.image_masked, self.image_encoder(image, masked_image))
-        assert_expected(
-            out.multimodal_masked,
-            torch.cat(
-                [out.image_masked.hidden_states[-1], out.text_masked.hidden_states[-1]],
+        expected = FLAVAOutput(
+            text_masked=self.text_encoder(
+                masked_text, return_attn_weights=True, return_hidden_states=True
+            ),
+            multimodal_masked=torch.cat(
+                [
+                    actual.image_masked.hidden_states[-1],
+                    actual.text_masked.hidden_states[-1],
+                ],
                 1,
             ),
+            multimodal=TransformerOutput(),
+            text=self.text_encoder(
+                text, return_attn_weights=True, return_hidden_states=True
+            ),
+            image=self.image_encoder(image),
+            image_masked=self.image_encoder(image, masked_image),
+            projected_image_embeddings=actual.image.last_hidden_state[:, 0, :],
+            projected_text_embeddings=actual.text.last_hidden_state[:, 0, :],
         )
+        assert_expected_namedtuple(actual, expected, rtol=0, atol=1e-4)
 
     def test_forward_masked_text(self):
         text = torch.ones(2, 3, dtype=torch.int32)
         masked_text = torch.ones(2, 3, dtype=torch.int32)
-        out = self.flava(text=text, text_masked=masked_text)
-        self._assert_empty(out.image)
-        self._assert_empty(out.image_masked)
-        self._assert_empty(out.multimodal)
-        self._assert_empty(out.multimodal_masked)
-        assert_expected(out.text, self.text_encoder(text))
-        assert_expected(out.text_masked, self.text_encoder(masked_text))
+        actual = self.flava(text=text, text_masked=masked_text)
+        expected = FLAVAOutput(
+            multimodal_masked=TransformerOutput(),
+            multimodal=TransformerOutput(),
+            text=self.text_encoder(
+                text, return_attn_weights=True, return_hidden_states=True
+            ),
+            image=TransformerOutput(),
+            image_masked=TransformerOutput(),
+            text_masked=self.text_encoder(
+                masked_text, return_attn_weights=True, return_hidden_states=True
+            ),
+            projected_image_embeddings=None,
+            projected_text_embeddings=actual.text.last_hidden_state[:, 0, :],
+        )
+        assert_expected_namedtuple(actual, expected, rtol=0, atol=1e-4)
 
     def test_forward_text(self):
         text = torch.ones(2, 3, dtype=torch.int32)
-        out = self.flava(text=text)
-        self._assert_empty(out.image)
-        self._assert_empty(out.image_masked)
-        self._assert_empty(out.multimodal)
-        self._assert_empty(out.multimodal_masked)
-        self._assert_empty(out.text_masked)
-        assert_expected(out.text, self.text_encoder(text))
+        actual = self.flava(text=text)
+        expected = FLAVAOutput(
+            multimodal_masked=TransformerOutput(),
+            multimodal=TransformerOutput(),
+            text=self.text_encoder(
+                text, return_attn_weights=True, return_hidden_states=True
+            ),
+            image=TransformerOutput(),
+            image_masked=TransformerOutput(),
+            text_masked=TransformerOutput(),
+            projected_image_embeddings=None,
+            projected_text_embeddings=actual.text.last_hidden_state[:, 0, :],
+        )
+        assert_expected_namedtuple(actual, expected, rtol=0, atol=1e-4)
 
     def test_forward_masked_image(self):
         image = torch.zeros(2, 3, 2, 2)
         masked_image = torch.ones(2, 1)
-        out = self.flava(image=image, image_patches_mask=masked_image)
-        self._assert_empty(out.text)
-        self._assert_empty(out.text_masked)
-        self._assert_empty(out.multimodal)
-        self._assert_empty(out.multimodal_masked)
-        assert_expected(out.image, self.image_encoder(image))
-        assert_expected(out.image_masked, self.image_encoder(image, masked_image))
+        actual = self.flava(image=image, image_patches_mask=masked_image)
+        expected = FLAVAOutput(
+            multimodal_masked=TransformerOutput(),
+            multimodal=TransformerOutput(),
+            text=TransformerOutput(),
+            image=self.image_encoder(image),
+            image_masked=self.image_encoder(image, masked_image),
+            text_masked=TransformerOutput(),
+            projected_image_embeddings=actual.image.last_hidden_state[:, 0, :],
+            projected_text_embeddings=None,
+        )
+        assert_expected_namedtuple(actual, expected, rtol=0, atol=1e-4)
 
     def test_forward_image(self):
         image = torch.zeros(2, 3, 2, 2)
-        out = self.flava(image=image)
-        self._assert_empty(out.text)
-        self._assert_empty(out.text_masked)
-        self._assert_empty(out.multimodal)
-        self._assert_empty(out.multimodal_masked)
-        assert_expected(out.image, self.image_encoder(image))
-        assert_expected(out.image_masked, self.image_encoder(image))
+        actual = self.flava(image=image)
+        expected = FLAVAOutput(
+            multimodal_masked=TransformerOutput(),
+            multimodal=TransformerOutput(),
+            text=TransformerOutput(),
+            image=self.image_encoder(image),
+            image_masked=self.image_encoder(image),
+            text_masked=TransformerOutput(),
+            projected_image_embeddings=actual.image.last_hidden_state[:, 0, :],
+            projected_text_embeddings=None,
+        )
+        assert_expected_namedtuple(actual, expected, rtol=0, atol=1e-4)
