@@ -109,20 +109,26 @@ def num_tokens(num_in_tokens, num_out_tokens):
 
 @pytest.fixture
 def self_attn_mask():
-    def _attn_mask(seq_len):
-        return torch.tril(torch.ones(seq_len, seq_len))[
+    def _attn_mask(q_seq_len, k_seq_len=None):
+        if k_seq_len is None:
+            k_seq_len = q_seq_len
+        return torch.tril(torch.ones(q_seq_len, k_seq_len))[
             None, :
-        ]  # (b, seq_len, seq_len)
+        ]  # (b, q_seq_len, k_seq_len)
 
     return _attn_mask
 
 
 @pytest.fixture
 def self_head_mask(n_head):
-    def _head_mask(seq_len):
-        masked = torch.zeros(1, seq_len, seq_len)
-        unmasked = torch.ones(n_head - 1, seq_len, seq_len)
-        return torch.cat((masked, unmasked), dim=0)[None, :]  # (b, h, seq_len, seq_len)
+    def _head_mask(q_seq_len, k_seq_len=None):
+        if k_seq_len is None:
+            k_seq_len = q_seq_len
+        masked = torch.zeros(1, q_seq_len, k_seq_len)
+        unmasked = torch.ones(n_head - 1, q_seq_len, k_seq_len)
+        return torch.cat((masked, unmasked), dim=0)[
+            None, :
+        ]  # (b, h, q_seq_len, k_seq_len)
 
     return _head_mask
 
@@ -207,6 +213,12 @@ class TestMultimodalGPT:
         with pytest.raises(AttributeError):
             gpt(out_tokenizer=BadTokenizer())
 
+    def test_encode_value_error(self, gpt):
+        gpt = gpt()
+        x_input = torch.randn(1, 3, 2)
+        with pytest.raises(ValueError):
+            gpt.encode(x_input, modality="abc")
+
     def test_fwd_for_generation(self, gpt, in_modality, d_model, n_head, mocker):
         """Test autoregressive decoding for one step"""
         gpt = gpt()
@@ -271,7 +283,6 @@ class TestMultimodalGPT:
         out_modality,
         self_attn_mask,
         self_head_mask,
-        logits_mask,
     ):
         gpt = gpt()
 
@@ -287,28 +298,70 @@ class TestMultimodalGPT:
             use_cache=True,
             causal=True,
             right_shift=True,
-            logits_mask=logits_mask,
         )
         assert isinstance(actual, MultimodalGPTOutput)
         expected = {
             "decoder_output": {
                 "last_hidden_states": (
                     torch.Size([1, 7, 4]),  # (b, seq_len, d_model)
-                    -0.2385,
+                    -0.2456,
                 ),
                 "hidden_states": None,
                 "attention_weights": None,
                 "past_key_values": (
                     (
                         {
-                            "k": (torch.Size([1, 2, 7, 2]), 6.0892),
-                            "v": (torch.Size([1, 2, 7, 2]), 2.6072),
+                            "k": (torch.Size([1, 2, 7, 2]), 6.8560),
+                            "v": (torch.Size([1, 2, 7, 2]), 2.1117),
                         }
                     ),
                 ),  # (num_layers, key/value, (b, n_head, seq_len, d_model // n_head)
             },
             "logits": (torch.Size([1, 10, 7]), 0.0),  # (b, tokens, seq_len)
         }
+        assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
+
+    def test_forward_logits_mask(
+        self,
+        gpt,
+        in_modality,
+        out_modality,
+        self_attn_mask,
+        self_head_mask,
+        logits_mask,
+    ):
+        gpt = gpt()
+
+        b, in_seq_len, _ = in_modality.shape
+        b, out_seq_len, _ = out_modality.shape
+        attn_mask = self_attn_mask(in_seq_len + out_seq_len)
+        head_mask = self_head_mask(in_seq_len + out_seq_len)
+        out = gpt.forward(
+            in_modality=in_modality,
+            out_modality=out_modality,
+            attn_mask=attn_mask,
+            head_mask=head_mask,
+            use_cache=True,
+            causal=True,
+            right_shift=True,
+            logits_mask=logits_mask,
+        )
+        assert isinstance(out, MultimodalGPTOutput)
+        actual = out.logits.transpose(1, 2)  # (b, seq_len, num_tokens)
+        max_neg_value = -torch.finfo(torch.float32).max
+        # assert each quandrant of the logits matrix (b, total_seq_len, num_total_tokens)
+        assert_expected(
+            actual[:, :3, :4], torch.zeros(1, 3, 4)
+        )  # (b, in_seq_len, num_in_tokens)
+        assert_expected(
+            actual[:, :3, 4:], torch.ones(1, 3, 6) * max_neg_value
+        )  # (b, in_seq_len, num_out_tokens)
+        assert_expected(
+            actual[:, 3:, :4], torch.ones(1, 4, 4) * max_neg_value
+        )  # (b, out_seq_len, num_in_tokens)
+        assert_expected(
+            actual[:, 3:, 4:], torch.zeros(1, 4, 6)
+        )  # (b, out_seq_len, num_out_tokens)
 
 
 class TestMultimodalTransformerDecoder:

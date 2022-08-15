@@ -43,9 +43,10 @@ class MultimodalGPT(nn.Module):
     Attributes:
         d_model (int): Embedding dimension of the transformer decoder.
         num_tokens (int): Total number of tokens for the input and output modalities.
-        in_tokenizer (nn.Module): Tokenizer for the input modality.
-        out_tokenizer (nn.Module): Tokenizer for the output modality.
-        mm_decoder (nn.Module): Multimodal transformer decoder.
+        in_tokenizer (nn.Module): Tokenizer for the input modality. Must have methods ``encode``, ``lookup``.
+        out_tokenizer (nn.Module): Tokenizer for the output modality. Must have methods ``encode``, ``decode``.
+        mm_decoder (nn.Module): Multimodal transformer decoder. An instace of
+            :py:class:`MultimodalTransformerDecoder`.
 
     Args:
         in_modality (Tensor, optional): Tensor of dimension ``(b, in_seq_len, c)`` containing tokenized
@@ -56,10 +57,11 @@ class MultimodalGPT(nn.Module):
             input modality position embeddings. Defaults to ``None``.
         out_pos_ids (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing indices for the
             output modality position embeddings. Defaults to ``None``.
-        attn_mask (Tensor, optional): Tensor of dimension ``(b, total_seq_len, total_seq_len)``. Contains 1s for
-            positions to attend to and 0s for masked positions. Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(b, h, total_seq_len, total_seq_len)``. Contains 1s
-            for attention heads to use and 0s for masked heads. Defaults to ``None``.
+        attn_mask (Tensor, optional): Tensor of dimension ``(b, q_seq_len, k_seq_len)`` where prefixes ``q``
+            and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s for masked positions.
+            Defaults to ``None``.
+        head_mask (Tensor, optional): Tensor of dimension ``(b, h, q_seq_len, k_seq_len)``. Masks need to be
+            specified for each attention head. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
         causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
@@ -71,8 +73,8 @@ class MultimodalGPT(nn.Module):
             ``False``.
 
     Raises:
-        AttributeError: If input tokenizer does not implement methods ``encode`` and ``decode`` or output
-            tokenizer does not implement methods ``encode``, ``decode`` and ``lookup``.
+        AttributeError: If input tokenizer does not implement methods ``encode`` and ``lookup`` or if output
+            tokenizer does not implement methods ``encode`` and ``decode``.
     """
 
     def __init__(
@@ -85,20 +87,17 @@ class MultimodalGPT(nn.Module):
     ) -> None:
         super().__init__()
         if not all(
-            [hasattr(in_tokenizer, attr_name) for attr_name in ["encode", "decode"]]
+            [hasattr(in_tokenizer, attr_name) for attr_name in ["encode", "lookup"]]
         ):
             raise AttributeError(
-                "Input modality tokenizer must have methods 'encode', 'decode' and 'lookup'."
+                "Input modality tokenizer must have methods 'encode' and 'lookup'."
             )
 
         if not all(
-            [
-                hasattr(out_tokenizer, attr_name)
-                for attr_name in ["encode", "decode", "lookup"]
-            ]
+            [hasattr(out_tokenizer, attr_name) for attr_name in ["encode", "decode"]]
         ):
             raise AttributeError(
-                "Output modality tokenizer must have methods 'encode', 'decode' and 'lookup'."
+                "Output modality tokenizer must have methods 'encode' and 'decode'."
             )
 
         self.d_model = d_model
@@ -212,32 +211,21 @@ class MultimodalGPT(nn.Module):
 
         return encoder(x, **kwargs)  # type: ignore
 
-    def decode(self, x: Tensor, modality: str, **kwargs: Any) -> Tensor:
-        """Converts tokens ids back to data during generation.
+    def decode(self, x: Tensor, **kwargs: Any) -> Tensor:
+        """Converts out-modality tokens ids back to data during generation.
 
         Args:
             x (Tensor): Token IDs to be decoded.
-            modality (str): Input and output modality string used to select the decoder.
             kwargs (Any): Other keywords arguments suitable for the decoder.
 
         Returns:
             A tensor for the decoded data.
-
-        Raises:
-            ValueError: If ``modality`` is neither ``in`` nor ``out``.
         """
-        if modality == "in":
-            decoder = self.in_tokenizer.decode
-        elif modality == "out":
-            decoder = self.out_tokenizer.decode
-        else:
-            raise ValueError(f"Invalid modality parameter: {modality}")
-
-        return decoder(x, **kwargs)  # type: ignore
+        return self.out_tokenizer.decode(x, **kwargs)  # type: ignore
 
     def lookup(self, x: Tensor) -> Tensor:
         """Looks up the latent embeddings corresponding to the token ids during generation."""
-        return self.out_tokenizer.lookup(x)  # type: ignore
+        return self.in_tokenizer.lookup(x)  # type: ignore
 
 
 class MultimodalTransformerDecoder(nn.Module):
@@ -255,9 +243,9 @@ class MultimodalTransformerDecoder(nn.Module):
         out_token_emb (nn.Module): Embedding layer that converts output tokens to embedding vectors.
         in_pos_emb (nn.Module): Input modality position embedding layer.
         out_pos_emb (nn.Module): Output modality position embedding layer.
-        decoder (nn.Module): The transformer decoder (see ``torchmultimodal.models.gpt.TransformerDecoder``)
+        decoder (nn.Module): The transformer decoder. An instance of :py:class:`TransformerDecoder`.
         right_shift (nn.Module): Layer that shifts the embedding vectors to the right and prepends it with
-            start of sentence token (SOS).
+            start of sentence token (SOS). An instance of :py:class:`RightShift`.
 
         Note:
             * During training mode, the SOS token is prepended to the left of the concatenated input and
@@ -275,10 +263,11 @@ class MultimodalTransformerDecoder(nn.Module):
             input modality position embeddings. Defaults to ``None``.
         out_pos_ids (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing indices for the
             output modality position embeddings. Defaults to ``None``.
-        attn_mask (Tensor, optional): Tensor of dimension ``(b, total_seq_len, total_seq_len)``. Contains 1s for
-            positions to attend to and 0s for masked positions. Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(b, h, total_seq_len, total_seq_len)``. Contains 1s
-            for attention heads to use and 0s for masked heads. Defaults to ``None``.
+        attn_mask (Tensor, optional): Tensor of dimension ``(b, q_seq_len, k_seq_len)`` where prefixes ``q``
+            and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s for masked positions.
+            Defaults to ``None``.
+        head_mask (Tensor, optional): Tensor of dimension ``(b, h, q_seq_len, k_seq_len)``. Masks need to be
+            specified for each attention head. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
         causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
@@ -378,15 +367,17 @@ class TransformerDecoder(nn.Module):
     """A transformer decoder
 
     Attributes:
-        decoder_layer (nn.Module): The transformer decoder layer.
+        decoder_layer (nn.Module): The transformer decoder layer. An instance of
+            :py:class:`TransformerDecoderLayer
         num_layers (int): The number of transformer decoder layers to be stacked up.
 
     Args:
         hidden_states (Tensor): Tensor of the embedding vectors of dimension ``(b, seq_len, emb_dim)``.
-        attn_mask (Tensor, optional): Tensor of dimension ``(b, seq_len, seq_len)``. Contains 1s for
-            positions to attend to and 0s for masked positions. Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(b, h, seq_len, seq_len)``. Contains 1s
-            for attention heads to use and 0s for masked heads. Defaults to ``None``.
+        attn_mask (Tensor, optional): Tensor of dimension ``(b, q_seq_len, k_seq_len)`` where prefixes ``q``
+            and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s for masked positions.
+            Defaults to ``None``.
+        head_mask (Tensor, optional): Tensor of dimension ``(b, h, q_seq_len, k_seq_len)``. Masks need to be
+            specified for each attention head. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
         causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
@@ -483,10 +474,11 @@ class TransformerDecoderLayer(nn.Module):
 
     Args:
         x (Tensor): input embedding vectors.
-        attn_mask (Tensor, optional): Tensor of dimension ``(b, seq_len, seq_len)``. Contains 1s for
-            positions to attend to and 0s for masked positions. Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(b, h, seq_len, seq_len)``. Contains 1s
-            for attention heads to use and 0s for masked heads. Defaults to ``None``.
+        attn_mask (Tensor, optional): Tensor of dimension ``(b, q_seq_len, k_seq_len)`` where prefixes ``q``
+            and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s for masked positions.
+            Defaults to ``None``.
+        head_mask (Tensor, optional): Tensor of dimension ``(b, h, q_seq_len, k_seq_len)``. Masks need to be
+            specified for each attention head. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
         causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
@@ -536,9 +528,11 @@ class TransformerDecoderLayer(nn.Module):
         attn_probs = None
         past_key_values = None
 
-        # Add head dim to attention mask for broadcasting
         if attn_mask is not None:
-            attn_mask = get_extended_attention_mask(attn_mask)
+            # Make attention mask broadcastable along head dim
+            attn_mask = get_extended_attention_mask(
+                attn_mask
+            )  # (b, seq_len, seq_len) -> (b, 1, seq_len, seq_len)
 
         attn_out = self._attn(
             self.norm_attn(x),
