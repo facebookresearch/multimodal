@@ -287,7 +287,11 @@ class MultimodalGPT(nn.Module):
         return self.out_tokenizer.decode(token_ids, **kwargs)  # type: ignore
 
     def lookup(self, token_ids: Tensor, modality: str) -> Tensor:
-        """Looks up the latent embeddings corresponding to the token ids during generation."""
+        """Looks up the latent embeddings corresponding to the token ids during generation.
+
+        We ask each tokenizer to implement this method. An example is
+        :py:class:`torchmultimodal.models.vqvae.VQVAE`.
+        """
         if modality == "in":
             tokenizer = self.in_tokenizer
         elif modality == "out":
