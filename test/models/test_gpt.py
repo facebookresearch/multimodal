@@ -386,7 +386,7 @@ class TestMultimodalGPT:
         b, out_seq_len = out_tokens.shape
         attn_mask = attn_mask(in_seq_len + out_seq_len)
         head_mask = head_mask(in_seq_len + out_seq_len)
-        actual = gpt.forward(
+        actual = gpt(
             in_tokens=in_tokens,
             out_tokens=out_tokens,
             attn_mask=attn_mask,
@@ -432,7 +432,7 @@ class TestMultimodalGPT:
         b, out_seq_len = out_tokens.shape
         attn_mask = attn_mask(in_seq_len + out_seq_len)
         head_mask = head_mask(in_seq_len + out_seq_len)
-        out = gpt.forward(
+        out = gpt(
             in_tokens=in_tokens,
             out_tokens=out_tokens,
             attn_mask=attn_mask,
