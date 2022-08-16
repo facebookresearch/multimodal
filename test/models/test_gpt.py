@@ -9,6 +9,7 @@ import pytest
 import torch
 from test.test_utils import assert_expected, assert_expected_namedtuple, set_rng_seed
 from torch import nn
+from torch.nn import functional as F
 from torchmultimodal.models.gpt import (
     MultimodalGPT,
     MultimodalGPTOutput,
@@ -20,6 +21,7 @@ from torchmultimodal.models.gpt import (
     TransformerDecoderOutput,
     TransformerLayerOutput,
 )
+from torchmultimodal.utils.common import shift_dim
 
 
 @pytest.fixture(autouse=True)
@@ -38,6 +40,17 @@ def emb_dim():
 
 
 @pytest.fixture
+def num_emb():
+    return 6
+
+
+@pytest.fixture
+def latent_shape():
+    # the product of dims should equal out_seq_len
+    return (1, 1, 4)
+
+
+@pytest.fixture
 def in_seq_len():
     return 3
 
@@ -50,46 +63,6 @@ def out_seq_len():
 @pytest.fixture
 def n_head():
     return 2
-
-
-@pytest.fixture
-def right_shift(d_model):
-    return RightShift(d_model)
-
-
-@pytest.fixture
-def in_token_emb(d_model, emb_dim):
-    return nn.Linear(emb_dim, d_model)
-
-
-@pytest.fixture
-def out_token_emb(d_model, emb_dim):
-    return nn.Linear(emb_dim, d_model)
-
-
-@pytest.fixture
-def in_pos_emb(in_seq_len, d_model):
-    return nn.Embedding(in_seq_len, d_model)
-
-
-@pytest.fixture
-def out_pos_emb(out_seq_len, d_model):
-    return nn.Embedding(out_seq_len, d_model)
-
-
-@pytest.fixture
-def in_modality(in_seq_len, emb_dim):
-    return torch.rand(1, in_seq_len, emb_dim)  # (b, seq_len, emb_dim)
-
-
-@pytest.fixture
-def out_modality(out_seq_len, emb_dim):
-    return torch.rand(1, out_seq_len, emb_dim)  # (b, seq_len, emb_dim)
-
-
-@pytest.fixture
-def x_input(d_model):
-    return torch.rand(1, 3, d_model)  # (b, seq_len, emb_dim)
 
 
 @pytest.fixture
@@ -108,7 +81,32 @@ def num_tokens(num_in_tokens, num_out_tokens):
 
 
 @pytest.fixture
-def self_attn_mask():
+def in_tokens(in_seq_len):
+    return torch.arange(in_seq_len).unsqueeze(0)  # (b, seq_len)
+
+
+@pytest.fixture
+def out_tokens(out_seq_len):
+    return torch.arange(out_seq_len).unsqueeze(0)  # (b, seq_len)
+
+
+@pytest.fixture
+def in_modality(in_seq_len, d_model):
+    return torch.rand(1, in_seq_len, d_model)  # (b, seq_len, d_model)
+
+
+@pytest.fixture
+def out_modality(out_seq_len, d_model):
+    return torch.rand(1, out_seq_len, d_model)  # (b, seq_len, d_model)
+
+
+@pytest.fixture
+def decoder_input(d_model):
+    return torch.rand(1, 3, d_model)  # (b, seq_len, d_model)
+
+
+@pytest.fixture
+def attn_mask():
     def _attn_mask(q_seq_len, k_seq_len=None):
         if k_seq_len is None:
             k_seq_len = q_seq_len
@@ -120,7 +118,7 @@ def self_attn_mask():
 
 
 @pytest.fixture
-def self_head_mask(n_head):
+def head_mask(n_head):
     def _head_mask(q_seq_len, k_seq_len=None):
         if k_seq_len is None:
             k_seq_len = q_seq_len
@@ -150,6 +148,31 @@ def num_layers():
 
 
 @pytest.fixture
+def right_shift(d_model):
+    return RightShift(d_model)
+
+
+@pytest.fixture
+def in_projection(d_model, emb_dim):
+    return nn.Linear(emb_dim, d_model)
+
+
+@pytest.fixture
+def out_projection(d_model, emb_dim):
+    return nn.Linear(emb_dim, d_model)
+
+
+@pytest.fixture
+def in_pos_emb(in_seq_len, d_model):
+    return nn.Embedding(in_seq_len, d_model)
+
+
+@pytest.fixture
+def out_pos_emb(out_seq_len, d_model):
+    return nn.Embedding(out_seq_len, d_model)
+
+
+@pytest.fixture
 def decoder_layer(n_head, d_model):
     return TransformerDecoderLayer(d_model, n_head=n_head).eval()
 
@@ -160,36 +183,55 @@ def decoder(decoder_layer, num_layers):
 
 
 @pytest.fixture
-def mm_decoder(
-    in_token_emb, out_token_emb, in_pos_emb, out_pos_emb, decoder, right_shift
-):
-    return MultimodalTransformerDecoder(
-        in_token_emb, out_token_emb, in_pos_emb, out_pos_emb, decoder, right_shift
-    )
+def mm_decoder(in_pos_emb, out_pos_emb, decoder, right_shift):
+    return MultimodalTransformerDecoder(in_pos_emb, out_pos_emb, decoder, right_shift)
 
 
 @pytest.fixture
-def gpt(d_model, num_tokens, mm_decoder):
+def tokenizer(num_emb, emb_dim):
     class DummyTokenizer(nn.Module):
-        def __init__(self):
+        def __init__(self, num_emb, emb_dim):
             super().__init__()
+            self.encoder = nn.Identity()  # we don't test encoder here
+            self.decoder = nn.Identity()  # we don't test decoder here
+            self.embedding = nn.Parameter(
+                torch.arange(num_emb * emb_dim, dtype=torch.float).reshape(
+                    num_emb, emb_dim
+                )
+            )
 
         def encode(self, x):
-            pass
+            return self.encoder(x)
 
         def decode(self, token_ids):
-            pass
+            return self.decoder(shift_dim(self.lookup(token_ids), -1, 1))
 
         def lookup(self, token_ids):
-            pass
+            return F.embedding(token_ids, self.embedding)
 
-    def _gpt(in_tokenizer=DummyTokenizer(), out_tokenizer=DummyTokenizer()):
+    return DummyTokenizer(num_emb, emb_dim)
+
+
+@pytest.fixture
+def gpt(
+    d_model,
+    num_tokens,
+    mm_decoder,
+    latent_shape,
+    tokenizer,
+    in_projection,
+    out_projection,
+):
+    def _gpt(in_tokenizer=tokenizer, out_tokenizer=tokenizer):
         return MultimodalGPT(
             d_model=d_model,
             num_tokens=num_tokens,
+            latent_shape=latent_shape,
             in_tokenizer=in_tokenizer,
             out_tokenizer=out_tokenizer,
             mm_decoder=mm_decoder,
+            in_projection=in_projection,
+            out_projection=out_projection,
         ).eval()
 
     return _gpt
@@ -202,7 +244,7 @@ def get_pos_ids(x):
 
 
 class TestMultimodalGPT:
-    def test_bad_tokenizers(self, gpt):
+    def test_tokenizers_missing_methods(self, gpt):
         class BadTokenizer(nn.Module):
             def __init__(self):
                 super().__init__()
@@ -213,13 +255,64 @@ class TestMultimodalGPT:
         with pytest.raises(AttributeError):
             gpt(out_tokenizer=BadTokenizer())
 
-    def test_encode_value_error(self, gpt):
+    def test_encode_invalid_modality(self, gpt):
         gpt = gpt()
-        x_input = torch.randn(1, 3, 2)
         with pytest.raises(ValueError):
-            gpt.encode(x_input, modality="abc")
+            gpt.encode(torch.randn(1, 2, 3), modality="abc")
 
-    def test_fwd_for_generation(self, gpt, in_modality, d_model, n_head, mocker):
+    def test_decode_tokens_wrong_shape(self, gpt):
+        bad_out_tokens = torch.arange(3)  # seq_len no batch dim
+        gpt = gpt()
+        with pytest.raises(ValueError):
+            gpt.decode(bad_out_tokens)
+
+    def test_decode_tokens_reshape(self, gpt, out_tokens):
+        gpt = gpt()
+        actual = gpt.decode(out_tokens)
+        expected_shape = torch.Size([1, 5, 1, 1, 4])  # (b, emb_dim, *latent_shape)
+        assert_expected(actual.shape, expected_shape)
+
+    def test_lookup_invalid_modality(self, gpt):
+        gpt = gpt()
+        token_ids = torch.arange(3).unsqueeze(0)
+        with pytest.raises(ValueError):
+            gpt.lookup(token_ids, modality="abc")
+
+    def test_lookup_in_modality(self, gpt, in_tokens):
+        gpt = gpt()
+        actual = gpt.lookup(in_tokens, "in")
+        expected = torch.tensor(
+            [
+                [
+                    [0.0, 1.0, 2.0, 3.0, 4.0],
+                    [5.0, 6.0, 7.0, 8.0, 9.0],
+                    [10.0, 11.0, 12.0, 13.0, 14.0],
+                ],
+            ]
+        )
+        assert_expected(actual, expected)
+
+    def test_lookup_out_modality(self, gpt, out_tokens):
+        gpt = gpt()
+        actual = gpt.lookup(out_tokens, "out")
+        expected = torch.tensor(
+            [
+                [
+                    [0.0, 1.0, 2.0, 3.0, 4.0],
+                    [5.0, 6.0, 7.0, 8.0, 9.0],
+                    [10.0, 11.0, 12.0, 13.0, 14.0],
+                    [15.0, 16.0, 17.0, 18.0, 19.0],
+                ],
+            ]
+        )
+        assert_expected(actual, expected)
+
+    def test_fwd_bad_input(self, gpt):
+        gpt = gpt()
+        with pytest.raises(ValueError):
+            gpt.fwd()
+
+    def test_fwd_for_generation(self, gpt, in_tokens, d_model, n_head, mocker):
         """Test autoregressive decoding for one step"""
         gpt = gpt()
 
@@ -229,11 +322,11 @@ class TestMultimodalGPT:
             wraps=gpt.mm_decoder.right_shift.forward,
         )
 
-        b, in_seq_len, _ = in_modality.shape
-        # learn the key/value representation from the full in_modality sequence
+        b, in_seq_len = in_tokens.shape
+        # learn the key/value representation from the full input modality sequence
         with torch.no_grad():
             actual = gpt.fwd(
-                in_modality=in_modality, use_cache=True, causal=True, right_shift=True
+                in_tokens=in_tokens, use_cache=True, causal=True, right_shift=True
             )
         assert isinstance(actual, TransformerDecoderOutput)
         # check that the key/value representation has been learnt
@@ -246,7 +339,7 @@ class TestMultimodalGPT:
                 layer_past_kv["v"].shape,
                 torch.Size([1, 2, 3, 2]),
             )
-        # right shift should be switched on to prepend SOS to in_modality sequence
+        # right shift should be switched on to prepend SOS to input modality sequence
         mock_right_shift.assert_called_once()
         mock_right_shift.reset_mock()
 
@@ -255,7 +348,7 @@ class TestMultimodalGPT:
         decode_step = 0
         with torch.no_grad():
             actual = gpt.fwd(
-                out_modality=in_modality[:, -1:, :],
+                out_tokens=in_tokens[:, -1:],
                 out_pos_ids=torch.tensor([decode_step]).unsqueeze(0).repeat(b, 1),
                 use_cache=True,
                 causal=True,
@@ -272,27 +365,27 @@ class TestMultimodalGPT:
                 layer_past_kv["v"].shape,
                 torch.Size([1, 2, 4, 2]),
             )
-        # right shift should be switched off as the "SOS" token for out_modality is the last token
-        # of in_modality
+        # right shift should be switched off as the "SOS" token for output modality
+        # is the last token of in_modality
         mock_right_shift.assert_not_called()
 
     def test_forward(
         self,
         gpt,
-        in_modality,
-        out_modality,
-        self_attn_mask,
-        self_head_mask,
+        in_tokens,
+        out_tokens,
+        attn_mask,
+        head_mask,
     ):
         gpt = gpt()
 
-        b, in_seq_len, _ = in_modality.shape
-        b, out_seq_len, _ = out_modality.shape
-        attn_mask = self_attn_mask(in_seq_len + out_seq_len)
-        head_mask = self_head_mask(in_seq_len + out_seq_len)
+        b, in_seq_len = in_tokens.shape
+        b, out_seq_len = out_tokens.shape
+        attn_mask = attn_mask(in_seq_len + out_seq_len)
+        head_mask = head_mask(in_seq_len + out_seq_len)
         actual = gpt.forward(
-            in_modality=in_modality,
-            out_modality=out_modality,
+            in_tokens=in_tokens,
+            out_tokens=out_tokens,
             attn_mask=attn_mask,
             head_mask=head_mask,
             use_cache=True,
@@ -304,15 +397,15 @@ class TestMultimodalGPT:
             "decoder_output": {
                 "last_hidden_states": (
                     torch.Size([1, 7, 4]),  # (b, seq_len, d_model)
-                    -0.2456,
+                    9.4419,
                 ),
                 "hidden_states": None,
                 "attention_weights": None,
                 "past_key_values": (
                     (
                         {
-                            "k": (torch.Size([1, 2, 7, 2]), 6.8560),
-                            "v": (torch.Size([1, 2, 7, 2]), 2.1117),
+                            "k": (torch.Size([1, 2, 7, 2]), -5.5201),
+                            "v": (torch.Size([1, 2, 7, 2]), -6.1666),
                         }
                     ),
                 ),  # (num_layers, key/value, (b, n_head, seq_len, d_model // n_head)
@@ -324,21 +417,21 @@ class TestMultimodalGPT:
     def test_forward_logits_mask(
         self,
         gpt,
-        in_modality,
-        out_modality,
-        self_attn_mask,
-        self_head_mask,
+        in_tokens,
+        out_tokens,
+        attn_mask,
+        head_mask,
         logits_mask,
     ):
         gpt = gpt()
 
-        b, in_seq_len, _ = in_modality.shape
-        b, out_seq_len, _ = out_modality.shape
-        attn_mask = self_attn_mask(in_seq_len + out_seq_len)
-        head_mask = self_head_mask(in_seq_len + out_seq_len)
+        b, in_seq_len = in_tokens.shape
+        b, out_seq_len = out_tokens.shape
+        attn_mask = attn_mask(in_seq_len + out_seq_len)
+        head_mask = head_mask(in_seq_len + out_seq_len)
         out = gpt.forward(
-            in_modality=in_modality,
-            out_modality=out_modality,
+            in_tokens=in_tokens,
+            out_tokens=out_tokens,
             attn_mask=attn_mask,
             head_mask=head_mask,
             use_cache=True,
@@ -376,7 +469,7 @@ class TestMultimodalTransformerDecoder:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 3, 4]),
-                -0.5538,
+                4.1420,
             ),  # (b, in_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
@@ -391,7 +484,7 @@ class TestMultimodalTransformerDecoder:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 4, 4]),
-                -0.3621,
+                5.5382,
             ),  # (b, out_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
@@ -410,7 +503,7 @@ class TestMultimodalTransformerDecoder:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 7, 4]),
-                -0.8250,
+                9.6968,
             ),  # (b, in_seq_len + out_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
@@ -438,7 +531,7 @@ class TestMultimodalTransformerDecoder:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 7, 4]),
-                -0.8250,
+                9.6968,
             ),  # (b, in_seq_len + out_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
@@ -465,7 +558,7 @@ class TestMultimodalTransformerDecoder:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 7, 4]),
-                -1.0925,
+                9.7036,
             ),  # (b, in_seq_len + out_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
@@ -487,19 +580,17 @@ class TestMultimodalTransformerDecoder:
 
 
 class TestTransformerDecoder:
-    def test_forward(
-        self, decoder, x_input, self_attn_mask, self_head_mask, num_layers
-    ):
-        b, seq_len, _ = x_input.shape
-        attn_mask = self_attn_mask(seq_len)
-        head_mask = self_head_mask(seq_len)
-        actual = decoder(x_input, attn_mask, head_mask)
+    def test_forward(self, decoder, decoder_input, attn_mask, head_mask, num_layers):
+        b, seq_len, _ = decoder_input.shape
+        attn_mask = attn_mask(seq_len)
+        head_mask = head_mask(seq_len)
+        actual = decoder(decoder_input, attn_mask, head_mask)
         assert isinstance(actual, TransformerDecoderOutput)
         assert_expected(actual.last_hidden_states.shape, torch.Size([1, 3, 4]))
 
-    def test_forward_additional_output(self, decoder, x_input, num_layers):
+    def test_forward_additional_output(self, decoder, decoder_input, num_layers):
         actual = decoder(
-            x_input,
+            decoder_input,
             use_cache=True,
             return_attn_weights=True,
             return_hidden_states=True,
@@ -514,8 +605,8 @@ class TestTransformerDecoder:
 
 
 class TestTransformerDecoderLayer:
-    def test_forward(self, decoder_layer, x_input):
-        actual = decoder_layer(x_input)
+    def test_forward(self, decoder_layer, decoder_input):
+        actual = decoder_layer(decoder_input)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
             "hidden_states": (torch.Size([1, 3, 4]), 0.4808),  # (b, seq_len, d_model)
@@ -524,13 +615,11 @@ class TestTransformerDecoderLayer:
         }
         assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
 
-    def test_forward_masked(
-        self, decoder_layer, x_input, self_attn_mask, self_head_mask
-    ):
-        b, seq_len, _ = x_input.shape
-        attn_mask = self_attn_mask(seq_len)
-        head_mask = self_head_mask(seq_len)
-        actual = decoder_layer(x_input, attn_mask, head_mask)
+    def test_forward_masked(self, decoder_layer, decoder_input, attn_mask, head_mask):
+        b, seq_len, _ = decoder_input.shape
+        attn_mask = attn_mask(seq_len)
+        head_mask = head_mask(seq_len)
+        actual = decoder_layer(decoder_input, attn_mask, head_mask)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
             "hidden_states": (torch.Size([1, 3, 4]), 1.5776),  # (b, seq_len, seq_len)
@@ -539,8 +628,8 @@ class TestTransformerDecoderLayer:
         }
         assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
 
-    def test_forward_additional_output(self, decoder_layer, x_input):
-        actual = decoder_layer(x_input, use_cache=True, return_attn_weights=True)
+    def test_forward_additional_output(self, decoder_layer, decoder_input):
+        actual = decoder_layer(decoder_input, use_cache=True, return_attn_weights=True)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
             "hidden_states": (torch.Size([1, 3, 4]), 0.4808),  # (b, seq_len, seq_len)

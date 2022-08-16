@@ -4,6 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+from functools import partial
 from typing import Any, Callable, Dict, NamedTuple, Optional, Tuple, Union
 
 import torch
@@ -43,16 +44,24 @@ class MultimodalGPT(nn.Module):
     Attributes:
         d_model (int): Embedding dimension of the transformer decoder.
         num_tokens (int): Total number of tokens for the input and output modalities.
+        latent_shape ([Tuple[int, ...]): Shape of the latent space of the output modality tokenizer. Used to reshape
+            sequence of generated tokens to be decoded back to data.
         in_tokenizer (nn.Module): Tokenizer for the input modality. Must have methods ``encode``, ``lookup``.
         out_tokenizer (nn.Module): Tokenizer for the output modality. Must have methods ``encode``, ``decode``.
         mm_decoder (nn.Module): Multimodal transformer decoder. An instace of
             :py:class:`MultimodalTransformerDecoder`.
+        in_projection (nn.Module, optional): Projects the input modality token embeddings to match size of the
+            transformer decoder. Defaults to ``None``.
+        out_projection (nn.Module, optional): Projects the output modality token embeddings to match size of the
+            transformer decoder. Defaults to ``None``.
+        norm_layer (Callable[..., nn.Module], optional): Which normalization layer to use. Supports ``nn.Module`` or
+            partial. If ``None``, ``nn.LayerNorm`` will be used as the default.
 
     Args:
-        in_modality (Tensor, optional): Tensor of dimension ``(b, in_seq_len, c)`` containing tokenized
-            embeddings for the input modality. Defaults to ``None``.
-        out_modality (Tensor, optional): Tensor of dimension ``(b, out_seq_len, c')`` containing tokenized
-            embeddings for the output modality. Defaults to ``None``.
+        in_tokens (Tensor, optional): Tensor of dimension ``(b, in_seq_len, c)`` containing tokens
+            for the input modality. Defaults to ``None``.
+        out_tokens (Tensor, optional): Tensor of dimension ``(b, out_seq_len, c')`` containing tokens
+            for the output modality. Defaults to ``None``.
         in_pos_ids (Tensor, optional): Tensor of dimension ``(b, in_seq_len)`` containing indices for the
             input modality position embeddings. Defaults to ``None``.
         out_pos_ids (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing indices for the
@@ -74,16 +83,20 @@ class MultimodalGPT(nn.Module):
 
     Raises:
         AttributeError: If input tokenizer does not implement methods ``encode`` and ``lookup`` or if output
-            tokenizer does not implement methods ``encode`` and ``decode``.
+            tokenizer does not implement methods ``encode``, ``lookup`` and ``decode``.
     """
 
     def __init__(
         self,
         d_model: int,
         num_tokens: int,
+        latent_shape: Tuple[int, ...],
         in_tokenizer: nn.Module,
         out_tokenizer: nn.Module,
         mm_decoder: nn.Module,
+        in_projection: Optional[nn.Module] = None,
+        out_projection: Optional[nn.Module] = None,
+        norm_layer: Optional[Callable[..., nn.Module]] = None,
     ) -> None:
         super().__init__()
         if not all(
@@ -94,27 +107,33 @@ class MultimodalGPT(nn.Module):
             )
 
         if not all(
-            [hasattr(out_tokenizer, attr_name) for attr_name in ["encode", "decode"]]
+            [
+                hasattr(out_tokenizer, attr_name)
+                for attr_name in ["encode", "lookup", "decode"]
+            ]
         ):
             raise AttributeError(
-                "Output modality tokenizer must have methods 'encode' and 'decode'."
+                "Output modality tokenizer must have methods 'encode', 'lookup' and 'decode'."
             )
 
-        self.d_model = d_model
-        self.num_tokens = num_tokens
+        self.latent_shape = latent_shape
         self.in_tokenizer = in_tokenizer
         self.out_tokenizer = out_tokenizer
         self.mm_decoder = mm_decoder
-        self.norm = nn.LayerNorm(d_model)
+        self.in_projection = in_projection
+        self.out_projection = out_projection
+        if norm_layer is None:
+            norm_layer = partial(nn.LayerNorm, eps=1e-5)
+        self.norm = norm_layer(normalized_shape=d_model)
         self.to_logit = nn.Linear(d_model, num_tokens, bias=False)
         # This will give us equal probabilities after the soft max layer initially to avoid biasing
         # towards any particular prediction category
-        self.to_logit.weight.data.copy_(torch.zeros(self.num_tokens, self.d_model))
+        self.to_logit.weight.data.copy_(torch.zeros(num_tokens, d_model))
 
     def forward(
         self,
-        in_modality: Optional[Tensor] = None,
-        out_modality: Optional[Tensor] = None,
+        in_tokens: Optional[Tensor] = None,
+        out_tokens: Optional[Tensor] = None,
         in_pos_ids: Optional[Tensor] = None,
         out_pos_ids: Optional[Tensor] = None,
         attn_mask: Optional[Tensor] = None,
@@ -127,8 +146,8 @@ class MultimodalGPT(nn.Module):
         return_hidden_states: bool = False,
     ) -> MultimodalGPTOutput:
         decoder_output = self.fwd(
-            in_modality=in_modality,
-            out_modality=out_modality,
+            in_tokens=in_tokens,
+            out_tokens=out_tokens,
             in_pos_ids=in_pos_ids,
             out_pos_ids=out_pos_ids,
             attn_mask=attn_mask,
@@ -147,8 +166,8 @@ class MultimodalGPT(nn.Module):
 
     def fwd(
         self,
-        in_modality: Optional[Tensor] = None,
-        out_modality: Optional[Tensor] = None,
+        in_tokens: Optional[Tensor] = None,
+        out_tokens: Optional[Tensor] = None,
         in_pos_ids: Optional[Tensor] = None,
         out_pos_ids: Optional[Tensor] = None,
         attn_mask: Optional[Tensor] = None,
@@ -159,8 +178,33 @@ class MultimodalGPT(nn.Module):
         return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> TransformerDecoderOutput:
-        # During training this method is used in the forward pass to decode input- and output- tokens.
+        # During training this method is used in the forward pass to decode input- and
+        # output- tokens.
         # During generation this method is used for autoregressive decoding.
+        if (in_tokens is None) and (out_tokens is None):
+            raise ValueError(
+                "input-modality token and output-modality token sequences cannot be both empty"
+            )
+
+        # Look up embeddings for the given tokens and project to fit the size of the
+        # transformer decoder
+        in_modality = out_modality = None
+
+        if in_tokens is not None:
+            # (b, in_seq_len, in_emb_dim)
+            in_modality = self.lookup(in_tokens, "in")
+            if self.in_projection is not None:
+                in_modality = self.in_projection(
+                    in_modality
+                )  # (b, in_seq_len, d_model)
+        if out_tokens is not None:
+            # (b, out_seq_len, out_emb_dim)
+            out_modality = self.lookup(out_tokens, "out")
+            if self.out_projection is not None:
+                out_modality = self.out_projection(
+                    out_modality
+                )  # (b, out_seq_len, d_model)
+
         return self.mm_decoder(
             in_modality=in_modality,
             out_modality=out_modality,
@@ -187,17 +231,20 @@ class MultimodalGPT(nn.Module):
 
         return logits
 
-    def encode(self, x: Any, modality: str, **kwargs: Any) -> Tuple[Tensor, Tensor]:
-        """Converts data to token ids and tokenized embeddings during generation.
+    def encode(self, x: Any, modality: str, **kwargs: Any) -> Tensor:
+        """Converts data to token ids.
+
+        Although this is not part of the forward pass, it is used to generate labels for training
+        as well as inputs for autoregressive decoding.
 
         Args:
-            x (Any): Data to be encoded, e.g., ``List[str]`` for text, ``Tensor`` for audio/image/video.
+            x (Any): Data to be encoded, e.g., ``List[str]`` for text, ``Tensor`` of shape
+                ``(b, c, d1, ..., dn)`` for audio/image/video.
             modality (str): Input or output modality string used to select the encoder.
             kwargs (Any): Other keyword arguments suitable for the encoder.
 
         Returns:
-            A tuple of ``(token_ids, token_ids)`` for text;
-            A tuple of ``(token_ids, token_embeddings)`` for audio, image and video.
+            A tensor of token ids of shape ``(b, seq_len)``.
 
         Rasies:
             ValueError: If ``modality`` is neither ``in`` nor ``out``.
@@ -209,23 +256,46 @@ class MultimodalGPT(nn.Module):
         else:
             raise ValueError(f"Invalid modality parameter: {modality}")
 
-        return encoder(x, **kwargs)  # type: ignore
+        token_ids = encoder(x, **kwargs)  # type: ignore
 
-    def decode(self, x: Tensor, **kwargs: Any) -> Tensor:
+        # For generation we need to flatten the tokens
+        return token_ids.flatten(
+            start_dim=1, end_dim=-1
+        )  # (b, d1, ..., dn) -> (b, seq_len)
+
+    def decode(self, token_ids: Tensor, **kwargs: Any) -> Any:
         """Converts out-modality tokens ids back to data during generation.
 
         Args:
-            x (Tensor): Token IDs to be decoded.
+            token_ids (Tensor): Token ID sequence ``(b, seq_len)`` to be decoded.
             kwargs (Any): Other keywords arguments suitable for the decoder.
 
         Returns:
-            A tensor for the decoded data.
+            The decoded data, e.g., ``List[str]`` for text, a tensor of shape ``(b, c, d1. ,,, dn)`` for
+                audio/image/video.
         """
-        return self.out_tokenizer.decode(x, **kwargs)  # type: ignore
+        if len(token_ids.shape) != 2:
+            raise ValueError(
+                f"Shape of token ids should be '(batch_size, sequence_lenght)' but got {token_ids.shape}"
+            )
 
-    def lookup(self, x: Tensor) -> Tensor:
+        # Reshape the sequence of token ids back to dim of latent space
+        token_ids = token_ids.view(
+            token_ids.shape[0], *self.latent_shape
+        )  # (b, seq_len) -> (b, d1, ..., dn)
+
+        return self.out_tokenizer.decode(token_ids, **kwargs)  # type: ignore
+
+    def lookup(self, token_ids: Tensor, modality: str) -> Tensor:
         """Looks up the latent embeddings corresponding to the token ids during generation."""
-        return self.in_tokenizer.lookup(x)  # type: ignore
+        if modality == "in":
+            tokenizer = self.in_tokenizer
+        elif modality == "out":
+            tokenizer = self.out_tokenizer
+        else:
+            raise ValueError(f"Invalid modality parameter: {modality}")
+
+        return tokenizer.lookup(token_ids)  # type: ignore
 
 
 class MultimodalTransformerDecoder(nn.Module):
@@ -239,8 +309,6 @@ class MultimodalTransformerDecoder(nn.Module):
             at any point in time the input data contains only one modality.
 
     Attributes:
-        in_token_emb (nn.Module): Embedding layer that converts input tokens to embedding vectors.
-        out_token_emb (nn.Module): Embedding layer that converts output tokens to embedding vectors.
         in_pos_emb (nn.Module): Input modality position embedding layer.
         out_pos_emb (nn.Module): Output modality position embedding layer.
         decoder (nn.Module): The transformer decoder. An instance of :py:class:`TransformerDecoder`.
@@ -255,9 +323,9 @@ class MultimodalTransformerDecoder(nn.Module):
                 (``right_shift = False``, see args) when we start to generate the output modality samples.
 
     Args:
-        in_modality (Tensor, optional): Tensor of dimension ``(b, in_seq_len, c)`` containing tokenized
+        in_modality (Tensor, optional): Tensor of dimension ``(b, in_seq_len, d_model)`` containing tokenized
             embeddings for the input modality. Defaults to ``None``.
-        out_modality (Tensor, optional): Tensor of dimension ``(b, out_seq_len, c')`` containing tokenized
+        out_modality (Tensor, optional): Tensor of dimension ``(b, out_seq_len, d_model')`` containing tokenized
             embeddings for the output modality. Defaults to ``None``.
         in_pos_ids (Tensor, optional): Tensor of dimension ``(b, in_seq_len)`` containing indices for the
             input modality position embeddings. Defaults to ``None``.
@@ -281,8 +349,6 @@ class MultimodalTransformerDecoder(nn.Module):
 
     def __init__(
         self,
-        in_token_emb: nn.Module,
-        out_token_emb: nn.Module,
         in_pos_emb: nn.Module,
         out_pos_emb: nn.Module,
         decoder: nn.Module,
@@ -290,8 +356,6 @@ class MultimodalTransformerDecoder(nn.Module):
     ) -> None:
         super().__init__()
 
-        self.in_token_emb = in_token_emb
-        self.out_token_emb = out_token_emb
         self.in_pos_emb = in_pos_emb
         self.out_pos_emb = out_pos_emb
         self.decoder = decoder
@@ -324,15 +388,15 @@ class MultimodalTransformerDecoder(nn.Module):
         # the sequence length of each modality.
         if in_modality is None:
             out_pos_ids = self._norm_pos_ids(out_modality, out_pos_ids)
-            x = self.out_token_emb(out_modality) + self.out_pos_emb(out_pos_ids)
+            x = out_modality + self.out_pos_emb(out_pos_ids)
         elif out_modality is None:
             in_pos_ids = self._norm_pos_ids(in_modality, in_pos_ids)
-            x = self.in_token_emb(in_modality) + self.in_pos_emb(in_pos_ids)
+            x = in_modality + self.in_pos_emb(in_pos_ids)
         else:
             in_pos_ids = self._norm_pos_ids(in_modality, in_pos_ids)
             out_pos_ids = self._norm_pos_ids(out_modality, out_pos_ids)
-            x_in = self.in_token_emb(in_modality) + self.in_pos_emb(in_pos_ids)
-            x_out = self.out_token_emb(out_modality) + self.out_pos_emb(out_pos_ids)
+            x_in = in_modality + self.in_pos_emb(in_pos_ids)
+            x_out = out_modality + self.out_pos_emb(out_pos_ids)
             x = torch.cat((x_in, x_out), dim=1)
 
         if self.training or right_shift:
