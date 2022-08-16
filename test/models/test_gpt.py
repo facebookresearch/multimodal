@@ -192,7 +192,10 @@ def tokenizer(num_emb, emb_dim):
     class DummyTokenizer(nn.Module):
         def __init__(self, num_emb, emb_dim):
             super().__init__()
-            self.encoder = nn.Identity()  # we don't test encoder here
+            # encoder and decoder do not enter either the training or the token
+            # generation paths so we do not test their actual logic but only
+            # the interfaces.
+            self.encoder = nn.Identity()
             self.decoder = nn.Identity()  # we don't test decoder here
             self.embedding = nn.Parameter(
                 torch.arange(num_emb * emb_dim, dtype=torch.float).reshape(
