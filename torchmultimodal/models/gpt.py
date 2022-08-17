@@ -160,7 +160,7 @@ class MultimodalGPT(nn.Module):
         )
 
         hidden_states = decoder_output.last_hidden_states
-        logits = self.head(hidden_states, logits_mask)
+        logits = self.logit_projection(hidden_states, logits_mask)
 
         return MultimodalGPTOutput(decoder_output, logits)
 
@@ -219,7 +219,7 @@ class MultimodalGPT(nn.Module):
             return_hidden_states=return_hidden_states,
         )
 
-    def head(
+    def logit_projection(
         self, hidden_states: Tensor, logits_mask: Optional[Tensor] = None
     ) -> Tensor:
         out = self.norm(hidden_states)
