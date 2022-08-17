@@ -8,7 +8,7 @@ import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import Tensor
-from torchmultimodal.modules.encoders.text_encoder import text_encoder
+from torchmultimodal.modules.encoders.text_encoder import bert_text_encoder
 
 
 @pytest.fixture(autouse=True)
@@ -19,7 +19,7 @@ def random():
 class TestTextEncoder:
     @pytest.fixture
     def encoder(self):
-        return text_encoder(hidden_size=3, num_attention_heads=1)
+        return bert_text_encoder(hidden_size=3, num_attention_heads=1, dropout=0.0)
 
     def test_forward(self, encoder):
         input_ids = torch.randint(10, (2, 2))
