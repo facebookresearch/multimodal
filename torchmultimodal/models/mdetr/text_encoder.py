@@ -8,7 +8,7 @@ from typing import Optional
 
 import torch
 from torch import nn, Tensor
-from torchmultimodal.modules.encoders.text_encoder import TextEncoder
+from torchmultimodal.modules.encoders.text_encoder import BERTTextEncoder
 
 from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 from torchmultimodal.modules.layers.transformer import TransformerOutput
@@ -119,7 +119,7 @@ def mdetr_roberta_text_encoder(
     num_encoder_layers: int = 12,
     encoder_dropout_prob: float = 0.1,
     normalize_before: bool = False,
-) -> TextEncoder:
+) -> BERTTextEncoder:
     embeddings = BERTTextEmbeddings(
         hidden_size=embedding_dim,
         vocab_size=vocab_size,
@@ -140,7 +140,7 @@ def mdetr_roberta_text_encoder(
         normalize_before=normalize_before,
     )
 
-    text_encoder = TextEncoder(
+    text_encoder = BERTTextEncoder(
         embeddings=embeddings, encoder=modified_transformer_encoder
     )
     return text_encoder
