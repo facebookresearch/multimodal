@@ -17,19 +17,12 @@ class VisionTransformer(nn.Module):
 
     Attributes:
         embeddings (nn.Module): Module that projects image pixels into embeddings.
-            ``forward()`` should follow interface:
-                images: Optional[Tensor], input data
-                image_patches_mask: Optional[Tensor], mask for patch embeddings
-        encoder (nn.Module): Module for transformer encoder. ``forward()`` should follow interface:
-            Inputs:
-                hidden_states: Tensor, input for encoder
-                attention_mask: Optional[Tensor], shape ``(b, num_heads, query_seq_len, key_seq_len)``
-                return_attn_weights: bool. See ``TransformerEncoder``.
-                return_hidden_states: bool. See ``TransformerEncoder``.
-            Returns:
-                ``TransformerOutput``
-        layernorm (nn.Module, optional): Module for layernorm to be applied after encoder, if provided.
-        pooler (nn.Module, optional): Module for head to be applied after layernorm, if provided.
+            See :py:class: ImageEmbeddings for interface.
+        encoder (nn.Module): Module for transformer encoder. See :py:class: TransformerEncoder for interface.
+        layernorm (nn.Module, optional): Module for layernorm to be applied after encoder. Defaults to ``None``.
+        pooler (nn.Module, optional): Module for pooler to be applied after layernorm. Defaults to ``None``.
+        weight_init_fn (Callable, optional): function for custom weight initialization of both the transformer
+            encoder and embeddings. See :py:func: init_transformer_weights as an example. Defaults to ``None``.
 
     Args:
         images (Tensor): Tensor of input images of shape ``(b, c, h, w)``.
@@ -74,14 +67,14 @@ class VisionTransformer(nn.Module):
             return_attn_weights=True,
             return_hidden_states=True,
         )
-        sequence_output = encoder_output.last_hidden_state
-        sequence_output = self.layernorm(sequence_output)
+        last_hidden_state = encoder_output.last_hidden_state
+        last_hidden_state = self.layernorm(last_hidden_state)
         pooled_output = (
-            self.pooler(sequence_output) if self.pooler is not None else None
+            self.pooler(last_hidden_state) if self.pooler is not None else None
         )
 
         return TransformerOutput(
-            last_hidden_state=sequence_output,
+            last_hidden_state=last_hidden_state,
             pooler_output=pooled_output,
             hidden_states=encoder_output.hidden_states,
             attentions=encoder_output.attentions,
