@@ -112,10 +112,11 @@ class TestCodebook:
         expected_quantized_flat = (
             expected_quantized.permute(0, 2, 1).contiguous().view(-1, 5)
         )
+
         expected = {
             "encoded_flat": encoded.permute(0, 2, 1).contiguous().view(-1, 5),
             "quantized_flat": expected_quantized_flat,
-            "codebook_indices": tensor([2.0, 2.0, 0.0, 2.0, 1.0, 3.0]).type(
+            "codebook_indices": tensor([[2.0, 2.0, 0.0], [2.0, 1.0, 3.0]]).type(
                 torch.LongTensor
             ),
             "quantized": expected_quantized,
@@ -152,7 +153,8 @@ class TestCodebook:
             not codebook._is_embedding_init
         ), "embedding init flag not False initially"
 
-        _, _ = codebook._init_embedding_and_preprocess(encoded)
+        encoded_flat, _ = codebook._preprocess(encoded)
+        codebook._init_embedding(encoded_flat)
 
         assert codebook._is_embedding_init, "embedding init flag not True after init"
 
@@ -176,7 +178,8 @@ class TestCodebook:
         assert_expected(actual_code_usage, expected_code_usage)
 
     def test_ema_update_embedding(self, codebook, encoded):
-        encoded_flat, _ = codebook._init_embedding_and_preprocess(encoded)
+        encoded_flat, _ = codebook._preprocess(encoded)
+        codebook._init_embedding(encoded_flat)
         distances = torch.cdist(encoded_flat, codebook.embedding, p=2.0) ** 2
         codebook_indices = torch.argmin(distances, dim=1)
         codebook._ema_update_embedding(encoded_flat, codebook_indices)
@@ -224,7 +227,8 @@ class TestCodebook:
 
     def test_init_embedding_smaller_encoded(self, codebook, encoded):
         encoded_small = encoded[:1, :, :2]
-        encoded_small_flat, _ = codebook._init_embedding_and_preprocess(encoded_small)
+        encoded_small_flat, _ = codebook._preprocess(encoded_small)
+        codebook._init_embedding(encoded_small_flat)
         embed = codebook.embedding
         # Check for each embedding vector if there is one equal encoded vector + noise
         for emb in embed:
@@ -236,8 +240,9 @@ class TestCodebook:
             ), "embedding initialized from encoder output incorrectly"
 
     def test_codebook_restart(self, codebook, encoded):
+        encoded_flat, _ = codebook._preprocess(encoded)
         # First init and diversify embedding
-        encoded_flat, _ = codebook._init_embedding_and_preprocess(encoded)
+        codebook._init_embedding(encoded_flat)
         # Use only embedding vector at index = 1 and force restarts.
         # Slightly modify encoded_flat to make sure vectors restart to something new
         encoded_flat_noise = encoded_flat + torch.randn_like(encoded_flat)
@@ -297,3 +302,25 @@ class TestCodebook:
         actual = model.codebook.code_avg
         expected = state_dict["codebook.code_avg"]
         assert_expected(actual, expected)
+
+    def test_lookup(self, codebook, embedding_weights):
+        codebook.embedding = embedding_weights
+        indices_flat = tensor([[0, 1]])  # (b, seq_len)
+        indices_shaped = tensor([[[0, 1], [2, 3]]])  # (b, shape)
+        actual_quantized_flat = codebook.lookup(indices_flat)
+        actual_quantized = codebook.lookup(indices_shaped)
+        expected_quantized_flat = tensor(
+            [[[1.0, 0.0, -1.0, -1.0, 2.0], [2.0, -2.0, 0.0, 0.0, 1.0]]]
+        )
+        expected_quantized = tensor(
+            [
+                [
+                    [[1.0, 0.0, -1.0, -1.0, 2.0], [2.0, -2.0, 0.0, 0.0, 1.0]],
+                    [[2.0, 1.0, 0.0, 1.0, 1.0], [-1.0, -2.0, 0.0, 2.0, 0.0]],
+                ]
+            ]
+        )
+        assert_expected(
+            actual_quantized_flat, expected_quantized_flat, rtol=0.0, atol=1e-4
+        )
+        assert_expected(actual_quantized, expected_quantized, rtol=0.0, atol=1e-4)
