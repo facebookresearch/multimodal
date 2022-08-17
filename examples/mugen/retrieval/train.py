@@ -10,6 +10,7 @@ from examples.mugen.retrieval.model import VideoCLIPLightningModule
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
 from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import ModelCheckpoint
 from torchmultimodal.transforms.bert_text_transform import BertTextTransform
 from torchmultimodal.transforms.video_transform import VideoTransform
 
@@ -45,6 +46,7 @@ def train():
         **vars(args.videoclip_args),
     )
 
+    checkpoint_callback = ModelCheckpoint(save_top_k=-1)
     trainer = Trainer(
         accelerator=args.accelerator,
         devices=args.devices,
@@ -52,6 +54,7 @@ def train():
         max_epochs=args.max_epochs,
         log_every_n_steps=args.log_every_n_steps,
         default_root_dir=args.default_root_dir,
+        callbacks=[checkpoint_callback],
     )
     trainer.fit(
         model=model,
