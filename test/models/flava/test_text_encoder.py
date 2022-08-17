@@ -11,7 +11,7 @@ import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn
 from torchmultimodal.models.flava.transformer import init_transformer_weights
-from torchmultimodal.modules.encoders.text_encoder import TextEncoder
+from torchmultimodal.modules.encoders.text_encoder import BERTTextEncoder
 from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 from torchmultimodal.modules.layers.transformer import TransformerEncoder
 
@@ -43,7 +43,7 @@ class TestFlavaTextEncoder(unittest.TestCase):
             norm_first=True,
         )
         weight_init_fn = partial(init_transformer_weights, initializer_range=0.02)
-        self.text_encoder = TextEncoder(
+        self.text_encoder = BERTTextEncoder(
             embeddings=self.text_embedding,
             encoder=encoder,
             layernorm=nn.LayerNorm(2),

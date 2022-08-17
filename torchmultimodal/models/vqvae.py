@@ -4,10 +4,11 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import NamedTuple
+from typing import NamedTuple, Tuple, Union
 
-from torch import nn, Tensor
+from torch import nn, Size, Tensor
 from torchmultimodal.modules.layers.codebook import Codebook, CodebookOutput
+from torchmultimodal.utils.common import shift_dim
 
 
 class VQVAEOutput(NamedTuple):
@@ -26,18 +27,18 @@ class VQVAE(nn.Module):
     Discrete Representation Learning" (Oord et al. 2017) and has since seen success in
     tokenizing and generating high-resolution image, audio, and video data.
 
-    Args:
-        encoder (nn.Module): model that accepts single Tensor as input in forward, ``encoder(x)``.
+    Attributes:
+        encoder (nn.Module): Model that accepts single Tensor as input in forward, ``encoder(x)``.
                              Will be used to project input into codebook layer. Expects channel
                              dim of encoder output to match ``codebook_embedding_dim``.
-        decoder (nn.Module): model that accepts single Tensor as input in forward, ``decoder(x)``.
+        decoder (nn.Module): Model that accepts single Tensor as input in forward, ``decoder(x)``.
                              Should be able to accept output shape of codebook layer, which matches
                              output shape of encoder.
-        codebook_num_embeddings (int): number of embedding vectors in codebook
-        codebook_embedding_dim (int): dimensionality of embedding vectors in codebook
+        codebook_num_embeddings (int): Number of embedding vectors in codebook
+        codebook_embedding_dim (int): Dimensionality of embedding vectors in codebook
 
-    Inputs:
-        x (Tensor): [b, c, d1, ..., dn] tensor
+    Args:
+        x (Tensor): Input data of shape ``[b, c, d1, ..., dn]``.
     """
 
     def __init__(
@@ -52,18 +53,52 @@ class VQVAE(nn.Module):
         self.decoder = decoder
         self.codebook = Codebook(codebook_num_embeddings, codebook_embedding_dim)
 
-    def encode(self, x: Tensor) -> CodebookOutput:
-        return self.codebook(self.encoder(x))
+    def latent_shape(self, input_shape: Union[Size, Tuple]) -> Tuple[int, ...]:
+        """Returns the downsampled shape of the encoder output: (d1, ..., dn)"""
+        if not hasattr(self.encoder, "get_latent_shape"):
+            raise AttributeError(
+                f"Missing attribute 'get_latent_shape' of the encoder {self.encoder}"
+            )
 
-    def decode(self, x: Tensor) -> Tensor:
-        return self.decoder(x)
+        return self.encoder.get_latent_shape(input_shape)  # type: ignore
 
-    def tokenize(self, x: Tensor) -> Tensor:
-        """Similar to encode, but return flattened quantized outputs"""
-        quantized = self.encode(x)
-        return quantized.quantized_flat
+    def encode(
+        self, x: Tensor, return_embeddings: bool = False
+    ) -> Union[Tuple[Tensor, Tensor], Tensor]:
+        """Converts input data to token ids
+
+        Args:
+            x (Tensor): Input data of shape ``(b, c, d1, ..., dn)``.
+            return_embeddings (bool): Flag to return also the quantized embeddings. Defaults to ``False``.
+
+        Returns:
+            * A tensor of token ids: ``(b, d1, ...., dn)``
+            * A tuple of token ids and quantized embeddings ``(b, emb_dim, d1, ..., dn)``.
+        """
+        encoded = self.encoder(x)
+        out = self.codebook(encoded)
+        indices = out.codebook_indices
+        quantized = out.quantized
+        if return_embeddings:
+            return indices, quantized
+        return indices
+
+    def decode(self, indices: Tensor) -> Tensor:
+        """Converts token ids back to data"""
+        quantized = self.lookup(indices)  # (b, latent_shape, emb_dim)
+        quantized = shift_dim(quantized, -1, 1)  # (b, emb_dim, latent_shape)
+        return self.decoder(quantized)  # (b, c, input_shape)
+
+    def lookup(self, indices: Tensor) -> Tensor:
+        if not hasattr(self.codebook, "lookup"):
+            raise AttributeError(
+                f"Missing attribute 'lookup' of the codebook {self.codebook}"
+            )
+
+        return self.codebook.lookup(indices)
 
     def forward(self, x: Tensor) -> VQVAEOutput:
-        quantized = self.encode(x)
-        decoded = self.decode(quantized.quantized)
-        return VQVAEOutput(decoded, quantized)
+        encoded = self.encoder(x)
+        codebook_output = self.codebook(encoded)
+        decoded = self.decoder(codebook_output.quantized)
+        return VQVAEOutput(decoded, codebook_output)
