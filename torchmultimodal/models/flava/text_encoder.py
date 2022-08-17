@@ -9,7 +9,7 @@ from typing import Callable
 
 from torch import nn
 from torchmultimodal.models.flava.transformer import init_transformer_weights
-from torchmultimodal.modules.encoders.text_encoder import TextEncoder
+from torchmultimodal.modules.encoders.text_encoder import BERTTextEncoder
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 from torchmultimodal.modules.layers.transformer import TransformerEncoder
@@ -32,7 +32,7 @@ def flava_text_encoder(
     max_position_embeddings: int = 512,
     # TextEncoder params
     initializer_range: float = 0.02,
-) -> TextEncoder:
+) -> BERTTextEncoder:
 
     embeddings = BERTTextEmbeddings(
         hidden_size=hidden_size,
@@ -61,7 +61,7 @@ def flava_text_encoder(
     weight_init_fn = partial(
         init_transformer_weights, initializer_range=initializer_range
     )
-    return TextEncoder(
+    return BERTTextEncoder(
         embeddings=embeddings,
         encoder=encoder,
         layernorm=layernorm,
