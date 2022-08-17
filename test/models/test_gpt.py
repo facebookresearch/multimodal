@@ -15,7 +15,6 @@ from torchmultimodal.models.gpt import (
     MultimodalGPTOutput,
     MultimodalTransformerDecoder,
     RightShift,
-    SiLU,
     TransformerDecoder,
     TransformerDecoderLayer,
     TransformerDecoderOutput,
@@ -646,13 +645,6 @@ class TestTransformerDecoderLayer:
             },  # (b, h, seq_len, d_model//h)
         }
         assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
-
-
-def test_sigmoid_linear_unit():
-    silu = SiLU()
-    actual = silu(torch.ones(3))
-    expected = torch.tensor([0.8458, 0.8458, 0.8458])
-    assert_expected(actual, expected)
 
 
 def test_right_shift(right_shift, d_model):
