@@ -76,7 +76,7 @@ def text_video_gpt(
             file. For allowed values, see :py:module:`examples/mugen/generation/video_vqvae.py`.
 
     Returns:
-        An instance of `torchmultimodal.models.gpt.MultimodalGPT`.
+        An instance of :py:class:`torchmultimodal.models.gpt.MultimodalGPT`.
     """
 
     # builds text tokenizer from pre-trained
@@ -101,10 +101,13 @@ def text_video_gpt(
     video_vqvae.eval()
     num_video_tokens = video_vqvae.num_embeddings  # size of the codebook
 
-    # derives the encoded latent shape from video input shape
+    # derives the expected latent shape from video input shape
     video_input_shape = (video_seq_len, resolution, resolution)
     video_latent_shape = latent_shape(video_input_shape, downsample)
     video_vqvae_latent_shape = video_vqvae.latent_shape(video_input_shape)
+    # video vqvae will apply convolutions to the input shape which effectively
+    # reduces the size by ``dim//stride`` after each layer
+    # sanity check that the expected and actual latent shapes are consistent
     if video_latent_shape != video_vqvae_latent_shape:
         raise ValueError(
             f"Latent shape derived from video inputs: {video_latent_shape} "
@@ -155,7 +158,12 @@ def latent_shape(
 
 
 class TextTokenizer(nn.Module):
-    """Converts between text and tokens / embedings"""
+    """Converts between text and tokens / embedings
+
+    Wrapper around the tokenizer to be consistent with the API required by
+    :py:class:`torchmultimodal.models.gpt.MultimodalGPT`. It also contains the
+    embedding layer to enable lookup by token ids.
+    """
 
     def __init__(
         self,
