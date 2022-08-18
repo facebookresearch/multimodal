@@ -23,7 +23,6 @@ datamodule_args:
   _target_: examples.mugen.retrieval.definitions.DataModuleArgs
   batch_size: 16
   num_workers: 4
-  shuffle: False
   bert_text_transform:
     _target_: examples.mugen.retrieval.definitions.BertTextTransformArgs
   video_transform:
@@ -44,5 +43,6 @@ videoclip_args:
   video_pretrain_path: "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/S3D_kinetics400.pt"
   proj_out_dim: 256
   proj_dropout: 0.1
+shuffle_test: False
 checkpoint_path: "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/videoclip_lightning_mugen.pt"
 accelerator: "auto"

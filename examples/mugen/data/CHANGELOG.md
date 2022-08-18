@@ -15,6 +15,7 @@ Changes are noted with respect to the [original MUGEN dataset API](https://githu
 - Renamed `data.py` --> `mugen_datamodules.py` and renamed `VideoData` class to `MUGENDataModule`.
 - Renamed `mugen_data.py` --> `mugen_dataset.py`.
 - Replaced dependencies on OpenAI's `jukebox` and MUGEN's `audio_vqvae` by placing relevant functionality in `audio_utils.py`.
+- Move `shuffle` as an argument to `MUGENDataModule::{train/val/eval}_dataloader()` instead of the constructor to `MUGENDataModule`.
 
 ### Removed
 - Removed `data/coinrun/assets` folder.

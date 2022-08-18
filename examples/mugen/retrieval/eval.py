@@ -37,7 +37,6 @@ def evaluate():
         video_transform=VideoTransform(**vars(args.datamodule_args.video_transform)),
         batch_size=args.datamodule_args.batch_size,
         num_workers=args.datamodule_args.num_workers,
-        shuffle=args.datamodule_args.shuffle,
     )
 
     model = VideoCLIPLightningModule.load_from_checkpoint(
@@ -47,7 +46,7 @@ def evaluate():
     )
 
     trainer = Trainer(accelerator=args.accelerator, devices=1)
-    trainer.test(model, dataloaders=datamodule.test_dataloader())
+    trainer.test(model, dataloaders=datamodule.test_dataloader(args.shuffle_test))
 
 
 if __name__ == "__main__":

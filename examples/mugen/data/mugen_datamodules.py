@@ -32,8 +32,6 @@ class MUGENDataModule(pl.LightningDataModule):
             Defaults to ``16``.
         num_workers (int): number of subprocesses for data loading.
             Defaults to ``0``, meaning data is loaded in the main process.
-        shuffle (bool): whether to reshuffle data after each epoch.
-            Defaults to ``True``.
     """
 
     def __init__(
@@ -44,7 +42,6 @@ class MUGENDataModule(pl.LightningDataModule):
         audio_transform: Optional[Callable] = None,
         batch_size: int = 16,
         num_workers: int = 0,
-        shuffle: bool = True,
     ):
         super().__init__()
         self.mugen_dataset_args = mugen_dataset_args
@@ -53,7 +50,6 @@ class MUGENDataModule(pl.LightningDataModule):
         self.audio_transform = audio_transform
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.shuffle = shuffle
 
     @property
     def n_classes(self):
@@ -83,7 +79,7 @@ class MUGENDataModule(pl.LightningDataModule):
         dataset = MUGENDataset(args=self.mugen_dataset_args, split=split)
         return dataset
 
-    def _dataloader(self, split):
+    def _dataloader(self, split, shuffle: bool):
         dataset = self._dataset(split)
         if dist.is_initialized():
             sampler = data.distributed.DistributedSampler(
@@ -97,16 +93,16 @@ class MUGENDataModule(pl.LightningDataModule):
             num_workers=self.num_workers,
             pin_memory=True,
             sampler=sampler,
-            shuffle=sampler is None and self.shuffle is True,
+            shuffle=sampler is None and shuffle is True,
             collate_fn=self._custom_collate_fn,
         )
         return dataloader
 
-    def train_dataloader(self):
-        return self._dataloader("train")
+    def train_dataloader(self, shuffle: bool = True):
+        return self._dataloader("train", shuffle)
 
-    def val_dataloader(self):
-        return self._dataloader("val")
+    def val_dataloader(self, shuffle: bool = False):
+        return self._dataloader("val", shuffle)
 
-    def test_dataloader(self):
-        return self._dataloader("test")
+    def test_dataloader(self, shuffle: bool = False):
+        return self._dataloader("test", shuffle)

@@ -38,7 +38,6 @@ class VideoTransformArgs:
 class DataModuleArgs:
     batch_size: int = 16
     num_workers: int = 4
-    shuffle: bool = False
     bert_text_transform: BertTextTransformArgs = BertTextTransformArgs()
     video_transform: VideoTransformArgs = VideoTransformArgs()
 
@@ -81,6 +80,7 @@ class EvaluationArgs:
     datamodule_args: DataModuleArgs = DataModuleArgs()
     lightningmodule_args: LightningModuleArgs = LightningModuleArgs()
     videoclip_args: VideoCLIPArgs = VideoCLIPArgs()
+    shuffle_test: bool = False
     checkpoint_path: str = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/videoclip_lightning_mugen.pt"
     accelerator: str = "auto"
 
@@ -98,6 +98,8 @@ class TrainingArgs:
     datamodule_args: DataModuleArgs = DataModuleArgs()
     lightningmodule_args: LightningModuleArgs = LightningModuleArgs()
     videoclip_args: VideoCLIPArgs = VideoCLIPArgs()
+    shuffle_train: bool = True
+    shuffle_val: bool = False
     accelerator: str = "auto"
     devices: int = 4
     max_epochs: int = 1000

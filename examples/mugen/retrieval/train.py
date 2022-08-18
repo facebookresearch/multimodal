@@ -38,7 +38,6 @@ def train():
         video_transform=VideoTransform(**vars(args.datamodule_args.video_transform)),
         batch_size=args.datamodule_args.batch_size,
         num_workers=args.datamodule_args.num_workers,
-        shuffle=args.datamodule_args.shuffle,
     )
 
     model = VideoCLIPLightningModule(
@@ -58,8 +57,8 @@ def train():
     )
     trainer.fit(
         model=model,
-        train_dataloaders=datamodule.train_dataloader(),
-        val_dataloaders=datamodule.val_dataloader(),
+        train_dataloaders=datamodule.train_dataloader(args.shuffle_train),
+        val_dataloaders=datamodule.val_dataloader(args.shuffle_test),
     )
 
 
