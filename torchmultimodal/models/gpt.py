@@ -117,6 +117,7 @@ class MultimodalGPT(nn.Module):
                 "Output modality tokenizer must have methods 'encode', 'lookup' and 'decode'."
             )
 
+        self.num_tokens = num_tokens
         self.latent_shape = latent_shape
         self.in_tokenizer = in_tokenizer
         self.out_tokenizer = out_tokenizer

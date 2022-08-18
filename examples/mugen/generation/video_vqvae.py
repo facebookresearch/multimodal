@@ -6,7 +6,6 @@
 
 from typing import Optional
 
-import torch
 from torchmultimodal.models.video_vqvae import (
     preprocess_int_conv_params,
     VideoDecoder,
@@ -14,6 +13,8 @@ from torchmultimodal.models.video_vqvae import (
 )
 
 from torchmultimodal.models.vqvae import VQVAE
+from torchmultimodal.utils.common import load_module_from_url, remove_grad
+
 
 MUGEN_PRETRAINED_MAPPING = {
     "mugen_L32": "https://download.pytorch.org/models/multimodal/mugen/mugen_video_vqvae_L32.pt",
@@ -32,7 +33,8 @@ def video_vqvae_mugen(
     embedding_dim: int = 256,
     decoder_hidden_dim: int = 240,
     decoder_kernel_size: int = 3,
-    pretrained_model_key: Optional[str] = "mugen_L32",
+    pretrained_model_key: Optional[str] = None,
+    freeze_model: bool = False,
 ) -> VQVAE:
     """Constructor for MUGEN's Video VQVAE. Expects input video data of shape {8,16,32}x256x256.
     Trained for tokenization of video data and use in video-audio-text retrieval and generation tasks.
@@ -52,6 +54,7 @@ def video_vqvae_mugen(
         decoder_hidden_dim (int, optional): Size of channel dims in decoder conv tranpose layers. Defaults to 240.
         decoder_kernel_size (int, optional): Kernel size for decoder. Defaults to 3.
         pretrained_model_key (str, optional): Load a specified MUGEN VQVAE checkpoint.
+        freeze_model (bool): Whether to freeze the weights of the pretrained model. Defaults to ``False``.
 
     Returns:
         VQVAE: constructed ``VQVAE`` model using ``VideoEncoder``, ``Codebook``, and ``VideoDecoder``
@@ -91,11 +94,13 @@ def video_vqvae_mugen(
     )
     model = VQVAE(encoder, decoder, num_embeddings, embedding_dim)
 
-    if pretrained_model_key:
-        model.load_state_dict(
-            torch.hub.load_state_dict_from_url(
-                MUGEN_PRETRAINED_MAPPING[pretrained_model_key]
-            )
-        )
+    if pretrained_model_key is not None:
+        if pretrained_model_key not in MUGEN_PRETRAINED_MAPPING.keys():
+            raise KeyError(f"Invalid pretrained model key: {pretrained_model_key}")
+
+        load_module_from_url(model, MUGEN_PRETRAINED_MAPPING[pretrained_model_key])
+
+        if freeze_model:
+            remove_grad(model)
 
     return model

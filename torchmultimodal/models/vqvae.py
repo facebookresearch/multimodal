@@ -34,8 +34,8 @@ class VQVAE(nn.Module):
         decoder (nn.Module): Model that accepts single Tensor as input in forward, ``decoder(x)``.
                              Should be able to accept output shape of codebook layer, which matches
                              output shape of encoder.
-        codebook_num_embeddings (int): Number of embedding vectors in codebook
-        codebook_embedding_dim (int): Dimensionality of embedding vectors in codebook
+        num_embeddings (int): Number of embedding vectors in codebook
+        embedding_dim (int): Dimensionality of embedding vectors in codebook
 
     Args:
         x (Tensor): Input data of shape ``[b, c, d1, ..., dn]``.
@@ -52,6 +52,8 @@ class VQVAE(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
         self.codebook = Codebook(codebook_num_embeddings, codebook_embedding_dim)
+        self.num_embeddings = codebook_num_embeddings
+        self.embedding_dim = codebook_embedding_dim
 
     def latent_shape(self, input_shape: Union[Size, Tuple]) -> Tuple[int, ...]:
         """Returns the downsampled shape of the encoder output: (d1, ..., dn)"""
