@@ -77,48 +77,7 @@ class ImageTextContrastiveLoss(nn.Module):
         return loss_itc
 
 
-class ImageTextMatchingLoss(nn.Module):
-    """
-    Compute the image-text matching loss by predicting whether an image-text pair is matched or not.
-
-    Args:
-        hidden_size (int): The image-text multimodal embedding hidden size. Default is 768.
-
-    Inputs:
-        embeddings_pos (Tensor of shape (batch_size_pos, hidden_size)):
-            The multimodal embeddings for positive image-text pairs.
-        embeddings_neg (Tensor of shape (batch_size_neg, hidden_size)):
-            The multimodal embeddings for negative image-text pairs.
-    """
-
-    def __init__(
-        self,
-        hidden_size: int = 768,
-    ) -> None:
-        super().__init__()
-        self.itm_head = nn.Linear(
-            hidden_size, 2
-        )  # binary output indicating image-text matches
-
-    def forward(
-        self,
-        embeddings_pos: Tensor,
-        embeddings_neg: Tensor,
-    ) -> Tensor:
-        vl_embeddings = torch.cat([embeddings_pos, embeddings_neg], dim=0)
-        vl_output = self.itm_head(vl_embeddings)
-        itm_labels = torch.cat(
-            [
-                torch.ones(embeddings_pos.size(0), dtype=torch.long),
-                torch.zeros(embeddings_neg.size(0), dtype=torch.long),
-            ],
-            dim=0,
-        ).to(vl_embeddings.device)
-        loss_itm = F.cross_entropy(vl_output, itm_labels)
-        return loss_itm
-
-
-class MaskedLanguageModelingLoss(nn.Module):
+class CausalLanguageModelingLoss(nn.Module):
     """
     Compute the autoregressive masked language modeling loss by predicting the next token, as used in VQA.
     Support loss distillation for non-zero alpha. Compute standard mlm loss for zero alpha.
