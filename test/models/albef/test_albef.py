@@ -17,7 +17,7 @@ from torchmultimodal.models.albef.model import (
     ALBEFSimilarity,
 )
 from torchmultimodal.models.albef.multimodal_encoder import ALBEFMultimodalEncoder
-from torchmultimodal.modules.encoders.text_encoder import bert_text_encoder
+from torchmultimodal.modules.encoders.bert_text_encoder import bert_text_encoder
 from torchmultimodal.utils.common import momentum_update, remove_grad
 
 
