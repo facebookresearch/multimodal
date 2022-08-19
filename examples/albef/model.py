@@ -15,7 +15,10 @@ from torchmultimodal.models.albef.model import ALBEFModel
 from torchmultimodal.models.albef.multimodal_encoder import ALBEFMultimodalEncoder
 from torchmultimodal.models.albef.text_encoder import ALBEFTextEncoder
 from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
-from torchmultimodal.modules.losses.albef import MaskedLanguageModelingLoss
+from torchmultimodal.modules.losses.albef import (
+    CausalLanguageModelingLoss,
+    ImageTextContrastiveLoss,
+)
 from torchmultimodal.utils.attention import get_causal_attention_mask
 from torchmultimodal.utils.common import (
     load_module_from_url,
@@ -153,7 +156,7 @@ class ALBEFModelForVQA(nn.Module):
     Args:
         model (ALBEFModel): Instantiated ALBEFModel.
         answer_decoder (ALBEFDecoder): Instantiated ALBEFDecoder.
-        loss (MaskedLanguageModelingLoss): Instantiated MaskedLanguageModelingLoss.
+        loss (CausalLanguageModelingLoss): Instantiated CausalLanguageModelingLoss.
 
     Inputs:
         image (Tensor of shape (B, C, H, W)): Image features.
@@ -166,7 +169,7 @@ class ALBEFModelForVQA(nn.Module):
         ans_lengths (Optional[List[int]] of length B): Number of answers for each question.
             ans_lengths should sum to N.
             Required if is_train is True.
-        alpha (Optional[float]): The interpolation value between mlm_loss and loss_distill.
+        alpha (Optional[float]): The interpolation value between clm_loss and loss_distill.
             Required if is_train is True.
         k (Optional[int]): The number of answers to return for inference.
             Required if is_train is False.
@@ -183,7 +186,7 @@ class ALBEFModelForVQA(nn.Module):
         self,
         model: ALBEFModel,
         answer_decoder: ALBEFDecoder,
-        loss: MaskedLanguageModelingLoss,
+        loss: CausalLanguageModelingLoss,
     ) -> None:
         super().__init__()
         self.model = model
@@ -221,7 +224,7 @@ class ALBEFModelForVQA(nn.Module):
             ans_weights (Tensor of shape (N)): Weights for each answer.
             ans_lengths (List[int] of length B): Number of answers for each question.
                 ans_lengths should sum to N.
-            alpha (float): The interpolation value between mlm_loss and loss_distill.
+            alpha (float): The interpolation value between clm_loss and loss_distill.
 
         Returns:
             Tensor: The masked language modeling loss for input.
@@ -427,6 +430,193 @@ class ALBEFModelForVQA(nn.Module):
             )
 
 
+class ALBEFModelForRetrieval(nn.Module):
+    """
+    ALBEF Model for Retrieval finetuning and inference.
+    In training mode, the forward step computes image-text contrastive loss and
+    image-text matching loss.
+    In evaluation mode, the forward step takes 3 types of input:
+        image: encode image input, project and normalize the embeddings.
+        text: encode text input, project and normalize the embeddings.
+        multimodal: create multimodal embeddings from image and text
+            embeddings, and compute image-text matching scores.
+
+    Args:
+        model_with_similarity (ALBEFModelWithSimilarity): Instantiated ALBEFModelWithSimilarity.
+        itc_loss (ImageTextContrastiveLoss): Instantiated ImageTextContrastiveLoss.
+        hidden_size (int): Dimensionality of encoder outputs.
+
+    Inputs:
+        image (Optional[Tensor] of shape (B, C, H, W)): Image features.
+            Required if is_train is True.
+            Required if input_type is "image" or "multimodal".
+        text (Optional[Tensor] of shape (B, L)): Text features.
+            Required if is_train is True.
+            Required if input_type is "text" or "multimodal".
+        text_atts (Tensor of shape (B, L)): Text attention mask.
+            Required if is_train is True.
+            Required if input_type is "text" or "multimodal".
+        idx (Tensor of shape (B)): Identifier for each image sample.
+            Required if is_train is True.
+        alpha (Optional[float]): The interpolation value between clm_loss and loss_distill.
+            Default is 0.
+        input_type (Optional[str]): "image", "text", or "multimodal" indicating the encoding type.
+            Required if is_train is False.
+        is_train (Optional[bool]): Whether the model is in training.
+            Default is True.
+
+    Returns:
+        is_train is True:
+            Tensor: The sum of itc loss and itm loss.
+        is_train is False:
+            input_type is "image":
+                Tuple[Tensor, Tensor]: Image embeddings and projected image features.
+            input_type is "text":
+                Tuple[Tensor, Tensor]: Text embeddings and projected text features.
+            input_type is "multimodal"
+                Tensor: Scores for the retrieval task.
+    """
+
+    def __init__(
+        self,
+        model_with_similarity: ALBEFModelWithSimilarity,
+        itc_loss: ImageTextContrastiveLoss,
+        hidden_size: int,
+    ) -> None:
+        super().__init__()
+        self.model_with_similarity = model_with_similarity
+        self.itc_loss = itc_loss
+        self.itm_head = nn.Linear(hidden_size, 2)
+
+    def _train_forward(
+        self,
+        image: Tensor,
+        text: Tensor,
+        text_atts: Tensor,
+        idx: Tensor,
+        alpha: float,
+    ) -> Tensor:
+        encoder_output = self.model_with_similarity(image, text, text_atts, idx)
+
+        # compute image-text contrastive loss
+        similarity_outputs = encoder_output.similarity
+        similarity_targets = encoder_output.sim_targets
+        itc_loss = self.itc_loss(
+            similarity_outputs.sim_i2t,
+            similarity_outputs.sim_t2i,
+            similarity_outputs.sim_i2t_m,
+            similarity_outputs.sim_t2i_m,
+            similarity_targets,
+            alpha,
+        )
+
+        # compute image-text matching loss
+        pos_embeddings = encoder_output.multimodal_embeddings[:, 0, :]
+        neg_embeddings = encoder_output.multimodal_embeddings_neg[:, 0, :]
+        vl_embeddings = torch.cat([pos_embeddings, neg_embeddings], dim=0)
+        vl_output = self.itm_head(vl_embeddings)
+        itm_labels = torch.cat(
+            [
+                torch.ones(pos_embeddings.size(0), dtype=torch.long),
+                torch.zeros(neg_embeddings.size(0), dtype=torch.long),
+            ],
+            dim=0,
+        ).to(vl_embeddings.device)
+        itm_loss = F.cross_entropy(vl_output, itm_labels)
+
+        loss = itc_loss + itm_loss
+        return loss
+
+    def _encode_image(
+        self,
+        image: Tensor,
+    ) -> Tuple[Tensor, Tensor]:
+        image_embed = self.model_with_similarity.albef_model.vision_encoder(image)
+        image_feat = F.normalize(
+            self.model_with_similarity.vision_proj(image_embed[:, 0, :]), dim=-1
+        )
+        return image_embed, image_feat
+
+    def _encode_text(
+        self,
+        text: Tensor,
+        text_atts: Tensor,
+    ) -> Tuple[Tensor, Tensor]:
+        text_embed = self.model_with_similarity.albef_model.text_encoder(
+            text, text_atts
+        ).last_hidden_state
+        text_feat = F.normalize(
+            self.model_with_similarity.text_proj(text_embed[:, 0, :]), dim=-1
+        )
+        return text_embed, text_feat
+
+    def _image_text_matching_score(
+        self,
+        image: Tensor,
+        text: Tensor,
+        text_atts: Tensor,
+    ) -> Tensor:
+        multimodal_embeds = self.model_with_similarity.albef_model.multimodal_encoder(
+            text,
+            text_atts,
+            image,
+        )
+        score = self.itm_head(multimodal_embeds[:, 0, :])[:, 1]
+        return score
+
+    def _eval_forward(
+        self,
+        input_type: str,
+        image: Optional[Tensor],
+        text: Optional[Tensor],
+        text_atts: Optional[Tensor],
+    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+        if input_type == "image":
+            assert image is not None, "image input tensor cannot be None"
+            return self._encode_image(image)
+
+        elif input_type == "text":
+            assert (
+                text is not None and text_atts is not None
+            ), "text and text attention mask cannot be None"
+            return self._encode_text(text, text_atts)
+
+        elif input_type == "multimodal":
+            assert (
+                image is not None and text is not None and text_atts is not None
+            ), "image embeddings, text embeddings, and text attention mask cannot be None"
+            return self._image_text_matching_score(image, text, text_atts)
+
+        else:
+            raise ValueError("input_type must be image, text, or multimodal")
+
+    def forward(
+        self,
+        image: Optional[Tensor] = None,
+        text: Optional[Tensor] = None,
+        text_atts: Optional[Tensor] = None,
+        idx: Optional[Tensor] = None,
+        alpha: Optional[Tensor] = 0.0,
+        input_type: Optional[str] = None,
+        is_train: Optional[bool] = True,
+    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+        if is_train:
+            return self._train_forward(
+                image,
+                text,
+                text_atts,
+                idx,
+                alpha,
+            )
+        else:
+            return self._eval_forward(
+                input_type,
+                image,
+                text,
+                text_atts,
+            )
+
+
 def albef_model_for_vqa(config: dict, pretrained: bool = False) -> ALBEFModelForVQA:
     vision_encoder = ALBEFVisionEncoder(**config["vision_encoder_args"])
     text_encoder = ALBEFTextEncoder(**config["text_encoder_args"])
@@ -440,7 +630,7 @@ def albef_model_for_vqa(config: dict, pretrained: bool = False) -> ALBEFModelFor
     prediction_head = PredictionHead(**config["prediction_head_args"])
     albef_model = ALBEFModel(vision_encoder, text_encoder, question_multimodal_encoder)
     decoder = ALBEFDecoder(text_embeddings, answer_multimodal_encoder, prediction_head)
-    loss = MaskedLanguageModelingLoss()
+    loss = CausalLanguageModelingLoss()
     model = ALBEFModelForVQA(albef_model, decoder, loss)
 
     if pretrained:
