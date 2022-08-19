@@ -168,17 +168,6 @@ class TestFLAVAModel(unittest.TestCase):
             image_projection=nn.Identity(),
         )
 
-    def _assert_empty(self, field):
-        self.assertEqual(
-            field,
-            TransformerOutput(
-                last_hidden_state=None,
-                pooler_output=None,
-                hidden_states=None,
-                attentions=None,
-            ),
-        )
-
     def test_forward_image_text(self):
         image = torch.ones(2, 3, 2, 2)
         text = torch.ones(2, 3, dtype=torch.int32)
