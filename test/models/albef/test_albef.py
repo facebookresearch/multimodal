@@ -5,19 +5,20 @@
 # LICENSE file in the root directory of this source tree.
 
 import copy
+from functools import partial
 
 import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn, Tensor
-from torchmultimodal.models.albef.image_encoder import albef_image_encoder
+from torchmultimodal.models.albef.image_encoder import ALBEFVisionEncoder
 from torchmultimodal.models.albef.model import (
     ALBEFModel,
     ALBEFModelWithSimilarity,
     ALBEFSimilarity,
 )
 from torchmultimodal.models.albef.multimodal_encoder import ALBEFMultimodalEncoder
-from torchmultimodal.modules.encoders.text_encoder import bert_text_encoder
+from torchmultimodal.modules.encoders.bert_text_encoder import bert_text_encoder
 from torchmultimodal.utils.common import momentum_update, remove_grad
 
 
@@ -28,13 +29,14 @@ def random():
 
 @pytest.fixture
 def vision_encoder():
-    return albef_image_encoder(
+    return ALBEFVisionEncoder(
         image_size=4,
         patch_size=4,
         num_layers=2,
         num_heads=1,
         hidden_dim=3,
         mlp_dim=6,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
     )
 
 
@@ -79,8 +81,8 @@ def albef_model_output(albef_model):
 def test_albef_image_embeddings(albef_model_output):
     expected = Tensor(
         [
-            [[-1.3777, 0.9650, 0.4127], [0.5677, -1.4056, 0.8379]],
-            [[-0.9438, -0.4402, 1.3840], [-0.7489, -0.6645, 1.4134]],
+            [[1.364883, -1.003092, -0.361791], [-0.634884, 1.411830, -0.776947]],
+            [[1.401580, -0.537510, -0.864071], [1.378901, -0.417473, -0.961429]],
         ]
     )
     assert_expected(albef_model_output.image_embeddings, expected, rtol=0, atol=1e-4)
@@ -89,8 +91,8 @@ def test_albef_image_embeddings(albef_model_output):
 def test_albef_image_embeddings_momentum(albef_model_output):
     expected = Tensor(
         [
-            [[-1.3777, 0.9650, 0.4127], [0.5677, -1.4056, 0.8379]],
-            [[-0.9438, -0.4402, 1.3840], [-0.7489, -0.6645, 1.4134]],
+            [[1.364883, -1.003092, -0.361791], [-0.634884, 1.411830, -0.776947]],
+            [[1.401580, -0.537510, -0.864070], [1.378902, -0.417473, -0.961429]],
         ]
     )
     assert_expected(albef_model_output.image_embeddings_m, expected, rtol=0, atol=1e-4)
@@ -99,8 +101,8 @@ def test_albef_image_embeddings_momentum(albef_model_output):
 def test_albef_text_embeddings(albef_model_output):
     expected = Tensor(
         [
-            [[0.3589, -1.3641, 1.0052], [0.4500, -1.3861, 0.9361]],
-            [[0.5198, -1.3989, 0.8791], [0.6649, -1.4134, 0.7485]],
+            [[-0.332726, 1.356729, -1.024002], [1.050448, -1.345235, 0.294787]],
+            [[-1.098961, -0.221372, 1.320333], [1.304645, -1.125002, -0.179644]],
         ]
     )
     assert_expected(albef_model_output.text_embeddings, expected, rtol=0, atol=1e-4)
@@ -109,8 +111,8 @@ def test_albef_text_embeddings(albef_model_output):
 def test_albef_text_embeddings_momentum(albef_model_output):
     expected = Tensor(
         [
-            [[0.3589, -1.3641, 1.0052], [0.4500, -1.3861, 0.9361]],
-            [[0.5198, -1.3989, 0.8791], [0.6649, -1.4134, 0.7485]],
+            [[-0.332726, 1.356729, -1.024002], [1.050448, -1.345235, 0.294787]],
+            [[-1.098961, -0.221372, 1.320333], [1.304645, -1.125002, -0.179644]],
         ]
     )
     assert_expected(albef_model_output.text_embeddings_m, expected, rtol=0, atol=1e-4)
@@ -119,8 +121,8 @@ def test_albef_text_embeddings_momentum(albef_model_output):
 def test_albef_multimodal_embeddings(albef_model_output):
     expected = Tensor(
         [
-            [[-1.3968, 0.8900, 0.5068], [-1.4033, 0.8534, 0.5500]],
-            [[-1.3705, 0.3831, 0.9874], [-1.3150, 0.2068, 1.1082]],
+            [[-0.100506, 1.271901, -1.171395], [1.410639, -0.618296, -0.792343]],
+            [[-1.393961, 0.490451, 0.903510], [0.606909, -1.409685, 0.802776]],
         ]
     )
     assert_expected(
@@ -131,8 +133,8 @@ def test_albef_multimodal_embeddings(albef_model_output):
 def test_albef_multimodal_embeddings_momentum(albef_model_output):
     expected = Tensor(
         [
-            [[-1.3968, 0.8900, 0.5068], [-1.4033, 0.8534, 0.5500]],
-            [[-1.3705, 0.3831, 0.9874], [-1.3150, 0.2068, 1.1082]],
+            [[-0.100506, 1.271901, -1.171395], [1.410639, -0.618296, -0.792343]],
+            [[-1.393961, 0.490451, 0.903510], [0.606909, -1.409685, 0.802776]],
         ]
     )
     assert_expected(
@@ -190,26 +192,26 @@ def test_similarity(albef_with_sim):
     )
     expected_sim_i2t = Tensor(
         [
-            [14.2454, 13.9994, -9.1568, 9.5412, 7.4214, -0.7148],
-            [13.0532, 14.1404, -18.5745, 9.8749, 11.7299, 5.2513],
+            [-5.128132, -13.669198, -2.814691, 7.166637, 19.930466, 20.275330],
+            [9.302484, 11.485555, -5.828896, -7.156259, -17.247587, -26.397799],
         ]
     )
     expected_sim_t2i = Tensor(
         [
-            [12.6796, 10.6270, 0.6630, 27.2049, -15.4273, 4.8052],
-            [14.2015, 3.5544, 4.7949, 19.3049, -13.6284, 10.2482],
+            [12.8447, 13.8292, -15.2739, -20.3898, 26.4407, 17.8609],
+            [-12.8771, -11.3956, 25.1225, 14.7973, -3.5396, 7.2677],
         ]
     )
     expected_sim_i2t_m = Tensor(
         [
-            [13.8611, 12.3967, 0.5949, 8.2271, 2.6205, -6.2077],
-            [8.1197, 11.0125, -28.7517, 8.0546, 15.6209, 13.2403],
+            [2.0358, -13.9559, -14.8056, 5.6649, 19.6189, 7.0686],
+            [4.7981, -13.0741, -18.6137, 4.6502, 18.0892, 1.2024],
         ]
     )
     expected_sim_t2i_m = Tensor(
         [
-            [13.8611, 8.1197, 2.4225, 25.0621, -15.3354, 7.2918],
-            [12.3967, 11.0125, 0.3460, 27.4308, -15.3554, 4.3350],
+            [2.0358, 4.7981, 7.9365, -9.1906, 28.4402, 29.4093],
+            [-13.9559, -13.0741, 24.3506, 17.6918, -10.5707, 0.4952],
         ]
     )
     assert_expected(output.sim_i2t, expected_sim_i2t, rtol=0, atol=1e-4)
@@ -232,12 +234,12 @@ def test_neg_embeddings(albef_with_sim):
         image_embeds, text_embeds, text_atts, similarity
     )
     expected_image_embeds_neg = Tensor(
-        [[[0.5138, -0.5096, 0.8612]], [[0.1721, 1.7501, -1.0727]]]
+        [[[1.917750, 1.748151, 0.901075]], [[-0.193372, -1.123208, 2.178921]]]
     )
     expected_text_embeds_neg = Tensor(
-        [[[0.6509, 0.4389, -0.1484]], [[-0.1594, -0.6870, -0.4733]]]
+        [[[-0.0520, 0.4082, -1.4286]], [[0.0278, 0.7572, -1.7793]]]
     )
-    expected_text_atts_neg = Tensor([[0.2380], [-2.1143]])
+    expected_text_atts_neg = Tensor([[-0.5061], [0.0827]])
     assert_expected(image_embeds_neg, expected_image_embeds_neg, rtol=0, atol=1e-4)
     assert_expected(text_embeds_neg, expected_text_embeds_neg, rtol=0, atol=1e-4)
     assert_expected(text_atts_neg, expected_text_atts_neg, rtol=0, atol=1e-4)
