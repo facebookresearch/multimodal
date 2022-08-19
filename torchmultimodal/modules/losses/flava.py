@@ -19,7 +19,9 @@ from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
 from torchmultimodal.utils.common import ModelOutput
 
 
-def assert_labels_are_present(labels: Optional[Tensor], category: str = "labels"):
+def assert_labels_are_present(
+    labels: Optional[Tensor], category: str = "labels"
+) -> None:
     assert (
         labels is not None
     ), f"Model is in training model but {category} are not passed"
@@ -81,7 +83,7 @@ class Pooler(nn.Module):
         self.dense = nn.Linear(hidden_size, hidden_size)
         self.activation = nn.Tanh()
 
-    def forward(self, hidden_states):
+    def forward(self, hidden_states: Tensor) -> Tensor:
         # We "pool" the model by simply taking the hidden state corresponding
         # to the first token.
         first_token_tensor = hidden_states[:, 0]
@@ -96,7 +98,7 @@ class TwoWayHead(nn.Module):
 
         self.seq_relationship = nn.Linear(hidden_size, 2)
 
-    def forward(self, pooled_output):
+    def forward(self, pooled_output: Tensor) -> Tensor:
         return self.seq_relationship(pooled_output)
 
 
@@ -116,7 +118,7 @@ class ITMLoss(nn.Module):
         self,
         hidden_states: Tensor,
         labels: Tensor,
-    ):
+    ) -> ITMLossOutput:
         if self.training:
             assert_labels_are_present(labels, "itm labels")
 
@@ -148,6 +150,7 @@ class MaskedPredictionHead(nn.Module):
         self.dense = nn.Linear(hidden_size, hidden_size)
         self.transform_act_fn = transform_act_fn
 
+        self.layer_norm: nn.LayerNorm
         if use_fp32_layer_norm:
             self.layer_norm = Fp32LayerNorm(hidden_size, eps=layer_norm_eps)
         else:
@@ -163,7 +166,7 @@ class MaskedPredictionHead(nn.Module):
         # correctly resized with `resize_token_embeddings`
         self.decoder.bias = self.bias
 
-    def forward(self, hidden_states: Tensor):
+    def forward(self, hidden_states: Tensor) -> Tensor:
         hidden_states = self.dense(hidden_states)
         hidden_states = self.transform_act_fn(hidden_states)
         hidden_states = self.layer_norm(hidden_states)
@@ -195,7 +198,9 @@ class MaskedPredictionLoss(nn.Module):
         self.ce_loss = nn.CrossEntropyLoss(ignore_index=ignore_index)
         self.ignore_nan = ignore_nan
 
-    def forward(self, hidden_states: Tensor, masked_labels: Optional[Tensor] = None):
+    def forward(
+        self, hidden_states: Tensor, masked_labels: Optional[Tensor] = None
+    ) -> MaskedPredictionLossOutput:
         if self.training:
             assert_labels_are_present(masked_labels, "masked labels")
 
@@ -237,7 +242,6 @@ class FLAVAGlobalContrastiveLoss(nn.Module):
         projection_size: int = 768,
         image_embedding_index: int = 0,
         text_embedding_index: int = 0,
-        **kwargs,
     ):
         super().__init__()
         if logit_scale is None:
@@ -249,22 +253,16 @@ class FLAVAGlobalContrastiveLoss(nn.Module):
         else:
             self.logit_scale = nn.Parameter(logit_scale * torch.ones([]))
 
-        self.image_projection = nn.Linear(image_embedding_size, projection_size)
-        self.text_projection = nn.Linear(text_embedding_size, projection_size)
-        self.image_embedding_index = image_embedding_index
-        self.text_embedding_index = text_embedding_index
-
     def forward(
         self,
         image_sequence: Tensor,
         text_sequence: Tensor,
         mask: Tensor,
-    ):
-        text_embedding = nn.functional.normalize(
-            self.text_projection(text_sequence[:, self.text_embedding_index, :]), dim=-1
-        )
+    ) -> FLAVAGlobalContrastiveLossOutput:
+
+        text_embedding = nn.functional.normalize(text_sequence, dim=-1)
         image_embedding = nn.functional.normalize(
-            self.image_projection(image_sequence[:, self.image_embedding_index, :]),
+            image_sequence,
             dim=-1,
         )
 
@@ -376,6 +374,8 @@ class FLAVAPretrainingLoss(nn.Module):
         itm_labels: Optional[Tensor] = None,
         mim_labels: Optional[Tensor] = None,
         mlm_labels: Optional[Tensor] = None,
+        projected_image_embeddings: Optional[Tensor] = None,
+        projected_text_embeddings: Optional[Tensor] = None,
     ) -> FLAVAPretrainingLossOutput:
         outputs = FLAVAPretrainingLossOutput()
         pos_mask = None
@@ -383,6 +383,7 @@ class FLAVAPretrainingLoss(nn.Module):
         # Check multimodal_masked_sequence to make sure this is unimodal case
         # This specific case can though be backpropagated directly as MIM is independent of
         # text, but that is a research question :)
+
         if (
             image_masked_sequence is not None
             and self.mim_weight > 0
@@ -441,7 +442,7 @@ class FLAVAPretrainingLoss(nn.Module):
             outputs.mmm_text_output = self.mmm_loss.mlm(
                 sequence_for_text,
                 mlm_labels,
-            )
+            )  # type: ignore
             outputs.mmm_text_output.loss *= self.mmm_text_loss_weight
             outputs.losses.mmm_text_loss = outputs.mmm_text_output.loss
 
@@ -457,18 +458,18 @@ class FLAVAPretrainingLoss(nn.Module):
             outputs.mmm_image_output = self.mmm_loss.mim(
                 sequence_for_image,
                 mim_labels,
-            )
+            )  # type: ignore
             outputs.mmm_image_output.loss *= self.mmm_image_loss_weight
             outputs.losses.mmm_image_loss = outputs.mmm_image_output.loss
 
         if (
-            image_sequence is not None
-            and text_sequence is not None
+            projected_image_embeddings is not None
+            and projected_text_embeddings is not None
             and self.contrastive_loss_weight > 0
         ):
             outputs.global_contrastive_output = self.contrastive_loss(
-                image_sequence,
-                text_sequence,
+                projected_image_embeddings,
+                projected_text_embeddings,
                 pos_mask,
             )
             outputs.global_contrastive_output.loss *= self.contrastive_loss_weight

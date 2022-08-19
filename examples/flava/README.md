@@ -21,20 +21,20 @@ First, clone the repo, install `multimodal` and then install requirements for th
 git clone https://github.com/facebookresearch/multimodal.git
 cd multimodal
 pip install -e .
-cd examples/flava
-pip install -r requirements.txt
+cd examples
+pip install -r flava/requirements.txt
 ```
 
-### Get ImageNet
+### Access ImageNet
 
-Get the ImageNet dataset's tar file by following the steps [here](https://huggingface.co/datasets/aps/imagenet2012#dataset-summary) and set the path to ImageNet tar file by `export IMAGENET_TAR=/path/to/imagenet_object_localization_patched2019.tar.gz`. Rest of the datasets required for a debug run should be automatically downloaded on first launch.
+To access the ImageNet dataset, you must first create an account at [HuggingFace](https://huggingface.co/join). Once your account is created and your email is confirmed, log in, click on your profile, and go to Settings -> Access Tokens. Create a new token with READ access and copy it to clipboard. Then run `huggingface-cli login` in your terminal and paste the access token there. It should create an auth token at `~/.huggingface/token` that will be used to authenticate the dataset download request. Finally, visit the [dataset page](https://huggingface.co/datasets/imagenet-1k) and accept the terms and conditions of the dataset while logged into your account.
 
 ### Launching and test pretraining
 
-Launch your FLAVA debug pretraining job after making sure `IMAGENET_TAR` variable has been exported by running the following command:
+After making sure your access token was saved to `~/.huggingface/token`, launch your FLAVA debug pretraining job by running the following command:
 
 ```
-python train.py config=configs/pretraining/debug.yaml
+python -m flava.train config=flava/configs/pretraining/debug.yaml
 ```
 
 Note that:
@@ -46,13 +46,13 @@ Note that:
 You can update the configuration by changing the config specified by `config` parameter or you can specify the parameters to be overridden by using a dotlist. For example, if you want to run the model with different numbers of training steps, you can do:
 
 ```
-python train.py config=configs/pretraining/debug.yaml training.lightning.max_steps=1000
+python train.py config=flava/configs/pretraining/debug.yaml training.lightning.max_steps=1000
 ```
 
 Similarly, let's say you want to use a pretrained model for your pretraining/finetuning.
 
 ```
-python train.py config=configs/pretraining/debug.yaml model.pretrained_model_key=flava_full
+python -m flava.train config=configs/pretraining/debug.yaml model.pretrained_model_key=flava_full
 ```
 
 ### Full Pretraining

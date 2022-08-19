@@ -1,0 +1,7 @@
+{
+    "combine_datasets": ["gqa"],
+    "combine_datasets_val": ["gqa"],
+    "vg_img_path": "",
+    "gqa_ann_path": "",
+    "gqa_split_type": ""
+  }

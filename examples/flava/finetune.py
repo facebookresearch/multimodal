@@ -4,14 +4,14 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from data import TextDataModule, TorchVisionDataModule
-from data.datamodules import VLDataModule
-from definitions import FLAVAArguments
-from model import FLAVAClassificationLightningModule
+from flava.data import TextDataModule, TorchVisionDataModule
+from flava.data.datamodules import VLDataModule
+from flava.definitions import FLAVAArguments
+from flava.model import FLAVAClassificationLightningModule
+from flava.utils import build_config, build_datamodule_kwargs
 from omegaconf import OmegaConf
 from pytorch_lightning import seed_everything, Trainer
-from pytorch_lightning.callbacks import LearningRateMonitor
-from utils import build_config, build_datamodule_kwargs
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
 AVAIL_GPUS = 1
 SEED = -1
@@ -55,15 +55,23 @@ def main():
         **config.model,
     )
 
+    callbacks = [
+        LearningRateMonitor(logging_interval="step"),
+    ]
+
+    if config.training.lightning_checkpoint is not None:
+        callbacks.append(
+            ModelCheckpoint(
+                **OmegaConf.to_container(config.training.lightning_checkpoint)
+            )
+        )
+
     trainer = Trainer(
-        **OmegaConf.to_container(config.training.lightning),
-        callbacks=[
-            LearningRateMonitor(logging_interval="step"),
-        ],
-        strategy="ddp",
+        **OmegaConf.to_container(config.training.lightning), callbacks=callbacks
     )
-    trainer.fit(model, datamodule=datamodule)
-    trainer.validate(model, datamodule=datamodule)
+    ckpt_path = config.training.lightning_load_from_checkpoint
+    trainer.fit(model, datamodule=datamodule, ckpt_path=ckpt_path)
+    trainer.validate(datamodule=datamodule)
 
 
 if __name__ == "__main__":

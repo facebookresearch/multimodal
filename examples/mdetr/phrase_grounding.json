@@ -1,0 +1,8 @@
+{
+    "combine_datasets": ["flickr"],
+    "combine_datasets_val": ["flickr"],
+    "GT_type" : "separate",
+    "flickr_img_path" : "",
+   "flickr_dataset_path" : "",
+   "flickr_ann_path" : ""
+  }

@@ -1,2 +1,7 @@
 [tool.usort]
 first_party_detection = false
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "."
+]

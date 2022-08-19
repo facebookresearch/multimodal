@@ -1,13 +1,24 @@
 # Note that in original FLAVA paper, only Logistic Regression numbers were provided for image datasets.
-_target_: definitions.FLAVAArguments
+_target_: flava.definitions.FLAVAArguments
 training:
-  _target_: definitions.TrainingArguments
+  _target_: flava.definitions.TrainingArguments
   lightning:
     max_steps: 33112
-    gpus: -1
+    gpus: 1
     progress_bar_refresh_rate: 50
     val_check_interval: 1000
     num_sanity_val_steps: 0
+    strategy: ddp
+  lightning_checkpoint:
+    dirpath: "."
+    filename: flava-{epoch:02d}-{step}
+    save_last: true
+    every_n_train_steps: 1000
+    save_on_train_epoch_end: true
+    verbose: true
+    monitor: validation/accuracy/classification
+    mode: max
+  lightning_load_from_checkpoint: null
   seed: -1
   batch_size: 32
   num_workers: 4
@@ -21,14 +32,14 @@ training:
 
 
 datasets:
-  _target_: definitions.TrainingDatasetsInfo
+  _target_: flava.definitions.TrainingDatasetsInfo
   selected:
   - text
   num_classes: 2
   text:
-    _target_: definitions.TrainingSingleDatasetInfo
+    _target_: flava.definitions.TrainingSingleDatasetInfo
     train:
-      - _target_: definitions.HFDatasetInfo
+      - _target_: flava.definitions.HFDatasetInfo
         key: glue
         subset: qnli
         rename_columns:
