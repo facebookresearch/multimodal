@@ -7,7 +7,7 @@
 import pytest
 
 import torch
-from test.test_utils import assert_expected, assert_expected_wrapper, set_rng_seed
+from test.test_utils import assert_expected, assert_expected_namedtuple, set_rng_seed
 from torch import nn
 from torchmultimodal.models.gpt import (
     MultimodalTransformerDecoder,
@@ -158,7 +158,7 @@ class TestMultimodalTransformerDecoder:
             "attention_weights": None,
             "past_key_values": None,
         }
-        assert_expected_wrapper(actual, expected)
+        assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
 
     def test_forward_out_modality(self, mm_decoder, out_modality):
         actual = mm_decoder(
@@ -173,7 +173,7 @@ class TestMultimodalTransformerDecoder:
             "attention_weights": None,
             "past_key_values": None,
         }
-        assert_expected_wrapper(actual, expected)
+        assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
 
     def test_forward_two_modality(self, mm_decoder, in_modality, out_modality):
         actual = mm_decoder(
@@ -192,7 +192,7 @@ class TestMultimodalTransformerDecoder:
             "attention_weights": None,
             "past_key_values": None,
         }
-        assert_expected_wrapper(actual, expected)
+        assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
 
     def test_forward_eval_right_shift_on(
         self, mm_decoder, in_modality, out_modality, mocker
@@ -220,7 +220,7 @@ class TestMultimodalTransformerDecoder:
             "attention_weights": None,
             "past_key_values": None,
         }
-        assert_expected_wrapper(actual, expected)
+        assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
 
     def test_forward_eval_right_shift_off(
         self, mm_decoder, in_modality, out_modality, mocker
@@ -247,7 +247,7 @@ class TestMultimodalTransformerDecoder:
             "attention_weights": None,
             "past_key_values": None,
         }
-        assert_expected_wrapper(actual, expected)
+        assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
 
     def test_bad_pos_ids(self, mm_decoder, in_modality, in_seq_len):
         in_pos_ids = torch.arange(
@@ -295,7 +295,7 @@ class TestTransformerDecoderLayer:
             "attention_weights": None,
             "past_key_values": None,
         }
-        assert_expected_wrapper(actual, expected)
+        assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
 
     def test_forward_masked(
         self, decoder_layer, x_input, self_attn_mask, self_head_mask
@@ -307,7 +307,7 @@ class TestTransformerDecoderLayer:
             "attention_weights": None,
             "past_key_values": None,
         }
-        assert_expected_wrapper(actual, expected)
+        assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
 
     def test_forward_additional_output(self, decoder_layer, x_input):
         actual = decoder_layer(x_input, use_cache=True, return_attn_weights=True)
@@ -323,7 +323,7 @@ class TestTransformerDecoderLayer:
                 "v": ([1, 2, 3, 2], 5.1630),
             },  # (b, h, seq_len, d_model//h)
         }
-        assert_expected_wrapper(actual, expected)
+        assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
 
 
 def test_sigmoid_linear_unit():
