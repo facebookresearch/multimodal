@@ -58,8 +58,8 @@ class ALBEFModel(nn.Module):
     (ALBEF) them through cross-modal attention, which enables more grounded vision
     and language representation learning. (https://arxiv.org/pdf/2107.07651.pdf)
 
-    Args:   vision_encoder (nn.Module): Instantiated vision encoder. Needs to return ``TransformerOutput``.
-            text_encoder (nn.Module): Instantiated text encoder. Needs to return ``TransformerOutput``.
+    Args:   vision_encoder (nn.Module): Instantiated vision encoder.
+            text_encoder (nn.Module): Instantiated text encoder.
             multimodal_encoder (nn.Module): Instantiated multimodal encoder.
             momentum (float): Momentum parameter. Default is 0.995.
 
@@ -97,7 +97,7 @@ class ALBEFModel(nn.Module):
         image_embeds = self.vision_encoder(image)
         text_embeds = self.text_encoder(text, text_atts)
         multimodal_embeddings = self.multimodal_encoder(
-            image_embeds.last_hidden_state, text_embeds.last_hidden_state, text_atts
+            image_embeds, text_embeds.last_hidden_state, text_atts
         )
 
         with torch.no_grad():
@@ -109,14 +109,12 @@ class ALBEFModel(nn.Module):
             image_embeds_m = self.vision_encoder_m(image)
             text_embeds_m = self.text_encoder_m(text, text_atts)
             multimodal_embeddings_m = self.multimodal_encoder_m(
-                image_embeds_m.last_hidden_state,
-                text_embeds_m.last_hidden_state,
-                text_atts,
+                image_embeds_m, text_embeds_m.last_hidden_state, text_atts
             )
 
         return ALBEFOutput(
-            image_embeddings=image_embeds.last_hidden_state,
-            image_embeddings_m=image_embeds_m.last_hidden_state,
+            image_embeddings=image_embeds,
+            image_embeddings_m=image_embeds_m,
             text_embeddings=text_embeds.last_hidden_state,
             text_embeddings_m=text_embeds_m.last_hidden_state,
             multimodal_embeddings=multimodal_embeddings,

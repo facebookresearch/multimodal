@@ -11,7 +11,7 @@ import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn
 from torchmultimodal.models.flava.transformer import init_transformer_weights
-from torchmultimodal.modules.encoders.text_encoder import BERTTextEncoder
+from torchmultimodal.modules.encoders.bert_text_encoder import BERTTextEncoder
 from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 from torchmultimodal.modules.layers.transformer import TransformerEncoder
 
