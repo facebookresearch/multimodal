@@ -16,8 +16,8 @@ from torchmultimodal.models.albef.multimodal_encoder import ALBEFMultimodalEncod
 from torchmultimodal.models.albef.text_encoder import ALBEFTextEncoder
 from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 from torchmultimodal.modules.losses.albef import (
-    ImageTextContrastiveLoss,
     CausalLanguageModelingLoss,
+    ImageTextContrastiveLoss,
 )
 from torchmultimodal.utils.attention import get_causal_attention_mask
 from torchmultimodal.utils.common import momentum_update, remove_grad
