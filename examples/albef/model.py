@@ -17,7 +17,7 @@ from torchmultimodal.models.albef.text_encoder import ALBEFTextEncoder
 from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 from torchmultimodal.modules.losses.albef import (
     ImageTextContrastiveLoss,
-    MaskedLanguageModelingLoss,
+    CausalLanguageModelingLoss,
 )
 from torchmultimodal.utils.attention import get_causal_attention_mask
 from torchmultimodal.utils.common import momentum_update, remove_grad
@@ -152,7 +152,7 @@ class ALBEFModelForVQA(nn.Module):
     Args:
         model (ALBEFModel): Instantiated ALBEFModel.
         answer_decoder (ALBEFDecoder): Instantiated ALBEFDecoder.
-        loss (MaskedLanguageModelingLoss): Instantiated MaskedLanguageModelingLoss.
+        loss (CausalLanguageModelingLoss): Instantiated CausalLanguageModelingLoss.
 
     Inputs:
         image (Tensor of shape (B, C, H, W)): Image features.
@@ -165,7 +165,7 @@ class ALBEFModelForVQA(nn.Module):
         ans_lengths (Optional[List[int]] of length B): Number of answers for each question.
             ans_lengths should sum to N.
             Required if is_train is True.
-        alpha (Optional[float]): The interpolation value between mlm_loss and loss_distill.
+        alpha (Optional[float]): The interpolation value between clm_loss and loss_distill.
             Required if is_train is True.
         k (Optional[int]): The number of answers to return for inference.
             Required if is_train is False.
@@ -182,7 +182,7 @@ class ALBEFModelForVQA(nn.Module):
         self,
         model: ALBEFModel,
         answer_decoder: ALBEFDecoder,
-        loss: MaskedLanguageModelingLoss,
+        loss: CausalLanguageModelingLoss,
     ) -> None:
         super().__init__()
         self.model = model
@@ -220,7 +220,7 @@ class ALBEFModelForVQA(nn.Module):
             ans_weights (Tensor of shape (N)): Weights for each answer.
             ans_lengths (List[int] of length B): Number of answers for each question.
                 ans_lengths should sum to N.
-            alpha (float): The interpolation value between mlm_loss and loss_distill.
+            alpha (float): The interpolation value between clm_loss and loss_distill.
 
         Returns:
             Tensor: The masked language modeling loss for input.
@@ -454,7 +454,7 @@ class ALBEFModelForRetrieval(nn.Module):
             Required if input_type is "text" or "multimodal".
         idx (Tensor of shape (B)): Identifier for each image sample.
             Required if is_train is True.
-        alpha (Optional[float]): The interpolation value between mlm_loss and loss_distill.
+        alpha (Optional[float]): The interpolation value between clm_loss and loss_distill.
             Default is 0.
         input_type (Optional[str]): "image", "text", or "multimodal" indicating the encoding type.
             Required if is_train is False.
@@ -626,7 +626,7 @@ def albef_model_for_vqa(config: dict, pretrained: bool = False) -> ALBEFModelFor
     prediction_head = PredictionHead(**config["prediction_head_args"])
     albef_model = ALBEFModel(vision_encoder, text_encoder, question_multimodal_encoder)
     decoder = ALBEFDecoder(text_embeddings, answer_multimodal_encoder, prediction_head)
-    loss = MaskedLanguageModelingLoss()
+    loss = CausalLanguageModelingLoss()
     model = ALBEFModelForVQA(albef_model, decoder, loss)
 
     if pretrained:
