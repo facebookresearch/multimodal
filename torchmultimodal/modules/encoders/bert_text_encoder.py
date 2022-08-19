@@ -25,12 +25,14 @@ class BERTTextEncoder(nn.Module):
 
     Attributes:
         embeddings (nn.Module): Module that projects text token ids into embeddings.
-            See :py:class: BERTTextEmbeddings for interface.
-        encoder (nn.Module): Module for transformer encoder. See :py:class: TransformerEncoder for interface.
+            See :py:class: `torchmultimodal.modules.layers.text_embedding.BERTTextEmbeddings` for interface.
+        encoder (nn.Module): Module for transformer encoder. See :py:class:
+            `torchmultimodal.modules.layers.transformer.TransformerEncoder` for interface.
         layernorm (nn.Module, optional): Module for layernorm to be applied after encoder. Defaults to ``None``.
         pooler (nn.Module, optional): Module for pooler to be applied after layernorm. Defaults to ``None``.
         weight_init_fn (Callable, optional): function for custom weight initialization of both the transformer
-            encoder and embeddings. See :py:func: init_transformer_weights as an example. Defaults to ``None``.
+            encoder and embeddings. See :py:func: `torchmultimodal.models.flava.transformer.init_transformer_weights`
+            as an example. Defaults to ``None``.
 
     Args:
         input_ids (Tensor, optional): Tensor of input vocab token ids of shape [batch, seq_len].
@@ -57,6 +59,7 @@ class BERTTextEncoder(nn.Module):
 
         self.embeddings = embeddings
         self.encoder = encoder
+        # TODO: could be upstreamed to TransformerEncoder?
         self.layernorm = layernorm
         self.pooler = pooler
 
@@ -135,8 +138,9 @@ def bert_text_encoder(
 ) -> BERTTextEncoder:
     """
     Returns a BERTTextEncoder with default params identical to HuggingFace's ``bert-base-uncased``.
-    Ref: https://huggingface.co/bert-base-uncased/resolve/main/config.json. See :py:class: BERTTextEmbeddings
-    and :py:class: TransformerEncoder for details on parameters.
+    Ref: https://huggingface.co/bert-base-uncased/resolve/main/config.json. See :py:class:
+    `torchmultimodal.modules.layers.text_embedding.BERTTextEmbeddings` and :py:class:
+    `torchmultimodal.modules.layers.transformer.TransformerEncoder` for details on parameters.
     """
     embeddings = BERTTextEmbeddings(
         hidden_size=hidden_size,
