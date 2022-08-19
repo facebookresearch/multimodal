@@ -77,7 +77,7 @@ class ImageTextContrastiveLoss(nn.Module):
         return loss_itc
 
 
-class MaskedLanguageModelingLoss(nn.Module):
+class CausalLanguageModelingLoss(nn.Module):
     """
     Compute the autoregressive masked language modeling loss by predicting the next token, as used in VQA.
     Support loss distillation for non-zero alpha. Compute standard mlm loss for zero alpha.
