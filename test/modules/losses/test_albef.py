@@ -10,8 +10,8 @@ import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import Tensor
 from torchmultimodal.modules.losses.albef import (
+    CausalLanguageModelingLoss,
     ImageTextContrastiveLoss,
-    MaskedLanguageModelingLoss,
 )
 
 
@@ -78,11 +78,11 @@ class TestImageTextContrastiveLoss:
         assert_expected(output, expected, rtol=0, atol=1e-4)
 
 
-class TestMaskedLanguageModelingLoss:
+class TestCausalLanguageModelingLoss:
     @pytest.fixture(autouse=True)
     def setup(self):
         set_rng_seed(0)
-        self.loss = MaskedLanguageModelingLoss()
+        self.loss = CausalLanguageModelingLoss()
 
     def test_mlm_loss_invalid_labels(self):
         # labels dimensions should match the first two dimensions of prediction_scores
@@ -92,7 +92,7 @@ class TestMaskedLanguageModelingLoss:
             self.loss(labels, prediction_scores)
 
     def test_mlm_loss_missing_momentum_embeddings(self):
-        # need prediction_scores_m input for MaskedLanguageModelingLoss with nonzero alpha
+        # need prediction_scores_m input for CausalLanguageModelingLoss with nonzero alpha
         labels = torch.randint(10, (2, 5))
         prediction_scores = torch.randn(2, 5, 20)
         alpha = 0.4
