@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import unittest
+import pytest
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
@@ -13,12 +13,15 @@ from torchmultimodal.models.flava.image_encoder import ImageEmbeddings, ImageTra
 from torchmultimodal.modules.layers.transformer import TransformerEncoder
 
 
-class TestFlavaImageEncoder(unittest.TestCase):
-    def setUp(self):
-        set_rng_seed(0)
-        self.image_embedding = ImageEmbeddings(
-            image_size=2, patch_size=1, hidden_size=2
-        )
+@pytest.fixture(autouse=True)
+def random():
+    set_rng_seed(0)
+
+
+class TestFlavaImageEncoder:
+    @pytest.fixture
+    def image_encoder_components(self):
+        image_embedding = ImageEmbeddings(image_size=2, patch_size=1, hidden_size=2)
 
         encoder = TransformerEncoder(
             n_layer=1,
@@ -28,17 +31,21 @@ class TestFlavaImageEncoder(unittest.TestCase):
             activation=nn.GELU,
             norm_first=True,
         )
-
-        self.image_encoder = ImageTransformer(
-            embeddings=self.image_embedding,
+        image_encoder = ImageTransformer(
+            embeddings=image_embedding,
             encoder=encoder,
             layernorm=nn.LayerNorm(2),
             pooler=nn.Identity(),
         )
+        return image_encoder, image_embedding
 
-    def test_embedding(self):
-        input = torch.ones(2, 3, 2, 2)
-        out = self.image_embedding(input)
+    @pytest.fixture
+    def input(self):
+        return torch.ones(2, 3, 2, 2)
+
+    def test_embedding(self, image_encoder_components, input):
+        _, image_embedding = image_encoder_components
+        out = image_embedding(input)
         assert_expected(
             out,
             torch.Tensor(
@@ -63,9 +70,9 @@ class TestFlavaImageEncoder(unittest.TestCase):
             rtol=0,
         )
 
-    def test_image_encoder(self):
-        input = torch.ones(2, 3, 2, 2)
-        out = self.image_encoder(input)
+    def test_image_encoder(self, image_encoder_components, input):
+        image_encoder, _ = image_encoder_components
+        out = image_encoder(input)
         assert_expected(
             out.last_hidden_state,
             torch.Tensor(
