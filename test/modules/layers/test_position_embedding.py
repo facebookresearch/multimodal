@@ -18,7 +18,7 @@ class TestBroadcastedPositionEmbedding:
     @pytest.fixture(scope="class")
     def pos_emb(self):
         _pos_emb = BroadcastedPositionEmbedding(
-            shape=(1, 2, 3),
+            latent_shape=(1, 2, 3),
             embedding_dim=6,
         )
         _pos_emb.embedding = nn.ParameterDict(
@@ -40,7 +40,7 @@ class TestBroadcastedPositionEmbedding:
     def test_init_bad_embedding_dim(self):
         """Test raising error when the embedding dim is not allowed"""
         with pytest.raises(ValueError):
-            BroadcastedPositionEmbedding(shape=(1, 2, 3), embedding_dim=5)
+            BroadcastedPositionEmbedding(latent_shape=(1, 2, 3), embedding_dim=5)
 
     def test_broadcast(self, pos_emb):
         """Test embedding along each dim is broadcasted correctly"""
