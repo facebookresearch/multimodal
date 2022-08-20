@@ -4,21 +4,21 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import unittest
-
+import pytest
 import torch
-from test.test_utils import assert_expected, get_asset_path
+from test.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.transforms.image_masking_transform import (
     MaskedImageModelingTransform,
 )
 from torchvision import transforms
 
 
-class TestImageMaskingTransforms(unittest.TestCase):
-    def setUp(self):
-        self.test_image = get_asset_path("grace_hopper_517x606.jpg")
+class TestImageMaskingTransforms:
+    @pytest.fixture
+    def set_seed(self):
+        set_rng_seed(1234)
 
-    def test_image_masking_train(self):
+    def test_image_masking_train(self, set_seed):
         transform = MaskedImageModelingTransform(
             encoder_input_size=3,
             codebook_input_size=3,
@@ -50,4 +50,4 @@ class TestImageMaskingTransforms(unittest.TestCase):
 
         assert_expected(out["image"], expected_image, atol=1e-4, rtol=1e-4)
         assert_expected(out["image_for_codebook"], torch.full((3, 3, 3), 0.9))
-        self.assertEqual(out["image_patches_mask"].sum(), 1)
+        assert out["image_patches_mask"].sum() == 1
