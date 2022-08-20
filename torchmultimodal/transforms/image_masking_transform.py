@@ -204,6 +204,27 @@ class TwoWayRandomResizedCrop(transforms.RandomResizedCrop):
 
 
 class MaskedImageModelingTransform:
+    """Masked image modeling transform
+    Randomly masks patches in an image based on scheme from Beit
+    https://arxiv.org/pdf/2106.08254.pdf
+
+    Args:
+        is_train (bool): whether transform is applied during training or not
+        encoder_input_size (int): size of image that is input to the image encoder
+        codebook_input_size (int): size of image that is input to the visual codebook
+        scale (Tuple[float, float]): scale passed to RandomResizedCrop transform
+        encoder_interpolation(str): interpolation for RandomResizedCrop or Resize transform for image passed to encoder
+        codebook_interpolation(str): interpolation for RandomResizedCrop or Resize transform for image passed to visual codebook
+        image_mean (Tuple[float, float, float]): mean for image normalization
+        image_std (Tuple[float, float, float]): standard deviation for image normalization
+        mask_window_size (int): dimension of mask
+        mask_num_patches (int): number of patches to mask
+        mask_max_patches (int): max number of patches to mask
+        mask_min_patches (int): min number of patches to mask
+    Inputs:
+        images (Union[List[Image.Image], Image.Image]): input image / list of images
+    """
+
     def __init__(
         self,
         is_train: bool = True,
