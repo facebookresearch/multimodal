@@ -1,1 +1,5 @@
-scipy
+prettytable==3.3.0
+pycocotools==2.0.4
+pytorch-lightning==1.6.0
+scipy==1.8.1
+transformers==4.16.0

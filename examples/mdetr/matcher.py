@@ -56,7 +56,7 @@ class HungarianMatcher(nn.Module):
     """
 
     def __init__(
-        self, cost_class: float = 1, cost_bbox: float = 1, cost_giou: float = 1
+        self, cost_class: float = 1, cost_bbox: float = 5, cost_giou: float = 2
     ):
         super().__init__()
         self.cost_class = cost_class
