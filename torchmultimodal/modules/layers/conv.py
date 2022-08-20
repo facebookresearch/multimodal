@@ -108,7 +108,7 @@ class SamePadConvTranspose3d(nn.Module):
                 use ConvTranspose3d directly for custom padding"
             )
 
-        self.conv = nn.ConvTranspose3d(
+        self.convt = nn.ConvTranspose3d(
             in_channels, out_channels, kernel_size, stride=stride, bias=bias, **kwargs
         )
 
@@ -118,10 +118,10 @@ class SamePadConvTranspose3d(nn.Module):
             self.pad_input = calculate_same_padding(
                 self.kernel_size, self.stride, x.shape[2:]
             )
-            self.conv.padding, self.conv.output_padding = calculate_transpose_padding(
-                self.kernel_size, self.stride, x.shape[2:], self.pad_input
+            self.convt.padding, self.convt.output_padding = calculate_transpose_padding(
+                self.kernel_size, self.stride, x.shape[2:], self.pad_input[::-1]
             )
-        return self.conv(F.pad(x, self.pad_input))
+        return self.convt(F.pad(x, self.pad_input))
 
 
 def calculate_same_padding(
