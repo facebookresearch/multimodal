@@ -92,7 +92,7 @@ class MaskingGenerator:
         return delta
 
     def __call__(self)->np.ndarray:
-        mask = np.zeros(shape=self.get_shape(), dtype=np.uint)
+        mask = np.zeros(shape=self.get_shape(), dtype=np.int) # type: ignore
         mask_count = 0
         while mask_count < self.num_masking_patches:
             max_mask_patches = self.num_masking_patches - mask_count
