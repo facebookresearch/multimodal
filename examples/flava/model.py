@@ -9,7 +9,7 @@ from typing import Any, Tuple
 import torch
 from pytorch_lightning import LightningModule
 from torchmetrics import Accuracy
-from torchmultimodal.models.flava.flava_model import (
+from torchmultimodal.models.flava.model import (
     flava_model_for_classification,
     flava_model_for_pretraining,
 )
