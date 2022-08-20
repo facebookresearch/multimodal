@@ -1,0 +1,53 @@
+_target_: examples.mugen.retrieval.definitions.TrainingArgs
+dataset_args:
+  _target_: examples.mugen.data.mugen_dataset.MUGENDatasetArgs
+  data_path: "datasets/coinrun/coinrun_dataset_jsons/release"
+  asset_path: "datasets/coinrun/assets"
+  sample_every_n_frames: 3
+  sequence_length: 32
+  audio_sample_rate: 22050
+  audio_sample_length: 70560
+  resolution: 224
+  bbox_smap_for_agent: False
+  bbox_smap_for_monsters: False
+  use_manual_annotation: True
+  use_auto_annotation: False
+  use_downsampled_trainset: False
+  fixed_start_idx: False
+  get_game_frame: True
+  get_seg_map: False
+  get_text_desc: True
+  get_audio: False
+  debug: False
+datamodule_args:
+  _target_: examples.mugen.retrieval.definitions.DataModuleArgs
+  batch_size: 16
+  num_workers: 4
+  shuffle: False
+  bert_text_transform:
+    _target_: examples.mugen.retrieval.definitions.BertTextTransformArgs
+  video_transform:
+    _target_: examples.mugen.retrieval.definitions.VideoTransformArgs
+lightningmodule_args:
+  _target_: examples.mugen.retrieval.definitions.LightningModuleArgs
+  logit_scale: 0.07
+  logit_scale_max: 100.0
+  learning_rate: 0.001
+  weight_decay: 0.001
+videoclip_args:
+  _target_: examples.mugen.retrieval.definitions.VideoCLIPArgs
+  text_pretrained: True
+  text_trainable: False
+  text_model_name: "distilbert-base-uncased"
+  text_model_config: null
+  text_padding_value: 0
+  video_pretrained: True
+  video_trainable: True
+  video_pretrain_path: "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/S3D_kinetics400.pt"
+  proj_out_dim: 256
+  proj_dropout: 0.1
+accelerator: "auto"
+devices: 4
+max_epochs: 20
+log_every_n_steps: 100
+default_root_dir: null
