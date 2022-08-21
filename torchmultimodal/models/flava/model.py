@@ -62,7 +62,6 @@ FLAVAOutput.__annotations__ = {
 FLAVA_FOR_PRETRAINED_MAPPING = {
     # This will no longer load with the updated model, but keeping here just in case
     # "flava_full": "https://huggingface.co/aps/flava_full_pretrained_encoders_torchmm/resolve/main/pytorch_model.bin",
-
     "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_for_pretraining_unified_itm_mp.pt",
 }
 
@@ -428,37 +427,64 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
         )
         multimodal_masked_sequence = flava_output.multimodal_masked.last_hidden_state
         itm_logits = None
-        if multimodal_masked_sequence is not None:
-            itm_logits = self.itm_head(multimodal_masked_sequence)
 
         image_masked_sequence = flava_output.image_masked.last_hidden_state
         text_masked_sequence = flava_output.text_masked.last_hidden_state
         mlm_head_output = (
             mim_head_output
         ) = mmm_mlm_head_output = mmm_mim_head_output = None
-
+        pos_mask = None
         if image_masked_sequence is not None and multimodal_masked_sequence is None:
-            mim_head_output = self.mim_head(image_masked_sequence)
+            # Remove CLS token from image_masked_sequence
+            start_index = -image_labels.size(1) if image_labels is not None else 1
+            mim_head_output = self.mim_head(image_masked_sequence[:, start_index:, :])
+
         if text_masked_sequence is not None and multimodal_masked_sequence is None:
-            mlm_head_output = self.mlm_head(text_masked_sequence)
+            start_index = -mlm_labels.size(1) if mlm_labels is not None else 1
+            mlm_head_output = self.mlm_head(text_masked_sequence[:, start_index:, :])
+
         if multimodal_masked_sequence is not None:
-            start_index = -(text_masked_sequence.size(1))
-            mmm_text_sequence = multimodal_masked_sequence[:, start_index:, :]
-            mmm_mlm_head_output = self.mmm_mlm_head(mmm_text_sequence)
+            if itm_labels is not None:
+                pos_pairs = itm_labels.ne(0)
+                pos_mask = torch.where(
+                    pos_pairs.any(), pos_pairs, pos_pairs.new([True])
+                )
+            else:
+                pos_mask = torch.ones(
+                    multimodal_masked_sequence.size(0),
+                    device=multimodal_masked_sequence.device,
+                ).bool()
+            itm_logits = self.itm_head(multimodal_masked_sequence)
+
+            multimodal_masked_sequence = multimodal_masked_sequence[pos_mask]
+            if mlm_labels is not None:
+                mlm_labels = mlm_labels[pos_mask]
+            if image_labels is not None:
+                image_labels = image_labels[pos_mask]
+
         if multimodal_masked_sequence is not None:
-            total_indices = image_masked_sequence.size(1) - 1
-            mmm_image_sequence = multimodal_masked_sequence[:, 2 : 2 + total_indices, :]
-            mmm_mim_head_output = self.mmm_mim_head(mmm_image_sequence)
+            start_index = (
+                -mlm_labels.size(1)
+                if mlm_labels is not None
+                else -(text_masked_sequence.size(1) - 1)
+            )
+            sequence_for_text = multimodal_masked_sequence[:, start_index:, :]
+            mmm_mlm_head_output = self.mmm_mlm_head(sequence_for_text)
+
+        if multimodal_masked_sequence is not None:
+            # Starts from 2 because of 2 CLS, one for multimodal encoder and one
+            # that comes from image encoder.
+            total_indices = (
+                image_labels.size(1)
+                if image_labels is not None
+                else (image_masked_sequence.size(1) - 1)
+            )
+            sequence_for_image = multimodal_masked_sequence[:, 2 : 2 + total_indices, :]
+            mmm_mim_head_output = self.mmm_mim_head(sequence_for_image)
 
         return self.loss(
-            image_sequence=flava_output.image.last_hidden_state,
-            text_sequence=flava_output.text.last_hidden_state,
-            image_masked_sequence=flava_output.image_masked.last_hidden_state,
-            text_masked_sequence=flava_output.text_masked.last_hidden_state,
-            multimodal_sequence=flava_output.multimodal.last_hidden_state
-            if not skip_unmasked_mm_encoder
-            else None,
             multimodal_masked_sequence=flava_output.multimodal_masked.last_hidden_state,
+            pos_mask=pos_mask,
             itm_labels=itm_labels,
             mim_labels=image_labels,
             mlm_labels=mlm_labels,

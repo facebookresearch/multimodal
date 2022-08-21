@@ -150,19 +150,14 @@ class MaskedPredictionLoss(nn.Module):
         self,
         prediction: Tensor,
         masked_labels: Optional[Tensor] = None,
-        pos_mask: Optional[Tensor] = None,
     ) -> MaskedPredictionLossOutput:
 
-        if pos_mask is not None:
-            masked_labels = masked_labels[pos_mask]
         masked_tokens = masked_labels.ne(self.ignore_index)
         masked_labels = masked_labels[masked_tokens]
 
         if masked_labels is None:
             masked_loss = prediction.sum() * 0
         else:
-            if pos_mask is not None:
-                prediction = prediction[pos_mask]
             prediction = prediction[masked_tokens, :]
             masked_loss = self.ce_loss(
                 prediction.view(-1, self.vocab_size),
@@ -312,12 +307,8 @@ class FLAVAPretrainingLoss(nn.Module):
     # for better usability
     def forward(
         self,
-        image_sequence: Optional[Tensor] = None,
-        text_sequence: Optional[Tensor] = None,
-        image_masked_sequence: Optional[Tensor] = None,
-        text_masked_sequence: Optional[Tensor] = None,
-        multimodal_sequence: Optional[Tensor] = None,
         multimodal_masked_sequence: Optional[Tensor] = None,
+        pos_mask: Optional[Tensor] = None,
         itm_labels: Optional[Tensor] = None,
         mim_labels: Optional[Tensor] = None,
         mlm_labels: Optional[Tensor] = None,
@@ -330,7 +321,6 @@ class FLAVAPretrainingLoss(nn.Module):
         mmm_mim_head_output: Optional[Tensor] = None,
     ) -> FLAVAPretrainingLossOutput:
         outputs = FLAVAPretrainingLossOutput()
-        pos_mask = None
 
         # Check multimodal_masked_sequence to make sure this is unimodal case
         # This specific case can though be backpropagated directly as MIM is independent of
@@ -341,11 +331,7 @@ class FLAVAPretrainingLoss(nn.Module):
             and self.mim_weight > 0
             and multimodal_masked_sequence is None
         ):
-            # Remove CLS token from image_masked_sequence
-            start_index = -mim_labels.size(1) if mim_labels is not None else 1
-            outputs.mim_output = self.mim_loss(
-                mim_head_output[:, start_index:, :], mim_labels
-            )
+            outputs.mim_output = self.mim_loss(mim_head_output, mim_labels)
             outputs.mim_output.loss *= self.mim_weight
             outputs.losses.mim_loss = outputs.mim_output.loss
 
@@ -356,46 +342,26 @@ class FLAVAPretrainingLoss(nn.Module):
             and self.mlm_weight > 0
             and multimodal_masked_sequence is None
         ):
-            start_index = -mlm_labels.size(1) if mlm_labels is not None else 1
-            outputs.mlm_output = self.mlm_loss(
-                mlm_head_output[:, start_index:, :], mlm_labels
-            )
+            outputs.mlm_output = self.mlm_loss(mlm_head_output, mlm_labels)
             outputs.mlm_output.loss *= self.mlm_weight
             outputs.losses.mlm_loss = outputs.mlm_output.loss
 
         if multimodal_masked_sequence is not None and self.itm_loss_weight > 0:
             assert itm_logits is not None
-            if itm_labels is not None:
-                pos_pairs = itm_labels.ne(0)
-                pos_mask = torch.where(
-                    pos_pairs.any(), pos_pairs, pos_pairs.new([True])
-                )
-            else:
-                pos_mask = torch.ones(
-                    multimodal_masked_sequence.size(0),
-                    device=multimodal_masked_sequence.device,
-                ).bool()
             outputs.itm_output = self.itm_loss(itm_logits, itm_labels)
             outputs.itm_output.loss *= self.itm_loss_weight
             outputs.losses.itm_loss = outputs.itm_output.loss
 
         if mmm_mlm_head_output is not None and self.mmm_text_loss_weight > 0:
             outputs.mmm_text_output = self.mmm_loss.mlm(
-                mmm_mlm_head_output, mlm_labels, pos_mask
+                mmm_mlm_head_output, mlm_labels
             )  # type: ignore
             outputs.mmm_text_output.loss *= self.mmm_text_loss_weight
             outputs.losses.mmm_text_loss = outputs.mmm_text_output.loss
 
         if mmm_mim_head_output is not None and self.mmm_image_loss_weight > 0:
-            # Starts from 2 because of 2 CLS, one for multimodal encoder and one
-            # that comes from image encoder.
-            total_indices = (
-                mim_labels.size(1)
-                if mlm_labels is not None
-                else (image_masked_sequence.size(1) - 1)
-            )
             outputs.mmm_image_output = self.mmm_loss.mim(
-                mmm_mim_head_output, mim_labels, pos_mask
+                mmm_mim_head_output, mim_labels
             )  # type: ignore
             outputs.mmm_image_output.loss *= self.mmm_image_loss_weight
             outputs.losses.mmm_image_loss = outputs.mmm_image_output.loss
