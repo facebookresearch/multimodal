@@ -91,16 +91,6 @@ class Pooler(nn.Module):
         return pooled_output
 
 
-class TwoWayHead(nn.Module):
-    def __init__(self, hidden_size: int = 768, **kwargs: Any):
-        super().__init__()
-
-        self.seq_relationship = nn.Linear(hidden_size, 2)
-
-    def forward(self, pooled_output: Tensor) -> Tensor:
-        return self.seq_relationship(pooled_output)
-
-
 class ITMLoss(nn.Module):
     def __init__(
         self,
@@ -120,7 +110,7 @@ class ITMLoss(nn.Module):
             assert_labels_are_present(labels, "itm labels")
 
         if labels is None:
-            loss = pooled_output.sum() * 0
+            loss = scores.sum() * 0
         else:
             loss = self.ce_loss(
                 scores.view(-1, 2),
