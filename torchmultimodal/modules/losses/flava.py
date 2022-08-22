@@ -95,7 +95,6 @@ class Pooler(nn.Module):
 class ITMLoss(nn.Module):
     def __init__(
         self,
-        hidden_size: int = 768,
         ignore_index: int = -1,
         **kwargs: Any,
     ):
@@ -294,7 +293,6 @@ class FLAVAPretrainingLoss(nn.Module):
     ):
         super().__init__()
         self.itm_loss = ITMLoss(
-            hidden_size=hidden_size,
             ignore_index=ignore_index,
         )
         self.contrastive_loss = FLAVAGlobalContrastiveLoss(
