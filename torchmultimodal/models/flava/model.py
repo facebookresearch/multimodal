@@ -105,6 +105,24 @@ class FLAVAForClassificationOutput(ModelOutput):
     loss: Tensor
 
 
+@dataclass
+class FLAVAForPretrainingOutput:
+    multimodal_masked_sequence: Tensor
+    pos_mask: Tensor
+    mim_labels: Tensor
+    mlm_labels: Tensor
+    mmm_mlm_labels: Tensor
+    mmm_mim_labels: Tensor
+    itm_labels: Tensor
+    projected_image_embeddings: Tensor
+    projected_text_embeddings: Tensor
+    itm_logits: Tensor
+    mlm_head_output: Tensor
+    mim_head_output: Tensor
+    mmm_mlm_head_output: Tensor
+    mmm_mim_head_output: Tensor
+
+
 class FLAVAModel(nn.Module, PretrainedMixin):
     def __init__(
         self,
@@ -452,6 +470,8 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
                 text_masked_sequence[:, start_index:, :], mlm_labels
             )
 
+        mmm_mlm_labels = mlm_labels
+        mmm_mim_labels = image_labels
         if multimodal_masked_sequence is not None:
             if itm_labels is not None:
                 pos_pairs = itm_labels.ne(0)
@@ -466,37 +486,41 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
             itm_logits = self.itm_head(multimodal_masked_sequence)
 
             multimodal_masked_sequence = multimodal_masked_sequence[pos_mask]
+
             if mlm_labels is not None:
-                mlm_labels = mlm_labels[pos_mask]
+                mmm_mlm_labels = mlm_labels[pos_mask]
+
             if image_labels is not None:
-                image_labels = image_labels[pos_mask]
+                mmm_mim_labels = image_labels[pos_mask]
 
         if multimodal_masked_sequence is not None:
             start_index = (
-                -mlm_labels.size(1)
-                if mlm_labels is not None
+                -mmm_mlm_labels.size(1)
+                if mmm_mlm_labels is not None
                 else -(text_masked_sequence.size(1) - 1)
             )
             sequence_for_text = multimodal_masked_sequence[:, start_index:, :]
-            mmm_mlm_head_output = self.mmm_mlm_head(sequence_for_text, mlm_labels)
+            mmm_mlm_head_output = self.mmm_mlm_head(sequence_for_text, mmm_mlm_labels)
 
         if multimodal_masked_sequence is not None:
             # Starts from 2 because of 2 CLS, one for multimodal encoder and one
             # that comes from image encoder.
             total_indices = (
-                image_labels.size(1)
-                if image_labels is not None
+                mmm_mim_labels.size(1)
+                if mmm_mim_labels is not None
                 else (image_masked_sequence.size(1) - 1)
             )
             sequence_for_image = multimodal_masked_sequence[:, 2 : 2 + total_indices, :]
-            mmm_mim_head_output = self.mmm_mim_head(sequence_for_image, image_labels)
+            mmm_mim_head_output = self.mmm_mim_head(sequence_for_image, mmm_mim_labels)
 
-        return self.loss(
+        return FLAVAForPretrainingOutput(
             multimodal_masked_sequence=flava_output.multimodal_masked.last_hidden_state,
             pos_mask=pos_mask,
-            itm_labels=itm_labels,
             mim_labels=image_labels,
             mlm_labels=mlm_labels,
+            mmm_mim_labels=mmm_mim_labels,
+            mmm_mlm_labels=mmm_mlm_labels,
+            itm_labels=itm_labels,
             projected_image_embeddings=flava_output.projected_image_embeddings,
             projected_text_embeddings=flava_output.projected_text_embeddings,
             itm_logits=itm_logits,

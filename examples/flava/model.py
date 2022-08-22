@@ -4,20 +4,22 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Any, Tuple
+from typing import Any, List, Tuple
 
 import torch
 from pytorch_lightning import LightningModule
+from torch import Tensor
 from torchmetrics import Accuracy
 from torchmultimodal.models.flava.model import (
     flava_model_for_classification,
     flava_model_for_pretraining,
 )
+from torchmultimodal.modules.losses.flava import FLAVAPretrainingLoss
 from transformers.optimization import get_cosine_schedule_with_warmup
 
 
 def get_optimizers_for_lightning(
-    model: torch.nn.Module,
+    parameters: List[Tensor],
     learning_rate: float,
     adam_eps: float,
     adam_weight_decay: float,
@@ -26,7 +28,7 @@ def get_optimizers_for_lightning(
     max_steps: int,
 ):
     optimizer = torch.optim.AdamW(
-        model.parameters(),
+        parameters,
         lr=learning_rate,
         betas=adam_betas,
         eps=adam_eps,
@@ -59,6 +61,7 @@ class FLAVAPreTrainingLightningModule(LightningModule):
         self.adam_weight_decay = adam_weight_decay
         self.warmup_steps = warmup_steps
         self.max_steps = max_steps
+        self.loss = FLAVAPretrainingLoss()
 
     def training_step(self, batch, batch_idx):
         output = self._step(batch, batch_idx)
@@ -104,11 +107,29 @@ class FLAVAPreTrainingLightningModule(LightningModule):
             itm_labels=batch.get("itm_labels", None),
             required_embedding=required_embedding,
         )
-        return output
+
+        loss = self.loss(
+            multimodal_masked_sequence=output.multimodal_masked_sequence,
+            pos_mask=output.pos_mask,
+            itm_labels=output.itm_labels,
+            mim_labels=output.mim_labels,
+            mlm_labels=output.mlm_labels,
+            mmm_mlm_labels=output.mmm_mlm_labels,
+            mmm_mim_labels=output.mmm_mim_labels,
+            projected_image_embeddings=output.projected_image_embeddings,
+            projected_text_embeddings=output.projected_text_embeddings,
+            itm_logits=output.itm_logits,
+            mlm_head_output=output.mlm_head_output,
+            mim_head_output=output.mim_head_output,
+            mmm_mlm_head_output=output.mmm_mlm_head_output,
+            mmm_mim_head_output=output.mmm_mim_head_output,
+        )
+        return loss
 
     def configure_optimizers(self):
+        parameters = self.model.parameters() + self.loss.parameters()
         return get_optimizers_for_lightning(
-            self.model,
+            parameters,
             self.learning_rate,
             self.adam_eps,
             self.adam_weight_decay,
@@ -194,7 +215,7 @@ class FLAVAClassificationLightningModule(LightningModule):
 
     def configure_optimizers(self):
         return get_optimizers_for_lightning(
-            self.model,
+            self.model.parameters(),
             self.learning_rate,
             self.adam_eps,
             self.adam_weight_decay,
