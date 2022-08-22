@@ -273,6 +273,8 @@ class FLAVAPretrainingLoss(nn.Module):
         itm_labels: Optional[Tensor] = None,
         mim_labels: Optional[Tensor] = None,
         mlm_labels: Optional[Tensor] = None,
+        mmm_mim_labels: Optional[Tensor] = None,
+        mmm_mlm_labels: Optional[Tensor] = None,
         projected_image_embeddings: Optional[Tensor] = None,
         projected_text_embeddings: Optional[Tensor] = None,
         itm_logits: Optional[Tensor] = None,
@@ -315,14 +317,14 @@ class FLAVAPretrainingLoss(nn.Module):
 
         if mmm_mlm_head_output is not None and self.mmm_text_loss_weight > 0:
             outputs.mmm_text_output = self.mmm_loss.mlm(
-                mmm_mlm_head_output, mlm_labels
+                mmm_mlm_head_output, mmm_mlm_labels
             )  # type: ignore
             outputs.mmm_text_output.loss *= self.mmm_text_loss_weight
             outputs.losses.mmm_text_loss = outputs.mmm_text_output.loss
 
         if mmm_mim_head_output is not None and self.mmm_image_loss_weight > 0:
             outputs.mmm_image_output = self.mmm_loss.mim(
-                mmm_mim_head_output, mim_labels
+                mmm_mim_head_output, mmm_mim_labels
             )  # type: ignore
             outputs.mmm_image_output.loss *= self.mmm_image_loss_weight
             outputs.losses.mmm_image_loss = outputs.mmm_image_output.loss
