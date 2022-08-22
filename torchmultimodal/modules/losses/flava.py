@@ -7,7 +7,7 @@
 import math
 import warnings
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional, Union
+from typing import Any, Optional, Union
 
 import torch
 from torch import nn, Tensor
@@ -94,7 +94,6 @@ class Pooler(nn.Module):
 class ITMLoss(nn.Module):
     def __init__(
         self,
-        hidden_size: int = 768,
         ignore_index: int = -1,
         **kwargs: Any,
     ):
@@ -122,10 +121,7 @@ class ITMLoss(nn.Module):
 class MaskedPredictionLoss(nn.Module):
     def __init__(
         self,
-        hidden_size: int = 768,
         vocab_size: int = 30522,
-        transform_act_fn: Callable[[Tensor], Tensor] = nn.functional.gelu,
-        layer_norm_eps: float = 1e-5,
         ignore_index: int = -1,
         ignore_nan: bool = False,
         **kwargs: Any,
@@ -148,7 +144,6 @@ class MaskedPredictionLoss(nn.Module):
         if masked_labels is None:
             masked_loss = prediction.sum() * 0
         else:
-            prediction = prediction[masked_tokens, :]
             masked_loss = self.ce_loss(
                 prediction.view(-1, self.vocab_size),
                 masked_labels.view(-1),
@@ -170,11 +165,6 @@ class FLAVAGlobalContrastiveLoss(nn.Module):
     def __init__(
         self,
         logit_scale: Union[float, nn.Parameter] = None,
-        image_embedding_size: int = 768,
-        text_embedding_size: int = 768,
-        projection_size: int = 768,
-        image_embedding_index: int = 0,
-        text_embedding_index: int = 0,
     ):
         super().__init__()
         if logit_scale is None:
@@ -226,11 +216,8 @@ class FLAVAPretrainingLoss(nn.Module):
     def __init__(
         self,
         logit_scale: Union[float, nn.Parameter] = None,
-        hidden_size: int = 768,
         text_vocab_size: int = 30522,
         image_vocab_size: int = 8192,
-        transform_act_fn: Callable[[Tensor], Tensor] = nn.functional.gelu,
-        layer_norm_eps: float = 1e-5,
         ignore_index: int = -1,
         mlm_weight: float = 1.0,
         mim_weight: float = 1.0,
@@ -242,44 +229,28 @@ class FLAVAPretrainingLoss(nn.Module):
     ):
         super().__init__()
         self.itm_loss = ITMLoss(
-            hidden_size=hidden_size,
             ignore_index=ignore_index,
         )
         self.contrastive_loss = FLAVAGlobalContrastiveLoss(
             logit_scale=logit_scale,
-            image_embedding_size=hidden_size,
-            text_embedding_size=hidden_size,
-            projection_size=hidden_size,
         )
         self.mlm_loss = MaskedPredictionLoss(
-            hidden_size=hidden_size,
             vocab_size=text_vocab_size,
-            transform_act_fn=transform_act_fn,
-            layer_norm_eps=layer_norm_eps,
             ignore_index=ignore_index,
         )
         self.mim_loss = MaskedPredictionLoss(
-            hidden_size=hidden_size,
             vocab_size=image_vocab_size,
-            transform_act_fn=transform_act_fn,
-            layer_norm_eps=layer_norm_eps,
             ignore_index=ignore_index,
         )
         # Create separate weights for MMM loss
         self.mmm_loss = nn.ModuleDict(
             {
                 "mlm": MaskedPredictionLoss(
-                    hidden_size=hidden_size,
                     vocab_size=text_vocab_size,
-                    transform_act_fn=transform_act_fn,
-                    layer_norm_eps=layer_norm_eps,
                     ignore_index=ignore_index,
                 ),
                 "mim": MaskedPredictionLoss(
-                    hidden_size=hidden_size,
                     vocab_size=image_vocab_size,
-                    transform_act_fn=transform_act_fn,
-                    layer_norm_eps=layer_norm_eps,
                     ignore_index=ignore_index,
                 ),
             }
