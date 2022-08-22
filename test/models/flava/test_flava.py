@@ -99,7 +99,6 @@ class TestFLAVA:
             itm_labels=itm_labels,
             mlm_labels=mlm_labels,
         )
-
         assert output.mlm_output is None
         assert output.mim_output is None
         assert output.global_contrastive_output is not None
