@@ -472,6 +472,7 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
 
         mmm_mlm_labels = mlm_labels
         mmm_mim_labels = image_labels
+
         if multimodal_masked_sequence is not None:
             if itm_labels is not None:
                 pos_pairs = itm_labels.ne(0)
