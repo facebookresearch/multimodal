@@ -62,7 +62,7 @@ FLAVAOutput.__annotations__ = {
 FLAVA_FOR_PRETRAINED_MAPPING = {
     # This will no longer load with the updated model, but keeping here just in case
     # "flava_full": "https://huggingface.co/aps/flava_full_pretrained_encoders_torchmm/resolve/main/pytorch_model.bin",
-    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_for_pretraining_unified_text_encoder.pt",
+    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_for_pretraining_unified_itm.pt",
 }
 
 FLAVA_MODEL_MAPPING = {
@@ -292,18 +292,45 @@ class FLAVAModel(nn.Module, PretrainedMixin):
         return self.mm_encoder(fused_state)
 
 
+class TwoWayHead(nn.Module):
+    def __init__(self, hidden_size: int = 768, **kwargs: Any):
+        super().__init__()
+
+        self.seq_relationship = nn.Linear(hidden_size, 2)
+
+    def forward(self, pooled_output):
+        return self.seq_relationship(pooled_output)
+
+
+class ITMHead(nn.Module):
+    def __init__(self, hidden_size: int = 768):
+        super().__init__()
+        self.pooler = Pooler(hidden_size=hidden_size)
+        self.cls = TwoWayHead(hidden_size=hidden_size)
+
+    def forward(self, hidden_states: Tensor):
+        pooled_output = self.pooler(hidden_states)
+        logits = self.cls(pooled_output)
+        return logits
+
+
 class FLAVAForPreTraining(nn.Module, PretrainedMixin):
     # TODOs:
     # 1. Expose logit scale
     # 2. For FLAVA model, allow interpolating the embeddings to
     # for patch embeddings
     def __init__(
-        self, model: FLAVAModel, image_codebook: nn.Module, loss: FLAVAPretrainingLoss
-    ) -> None:
+        self,
+        model: FLAVAModel,
+        image_codebook: nn.Module,
+        loss: nn.Module,
+        itm_head: nn.Module,
+    ):
         super().__init__()
         self.model = model
         self.image_codebook = image_codebook
         self.loss = loss
+        self.itm_head = itm_head
 
     def encode_image(
         self,
@@ -351,6 +378,10 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
             required_embedding=required_embedding,
             skip_unmasked_mm_encoder=skip_unmasked_mm_encoder,
         )
+        multimodal_masked_sequence = flava_output.multimodal_masked.last_hidden_state
+        itm_logits = None
+        if multimodal_masked_sequence is not None:
+            itm_logits = self.itm_head(multimodal_masked_sequence)
 
         return self.loss(
             image_sequence=flava_output.image.last_hidden_state,
@@ -366,6 +397,7 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
             mlm_labels=mlm_labels,
             projected_image_embeddings=flava_output.projected_image_embeddings,
             projected_text_embeddings=flava_output.projected_text_embeddings,
+            itm_logits=itm_logits,
         )
 
 
@@ -520,13 +552,13 @@ def flava_model_for_pretraining(
     # TODO: Add parameters for loss here
 ) -> FLAVAForPreTraining:
     model = flava_model(**flava_model_kwargs)
+    hidden_size = flava_model_kwargs.get("hidden_size") or 768
+    itm_head = ITMHead(hidden_size)
     losses = FLAVAPretrainingLoss()
     codebook = DalleVAEEncoder(image_size=codebook_image_size)
 
     flava = FLAVAForPreTraining(
-        model=model,
-        image_codebook=codebook,
-        loss=losses,
+        model=model, image_codebook=codebook, loss=losses, itm_head=itm_head
     )
 
     if pretrained_model_key is not None:
