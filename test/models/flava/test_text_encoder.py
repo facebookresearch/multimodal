@@ -5,22 +5,25 @@
 # LICENSE file in the root directory of this source tree.
 
 import unittest
+from functools import partial
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torch import nn
-from torchmultimodal.models.flava.text_encoder import TextEmbeddings, TextTransformer
+from torchmultimodal.models.flava.transformer import init_transformer_weights
+from torchmultimodal.modules.encoders.bert_text_encoder import BERTTextEncoder
+from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 from torchmultimodal.modules.layers.transformer import TransformerEncoder
 
 
 class TestFlavaTextEncoder(unittest.TestCase):
     def setUp(self):
         set_rng_seed(0)
-        self.text_embedding = TextEmbeddings(
+        self.text_embedding = BERTTextEmbeddings(
             hidden_size=2,
             vocab_size=3,
             max_position_embeddings=2,
-            hidden_dropout_prob=0,
+            dropout=0,
         )
         emb_weights = torch.Tensor([[0, 1], [1, 0], [1, 1]])
         self.text_embedding.word_embeddings = nn.Embedding.from_pretrained(emb_weights)
@@ -30,7 +33,7 @@ class TestFlavaTextEncoder(unittest.TestCase):
         self.text_embedding.token_type_embeddings = nn.Embedding.from_pretrained(
             emb_weights
         )
-
+        self.text_embedding.eval()
         encoder = TransformerEncoder(
             n_layer=1,
             d_model=2,
@@ -39,11 +42,13 @@ class TestFlavaTextEncoder(unittest.TestCase):
             activation=nn.GELU,
             norm_first=True,
         )
-        self.text_encoder = TextTransformer(
+        weight_init_fn = partial(init_transformer_weights, initializer_range=0.02)
+        self.text_encoder = BERTTextEncoder(
             embeddings=self.text_embedding,
             encoder=encoder,
             layernorm=nn.LayerNorm(2),
             pooler=nn.Identity(),
+            weight_init_fn=weight_init_fn,
         )
 
     def test_embedding(self):
@@ -53,7 +58,11 @@ class TestFlavaTextEncoder(unittest.TestCase):
         assert_expected(out, expected)
 
     def test_text_transformer(self):
-        out = self.text_encoder(torch.IntTensor([[0, 1]]))
+        out = self.text_encoder(
+            torch.IntTensor([[0, 1]]),
+            return_attn_weights=True,
+            return_hidden_states=True,
+        )
 
         assert_expected(
             out.last_hidden_state, torch.Tensor([[[1.0, -1.0], [-1.0, 1.0]]])
@@ -74,7 +83,12 @@ class TestFlavaTextEncoder(unittest.TestCase):
     def test_text_transformer_attn_mask(self):
         input_ids = torch.IntTensor([[0, 1]])
         attn_mask = torch.IntTensor([[1, 0]])
-        out = self.text_encoder(input_ids, attention_mask=attn_mask)
+        out = self.text_encoder(
+            input_ids,
+            attention_mask=attn_mask,
+            return_attn_weights=True,
+            return_hidden_states=True,
+        )
 
         assert_expected(
             out.last_hidden_state, torch.Tensor([[[1.0, -1.0], [-1.0, 1.0]]])
