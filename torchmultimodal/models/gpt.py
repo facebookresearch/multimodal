@@ -13,8 +13,7 @@ from torch import nn, Tensor
 from torchmultimodal.modules.layers.activation import SiLU
 from torchmultimodal.modules.layers.attention import MultiHeadAttention, SelfAttention
 from torchmultimodal.modules.layers.mlp import MLP
-from torchmultimodal.utils.attention import get_extended_attention_mask
-from torchmultimodal.utils.common import checkpoint_wrapper, get_clones, shift_dim
+from torchmultimodal.utils.common import checkpoint_wrapper, get_clones
 
 
 class TransformerDecoderOutput(NamedTuple):
@@ -44,7 +43,8 @@ class MultimodalGPT(nn.Module):
 
     Attributes:
         d_model (int): Embedding dimension of the transformer decoder.
-        num_tokens (int): Total number of tokens for the input and output modalities.
+        num_in_tokens (int): Number of token states for the input modality.
+        num_out_tokens (int): Number of token states for the output modality.
         latent_shape ([Tuple[int, ...]): Shape of the latent space of the output modality tokenizer. Used to reshape
             sequence of generated tokens to be decoded back to data.
         in_tokenizer (nn.Module): Tokenizer for the input modality. Must have methods ``encode``, ``lookup``.
@@ -67,11 +67,13 @@ class MultimodalGPT(nn.Module):
             input modality position embeddings. Defaults to ``None``.
         out_pos_ids (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing indices for the
             output modality position embeddings. Defaults to ``None``.
-        attn_mask (Tensor, optional): Tensor of dimension ``(b, q_seq_len, k_seq_len)`` where prefixes ``q``
-            and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s for masked positions.
-            Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(b, h, q_seq_len, k_seq_len)``. Masks need to be
-            specified for each attention head. Defaults to ``None``.
+        attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or ``(b, q_seq_len, k_seq_len)``
+            where prefixes ``q`` and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s
+            for masked positions. Defaults to ``None``.
+        head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or ``(b, h, q_seq_len, k_seq_len)``.
+            Masks need to be specified for each attention head. Defaults to ``None``.
+        logits_mask (Tensor, optional): Tensor of dimension ``(seq_len, num_tokens)`` or ``(b, seq_len, num_tokens)``
+            to ensure we only calculate probabilities from tokens of the corresponding modality sequence.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
         causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
@@ -90,7 +92,8 @@ class MultimodalGPT(nn.Module):
     def __init__(
         self,
         d_model: int,
-        num_tokens: int,
+        num_in_tokens: int,
+        num_out_tokens: int,
         latent_shape: Tuple[int, ...],
         in_tokenizer: nn.Module,
         out_tokenizer: nn.Module,
@@ -117,6 +120,9 @@ class MultimodalGPT(nn.Module):
                 "Output modality tokenizer must have methods 'encode', 'lookup' and 'decode'."
             )
 
+        num_tokens = num_in_tokens + num_out_tokens
+        self.num_in_tokens = num_in_tokens
+        self.num_out_tokens = num_out_tokens
         self.latent_shape = latent_shape
         self.in_tokenizer = in_tokenizer
         self.out_tokenizer = out_tokenizer
@@ -223,14 +229,18 @@ class MultimodalGPT(nn.Module):
     def logit_projection(
         self, hidden_states: Tensor, logits_mask: Optional[Tensor] = None
     ) -> Tensor:
+        if logits_mask is not None and logits_mask.dim() == 2:
+            logits_mask = logits_mask.unsqueeze(
+                0
+            )  # (seq_len, num_tokens) -> (b, seq_len, num_tokens)
+
         out = self.norm(hidden_states)
         logits = self.to_logit(hidden_states)
         max_neg_value = -torch.finfo(logits.dtype).max
         if logits_mask is not None:
             logits.masked_fill_(logits_mask == 0, max_neg_value)
-        logits = shift_dim(logits, -1, 1)  # (bs, num_tokens, seq_len)
 
-        return logits
+        return logits  # (b, seq_len, num_tokens)
 
     def encode(self, x: Any, modality: str, **kwargs: Any) -> Tensor:
         """Converts data to token ids.
@@ -277,7 +287,13 @@ class MultimodalGPT(nn.Module):
         """
         if len(token_ids.shape) != 2:
             raise ValueError(
-                f"Shape of token ids should be '(batch_size, sequence_lenght)' but got {token_ids.shape}"
+                f"Shape of token ids should be '(batch_size, sequence_length)' but got {token_ids.shape}"
+            )
+        # Check if the generated sequence length matches that inferred from the latent embedding space
+        latent_seq_len = torch.prod(torch.tensor(self.latent_shape)).item()
+        if token_ids.shape[1] != latent_seq_len:
+            raise ValueError(
+                f"Sequence to decode does not match that inferred from the tokenizer: {latent_seq_len}"
             )
 
         # Reshape the sequence of token ids back to dim of latent space
@@ -336,11 +352,11 @@ class MultimodalTransformerDecoder(nn.Module):
             input modality position embeddings. Defaults to ``None``.
         out_pos_ids (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing indices for the
             output modality position embeddings. Defaults to ``None``.
-        attn_mask (Tensor, optional): Tensor of dimension ``(b, q_seq_len, k_seq_len)`` where prefixes ``q``
-            and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s for masked positions.
-            Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(b, h, q_seq_len, k_seq_len)``. Masks need to be
-            specified for each attention head. Defaults to ``None``.
+        attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or ``(b, q_seq_len, k_seq_len)``
+            where prefixes ``q`` and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s
+            for masked positions. Defaults to ``None``.
+        head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or ``(b, h, q_seq_len, k_seq_len)``.
+            Masks need to be specified for each attention head. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
         causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
@@ -442,11 +458,11 @@ class TransformerDecoder(nn.Module):
 
     Args:
         hidden_states (Tensor): Tensor of the embedding vectors of dimension ``(b, seq_len, emb_dim)``.
-        attn_mask (Tensor, optional): Tensor of dimension ``(b, q_seq_len, k_seq_len)`` where prefixes ``q``
-            and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s for masked positions.
-            Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(b, h, q_seq_len, k_seq_len)``. Masks need to be
-            specified for each attention head. Defaults to ``None``.
+        attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or ``(b, q_seq_len, k_seq_len)``
+            where prefixes ``q`` and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s
+            for masked positions. Defaults to ``None``.
+        head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or ``(b, h, q_seq_len, k_seq_len)``.
+            Masks need to be specified for each attention head. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
         causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
@@ -475,6 +491,14 @@ class TransformerDecoder(nn.Module):
         return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> TransformerDecoderOutput:
+        if attn_mask is not None and attn_mask.dim() == 2:
+            attn_mask = attn_mask[
+                None, None, :, :
+            ]  # (q_seq_len, k_seq_len) -> (b, h, q_seq_len, k_seq_len)
+
+        if head_mask is not None and head_mask.dim() == 3:
+            head_mask = head_mask[None, :, :, :]
+
         all_hidden_states: Tuple[Tensor, ...] = () if return_hidden_states else None
         all_attentions: Tuple[Tensor, ...] = () if return_attn_weights else None
         all_past_key_values: Tuple[Dict[str, Tensor], ...] = () if use_cache else None
@@ -581,11 +605,11 @@ class TransformerDecoderLayer(nn.Module):
         attn_probs = None
         past_key_values = None
 
-        if attn_mask is not None:
-            # Make attention mask broadcastable along head dim
-            attn_mask = get_extended_attention_mask(
-                attn_mask
-            )  # (b, seq_len, seq_len) -> (b, 1, seq_len, seq_len)
+        # if attn_mask is not None:
+        # Make attention mask broadcastable along head dim
+        #     attn_mask = get_extended_attention_mask(
+        #         attn_mask
+        #     )  # (b, seq_len, seq_len) -> (b, 1, seq_len, seq_len)
 
         attn_out = self._attn(
             self.norm_attn(x),
