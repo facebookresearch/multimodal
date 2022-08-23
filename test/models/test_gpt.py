@@ -75,11 +75,6 @@ def num_out_tokens():
 
 
 @pytest.fixture
-def num_tokens(num_in_tokens, num_out_tokens):
-    return num_in_tokens + num_out_tokens
-
-
-@pytest.fixture
 def in_tokens(in_seq_len):
     return torch.arange(in_seq_len).unsqueeze(0)  # (b, seq_len)
 
@@ -109,9 +104,7 @@ def attn_mask():
     def _attn_mask(q_seq_len, k_seq_len=None):
         if k_seq_len is None:
             k_seq_len = q_seq_len
-        return torch.tril(torch.ones(q_seq_len, k_seq_len))[
-            None, :
-        ]  # (b, q_seq_len, k_seq_len)
+        return torch.tril(torch.ones(q_seq_len, k_seq_len))  # (q_seq_len, k_seq_len)
 
     return _attn_mask
 
@@ -123,9 +116,7 @@ def head_mask(n_head):
             k_seq_len = q_seq_len
         masked = torch.zeros(1, q_seq_len, k_seq_len)
         unmasked = torch.ones(n_head - 1, q_seq_len, k_seq_len)
-        return torch.cat((masked, unmasked), dim=0)[
-            None, :
-        ]  # (b, h, q_seq_len, k_seq_len)
+        return torch.cat((masked, unmasked), dim=0)  # (h, q_seq_len, k_seq_len)
 
     return _head_mask
 
@@ -134,9 +125,9 @@ def head_mask(n_head):
 def logits_mask(in_seq_len, out_seq_len, num_in_tokens, num_out_tokens):
     total_seq_len = in_seq_len + out_seq_len
     num_tokens = num_in_tokens + num_out_tokens
-    logits_mask = torch.ones(1, total_seq_len, num_tokens)
-    logits_mask[:, in_seq_len:, :num_in_tokens] = 0
-    logits_mask[:, :in_seq_len, num_in_tokens:] = 0
+    logits_mask = torch.ones(total_seq_len, num_tokens)
+    logits_mask[in_seq_len:, :num_in_tokens] = 0
+    logits_mask[:in_seq_len, num_in_tokens:] = 0
 
     return logits_mask
 
@@ -195,7 +186,7 @@ def tokenizer(num_emb, emb_dim):
             # generation paths so we do not test their actual logic but only
             # the interfaces.
             self.encoder = nn.Identity()
-            self.decoder = nn.Identity()  # we don't test decoder here
+            self.decoder = nn.Identity()
             self.embedding = nn.Parameter(
                 torch.arange(num_emb * emb_dim, dtype=torch.float).reshape(
                     num_emb, emb_dim
@@ -217,7 +208,8 @@ def tokenizer(num_emb, emb_dim):
 @pytest.fixture
 def gpt(
     d_model,
-    num_tokens,
+    num_in_tokens,
+    num_out_tokens,
     mm_decoder,
     latent_shape,
     tokenizer,
@@ -227,7 +219,8 @@ def gpt(
     def _gpt(in_tokenizer=tokenizer, out_tokenizer=tokenizer):
         return MultimodalGPT(
             d_model=d_model,
-            num_tokens=num_tokens,
+            num_in_tokens=num_in_tokens,
+            num_out_tokens=num_out_tokens,
             latent_shape=latent_shape,
             in_tokenizer=in_tokenizer,
             out_tokenizer=out_tokenizer,
@@ -412,7 +405,7 @@ class TestMultimodalGPT:
                     ),
                 ),  # (num_layers, key/value, (b, n_head, seq_len, d_model // n_head)
             },
-            "logits": (torch.Size([1, 10, 7]), 0.0),  # (b, tokens, seq_len)
+            "logits": (torch.Size([1, 7, 10]), 0.0),  # (b, seq_len, tokens)
         }
         assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
 
@@ -442,7 +435,7 @@ class TestMultimodalGPT:
             logits_mask=logits_mask,
         )
         assert isinstance(out, MultimodalGPTOutput)
-        actual = out.logits.transpose(1, 2)  # (b, seq_len, num_tokens)
+        actual = out.logits  # (b, seq_len, num_tokens)
         max_neg_value = -torch.finfo(torch.float32).max
         # assert each quandrant of the logits matrix (b, total_seq_len, num_total_tokens)
         assert_expected(
@@ -501,7 +494,6 @@ class TestMultimodalTransformerDecoder:
             in_pos_ids=get_pos_ids(in_modality),
             out_pos_ids=get_pos_ids(out_modality),
         )
-        print(actual.last_hidden_states.sum())
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 7, 4]),
@@ -582,6 +574,16 @@ class TestMultimodalTransformerDecoder:
 
 
 class TestTransformerDecoder:
+    def test_forward_mask_extended(
+        self, decoder, decoder_input, attn_mask, head_mask, num_layers
+    ):
+        b, seq_len, _ = decoder_input.shape
+        attn_mask = attn_mask(seq_len).unsqueeze(0)  # add batch dim
+        head_mask = head_mask(seq_len).unsqueeze(0)
+        actual = decoder(decoder_input, attn_mask, head_mask)
+        assert isinstance(actual, TransformerDecoderOutput)
+        assert_expected(actual.last_hidden_states.shape, torch.Size([1, 3, 4]))
+
     def test_forward(self, decoder, decoder_input, attn_mask, head_mask, num_layers):
         b, seq_len, _ = decoder_input.shape
         attn_mask = attn_mask(seq_len)
