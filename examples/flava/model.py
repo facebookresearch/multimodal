@@ -4,11 +4,11 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Any, List, Tuple
+from typing import Any, Tuple
 
 import torch
 from pytorch_lightning import LightningModule
-from torch import Tensor
+from torch import nn
 from torchmetrics import Accuracy
 from torchmultimodal.models.flava.model import (
     flava_model_for_classification,
@@ -19,7 +19,7 @@ from transformers.optimization import get_cosine_schedule_with_warmup
 
 
 def get_optimizers_for_lightning(
-    parameters: List[Tensor],
+    model: nn.Module,
     learning_rate: float,
     adam_eps: float,
     adam_weight_decay: float,
@@ -28,7 +28,7 @@ def get_optimizers_for_lightning(
     max_steps: int,
 ):
     optimizer = torch.optim.AdamW(
-        parameters,
+        model.parameters(),
         lr=learning_rate,
         betas=adam_betas,
         eps=adam_eps,
@@ -61,7 +61,7 @@ class FLAVAPreTrainingLightningModule(LightningModule):
         self.adam_weight_decay = adam_weight_decay
         self.warmup_steps = warmup_steps
         self.max_steps = max_steps
-        self.loss = FLAVAPretrainingLoss()
+        self.loss = FLAVAPretrainingLoss(logit_scale=self.model.logit_scale)
 
     def training_step(self, batch, batch_idx):
         output = self._step(batch, batch_idx)
@@ -127,9 +127,8 @@ class FLAVAPreTrainingLightningModule(LightningModule):
         return loss
 
     def configure_optimizers(self):
-        parameters = self.model.parameters() + self.loss.parameters()
         return get_optimizers_for_lightning(
-            parameters,
+            self.model,
             self.learning_rate,
             self.adam_eps,
             self.adam_weight_decay,
@@ -215,7 +214,7 @@ class FLAVAClassificationLightningModule(LightningModule):
 
     def configure_optimizers(self):
         return get_optimizers_for_lightning(
-            self.model.parameters(),
+            self.model,
             self.learning_rate,
             self.adam_eps,
             self.adam_weight_decay,

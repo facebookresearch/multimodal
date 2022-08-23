@@ -24,11 +24,7 @@ from torchmultimodal.modules.layers.transformer import (
     TransformerEncoder,
     TransformerOutput,
 )
-from torchmultimodal.modules.losses.flava import (
-    FLAVAPretrainingLoss,
-    FLAVAPretrainingLossOutput,
-    Pooler,
-)
+from torchmultimodal.modules.losses.flava import FLAVAPretrainingLossOutput, Pooler
 from torchmultimodal.utils.common import ModelOutput, PretrainedMixin
 from typing_extensions import Literal
 
@@ -62,7 +58,7 @@ FLAVAOutput.__annotations__ = {
 FLAVA_FOR_PRETRAINED_MAPPING = {
     # This will no longer load with the updated model, but keeping here just in case
     # "flava_full": "https://huggingface.co/aps/flava_full_pretrained_encoders_torchmm/resolve/main/pytorch_model.bin",
-    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_for_pretraining_unified_itm_mp.pt",
+    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_for_pretraining_no_loss.pt",
 }
 
 FLAVA_MODEL_MAPPING = {
@@ -385,22 +381,22 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
         self,
         model: FLAVAModel,
         image_codebook: nn.Module,
-        loss: nn.Module,
         itm_head: nn.Module,
         mlm_head: nn.Module,
         mim_head: nn.Module,
         mmm_mlm_head: nn.Module,
         mmm_mim_head: nn.Module,
+        logit_scale: nn.Module,
     ):
         super().__init__()
         self.model = model
         self.image_codebook = image_codebook
-        self.loss = loss
         self.itm_head = itm_head
         self.mlm_head = mlm_head
         self.mim_head = mim_head
         self.mmm_mlm_head = mmm_mlm_head
         self.mmm_mim_head = mmm_mim_head
+        self.logit_scale = logit_scale
 
     def encode_image(
         self,
@@ -680,6 +676,7 @@ def flava_model_for_pretraining(
     codebook_image_size: int = 112,
     pretrained_model_key: Optional[str] = None,
     image_vocab_size: int = 8192,
+    logit_scale: float = math.log(1 / 0.07),
     **flava_model_kwargs: Any,
     # TODO: Add parameters for loss here
 ) -> FLAVAForPreTraining:
@@ -697,18 +694,18 @@ def flava_model_for_pretraining(
     mmm_mim_head = MaskedPredictionHead(
         hidden_size=hidden_size, vocab_size=image_vocab_size
     )
-    losses = FLAVAPretrainingLoss()
+
     codebook = DalleVAEEncoder(image_size=codebook_image_size)
 
     flava = FLAVAForPreTraining(
         model=model,
         image_codebook=codebook,
-        loss=losses,
         itm_head=itm_head,
         mlm_head=mlm_head,
         mim_head=mim_head,
         mmm_mlm_head=mmm_mlm_head,
         mmm_mim_head=mmm_mim_head,
+        logit_scale=nn.Parameter(logit_scale * torch.ones([])),
     )
 
     if pretrained_model_key is not None:
