@@ -47,6 +47,7 @@ def test_encode_text(model_fn, device):
     kwargs = {**_model_params, **test_params}
 
     model = model_fn(**kwargs)
+    model.eval()
     x = ["MUGEN walks from right to left."]
     actual = model.encode(x, "in", device=device)
     expected = torch.tensor([[80, 118, 110, 85, 70]])
@@ -68,6 +69,7 @@ def test_encode_video(model_fn, video_seq_len, expected):
     x = torch.rand(input_shape)
 
     model = model_fn(**kwargs)
+    model.eval()
     actual = model.encode(x, "out")
     assert_expected(actual.shape, expected)
 
@@ -80,6 +82,7 @@ def test_decode_video(model_fn, video_seq_len, expected):
     test_params = {"video_seq_len": video_seq_len}
     kwargs = {**_model_params, **test_params}
     model = model_fn(**kwargs)
+    model.eval()
     latent_shape = model.latent_shape
     latent_seq_len = torch.prod(torch.tensor(latent_shape)).item()
     x = torch.randint(0, 10, (1, latent_seq_len))  # tokens
@@ -101,6 +104,7 @@ def test_decode_video_checkpoint(model_fn, video_seq_len, expected):
     }
     kwargs = {**_model_params, **test_params}
     model = model_fn(**kwargs)
+    model.eval()
     latent_shape = model.latent_shape
     latent_seq_len = torch.prod(torch.tensor(latent_shape)).item()
     x = torch.randint(0, 10, (1, latent_seq_len))  # tokens
@@ -120,13 +124,14 @@ def test_lookup(model_fn, modality, expected_shape, expected_sum):
     x = torch.tensor([[1, 2, 3, 4]])
 
     model = model_fn(**kwargs)
+    model.eval()
     actual = model.lookup(x, modality)
     assert_expected(actual.shape, expected_shape)  # (b, num_tokens, d_model)
     assert_expected(actual.sum().item(), expected_sum, rtol=1e-5, atol=1e-4)
 
 
 @pytest.mark.parametrize(
-    "video_seq_len, expected", [(8, 80.8206), (16, 9.1838), (32, 43.5649)]
+    "video_seq_len, expected", [(8, 97.1610), (16, -77.9932), (32, 64.0242)]
 )
 def test_forward(model_fn, video_seq_len, expected):
     test_params = {"video_seq_len": video_seq_len}
@@ -139,7 +144,8 @@ def test_forward(model_fn, video_seq_len, expected):
     head_mask = torch.ones(1, n_head, 7, 7)  # (b, h, seq_len, seq_len)
 
     model = model_fn(**kwargs)
-    num_tokens = model.num_tokens
+    model.eval()
+    num_tokens = model.num_in_tokens + model.num_out_tokens
     logits_mask = torch.ones(1, 7, num_tokens)  # (b, seq_len, num_tokens)
 
     out = model(x, y, attn_mask=attn_mask, head_mask=head_mask, logits_mask=logits_mask)
@@ -152,7 +158,7 @@ def test_forward(model_fn, video_seq_len, expected):
 # For now it's expected that the results are the same as without the ckpt
 @pytest.mark.parametrize(
     "video_seq_len, expected",
-    [(8, 80.8206), (16, 9.1838), (32, 43.5649)],
+    [(8, 97.1610), (16, -77.9932), (32, 64.0242)],
 )
 def test_forward_checkpoint(model_fn, video_seq_len, expected):
     vqvae_model_key = f"mugen_L{video_seq_len}"
@@ -169,7 +175,8 @@ def test_forward_checkpoint(model_fn, video_seq_len, expected):
     head_mask = torch.ones(1, n_head, 7, 7)  # (b, h, seq_len, seq_len)
 
     model = model_fn(**kwargs)
-    num_tokens = model.num_tokens
+    model.eval()
+    num_tokens = model.num_in_tokens + model.num_out_tokens
     logits_mask = torch.ones(1, 7, num_tokens)  # (b, seq_len, num_tokens)
 
     out = model(x, y, attn_mask=attn_mask, head_mask=head_mask, logits_mask=logits_mask)

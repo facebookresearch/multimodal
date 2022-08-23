@@ -62,8 +62,8 @@ def text_video_gpt(
             new frame will be of shape ``(8, 8, 8)`` with each dim divided by the rate of downsample. Defaults to
             ``(4, 32, 32)``.
         d_model (int): Dimension of the underlying transformer decoder.
-            See :py:class:`torchmultimodal.models.gpt.TransformerDecoderLayer`.
-        n_head (int): Number of attention heads used by the transformer decoder.
+            See :py:class:`torchmultimodal.models.gpt.TransformerDecoderLayer`. Defaults to ``768``.
+        n_head (int): Number of attention heads used by the transformer decoder. Defaults to ``8``.
         dropout (float): Dropout probability used by the projection layer of the transformer decoder.
             Defaults to ``0.2``.
         attn_dropout (float): Dropout probability used by the attention layer of the transformer decoder.
@@ -136,11 +136,10 @@ def text_video_gpt(
         text_pos_emb, video_pos_emb, decoder, right_shift
     )
 
-    num_tokens = num_text_tokens + num_video_tokens
-
     return MultimodalGPT(
         d_model=d_model,
-        num_tokens=num_tokens,
+        num_in_tokens=num_text_tokens,
+        num_out_tokens=num_video_tokens,
         latent_shape=video_latent_shape,
         in_tokenizer=text_tokenizer,
         out_tokenizer=video_vqvae,
