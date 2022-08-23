@@ -605,12 +605,6 @@ class TransformerDecoderLayer(nn.Module):
         attn_probs = None
         past_key_values = None
 
-        # if attn_mask is not None:
-        # Make attention mask broadcastable along head dim
-        #     attn_mask = get_extended_attention_mask(
-        #         attn_mask
-        #     )  # (b, seq_len, seq_len) -> (b, 1, seq_len, seq_len)
-
         attn_out = self._attn(
             self.norm_attn(x),
             attn_mask,
