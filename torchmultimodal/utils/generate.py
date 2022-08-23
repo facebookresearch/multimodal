@@ -18,7 +18,9 @@ class Generation:
     """Utility class that generates sequence of one modality given prompt from another.
 
     Attributes:
-        max_seq_len (int): Maximum length of the sequence to generate.
+        max_seq_len (int): Maximum length of the sequence to generate. For high dimensional data
+            this should be equivalent to the length of the flattened encoded sequence (or latent
+            sequence length).
         model (nn.Module): Model that performs the core generation functionalities.
             Please refer to :class:`~torchmultimodal.models.gpt.MultimodalGPT`
             for more details about the required attributes and methods.
