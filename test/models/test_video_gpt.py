@@ -84,4 +84,4 @@ def test_forward(model):
     )
     actual = out.decoder_output.last_hidden_states
     assert_expected(actual.shape, (1, 7, 576))
-    assert_expected(actual.sum().item(), 0.7185, rtol=1e-5, atol=1e-4)
+    assert_expected(actual.sum().item(), 0.7181, rtol=1e-5, atol=1e-4)
