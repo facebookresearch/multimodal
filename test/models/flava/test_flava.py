@@ -18,6 +18,7 @@ from torchmultimodal.models.flava.model import (
     FLAVAOutput,
 )
 from torchmultimodal.modules.layers.transformer import TransformerOutput
+from torchmultimodal.modules.losses.flava import FLAVAPretrainingLoss
 
 NUM_CLASSES = 2
 
@@ -61,6 +62,7 @@ class TestFLAVA(unittest.TestCase):
         mlm_labels[:, 1:3] = text[:, 1:3]
         itm_labels = torch.tensor((0, 1), dtype=torch.long)
         flava = flava_model_for_pretraining()
+        losses = FLAVAPretrainingLoss(flava.logit_scale)
         flava.eval()
         output = flava(
             image=image,
@@ -71,6 +73,22 @@ class TestFLAVA(unittest.TestCase):
             required_embedding="mm",
             itm_labels=itm_labels,
             mlm_labels=mlm_labels,
+        )
+        output = losses(
+            multimodal_masked_sequence=output.multimodal_masked_sequence,
+            pos_mask=output.pos_mask,
+            itm_labels=output.itm_labels,
+            mim_labels=output.mim_labels,
+            mlm_labels=output.mlm_labels,
+            mmm_mlm_labels=output.mmm_mlm_labels,
+            mmm_mim_labels=output.mmm_mim_labels,
+            projected_image_embeddings=output.projected_image_embeddings,
+            projected_text_embeddings=output.projected_text_embeddings,
+            itm_logits=output.itm_logits,
+            mlm_head_output=output.mlm_head_output,
+            mim_head_output=output.mim_head_output,
+            mmm_mlm_head_output=output.mmm_mlm_head_output,
+            mmm_mim_head_output=output.mmm_mim_head_output,
         )
         self.assertIsNone(output.mlm_output)
         self.assertIsNone(output.mim_output)
@@ -96,6 +114,22 @@ class TestFLAVA(unittest.TestCase):
             itm_labels=itm_labels,
             mlm_labels=mlm_labels,
         )
+        output = losses(
+            multimodal_masked_sequence=output.multimodal_masked_sequence,
+            pos_mask=output.pos_mask,
+            itm_labels=output.itm_labels,
+            mim_labels=output.mim_labels,
+            mlm_labels=output.mlm_labels,
+            mmm_mlm_labels=output.mmm_mlm_labels,
+            mmm_mim_labels=output.mmm_mim_labels,
+            projected_image_embeddings=output.projected_image_embeddings,
+            projected_text_embeddings=output.projected_text_embeddings,
+            itm_logits=output.itm_logits,
+            mlm_head_output=output.mlm_head_output,
+            mim_head_output=output.mim_head_output,
+            mmm_mlm_head_output=output.mmm_mlm_head_output,
+            mmm_mim_head_output=output.mmm_mim_head_output,
+        )
         self.assertIsNone(output.mlm_output)
         self.assertIsNotNone(output.mim_output)
         self.assertIsNone(output.global_contrastive_output)
@@ -119,6 +153,22 @@ class TestFLAVA(unittest.TestCase):
             required_embedding="text",
             itm_labels=itm_labels,
             mlm_labels=mlm_labels,
+        )
+        output = losses(
+            multimodal_masked_sequence=output.multimodal_masked_sequence,
+            pos_mask=output.pos_mask,
+            itm_labels=output.itm_labels,
+            mim_labels=output.mim_labels,
+            mlm_labels=output.mlm_labels,
+            mmm_mlm_labels=output.mmm_mlm_labels,
+            mmm_mim_labels=output.mmm_mim_labels,
+            projected_image_embeddings=output.projected_image_embeddings,
+            projected_text_embeddings=output.projected_text_embeddings,
+            itm_logits=output.itm_logits,
+            mlm_head_output=output.mlm_head_output,
+            mim_head_output=output.mim_head_output,
+            mmm_mlm_head_output=output.mmm_mlm_head_output,
+            mmm_mim_head_output=output.mmm_mim_head_output,
         )
         self.assertIsNotNone(output.mlm_output)
         self.assertIsNone(output.mim_output)

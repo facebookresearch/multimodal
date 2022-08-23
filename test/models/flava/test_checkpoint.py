@@ -12,6 +12,7 @@ from torchmultimodal.models.flava.model import (
     flava_model_for_classification,
     flava_model_for_pretraining,
 )
+from torchmultimodal.modules.losses.flava import FLAVAPretrainingLoss
 
 
 @pytest.fixture(autouse=True)
@@ -139,8 +140,25 @@ class TestFLAVACheckpoint:
         image_input = inputs_pretraining("image")
         text_input = inputs_pretraining("text")
         flava = pretraining_model()
-
+        losses = FLAVAPretrainingLoss(flava.logit_scale)
         output = flava(*mm_input)
+        output = losses(
+            multimodal_masked_sequence=output.multimodal_masked_sequence,
+            pos_mask=output.pos_mask,
+            itm_labels=output.itm_labels,
+            mim_labels=output.mim_labels,
+            mlm_labels=output.mlm_labels,
+            mmm_mlm_labels=output.mmm_mlm_labels,
+            mmm_mim_labels=output.mmm_mim_labels,
+            projected_image_embeddings=output.projected_image_embeddings,
+            projected_text_embeddings=output.projected_text_embeddings,
+            itm_logits=output.itm_logits,
+            mlm_head_output=output.mlm_head_output,
+            mim_head_output=output.mim_head_output,
+            mmm_mlm_head_output=output.mmm_mlm_head_output,
+            mmm_mim_head_output=output.mmm_mim_head_output,
+        )
+
         actual = output.losses
         expected = dict(
             mmm_text_loss=10.9567,
@@ -153,6 +171,22 @@ class TestFLAVACheckpoint:
         self._assert_tensor_dicts_equal(actual, expected)
 
         output = flava(*image_input)
+        output = losses(
+            multimodal_masked_sequence=output.multimodal_masked_sequence,
+            pos_mask=output.pos_mask,
+            itm_labels=output.itm_labels,
+            mim_labels=output.mim_labels,
+            mlm_labels=output.mlm_labels,
+            mmm_mlm_labels=output.mmm_mlm_labels,
+            mmm_mim_labels=output.mmm_mim_labels,
+            projected_image_embeddings=output.projected_image_embeddings,
+            projected_text_embeddings=output.projected_text_embeddings,
+            itm_logits=output.itm_logits,
+            mlm_head_output=output.mlm_head_output,
+            mim_head_output=output.mim_head_output,
+            mmm_mlm_head_output=output.mmm_mlm_head_output,
+            mmm_mim_head_output=output.mmm_mim_head_output,
+        )
         actual = output.losses
         expected = dict(
             mmm_text_loss=None,
@@ -165,6 +199,22 @@ class TestFLAVACheckpoint:
         self._assert_tensor_dicts_equal(actual, expected)
 
         output = flava(*text_input)
+        output = losses(
+            multimodal_masked_sequence=output.multimodal_masked_sequence,
+            pos_mask=output.pos_mask,
+            itm_labels=output.itm_labels,
+            mim_labels=output.mim_labels,
+            mlm_labels=output.mlm_labels,
+            mmm_mlm_labels=output.mmm_mlm_labels,
+            mmm_mim_labels=output.mmm_mim_labels,
+            projected_image_embeddings=output.projected_image_embeddings,
+            projected_text_embeddings=output.projected_text_embeddings,
+            itm_logits=output.itm_logits,
+            mlm_head_output=output.mlm_head_output,
+            mim_head_output=output.mim_head_output,
+            mmm_mlm_head_output=output.mmm_mlm_head_output,
+            mmm_mim_head_output=output.mmm_mim_head_output,
+        )
         actual = output.losses
         expected = dict(
             mmm_text_loss=None,
