@@ -7,9 +7,7 @@
 import pytest
 import torch
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.transforms.image_masking_transform import (
-    MaskedImageModelingTransform,
-)
+from torchmultimodal.transforms.flava_transform import MaskedImageModelingTransform
 from torchvision import transforms
 
 

@@ -9,9 +9,7 @@ from functools import partial
 from typing import Any, Callable, Optional
 
 import torch
-from torchmultimodal.transforms.image_masking_transform import (
-    MaskedImageModelingTransform,
-)
+from torchmultimodal.transforms.flava_transform import MaskedImageModelingTransform
 from torchvision import transforms
 from transformers import BertTokenizer
 
