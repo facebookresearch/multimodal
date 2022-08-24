@@ -28,6 +28,9 @@ def get_extended_attention_mask(attention_mask: Tensor) -> Tensor:
             The broadcastable attention mask, with the same dtype as ``attention_mask.dtype``.
     """
     if attention_mask.dim() == 4:
+        # Mask has already been broadcasted to the correct shape (either
+        # [batch_size, num_heads, query_seq_length, key_seq_length] for causal case or
+        # [batch_size, num_heads, seq_length, seq_length] for padding case)
         extended_attention_mask = attention_mask
     elif attention_mask.dim() == 3:
         # We can provide a self-attention mask of dimensions [batch_size, query_seq_length, key_seq_length]
