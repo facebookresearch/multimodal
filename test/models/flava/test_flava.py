@@ -189,44 +189,19 @@ class TestFLAVAModel:
         )
 
     @pytest.fixture
-    def mm_encoder(self):
-        return nn.Identity()
-
-    @pytest.fixture
-    def image_to_mm_projection(self):
-        return nn.Identity()
-
-    @pytest.fixture
-    def text_to_mm_projection(self):
-        return nn.Identity()
-
-    @pytest.fixture
-    def text_projection(self):
-        return nn.Identity()
-
-    @pytest.fixture
-    def image_projection(self):
-        return nn.Identity()
-
-    @pytest.fixture
     def flava(
         self,
         image_encoder,
         text_encoder,
-        mm_encoder,
-        image_to_mm_projection,
-        text_to_mm_projection,
-        text_projection,
-        image_projection,
     ):
         flava_model = FLAVAModel(
             image_encoder=image_encoder,
             text_encoder=text_encoder,
-            mm_encoder=mm_encoder,
-            image_to_mm_projection=image_to_mm_projection,
-            text_to_mm_projection=text_to_mm_projection,
-            text_projection=text_projection,
-            image_projection=image_projection,
+            mm_encoder=nn.Identity(),
+            image_to_mm_projection=nn.Identity(),
+            text_to_mm_projection=nn.Identity(),
+            text_projection=nn.Identity(),
+            image_projection=nn.Identity(),
         )
         flava_model.eval()
         return flava_model
