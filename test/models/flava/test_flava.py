@@ -219,7 +219,7 @@ class TestFLAVAModel:
         text_projection,
         image_projection,
     ):
-        return FLAVAModel(
+        flava_model = FLAVAModel(
             image_encoder=image_encoder,
             text_encoder=text_encoder,
             mm_encoder=mm_encoder,
@@ -228,6 +228,8 @@ class TestFLAVAModel:
             text_projection=text_projection,
             image_projection=image_projection,
         )
+        flava_model.eval()
+        return flava_model
 
     @pytest.fixture
     def inputs(self):
