@@ -232,7 +232,7 @@ class MultimodalGPT(nn.Module):
         if logits_mask is not None and logits_mask.dim() == 2:
             logits_mask = logits_mask.unsqueeze(
                 0
-            )  # (seq_len, num_tokens) -> (b, seq_len, num_tokens)
+            )  # (seq_len, num_tokens) -> (1, seq_len, num_tokens)
 
         out = self.norm(hidden_states)
         logits = self.to_logit(hidden_states)
@@ -494,7 +494,7 @@ class TransformerDecoder(nn.Module):
         if attn_mask is not None and attn_mask.dim() == 2:
             attn_mask = attn_mask[
                 None, None, :, :
-            ]  # (q_seq_len, k_seq_len) -> (b, h, q_seq_len, k_seq_len)
+            ]  # (q_seq_len, k_seq_len) -> (1, 1, q_seq_len, k_seq_len)
 
         if head_mask is not None and head_mask.dim() == 3:
             head_mask = head_mask[None, :, :, :]
