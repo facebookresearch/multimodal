@@ -42,6 +42,7 @@ def text_video_gpt(
     dropout: float = 0.2,
     attn_dropout: float = 0.3,
     num_decoder_layers: int = 12,
+    use_gpt_init: bool = True,
     text_pretrained_tokenizer_url: str = BPE_PRETRAINED_TOKENIZER_URL,
     video_vqvae_pretrained_model_key: Optional[str] = None,
 ) -> MultimodalGPT:
@@ -69,6 +70,7 @@ def text_video_gpt(
         attn_dropout (float): Dropout probability used by the attention layer of the transformer decoder.
             Defaults to ``0.3``.
         num_decoder_layers (int): Number of transformer decoder layers. Defaults to ``12``.
+        use_gpt_init (bool): Whether uses parameter initialization of GPT model. Defaults to ``True``.
         text_pretrained_tokenizer_url (str): Remote location of the pretrained text tokenizer file. Defaults
             to `"MUGEN pretrained tokenizer file
             "<https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024.json>`_.
@@ -121,7 +123,6 @@ def text_video_gpt(
 
     # builds video embedding projection
     video_projection = nn.Linear(video_vqvae.embedding_dim, d_model, bias=False)
-    video_projection.weight.data.normal_(std=0.02)
 
     # builds multimodal decoder
     text_pos_emb = nn.Embedding(text_seq_len, d_model)
@@ -146,6 +147,7 @@ def text_video_gpt(
         mm_decoder=mm_decoder,
         in_projection=text_projection,
         out_projection=video_projection,
+        use_gpt_init=use_gpt_init,
     )
 
 
@@ -197,7 +199,7 @@ class TextTokenizer(nn.Module):
     def encode(self, sentences: List[str], device: str) -> Tensor:
         """Encodes sentences to token ids"""
         token_ids = self.text_to_tokens(sentences).to(device)
-        # bump padding token ids by vocab_size so that they do not conincide with un-padded token ids
+        # bump padding token ids by vocab_size so that they do not coincide with un-padded token ids
         # and that the padding token ids themselves are unique
         unique_pad_ids = torch.arange(self.context_len, device=device) + self.vocab_size
         token_ids = torch.where(token_ids == self.pad_id, unique_pad_ids, token_ids)
