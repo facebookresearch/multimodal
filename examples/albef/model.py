@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import copy
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -613,7 +613,9 @@ class ALBEFModelForRetrieval(nn.Module):
             )
 
 
-def albef_model_for_vqa(config: dict, pretrained: bool = False) -> ALBEFModelForVQA:
+def albef_model_for_vqa(
+    config: Dict[str, Any], pretrained: bool = False
+) -> ALBEFModelForVQA:
     vision_encoder = ALBEFVisionEncoder(**config["vision_encoder_args"])
     text_encoder = ALBEFTextEncoder(**config["text_encoder_args"])
     question_multimodal_encoder = ALBEFMultimodalEncoder(
@@ -638,7 +640,7 @@ def albef_model_for_vqa(config: dict, pretrained: bool = False) -> ALBEFModelFor
 
 
 def albef_model_for_retrieval(
-    config: dict, pretrained: bool = False
+    config: Dict[str, Any], pretrained: bool = False
 ) -> ALBEFModelForRetrieval:
     vision_encoder = ALBEFVisionEncoder(**config["vision_encoder_args"])
     text_encoder = ALBEFTextEncoder(**config["text_encoder_args"])
