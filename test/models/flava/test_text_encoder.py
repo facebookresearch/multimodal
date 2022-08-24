@@ -4,8 +4,9 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import unittest
 from functools import partial
+
+import pytest
 
 import torch
 from test.test_utils import assert_expected, set_rng_seed
@@ -16,24 +17,29 @@ from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 from torchmultimodal.modules.layers.transformer import TransformerEncoder
 
 
-class TestFlavaTextEncoder(unittest.TestCase):
-    def setUp(self):
-        set_rng_seed(0)
-        self.text_embedding = BERTTextEmbeddings(
+@pytest.fixture(autouse=True)
+def random():
+    set_rng_seed(0)
+
+
+class TestFlavaTextEncoder:
+    @pytest.fixture
+    def emb_weights(self):
+        return torch.Tensor([[0, 1], [1, 0], [1, 1]])
+
+    @pytest.fixture
+    def text_encoder_components(self, emb_weights):
+        text_embedding = BERTTextEmbeddings(
             hidden_size=2,
             vocab_size=3,
             max_position_embeddings=2,
             dropout=0,
         )
-        emb_weights = torch.Tensor([[0, 1], [1, 0], [1, 1]])
-        self.text_embedding.word_embeddings = nn.Embedding.from_pretrained(emb_weights)
-        self.text_embedding.position_embeddings = nn.Embedding.from_pretrained(
-            emb_weights
-        )
-        self.text_embedding.token_type_embeddings = nn.Embedding.from_pretrained(
-            emb_weights
-        )
-        self.text_embedding.eval()
+        text_embedding.word_embeddings = nn.Embedding.from_pretrained(emb_weights)
+        text_embedding.position_embeddings = nn.Embedding.from_pretrained(emb_weights)
+        text_embedding.token_type_embeddings = nn.Embedding.from_pretrained(emb_weights)
+        text_embedding.eval()
+
         encoder = TransformerEncoder(
             n_layer=1,
             d_model=2,
@@ -43,23 +49,33 @@ class TestFlavaTextEncoder(unittest.TestCase):
             norm_first=True,
         )
         weight_init_fn = partial(init_transformer_weights, initializer_range=0.02)
-        self.text_encoder = BERTTextEncoder(
-            embeddings=self.text_embedding,
+        text_encoder = BERTTextEncoder(
+            embeddings=text_embedding,
             encoder=encoder,
             layernorm=nn.LayerNorm(2),
             pooler=nn.Identity(),
             weight_init_fn=weight_init_fn,
         )
+        return text_encoder, text_embedding
 
-    def test_embedding(self):
-        input_ids = torch.IntTensor([[0, 1]])
-        out = self.text_embedding(input_ids)
+    @pytest.fixture
+    def input_ids(self):
+        return torch.IntTensor([[0, 1]])
+
+    @pytest.fixture
+    def attn_mask(self):
+        return torch.IntTensor([[1, 0]])
+
+    def test_embedding(self, text_encoder_components, input_ids):
+        _, text_embedding = text_encoder_components
+        out = text_embedding(input_ids)
         expected = torch.Tensor([[[1.0, -1.0], [-1.0, 1.0]]])
         assert_expected(out, expected)
 
-    def test_text_transformer(self):
-        out = self.text_encoder(
-            torch.IntTensor([[0, 1]]),
+    def test_text_transformer(self, text_encoder_components, input_ids):
+        text_encoder, _ = text_encoder_components
+        out = text_encoder(
+            input_ids,
             return_attn_weights=True,
             return_hidden_states=True,
         )
@@ -80,10 +96,11 @@ class TestFlavaTextEncoder(unittest.TestCase):
 
         assert_expected(out.attentions, (torch.Tensor([[[[0, 1.0], [0.0, 1.0]]]]),))
 
-    def test_text_transformer_attn_mask(self):
-        input_ids = torch.IntTensor([[0, 1]])
-        attn_mask = torch.IntTensor([[1, 0]])
-        out = self.text_encoder(
+    def test_text_transformer_attn_mask(
+        self, text_encoder_components, input_ids, attn_mask
+    ):
+        text_encoder, _ = text_encoder_components
+        out = text_encoder(
             input_ids,
             attention_mask=attn_mask,
             return_attn_weights=True,
