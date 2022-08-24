@@ -216,7 +216,7 @@ def gpt(
     in_projection,
     out_projection,
 ):
-    def _gpt(in_tokenizer=tokenizer, out_tokenizer=tokenizer):
+    def _gpt(in_tokenizer=tokenizer, out_tokenizer=tokenizer, use_gpt_init=False):
         return MultimodalGPT(
             d_model=d_model,
             num_in_tokens=num_in_tokens,
@@ -227,6 +227,8 @@ def gpt(
             mm_decoder=mm_decoder,
             in_projection=in_projection,
             out_projection=out_projection,
+            norm_layer=None,
+            use_gpt_init=use_gpt_init,
         ).eval()
 
     return _gpt
@@ -249,6 +251,14 @@ class TestMultimodalGPT:
 
         with pytest.raises(AttributeError):
             gpt(out_tokenizer=BadTokenizer())
+
+    def test_initialize_parameters(self, gpt, mocker):
+        # Testing mean and std of the initialized weights data requires a large
+        # amount samples to be statistically stable. Here we just test whether
+        # the method in question has been called to avoid test flakiness.
+        mock_init = mocker.patch("torchmultimodal.models.gpt.Tensor.normal_")
+        gpt = gpt(use_gpt_init=True)
+        mock_init.assert_called()
 
     def test_encode_invalid_modality(self, gpt):
         gpt = gpt()
