@@ -12,14 +12,11 @@ from typing import Tuple
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
+from torchmultimodal.modules.layers.activation import SiLU
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 
-EXPANSION = 4
 
-# Taken from original clip implementation https://github.com/openai/CLIP/blob/main/clip/model.py#L167
-# TODO: unify with the implementation in text encoder
-def quick_gelu(x: Tensor) -> Tensor:
-    return x * torch.sigmoid(1.702 * x)
+EXPANSION = 4
 
 
 class CLIPViTEncoder(nn.Module):
@@ -67,7 +64,7 @@ class CLIPViTEncoder(nn.Module):
             d_model=width,
             nhead=heads,
             dropout=0.0,
-            activation=quick_gelu,
+            activation=SiLU(),
             norm_first=True,
             dim_feedforward=4 * width,
             batch_first=True,
