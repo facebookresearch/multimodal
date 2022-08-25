@@ -6,11 +6,7 @@
 
 import torch
 from torch import nn, Tensor
-
-# Taken from original clip implementation https://github.com/openai/CLIP/blob/main/clip/model.py#L167
-# TODO: unify with the implementation in text encoder
-def quick_gelu(x: Tensor) -> Tensor:
-    return x * torch.sigmoid(1.702 * x)
+from torchmultimodal.modules.layers.activation import SiLU
 
 
 class CLIPViTEncoder(nn.Module):
@@ -58,7 +54,7 @@ class CLIPViTEncoder(nn.Module):
             d_model=width,
             nhead=heads,
             dropout=0.0,
-            activation=quick_gelu,
+            activation=SiLU(),
             norm_first=True,
             dim_feedforward=4 * width,
             batch_first=True,
