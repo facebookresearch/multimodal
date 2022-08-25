@@ -110,7 +110,7 @@ def namedtuple_to_dict(nt: NamedTuple) -> Dict:
     # Do this for safety.  _asdict is a public method as of python 3.8:
     # https://docs.python.org/3/library/collections.html#collections.somenamedtuple._asdict
     if not hasattr(nt, "_asdict"):
-        raise AttributeError(f"{actual} must have the attribute `_asdict`.")
+        raise AttributeError(f"{nt} must have the attribute `_asdict`.")
 
     return nt._asdict()
 
@@ -151,9 +151,9 @@ def assert_expected_namedtuple(
     for attr, _expected in expected.items():
         _actual = actual[attr]
 
-        if _actual is None:
+        if _expected is None:
             # optional output
-            assert _expected is None
+            assert _actual is None
         elif isinstance(_actual, Dict):
             # dictionary output, e.g., cache of k/v
             assert_expected_namedtuple(_actual, _expected, rtol=rtol, atol=atol)

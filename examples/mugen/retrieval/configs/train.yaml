@@ -1,4 +1,4 @@
-_target_: examples.mugen.retrieval.definitions.EvaluationArgs
+_target_: examples.mugen.retrieval.definitions.TrainingArgs
 dataset_args:
   _target_: examples.mugen.data.mugen_dataset.MUGENDatasetArgs
   data_path: "datasets/coinrun/coinrun_dataset_jsons/release"
@@ -7,7 +7,7 @@ dataset_args:
   sequence_length: 32
   audio_sample_rate: 22050
   audio_sample_length: 70560
-  resolution: 256
+  resolution: 224
   bbox_smap_for_agent: False
   bbox_smap_for_monsters: False
   use_manual_annotation: True
@@ -32,17 +32,22 @@ lightningmodule_args:
   _target_: examples.mugen.retrieval.definitions.LightningModuleArgs
   logit_scale: 0.07
   logit_scale_max: 100.0
+  learning_rate: 0.001
+  weight_decay: 0.001
 videoclip_args:
   _target_: examples.mugen.retrieval.definitions.VideoCLIPArgs
-  text_pretrained: False
+  text_pretrained: True
   text_trainable: False
   text_model_name: "distilbert-base-uncased"
   text_model_config: null
   text_padding_value: 0
-  video_pretrained: False
-  video_trainable: False
+  video_pretrained: True
+  video_trainable: True
   video_pretrain_path: "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/S3D_kinetics400.pt"
   proj_out_dim: 256
   proj_dropout: 0.1
-checkpoint_path: "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/videoclip_lightning_mugen.pt"
 accelerator: "auto"
+devices: 4
+max_epochs: 20
+log_every_n_steps: 100
+default_root_dir: null
