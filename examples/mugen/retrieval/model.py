@@ -72,7 +72,7 @@ class VideoCLIPLightningModule(LightningModule):
         }
         return embeddings
 
-    def _compute_recall(self, text_embedding, video_embedding):
+    def _compute_recall(self, split, text_embedding, video_embedding):
         similarity_matrix = text_embedding @ video_embedding.T
         num_samples = similarity_matrix.shape[0]
         target_matrix = torch.eye(
@@ -82,11 +82,11 @@ class VideoCLIPLightningModule(LightningModule):
         for k in self.recall_ks:
             v2t_recall = self.metrics[f"v2t_recall_{k}"]
             v2t_recall(preds=similarity_matrix.T, target=target_matrix)
-            self.log(f"Recall@{k} (video query, text retrieval)", v2t_recall)
+            self.log(f"{split}/Recall@{k} (video query, text retrieval)", v2t_recall)
 
             t2v_recall = self.metrics[f"t2v_recall_{k}"]
             t2v_recall(preds=similarity_matrix, target=target_matrix)
-            self.log(f"Recall@{k} (text query, video retrieval)", t2v_recall)
+            self.log(f"{split}/Recall@{k} (text query, video retrieval)", t2v_recall)
 
     def configure_optimizers(self):
         params = self.parameters()
@@ -105,15 +105,6 @@ class VideoCLIPLightningModule(LightningModule):
             "train/loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True
         )
         return {"loss": loss, "model_output": model_output}
-
-    def training_epoch_end(self, outputs):
-        model_outputs = [batch["model_output"] for batch in outputs]
-        all_embeddings = self._collect_embeddings(model_outputs)
-        text_embedding, video_embedding = (
-            all_embeddings["text"],
-            all_embeddings["video"],
-        )
-        self._compute_recall(text_embedding, video_embedding)
 
     def validation_step(self, batch, batch_idx):
         text, video = batch.get("text"), batch.get("video")
@@ -138,7 +129,7 @@ class VideoCLIPLightningModule(LightningModule):
             all_embeddings["text"],
             all_embeddings["video"],
         )
-        self._compute_recall(text_embedding, video_embedding)
+        self._compute_recall("validation", text_embedding, video_embedding)
 
     def test_step(self, batch, batch_idx):
         text, video = batch.get("text"), batch.get("video")
@@ -151,4 +142,4 @@ class VideoCLIPLightningModule(LightningModule):
             all_embeddings["text"],
             all_embeddings["video"],
         )
-        self._compute_recall(text_embedding, video_embedding)
+        self._compute_recall("test", text_embedding, video_embedding)
