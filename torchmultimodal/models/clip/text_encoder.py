@@ -9,11 +9,8 @@ import torch
 from torch import nn, Tensor
 
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
+from torchmultimodal.modules.layers.activation import SiLU
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
-
-# Taken from original clip implementation https://github.com/openai/CLIP/blob/main/clip/model.py#L167
-def quick_gelu(x: Tensor) -> Tensor:
-    return x * torch.sigmoid(1.702 * x)
 
 
 class CLIPTextEncoder(nn.Module):
@@ -56,7 +53,7 @@ class CLIPTextEncoder(nn.Module):
             d_model=width,
             nhead=heads,
             dropout=0.0,
-            activation=quick_gelu,
+            activation=SiLU(),
             norm_first=True,
         )
         self.encoder = TransformerEncoder(encoder_layer, num_layers=layers)
@@ -94,14 +91,14 @@ class CLIPTextEncoder(nn.Module):
         # Initialize projection
         nn.init.normal_(self.projection.weight, std=self.width**-0.5)
 
-    def build_attention_mask(self) -> torch.Tensor:
+    def build_attention_mask(self) -> Tensor:
         # To support torchscripting, we have to pass an int as fill_value
         mask = torch.full(
             (self.context_length, self.context_length), float("-inf")
         ).triu(1)
         return mask
 
-    def forward(self, text: torch.Tensor) -> torch.Tensor:
+    def forward(self, text: Tensor) -> Tensor:
         if text.size(1) != self.context_length:
             raise ValueError(
                 f"length of input should be {self.context_length} but found {text.size(1)}"
