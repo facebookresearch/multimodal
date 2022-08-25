@@ -26,11 +26,12 @@ from torchmultimodal.modules.layers.position_embedding import (
 def video_gpt(
     input_shape: Tuple[int, int, int] = (16, 64, 64),
     latent_shape: Tuple[int, int, int] = (8, 32, 32),
-    d_model: int = 576,  # https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/gpt.py#L177
+    d_model: int = 576,
     n_head: int = 4,
     dropout: float = 0.2,
     attn_dropout: float = 0.3,
     num_decoder_layers: int = 16,
+    use_gpt_init: bool = True,
 ) -> MultimodalGPT:
     """VideoGPT model
 
@@ -44,10 +45,15 @@ def video_gpt(
     Args:
         input_shape (Tuple[int, int, int]): Shape of the input video data ``(time_seq_len, resolution, resolution)``.
             Defaults to ``(16, 64, 64)``.
-        latent_shape (Tuple[int, int, int]): Shape of the encoded video data. This should be consistent with the actual
-            latent shape inferred by the video encoder, see :class:`~torchmultimodal.models.video_vqvae.VideoEncoder`.
+        latent_shape (Tuple[int, int, int]): Shape of the encoded video data. This should be consistent with
+            the actual latent shape inferred by the video encoder.
+            See :class:`~torchmultimodal.models.video_vqvae.VideoEncoder`.
             Defaults to ``(8, 32, 32)``.
         d_model (int): Dimension of the underlying transformer decoder.
+            Value taken from: https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/gpt.py#L177
+            Note that this is different from the paper due to
+            :class:`~torchmultimodal.modules.layers.position_embedding.BroadcastedPositionEmbedding`
+            requires that ``d_model`` is a multiple of ``len(latent_shape)``.
             See :py:class:`torchmultimodal.models.gpt.TransformerDecoderLayer`. Defaults to ``576``.
         n_head (int): Number of attention heads used by the transformer decoder. Defaults to ``4``.
         dropout (float): Dropout probability used by the projection layer of the transformer decoder.
@@ -55,6 +61,8 @@ def video_gpt(
         attn_dropout (float): Dropout probability used by the attention layer of the transformer decoder.
             Defaults to ``0.3``.
         num_decoder_layers (int): Number of transformer decoder layers. Defaults to ``16``.
+        use_gpt_init (bool): Whether to use weight initialization of GPT model.
+            See :class:`~torchmultimodal.models.gpt.MultimodalGPT`. Defaults to ``True``.
 
     Returns:
         An instance of :class:`~torchmultimodal.models.gpt.MultimodalGPT`.
@@ -74,9 +82,7 @@ def video_gpt(
 
     # constructs projection layers
     in_projection = nn.Linear(in_tokenizer.embedding_dim, d_model, bias=False)
-    in_projection.weight.data.normal_(std=0.02)
     out_projection = nn.Linear(out_tokenizer.embedding_dim, d_model, bias=False)
-    out_projection.weight.data.normal_(std=0.02)
 
     # constructs multimodal decoder
     in_pos_emb = BroadcastedPositionEmbedding(latent_shape, d_model)
@@ -101,10 +107,15 @@ def video_gpt(
         mm_decoder=mm_decoder,
         in_projection=in_projection,
         out_projection=out_projection,
+        use_gpt_init=use_gpt_init,
     )
 
 
 def video_vqvae(
+    conv_filter_sizes: Tuple[Tuple[int, int, int], ...] = ((4, 4, 4),),
+    conv_filter_strides: Tuple[Tuple[int, int, int], ...] = ((2, 2, 2),),
+    encoder_filter_size: Tuple[int, int, int] = (3, 3, 3),
+    encoder_filter_stride: Tuple[int, int, int] = (1, 1, 1),
     in_channel_dim: int = 3,
     encoder_hidden_dim: int = 240,
     n_res_layers: int = 4,
@@ -116,6 +127,16 @@ def video_vqvae(
     """Video VQVAE builder for VideoGPT
 
     Args:
+        conv_filter_sizes (Tuple[Tuple[int, int, int], ...], optional):
+            Tuple of dimension-wise kernel sizes of downsampling (upsampling) conv layers of the encoder
+            (decoder). Defaults to ``((4, 4, 4),)`` of one layer.
+        conv_filter_strides (Tuple[Tuple[int, int, int], ...], optional):
+            Tuple of dimension-wise strides of downsampling (upsampling) conv layers of the encoder (decoder).
+            Defaults to ``((2, 2, 2),)`` of one layer.
+        encoder_filter_size (Tuple[int, int, int], optional):
+            Dimension-wise kernel sizes of the last conv layer of the encoder. Defaults to ``(3, 3, 3)``.
+        encoder_filter_stride (Tuple[int, int, int], optional):
+            Dimension-wise strides of the last conv layer of the encoder. Defaults to ``(1, 1, 1)``.
         in_channel_dim (int, optional): Size of channel dim in input. Defaults to ``3``.
         encoder_hidden_dim (int, optional): Size of channel dims in encoder conv layers. Defaults to ``240``.
         n_res_layers (int, optional): Number of :class:`~torchmultimodal.models.video_vqvae.AttentionResidualBlocks`
@@ -125,20 +146,25 @@ def video_vqvae(
         embedding_dim (int, optional): Dimensionality of embedding vectors in ``Codebook``. Defaults to ``256``.
         decoder_hidden_dim (int, optional): Size of channel dims in decoder conv tranpose layers. Defaults to ``240``.
 
+    Note:
+        Strides of each layer must be either ``1`` or ``2`` due to downsampling (upsampling) rates are
+        multipliers of ``2``. For example, input_shape = ``(32, 256, 256)``, latent_shape = ``(8, 8, 8)``
+        corresponds to downsample rates ``(4, 32, 32)``. The corresponding ``conv_filter_strides`` are
+        ``((2, 2, 2), (2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2))``.
+
+        The defaults are chosen to be consistent with those of :func:`video_gpt`.
+
+
     Returns:
         An instance of :class:`~torchmultimodal.models.vqvae.VQVAE` constructed with:
             * :class:`~torchmultimodal.model.video_vqvae.VideoEncoder`
             * :class:`~torchmultimodal.model.video_vqvae.VideoDecoder`
     """
-
-    # this includes both the upsampling conv filter size and encoder filter size
-    # ideally we should code them as two separate parameters in VideoEncoder
-    encoder_kernel_sizes = ((4, 4, 4), (3, 3, 3))
-    # stride (1, 1, 1) is that of the encoder filter conv layer
-    encoder_strides = ((2, 2, 2), (1, 1, 1))
+    encoder_kernel_sizes = conv_filter_sizes + (encoder_filter_size,)
+    encoder_strides = conv_filter_strides + (encoder_filter_stride,)
     encoder_n_layers = len(encoder_strides)
-    decoder_kernel_sizes = ((4, 4, 4),)
-    decoder_strides = ((2, 2, 2),)
+    decoder_kernel_sizes = conv_filter_sizes
+    decoder_strides = conv_filter_strides
     decoder_n_layers = len(decoder_strides)
 
     encoder_in_channel_dims = (in_channel_dim,) + (encoder_hidden_dim,) * max(
