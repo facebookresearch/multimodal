@@ -129,7 +129,7 @@ class MDETR(nn.Module):
         encoded_text = self.text_encoder(text, text_attention_mask)
 
         # Transpose memory because pytorch's attention expects sequence first
-        text_memory = encoded_text.transpose(0, 1)
+        text_memory = encoded_text.last_hidden_state.transpose(0, 1)
 
         image_embeddings, image_mask = self.image_backbone(images, image_mask)
         pos = self.pos_embed(image_mask).to(image_embeddings.dtype)
