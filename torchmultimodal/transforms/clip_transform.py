@@ -9,6 +9,7 @@ from typing import Callable, Iterable, List, Optional, Tuple, Union
 import torch
 from PIL.Image import Image
 from torch import Tensor
+from torchmultimodal import _PATH_MANAGER
 from torchtext import transforms as text_transforms
 from torchtext.transforms import CLIPTokenizer
 from torchvision import transforms as image_transforms
@@ -50,8 +51,9 @@ class CLIPTextTransform:
         num_merges: Optional[int] = 48894,
     ) -> None:
 
+        local_merges_path = _PATH_MANAGER.get_local_path(text_bpe_merges_path)
         tokenizer = CLIPTokenizer(
-            text_bpe_merges_path, text_encoder_json_path, num_merges=num_merges
+            local_merges_path, text_encoder_json_path, num_merges=num_merges
         )
         text_start_token = tokenizer([text_start_token])[0][0]
         text_end_token = tokenizer([text_end_token])[0][0]
