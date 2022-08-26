@@ -63,7 +63,7 @@ def albef_with_sim(albef_model):
         albef_model,
         nn.Linear(3, 2),
         nn.Linear(3, 2),
-        embed_dim=2,
+        embed_size=2,
         queue_size=4,
     )
 

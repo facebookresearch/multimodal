@@ -5,13 +5,13 @@
 # LICENSE file in the root directory of this source tree.
 
 import copy
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
 from torchmultimodal.models.albef.image_encoder import ALBEFVisionEncoder
-from torchmultimodal.models.albef.model import ALBEFModel
+from torchmultimodal.models.albef.model import ALBEFModel, ALBEFModelWithSimilarity
 from torchmultimodal.models.albef.multimodal_encoder import ALBEFMultimodalEncoder
 from torchmultimodal.models.albef.text_encoder import ALBEFTextEncoder
 from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
@@ -20,11 +20,7 @@ from torchmultimodal.modules.losses.albef import (
     ImageTextContrastiveLoss,
 )
 from torchmultimodal.utils.attention import get_causal_attention_mask
-from torchmultimodal.utils.common import (
-    load_module_from_url,
-    momentum_update,
-    remove_grad,
-)
+from torchmultimodal.utils.common import momentum_update, remove_grad
 
 
 _ALBEF_PRETRAINED_URLS = {
@@ -617,7 +613,9 @@ class ALBEFModelForRetrieval(nn.Module):
             )
 
 
-def albef_model_for_vqa(config: dict, pretrained: bool = False) -> ALBEFModelForVQA:
+def albef_model_for_vqa(
+    config: Dict[str, Any], pretrained: bool = False
+) -> ALBEFModelForVQA:
     vision_encoder = ALBEFVisionEncoder(**config["vision_encoder_args"])
     text_encoder = ALBEFTextEncoder(**config["text_encoder_args"])
     question_multimodal_encoder = ALBEFMultimodalEncoder(
@@ -634,5 +632,35 @@ def albef_model_for_vqa(config: dict, pretrained: bool = False) -> ALBEFModelFor
     model = ALBEFModelForVQA(albef_model, decoder, loss)
 
     if pretrained:
-        load_module_from_url(model, _ALBEF_PRETRAINED_URLS["vqa"])
+        checkpoint = torch.hub.load_state_dict_from_url(
+            _ALBEF_PRETRAINED_URLS["vqa"], map_location="cpu"
+        )
+        model.load_state_dict(checkpoint)
+    return model
+
+
+def albef_model_for_retrieval(
+    config: Dict[str, Any], pretrained: bool = False
+) -> ALBEFModelForRetrieval:
+    vision_encoder = ALBEFVisionEncoder(**config["vision_encoder_args"])
+    text_encoder = ALBEFTextEncoder(**config["text_encoder_args"])
+    multimodal_encoder = ALBEFMultimodalEncoder(**config["multimodal_encoder_args"])
+    vision_proj = nn.Linear(**config["projection_args"])
+    text_proj = nn.Linear(**config["projection_args"])
+
+    albef_model = ALBEFModel(vision_encoder, text_encoder, multimodal_encoder)
+    albef_model_with_sim = ALBEFModelWithSimilarity(
+        albef_model, vision_proj, text_proj, **config["similarity_args"]
+    )
+    itc_loss = ImageTextContrastiveLoss()
+
+    model = ALBEFModelForRetrieval(
+        albef_model_with_sim, itc_loss, config["hidden_size"]
+    )
+
+    if pretrained:
+        checkpoint = torch.hub.load_state_dict_from_url(
+            _ALBEF_PRETRAINED_URLS["retrieval"], map_location="cpu"
+        )
+        model.load_state_dict(checkpoint)
     return model
