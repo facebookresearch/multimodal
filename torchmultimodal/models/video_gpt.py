@@ -35,10 +35,9 @@ def video_gpt(
 ) -> MultimodalGPT:
     """VideoGPT model
 
-    For the momemnt this is a prototype implementation which may not fully commit to the specifications
-    described in the paper `"VideoGPT: Video Generation using VQ-VAE and Transformers
+    Model architecture follows the paper `"VideoGPT: Video Generation using VQ-VAE and Transformers
     "<https://arxiv.org/pdf/2104.10157.pdf>`_.
-    Source of parameters:
+    Source of parameters (with the exception ``d_model``, see parameter docstring below):
         * Page 13 Table A.1 Column "BAIR / RoboNet / ViZDoom"
         * Page 13 Table A.2 Column "BAIR / RoboNet"
 
