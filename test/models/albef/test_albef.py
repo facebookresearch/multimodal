@@ -5,7 +5,6 @@
 # LICENSE file in the root directory of this source tree.
 
 import copy
-from functools import partial
 
 import pytest
 import torch
@@ -32,11 +31,10 @@ def vision_encoder():
     return ALBEFVisionEncoder(
         image_size=4,
         patch_size=4,
-        num_layers=2,
-        num_heads=1,
-        hidden_dim=3,
+        num_hidden_layers=2,
+        num_attention_heads=1,
+        hidden_size=3,
         mlp_dim=6,
-        norm_layer=partial(nn.LayerNorm, eps=1e-6),
     )
 
 
@@ -65,7 +63,7 @@ def albef_with_sim(albef_model):
         albef_model,
         nn.Linear(3, 2),
         nn.Linear(3, 2),
-        embed_dim=2,
+        embed_size=2,
         queue_size=4,
     )
 
