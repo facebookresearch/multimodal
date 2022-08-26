@@ -164,7 +164,17 @@ class TestLogitsFilter:
     def test_top_p(self, filter_fn):
         kwargs = {**self._func_params, **{"top_p": 0.9}}
         logits_filter = filter_fn(**kwargs)
+        logits = torch.ones(10, dtype=torch.float).unsqueeze(0)
+        actual = logits_filter(logits)
+        # 9 tokens should be kept as the logits are of uniform distribution
+        expected = torch.tensor([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0]])
+        assert_expected(actual, expected)
+
+    def test_top_k_top_p(self, filter_fn):
+        kwargs = {**self._func_params, **{"top_k": 5, "top_p": 0.7}}
+        logits_filter = filter_fn(**kwargs)
         logits = torch.arange(10, dtype=torch.float).unsqueeze(0)
         actual = logits_filter(logits)
-        expected = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 7.0, 8.0, 9.0]])
+        # pick top 5 tokens then take those > 70% percentile
+        expected = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8.0, 9.0]])
         assert_expected(actual, expected)

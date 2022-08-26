@@ -246,7 +246,7 @@ class LogitsFilter:
             max(self.top_k, self.min_tokens_to_keep), logits.size(-1)
         )  # Safety check
         # Remove all tokens with a probability less than the last token of the top-k
-        indices_to_remove = logits < torch.topk(logits, top_k)[0][..., -1, None]
+        indices_to_remove = logits < torch.topk(logits, top_k)[0][..., -1:]  # (b, 1)
         logits[indices_to_remove] = self.filter_value
 
         return logits
