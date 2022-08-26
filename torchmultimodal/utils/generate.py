@@ -69,7 +69,7 @@ class GenerationModel:
             causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
             top_k (int, optional): Number of tokens with the highest probability to keep.
                 Defaults to ``None``.
-            top_p (int, optional): Threshold that determines the top tokens to keep in terms of
+            top_p (float, optional): Threshold that determines the top tokens to keep in terms of
                 cumulative probability. Defaults to ``None``.
             return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
                 layer. Defaults to ``False``.
@@ -191,11 +191,14 @@ class LogitsFilter:
     """Filters a distribution of logits using top_k and/or nucleus (top_p) filtering
 
     Attributes:
-        top_k (int): Keeps the top_k tokens with the highest probability (top_k filtering).
-        top_p (float): Keeps the top tokens with cumulative probability >= top_p (nucleus filtering).
-            Nucleus filtering is described in Holtzman et al. (http://arxiv.org/abs/1904.09751)
-        filter_value (float): Constant value to filter unwanted logits. Defaults to ``-inf``.
-        min_tokens_to_keep (int): Minimum number of tokens to keep per batch example in the output.
+        top_k (int, optional): Keeps the top_k tokens with the highest probability (top_k filtering).
+            Defaults to ``None``.
+        top_p (float, optional): Keeps the top tokens with cumulative probability >= top_p (nucleus filtering).
+            Nucleus filtering is described in Holtzman et al. (http://arxiv.org/abs/1904.09751).
+            Defaults to ``None``.
+        filter_value (float, optional): Constant value to filter unwanted logits. Defaults to ``-inf``.
+        min_tokens_to_keep (int, optional): Minimum number of tokens to keep per batch example in the output.
+            Defaults to ``1``.
 
     Code reference: https://gist.github.com/thomwolf/1a5a29f6962089e871b94cbd09daf317
 
@@ -212,10 +215,10 @@ class LogitsFilter:
 
     def __init__(
         self,
-        min_tokens_to_keep: int = 1,
-        filter_value: float = -float("inf"),
         top_k: Optional[int] = None,
         top_p: Optional[float] = None,
+        min_tokens_to_keep: int = 1,
+        filter_value: float = -float("inf"),
     ) -> None:
         if top_k is not None and top_k < 0:
             raise ValueError(f"'top_k' must be non-negative but got {top_k}.")
