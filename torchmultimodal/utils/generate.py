@@ -19,8 +19,8 @@ class SampleOutput(NamedTuple):
     model_outputs: Tuple[Any, ...]
 
 
-class GenerationModel:
-    """Class containing functions for multimodal auto-regressive generation.
+class GenerationUtil:
+    """Utility class containing functions for multimodal auto-regressive generation.
 
     This class wraps around a ``nn.Module`` to generate data of one modality given
     inputs from another. While being agnostic to the architecture of the wrapped model,

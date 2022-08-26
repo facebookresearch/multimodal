@@ -12,7 +12,7 @@ from test.test_utils import assert_expected, set_rng_seed
 
 from torchmultimodal.models.video_gpt import video_gpt
 from torchmultimodal.utils.generate import (
-    GenerationModel,
+    GenerationUtil,
     get_logits_mask,
     LogitsFilter,
     SampleOutput,
@@ -63,7 +63,7 @@ class TestLogitsMask:
         assert_expected(actual, expected)
 
 
-class TestGenerationModel:
+class TestGenerationUtil:
     _model_params = {
         "input_shape": (4, 8, 8),
         "latent_shape": (2, 4, 4),
@@ -82,12 +82,12 @@ class TestGenerationModel:
     def generation_model(self, model_fn):
         model = model_fn(**self._model_params)
         model.eval()
-        return GenerationModel(model=model)
+        return GenerationUtil(model=model)
 
     def test_model_eval_warning(self, model_fn):
         model = model_fn(**self._model_params)
         with pytest.warns(UserWarning):
-            generator = GenerationModel(model=model)
+            generator = GenerationUtil(model=model)
 
     def test_sample(self, generation_model, mocker):
         # prevents the generation of tokens out side of codebook codes as the model
