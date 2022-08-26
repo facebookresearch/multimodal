@@ -1,0 +1,77 @@
+hidden_size: &hidden_size 768
+vocab_size: &vocab_size 30522
+type_vocab_size: &type_vocab_size 2
+max_position_embeddings: &max_position_embeddings 512
+pad_token_id: &pad_token_id 0
+
+seed: 42
+world_size: 1
+device: "cuda"
+dist_url: "env://"
+output_root: "./examples/albef/outputs"
+
+datamodule_args:
+  train_files: ["./examples/albef/data_files/vqa_train.json", "./examples/albef/data_files/vg_qa.json", "./examples/albef/data_files/vqa_val.json"]
+  test_files: ["./examples/albef/data_files/vqa_test.json"]
+  answer_list: "./examples/albef/data_files/answer_list.json"
+  vqa_root: "./examples/albef/data_files/coco"
+  vg_root: "./examples/albef/data_files/visual_genome"
+  batch_size: 32
+  num_workers: 8
+
+vision_encoder_args:
+  hidden_size: *hidden_size
+  image_size: 384
+  patch_size: 16
+  num_hidden_layers: 12
+  num_attention_heads: 12
+  mlp_dim: 3072
+  dropout: 0.0
+  attention_dropout: 0.0
+  layer_norm_eps: 1e-6
+
+text_encoder_args:
+  vocab_size: *vocab_size
+  hidden_size: *hidden_size
+  type_vocab_size: *type_vocab_size
+  max_position_embeddings: *max_position_embeddings
+  pad_token_id: *pad_token_id
+  num_hidden_layers: 6
+  num_attention_heads: 12
+  intermediate_size: 3072
+  layer_norm_eps: 1e-12
+
+multimodal_encoder_args:
+  hidden_size: *hidden_size
+  num_hidden_layers: 6
+  num_attention_heads: 12
+  intermediate_size: 3072
+  layer_norm_eps: 1e-12
+
+text_embeddings_args:
+  hidden_size: *hidden_size
+  vocab_size: *vocab_size
+  pad_token_id: *pad_token_id
+  max_position_embeddings: *max_position_embeddings
+  type_vocab_size: *type_vocab_size
+  layer_norm_eps: 1e-12
+
+prediction_head_args:
+  hidden_size: *hidden_size
+  vocab_size: *vocab_size
+  layer_norm_eps: 1e-12
+
+training_args:
+  log_every_n_steps: 100
+  alpha: 0.4
+  weight_decay: 0.02
+  lr: 2e-5
+  min_lr: 1e-6
+  max_epochs: 8
+  step_size: 100
+  warmup_steps: 4
+  checkpoint_root: "./examples/albef/checkpoints"
+
+eval_args:
+  log_every_n_steps: 100
+  k_test: 128
