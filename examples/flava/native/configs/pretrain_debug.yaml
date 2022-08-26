@@ -13,7 +13,7 @@ training:
     adam_betas: [0.9, 0.999]
 
   warmup_steps: 10000
-  max_steps: 100
+  max_steps: 100000
 
   validation_steps: 500
   log_interval: 10
