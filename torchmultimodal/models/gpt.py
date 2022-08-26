@@ -78,13 +78,13 @@ class MultimodalGPT(nn.Module):
             to ensure we only calculate probabilities from tokens of the corresponding modality sequence.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
-        causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
+        causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
         right_shift (bool): If ``True``, shifts the embedding vectors to the right and prepends it with start of
             sentence token. Defaults to ``False``. This option is disregarded during training mode
         return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
             layer. Defaults to ``False``.
-        return_hidden_states (bool): If ``True``, returns the embeddings of each transformer layer. Defaults to
-            ``False``.
+        return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
+            Defaults to ``False``.
 
     Raises:
         AttributeError: If input tokenizer does not implement methods ``encode`` and ``lookup`` or if output
@@ -374,13 +374,13 @@ class MultimodalTransformerDecoder(nn.Module):
             Masks need to be specified for each attention head. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
-        causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
+        causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
         right_shift (bool): If ``True``, shifts the embedding vectors to the right and prepends it with start of
             sentence token. Defaults to ``False``. This option is disregarded during training mode
         return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
             layer. Defaults to ``False``.
-        return_hidden_states (bool): If ``True``, returns the embeddings of each transformer layer. Defaults to
-            ``False``.
+        return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
+            Defaults to ``False``.
     """
 
     def __init__(
@@ -480,11 +480,11 @@ class TransformerDecoder(nn.Module):
             Masks need to be specified for each attention head. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
-        causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
+        causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
         return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
             layer. Defaults to ``False``.
-        return_hidden_states (bool): If ``True``, returns the embeddings of each transformer layer. Defaults to
-            ``False``.
+        return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
+            Defaults to ``False``.
     """
 
     def __init__(
@@ -573,7 +573,7 @@ class TransformerDecoderLayer(nn.Module):
             specified for each attention head. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
-        causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
+        causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
         return_attn_weights (bool, optional): If ``True``, returns attention probabilities of the layer.
             Defaults to ``False``.
     """
