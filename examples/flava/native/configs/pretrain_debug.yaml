@@ -1,8 +1,8 @@
 training:
-  strategy: fsdp # can be changed to ddp or fsdp
+  strategy: ddp # can be changed to ddp or fsdp
   seed: 1337
 
-  batch_size: 90
+  batch_size: 70
   num_workers: 10
   prefetch_factor: 2
 
@@ -15,7 +15,7 @@ training:
   warmup_steps: 10000
   max_steps: 100000
 
-  validation_steps: 500
+  validation_steps: 100000
   log_interval: 10
 
   enable_tf32: True
@@ -64,7 +64,7 @@ datasets:
           validation: train
 
 model:
-  size: 3b
+  size: 350m
 
   350m:
     image_num_hidden_layers: 12
