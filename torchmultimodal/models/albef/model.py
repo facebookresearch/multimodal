@@ -97,7 +97,9 @@ class ALBEFModel(nn.Module):
         image_embeds = self.vision_encoder(image)
         text_embeds = self.text_encoder(text, text_atts)
         multimodal_embeddings = self.multimodal_encoder(
-            image_embeds, text_embeds.last_hidden_state, text_atts
+            hidden_states=text_embeds.last_hidden_state,
+            attention_mask=text_atts,
+            encoder_hidden_states=image_embeds,
         )
 
         with torch.no_grad():
@@ -109,7 +111,9 @@ class ALBEFModel(nn.Module):
             image_embeds_m = self.vision_encoder_m(image)
             text_embeds_m = self.text_encoder_m(text, text_atts)
             multimodal_embeddings_m = self.multimodal_encoder_m(
-                image_embeds_m, text_embeds_m.last_hidden_state, text_atts
+                hidden_states=text_embeds_m.last_hidden_state,
+                attention_mask=text_atts,
+                encoder_hidden_states=image_embeds_m,
             )
 
         return ALBEFOutput(
