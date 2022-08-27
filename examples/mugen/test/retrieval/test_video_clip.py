@@ -17,6 +17,8 @@ from test.test_utils import assert_expected, get_asset_path, set_rng_seed
 from torchmultimodal import _PATH_MANAGER
 from torchmultimodal.utils.common import shift_dim
 
+from torchvision.models.video import S3D
+
 
 def patch_load_module_from_url(mocker):
     """Mock the ``load_module_from_url`` utility function used in ``videoclip()`` to allow
@@ -85,7 +87,7 @@ class TestVideoEncoder:
     @pytest.fixture
     def utils(self):
         def make_input_video(c_dim=1):
-            input_shape = [2, 3, 32, 32, 32]
+            input_shape = [1, 3, 16, 224, 224]
             input_video = torch.randint(10, input_shape).float()
             input_video = (
                 shift_dim(input_video, 1, c_dim) if c_dim != 1 else input_video
@@ -97,11 +99,11 @@ class TestVideoEncoder:
     def test_forward(self, utils):
         make_input_video = utils
         input_video = make_input_video()
-        encoder = VideoEncoder()
+        encoder = VideoEncoder(base=S3D(num_classes=400), return_node_name="features")
         out = encoder(input_video)
-        expected_sum = 846.3781
+        expected_sum = 408.3521
         assert_expected(
-            actual=out.shape, expected=torch.Size([2, 1024])
+            actual=out.shape, expected=torch.Size([1, 1024])
         )  # batch x embedding
         assert_expected(
             actual=out.sum(), expected=torch.as_tensor(expected_sum), rtol=0, atol=1e-3
@@ -111,7 +113,7 @@ class TestVideoEncoder:
     def test_invalid_channels(self, utils):
         make_input_video = utils
         input_video = make_input_video(c_dim=3)
-        encoder = VideoEncoder()
+        encoder = VideoEncoder(base=S3D(num_classes=400), return_node_name="features")
         with pytest.raises(ValueError):
             encoder(input_video)
 
@@ -147,7 +149,7 @@ class TestVideoCLIPBuilder:
                 [101, 2117, 7820, 3793, 102, 0, 0, 0, 0],
             ]
         ).to(dtype=int)
-        input_video = torch.randint(10, [2, 3, 32, 32, 32]).float()
+        input_video = torch.randint(10, [2, 3, 16, 224, 224]).float()
         return input_text, input_video
 
     def test_forward_pretrained_trainable(self, utils, mocker):
@@ -164,7 +166,7 @@ class TestVideoCLIPBuilder:
         assert_expected(
             actual=output.embeddings_a,
             expected=torch.Tensor(
-                [[-0.7332, 0.6777, 0.0556], [-0.7345, 0.6761, 0.0583]]
+                [[-0.4496, -0.3655, 0.8150], [0.2190, -0.7907, 0.5717]]
             ),
             rtol=0,
             atol=1e-3,
@@ -172,7 +174,7 @@ class TestVideoCLIPBuilder:
         assert_expected(
             actual=output.embeddings_b,
             expected=torch.Tensor(
-                [[0.7953, -0.5579, -0.2374], [0.8051, -0.2850, -0.5202]]
+                [[-0.4663, -0.3473, 0.8136], [0.5363, -0.8013, 0.2651]]
             ),
             rtol=0,
             atol=1e-3,
@@ -201,7 +203,7 @@ class TestVideoCLIPBuilder:
         assert_expected(
             actual=output.embeddings_a,
             expected=torch.Tensor(
-                [[-0.3398, 0.8129, -0.4730], [-0.8151, 0.4487, 0.3664]]
+                [[0.8148, -0.4534, -0.3613], [0.8138, -0.3499, -0.4639]]
             ),
             rtol=0,
             atol=1e-3,
@@ -209,7 +211,7 @@ class TestVideoCLIPBuilder:
         assert_expected(
             actual=output.embeddings_b,
             expected=torch.Tensor(
-                [[0.4003, -0.8164, 0.4162], [-0.2378, -0.5576, 0.7953]]
+                [[0.7963, -0.2418, -0.5545], [0.8114, -0.3272, -0.4843]]
             ),
             rtol=0,
             atol=1e-3,

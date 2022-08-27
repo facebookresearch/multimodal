@@ -8,17 +8,19 @@ import warnings
 from typing import Any, Dict, Optional
 
 import torch
-from examples.mugen.retrieval.s3d import S3D
+
 from torch import nn
 
 from torchmultimodal.models.clip.model import CLIP
 from torchmultimodal.utils.common import load_module_from_url
+from torchvision.models.feature_extraction import create_feature_extractor
+
+from torchvision.models.video import S3D, S3D_Weights
 from transformers import DistilBertConfig, DistilBertModel
 
 
-PRETRAINED_S3D_KINETICS400_URL = (
-    "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/S3D_kinetics400.pt"
-)
+weights = S3D_Weights.DEFAULT
+PRETRAINED_S3D_KINETICS400_URL = weights.url
 
 
 class TextEncoder(nn.Module):
@@ -75,26 +77,40 @@ class VideoEncoder(nn.Module):
     Adapted from MUGEN's video encoder
         (https://github.com/mugen-org/MUGEN_baseline/blob/main/lib/models/videoclip/modules.py)
 
+    Attributes:
+        model (nn.Module): Module extracted from :class:`~torchvision.models.video.S3D`.
+            Code reference: https://github.com/pytorch/vision/blob/main/torchvision/models/video/s3d.py
+        return_node_name (str): Name of the last layer extracted from S3D.
+        out_dim (int): Output dimension of VideoEncoder.
+
     Inputs:
         x (Tensor): batch of videos with dimensions (batch, channel, time, height, width)
             Size of ``channel`` dimension must be ``3``.
 
     """
 
-    def __init__(
-        self,
-    ):
+    def __init__(self, base: nn.Module, return_node_name: str) -> None:
         super().__init__()
-        self.model = S3D(400)
-        self.out_dim = self.model.fc.in_channels
-        self.model.fc = nn.Identity()
+        self.model = create_feature_extractor(base, [return_node_name])
+        self.return_node_name = return_node_name
+        # Dry run to get the `out_channel` dim of the returned leaf node
+        # or `in_channel` dim of the first removed layer
+        x = torch.randn(1, 3, 16, 224, 224)
+        with torch.no_grad():
+            out = self.model(x)[return_node_name]
+        self.out_dim = out.shape[1]
+        self.avgpool = nn.AvgPool3d(kernel_size=(2, 7, 7), stride=1)
 
     def forward(self, x):
         if x.shape[1] != 3:
             raise ValueError(
                 "Channels must be at first (zero-indexed) dimension of input and of size 3."
             )
-        return self.model(x)
+        x = self.model(x)[self.return_node_name]
+        x = self.avgpool(x)
+        x = torch.mean(x, dim=(2, 3, 4))
+
+        return x
 
 
 class Projection(nn.Module):
@@ -138,6 +154,8 @@ def videoclip(
     text_model_name: str = "distilbert-base-uncased",
     text_model_config: Optional[Dict[str, Any]] = None,
     text_padding_value: int = 0,
+    s3d_num_classes: int = 400,
+    s3d_return_node_name: str = "features",
     video_pretrained: bool = True,
     video_trainable: bool = True,
     video_pretrain_path: str = PRETRAINED_S3D_KINETICS400_URL,
@@ -158,6 +176,8 @@ def videoclip(
             Defaults to ``None``, indicating the default DistilBERT config.
         text_padding_value (int): value that was used to pad the input text.
             Defaults to ``0``, Hugging Face's BERT pad token.
+        s3d_num_classes (int): number of classes for classification of S3D model. Defaults to ``400``.
+        s3d_return_node_name (str): name of the leaf node for S3D feature extraction. Defaults to ``features``.
         video_pretrained (bool): whether to use a pretrained model or not.
             Defaults to ``True``.
         video_trainable (bool): whether the video encoder's weights should be trainable.
@@ -193,10 +213,15 @@ def videoclip(
         Projection(text_model.out_dim, out_dim=proj_out_dim, dropout_prob=proj_dropout),
     )
 
-    video_model = VideoEncoder()
+    video_base_model = S3D(num_classes=s3d_num_classes)
     if video_pretrained:
         print(f"Loading pretrained video encoder from {video_pretrain_path}.")
-        load_module_from_url(video_model, video_pretrain_path)
+        load_module_from_url(video_base_model, video_pretrain_path)
+
+    video_model = VideoEncoder(
+        base=video_base_model, return_node_name=s3d_return_node_name
+    )
+
     if video_pretrained and not video_trainable:
         # check `video_pretrained` because if model isn't pretrained, then it should be trainable
         for p in video_model.model.parameters():
