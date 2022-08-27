@@ -15,12 +15,13 @@ from torchmultimodal.models.clip.model import CLIP
 from torchmultimodal.utils.common import load_module_from_url
 from torchvision.models.feature_extraction import create_feature_extractor
 
-from torchvision.models.video import S3D, S3D_Weights
+from torchvision.models.video import S3D
 from transformers import DistilBertConfig, DistilBertModel
 
 
-weights = S3D_Weights.DEFAULT
-PRETRAINED_S3D_KINETICS400_URL = weights.url
+PRETRAINED_S3D_KINETICS400_URL = (
+    "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/S3D_kinetics400_v1.pth"
+)
 
 
 class TextEncoder(nn.Module):
@@ -89,15 +90,16 @@ class VideoEncoder(nn.Module):
 
     """
 
-    def __init__(self, base: nn.Module, return_node_name: str) -> None:
+    def __init__(self, num_classes: int = 400) -> None:
         super().__init__()
-        self.model = create_feature_extractor(base, [return_node_name])
-        self.return_node_name = return_node_name
+        base = S3D(num_classes=num_classes)
+        self.return_node_name = "features"
+        self.model = create_feature_extractor(base, [self.return_node_name])
         # Dry run to get the `out_channel` dim of the returned leaf node
         # or `in_channel` dim of the first removed layer
         x = torch.randn(1, 3, 16, 224, 224)
         with torch.no_grad():
-            out = self.model(x)[return_node_name]
+            out = self.model(x)[self.return_node_name]
         self.out_dim = out.shape[1]
         self.avgpool = nn.AvgPool3d(kernel_size=(2, 7, 7), stride=1)
 
@@ -155,7 +157,6 @@ def videoclip(
     text_model_config: Optional[Dict[str, Any]] = None,
     text_padding_value: int = 0,
     s3d_num_classes: int = 400,
-    s3d_return_node_name: str = "features",
     video_pretrained: bool = True,
     video_trainable: bool = True,
     video_pretrain_path: str = PRETRAINED_S3D_KINETICS400_URL,
@@ -177,7 +178,6 @@ def videoclip(
         text_padding_value (int): value that was used to pad the input text.
             Defaults to ``0``, Hugging Face's BERT pad token.
         s3d_num_classes (int): number of classes for classification of S3D model. Defaults to ``400``.
-        s3d_return_node_name (str): name of the leaf node for S3D feature extraction. Defaults to ``features``.
         video_pretrained (bool): whether to use a pretrained model or not.
             Defaults to ``True``.
         video_trainable (bool): whether the video encoder's weights should be trainable.
@@ -213,14 +213,10 @@ def videoclip(
         Projection(text_model.out_dim, out_dim=proj_out_dim, dropout_prob=proj_dropout),
     )
 
-    video_base_model = S3D(num_classes=s3d_num_classes)
+    video_model = VideoEncoder(num_classes=s3d_num_classes)
     if video_pretrained:
         print(f"Loading pretrained video encoder from {video_pretrain_path}.")
-        load_module_from_url(video_base_model, video_pretrain_path)
-
-    video_model = VideoEncoder(
-        base=video_base_model, return_node_name=s3d_return_node_name
-    )
+        load_module_from_url(video_model, video_pretrain_path)
 
     if video_pretrained and not video_trainable:
         # check `video_pretrained` because if model isn't pretrained, then it should be trainable

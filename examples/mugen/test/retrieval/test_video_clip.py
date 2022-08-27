@@ -17,8 +17,6 @@ from test.test_utils import assert_expected, get_asset_path, set_rng_seed
 from torchmultimodal import _PATH_MANAGER
 from torchmultimodal.utils.common import shift_dim
 
-from torchvision.models.video import S3D
-
 
 def patch_load_module_from_url(mocker):
     """Mock the ``load_module_from_url`` utility function used in ``videoclip()`` to allow
@@ -99,7 +97,7 @@ class TestVideoEncoder:
     def test_forward(self, utils):
         make_input_video = utils
         input_video = make_input_video()
-        encoder = VideoEncoder(base=S3D(num_classes=400), return_node_name="features")
+        encoder = VideoEncoder()
         out = encoder(input_video)
         expected_sum = 408.3521
         assert_expected(
@@ -113,7 +111,7 @@ class TestVideoEncoder:
     def test_invalid_channels(self, utils):
         make_input_video = utils
         input_video = make_input_video(c_dim=3)
-        encoder = VideoEncoder(base=S3D(num_classes=400), return_node_name="features")
+        encoder = VideoEncoder()
         with pytest.raises(ValueError):
             encoder(input_video)
 
