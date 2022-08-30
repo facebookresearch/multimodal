@@ -8,7 +8,10 @@ import pytest
 import torch
 
 from test.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.models.mdetr.model import mdetr_resnet101
+from torchmultimodal.models.mdetr.model import (
+    mdetr_for_phrase_grounding,
+    mdetr_resnet101,
+)
 
 
 class TestMDETR:
@@ -112,3 +115,111 @@ class TestMDETR:
         assert boxes_actual.size() == (batch_size, num_queries, 4)
         assert_expected(logits_actual[1, :10, 1], logits_expected, rtol=0, atol=1e-3)
         assert_expected(boxes_actual[1, :10, 1], boxes_expected, rtol=0, atol=1e-3)
+
+    @pytest.fixture(autouse=True)
+    def contrastive_dim(self):
+        return 64
+
+    @pytest.fixture()
+    def mdetr_model_for_phrase_grounding(self, contrastive_dim):
+        return mdetr_for_phrase_grounding(contrastive_dim=contrastive_dim)
+
+    def test_mdetr_model_for_phrase_grounding(
+        self,
+        mdetr_model_for_phrase_grounding,
+        test_tensors,
+        input_ids,
+        batch_size,
+        num_queries,
+        contrastive_dim,
+    ):
+        out = mdetr_model_for_phrase_grounding(test_tensors, input_ids)
+        logits_actual = out.model_output.pred_logits
+        boxes_actual = out.model_output.pred_boxes
+
+        logits_expected = torch.Tensor(
+            [
+                -0.1245,
+                -0.5103,
+                0.2710,
+                -0.2171,
+                -0.0561,
+                0.2635,
+                0.2804,
+                -0.0415,
+                0.2091,
+                0.0110,
+            ]
+        )
+        boxes_expected = torch.Tensor(
+            [
+                0.4789,
+                0.4920,
+                0.4898,
+                0.4905,
+                0.4765,
+                0.4794,
+                0.4932,
+                0.4683,
+                0.4845,
+                0.4789,
+            ]
+        )
+
+        assert_expected(logits_actual[1, :10, 1], logits_expected, rtol=0, atol=1e-3)
+        assert_expected(boxes_actual[1, :10, 1], boxes_expected, rtol=0, atol=1e-3)
+
+        query_embeddings_actual = out.contrastive_embeddings.query_embeddings
+        token_embeddings_actual = out.contrastive_embeddings.token_embeddings
+        query_embeddings_expected = torch.Tensor(
+            [
+                0.3083,
+                0.3146,
+                0.3221,
+                0.2411,
+                0.2673,
+                0.3152,
+                0.2798,
+                0.2321,
+                0.2433,
+                0.2321,
+            ]
+        )
+        token_embeddings_expected = torch.Tensor(
+            [
+                0.2002,
+                0.1153,
+                0.1196,
+                0.2104,
+                0.1716,
+                0.1975,
+                0.1587,
+                0.1740,
+                0.1350,
+                0.1383,
+            ]
+        )
+
+        assert query_embeddings_actual.size() == (
+            batch_size,
+            num_queries,
+            contrastive_dim,
+        )
+        assert token_embeddings_actual.size() == (
+            batch_size,
+            input_ids.size()[1],
+            contrastive_dim,
+        )
+
+        assert_expected(
+            query_embeddings_actual[1, :10, 1],
+            query_embeddings_expected,
+            rtol=0,
+            atol=1e-3,
+        )
+        assert_expected(
+            token_embeddings_actual[1, :10, 1],
+            token_embeddings_expected,
+            rtol=0,
+            atol=1e-3,
+        )
