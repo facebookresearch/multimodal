@@ -518,11 +518,7 @@ def flava_model_for_pretraining(
     # TODO: Add parameters for loss here
 ) -> FLAVAForPreTraining:
     model = flava_model(**flava_model_kwargs)
-    hidden_size = (
-        flava_model_kwargs.get("multimodal_hidden_size", 768)
-        if flava_model_kwargs
-        else 768
-    )
+    hidden_size = flava_model_kwargs.get("multimodal_hidden_size", 768)
     losses = FLAVAPretrainingLoss(hidden_size=hidden_size)
     codebook = DalleVAEEncoder(image_size=codebook_image_size)
 
