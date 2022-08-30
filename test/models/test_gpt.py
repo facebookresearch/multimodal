@@ -402,15 +402,15 @@ class TestMultimodalGPT:
             "decoder_output": {
                 "last_hidden_states": (
                     torch.Size([1, 7, 4]),  # (b, seq_len, d_model)
-                    9.4419,
+                    -10.8185,
                 ),
                 "hidden_states": None,
                 "attention_weights": None,
                 "past_key_values": (
                     (
                         {
-                            "k": (torch.Size([1, 2, 7, 2]), -5.5201),
-                            "v": (torch.Size([1, 2, 7, 2]), -6.1666),
+                            "k": (torch.Size([1, 2, 7, 2]), 8.3626),
+                            "v": (torch.Size([1, 2, 7, 2]), 3.4256),
                         }
                     ),
                 ),  # (num_layers, key/value, (b, n_head, seq_len, d_model // n_head)
@@ -474,7 +474,7 @@ class TestMultimodalTransformerDecoder:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 3, 4]),
-                4.1420,
+                -3.3081,
             ),  # (b, in_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
@@ -489,7 +489,7 @@ class TestMultimodalTransformerDecoder:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 4, 4]),
-                5.5382,
+                -4.9438,
             ),  # (b, out_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
@@ -507,7 +507,7 @@ class TestMultimodalTransformerDecoder:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 7, 4]),
-                9.6968,
+                -7.2657,
             ),  # (b, in_seq_len + out_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
@@ -535,7 +535,7 @@ class TestMultimodalTransformerDecoder:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 7, 4]),
-                9.6968,
+                -7.2657,
             ),  # (b, in_seq_len + out_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
@@ -562,7 +562,7 @@ class TestMultimodalTransformerDecoder:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 7, 4]),
-                9.7036,
+                -8.0229,
             ),  # (b, in_seq_len + out_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
@@ -623,7 +623,7 @@ class TestTransformerDecoderLayer:
         actual = decoder_layer(decoder_input)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
-            "hidden_states": (torch.Size([1, 3, 4]), 0.4808),  # (b, seq_len, d_model)
+            "hidden_states": (torch.Size([1, 3, 4]), 2.8170),  # (b, seq_len, d_model)
             "attention_weights": None,
             "past_key_values": None,
         }
@@ -636,7 +636,7 @@ class TestTransformerDecoderLayer:
         actual = decoder_layer(decoder_input, attn_mask, head_mask)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
-            "hidden_states": (torch.Size([1, 3, 4]), 1.5776),  # (b, seq_len, seq_len)
+            "hidden_states": (torch.Size([1, 3, 4]), 2.8429),  # (b, seq_len, seq_len)
             "attention_weights": None,
             "past_key_values": None,
         }
@@ -646,14 +646,14 @@ class TestTransformerDecoderLayer:
         actual = decoder_layer(decoder_input, use_cache=True, return_attn_weights=True)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
-            "hidden_states": (torch.Size([1, 3, 4]), 0.4808),  # (b, seq_len, seq_len)
+            "hidden_states": (torch.Size([1, 3, 4]), 2.8170),  # (b, seq_len, seq_len)
             "attention_weights": (
                 torch.Size([1, 2, 3, 3]),
                 6.0,
             ),  # (b, h, seq_len, seq_len)
             "past_key_values": {
-                "k": ([1, 2, 3, 2], -0.3156),
-                "v": ([1, 2, 3, 2], 5.1630),
+                "k": ([1, 2, 3, 2], 4.8075),
+                "v": ([1, 2, 3, 2], -5.6613),
             },  # (b, h, seq_len, d_model//h)
         }
         assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)

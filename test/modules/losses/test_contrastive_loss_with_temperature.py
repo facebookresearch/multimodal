@@ -4,41 +4,71 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import unittest
 from itertools import chain
 from typing import List
+
+import pytest
 
 import torch
 import torch.multiprocessing as mp
 import torch.nn as nn
 import torch.optim as optim
-from test.test_utils import gpu_test, init_distributed_on_file, with_temp_files
-from torch import distributed as dist
+
+from test.test_utils import (
+    assert_expected,
+    gpu_test,
+    init_distributed_on_file,
+    set_rng_seed,
+    with_temp_files,
+)
+from torch import distributed as dist, Tensor
 from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
     ContrastiveLossWithTemperature,
 )
 from torchmultimodal.utils.common import get_current_device
 
 
-class TestContrastiveLossWithTemperature(unittest.TestCase):
+class TestContrastiveLossWithTemperature:
     """
     Test the contrastive loss with temperature param
     """
 
-    def setUp(self):
-        torch.manual_seed(0)
-        torch.cuda.manual_seed(0)
+    @pytest.fixture(autouse=True)
+    def set_seed(self):
+        set_rng_seed(0)
         torch.backends.cudnn.deterministic = True
-        self.num_iterations = 1
-        self.global_batch_size = 4
-        self.embedding_dim = 3
-        self.text_dim = 5
-        self.image_dim = 8
-        self.all_images = torch.randn(size=(self.global_batch_size, self.image_dim))
-        self.all_texts = torch.randn(size=(self.global_batch_size, self.text_dim))
-        # Create a simple model
-        self.image_encoder = nn.Linear(self.image_dim, self.embedding_dim)
-        self.text_encoder = nn.Linear(self.text_dim, self.embedding_dim)
+
+    @pytest.fixture()
+    def text_dim(self):
+        return 5
+
+    @pytest.fixture()
+    def image_dim(self):
+        return 8
+
+    @pytest.fixture()
+    def embedding_dim(self):
+        return 3
+
+    @pytest.fixture()
+    def global_batch_size(self):
+        return 4
+
+    @pytest.fixture()
+    def text_tensor(self, global_batch_size, text_dim):
+        return torch.randn(global_batch_size, text_dim)
+
+    @pytest.fixture()
+    def image_tensor(self, global_batch_size, image_dim):
+        return torch.randn(global_batch_size, image_dim)
+
+    @pytest.fixture()
+    def text_encoder(self, text_dim, embedding_dim):
+        return nn.Linear(text_dim, embedding_dim)
+
+    @pytest.fixture()
+    def image_encoder(self, image_dim, embedding_dim):
+        return nn.Linear(image_dim, embedding_dim)
 
     def test_local_loss(self):
         torch.manual_seed(1234)
@@ -50,8 +80,7 @@ class TestContrastiveLossWithTemperature(unittest.TestCase):
             image_embeddings=image_embeddings, text_embeddings=text_embeddings
         )
 
-        self.assertEqual(loss.size(), torch.Size([]))
-        self.assertAlmostEqual(loss.item(), 9.8753, 3)
+        assert_expected(loss.item(), 9.8753, rtol=0, atol=1e-3)
 
     def test_temperature_clamp_max(self):
         torch.manual_seed(1234)
@@ -65,7 +94,7 @@ class TestContrastiveLossWithTemperature(unittest.TestCase):
         text_embeddings = torch.randn(3, 5)
         loss_at_max = clip_loss_at_max(image_embeddings, text_embeddings).item()
         loss_above_max = clip_loss_above_max(image_embeddings, text_embeddings).item()
-        self.assertAlmostEqual(first=loss_above_max, second=loss_at_max, places=3)
+        assert_expected(loss_above_max, loss_at_max, rtol=0, atol=1e-3)
 
     def test_temperature_clamp_min(self):
         torch.manual_seed(1234)
@@ -79,7 +108,7 @@ class TestContrastiveLossWithTemperature(unittest.TestCase):
         text_embeddings = torch.randn(3, 5)
         loss_at_min = clip_loss_at_min(image_embeddings, text_embeddings).item()
         loss_below_min = clip_loss_below_min(image_embeddings, text_embeddings).item()
-        self.assertAlmostEqual(first=loss_below_min, second=loss_at_min, places=3)
+        assert_expected(loss_below_min, loss_at_min, rtol=0, atol=1e-3)
 
     def test_loss_with_ce_kwargs(self):
         torch.manual_seed(1234)
@@ -93,34 +122,35 @@ class TestContrastiveLossWithTemperature(unittest.TestCase):
             cross_entropy_kwargs={"label_smoothing": 0.1},
         )
 
-        self.assertEqual(loss.size(), torch.Size([]))
-        self.assertAlmostEqual(loss.item(), 10.2524, 3)
+        assert_expected(loss.item(), 10.2524, rtol=0, atol=1e-3)
 
     def test_temperature_clamp_invalid(self):
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError):
             ContrastiveLossWithTemperature(logit_scale_max=None, logit_scale_min=None)
 
     @staticmethod
     def _model_worker(
         gpu_id: int,
-        self,
         sync_file: str,
         world_size: int,
+        global_batch_size: int,
+        all_images: Tensor,
+        all_texts: Tensor,
+        image_encoder: nn.Module,
+        text_encoder: nn.Module,
     ):
         init_distributed_on_file(
             world_size=world_size, gpu_id=gpu_id, sync_file=sync_file
         )
-        assert self.global_batch_size % world_size == 0
-        local_batch_size = self.global_batch_size // world_size
+        assert global_batch_size % world_size == 0
+        local_batch_size = global_batch_size // world_size
 
         # Split images and text across GPUs
-        local_images = torch.split(self.all_images, local_batch_size)[gpu_id].cuda(
-            gpu_id
-        )
-        local_texts = torch.split(self.all_texts, local_batch_size)[gpu_id].cuda(gpu_id)
+        local_images = torch.split(all_images, local_batch_size)[gpu_id].cuda(gpu_id)
+        local_texts = torch.split(all_texts, local_batch_size)[gpu_id].cuda(gpu_id)
 
-        image_encoder = self.image_encoder.cuda(gpu_id)
-        text_encoder = self.text_encoder.cuda(gpu_id)
+        image_encoder = image_encoder.cuda(gpu_id)
+        text_encoder = text_encoder.cuda(gpu_id)
         loss_fn = ContrastiveLossWithTemperature()
         loss_fn = loss_fn.cuda(gpu_id)
 
@@ -150,36 +180,60 @@ class TestContrastiveLossWithTemperature(unittest.TestCase):
 
         # Gather losses from all devices
         gathered_loss = gather_grads(torch.Tensor([loss]).cuda(gpu_id))
-        self.assertAlmostEqual(gathered_loss.item(), 3.8848, 3)
+        assert_expected(gathered_loss.item(), 3.8848, rtol=0, atol=1e-3)
 
         # Gradients for image encoder weights
         img_encoder_weight_grad = gather_grads(image_encoder.weight.grad)
-        self.assertAlmostEqual(img_encoder_weight_grad.mean().item(), 0.0979, 2)
+        assert_expected(
+            img_encoder_weight_grad.mean().item(), 0.0979, rtol=0, atol=1e-3
+        )
 
         # Gradients for text encoder bias
         text_encoder_bias_grad = gather_grads(text_encoder.bias.grad)
-        self.assertAlmostEqual(text_encoder_bias_grad.mean().item(), -1.8151, 2)
+        assert_expected(
+            text_encoder_bias_grad.mean().item(), -1.8151, rtol=0, atol=1e-3
+        )
 
         # Logit scale gradient
         logit_scale_grad = gather_grads(loss_fn.logit_scale.grad)
-        self.assertAlmostEqual(logit_scale_grad.mean().item(), 3.6781, 2)
+        assert_expected(logit_scale_grad.mean().item(), 3.6792, rtol=0, atol=1e-3)
 
     @gpu_test(gpu_count=1)
-    def test_single_gpu_loss(self):
+    def test_single_gpu_loss(
+        self, global_batch_size, image_tensor, text_tensor, image_encoder, text_encoder
+    ):
         with with_temp_files(count=1) as sync_file:
             world_size = 1
             mp.spawn(
-                self._model_worker,
-                (self, sync_file, world_size),
+                TestContrastiveLossWithTemperature._model_worker,
+                (
+                    sync_file,
+                    world_size,
+                    global_batch_size,
+                    image_tensor,
+                    text_tensor,
+                    image_encoder,
+                    text_encoder,
+                ),
                 nprocs=world_size,
             )
 
     @gpu_test(gpu_count=2)
-    def test_multi_gpu_loss(self):
+    def test_multi_gpu_loss(
+        self, global_batch_size, image_tensor, text_tensor, image_encoder, text_encoder
+    ):
         with with_temp_files(count=1) as sync_file:
             world_size = 2
             mp.spawn(
-                self._model_worker,
-                (self, sync_file, world_size),
+                TestContrastiveLossWithTemperature._model_worker,
+                (
+                    sync_file,
+                    world_size,
+                    global_batch_size,
+                    image_tensor,
+                    text_tensor,
+                    image_encoder,
+                    text_encoder,
+                ),
                 nprocs=world_size,
             )

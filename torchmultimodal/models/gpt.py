@@ -593,11 +593,14 @@ class TransformerDecoderLayer(nn.Module):
         self.dropout_attn = nn.Dropout(dropout)
         self.dropout_mlp = nn.Dropout(dropout)
 
+        # No bias when projecting q, k, v in GPT model
+        # https://github.com/openai/gpt-2/blob/master/src/model.py#L54
         self.attention = MultiHeadAttention(
             dim_q=d_model,
             dim_kv=d_model,
             n_head=n_head,
             attn_module=attn_module,
+            add_bias=False,
         )
 
         self.mlp = MLP(
