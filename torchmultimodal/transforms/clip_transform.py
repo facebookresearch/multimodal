@@ -62,9 +62,9 @@ class CLIPTextTransform:
         self.text_transform = text_transforms.Sequential(
             *[
                 tokenizer,
+                text_transforms.Truncate(text_max_length - 2),
                 text_transforms.AddToken(text_start_token, begin=True),
                 text_transforms.AddToken(text_end_token, begin=False),
-                text_transforms.Truncate(text_max_length),
                 text_transforms.StrToIntTransform(),
                 text_transforms.ToTensor(padding_value=0),
                 text_transforms.PadTransform(max_length=text_max_length, pad_value=0),

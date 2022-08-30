@@ -66,7 +66,7 @@ class TestVideoGPT:
 
         actual = model.encode(x, "in")
         assert_expected(actual.shape, (1, 8192))
-        assert_expected(actual.sum().item(), 6678698)
+        assert_expected(actual.sum().item(), 6678187)
 
     def test_decode(self, model_fn, model_params):
         model = model_fn(**model_params)
@@ -77,7 +77,7 @@ class TestVideoGPT:
 
         actual = model.decode(x)
         assert_expected(actual.shape, (1, 3, 16, 64, 64))
-        assert_expected(actual.sum().item(), 14651.1406, rtol=1e-5, atol=1e-4)
+        assert_expected(actual.sum().item(), 14629.2432, rtol=1e-5, atol=1e-4)
 
     @pytest.mark.parametrize(
         "modality, expected_shape, expected_sum",
