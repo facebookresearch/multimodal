@@ -212,3 +212,13 @@ class TestVQVAE:
             vqvae.lookup(indices)
 
         mock_codebook.assert_called_once()
+
+    def test_num_embeddings(self, vqvae, num_embeddings):
+        actual = vqvae.num_embeddings
+        expected = num_embeddings
+        assert_expected(actual, expected)
+
+    def test_embedding_dim(self, vqvae, embedding_dim):
+        actual = vqvae.embedding_dim
+        expected = embedding_dim
+        assert_expected(actual, expected)
