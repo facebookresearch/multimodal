@@ -27,14 +27,19 @@ def get_extended_attention_mask(attention_mask: Tensor) -> Tensor:
         extended_attention_mask (Tensor):
             The broadcastable attention mask, with the same dtype as ``attention_mask.dtype``.
     """
-    # We can provide a self-attention mask of dimensions [batch_size, query_seq_length, key_seq_length]
-    # ourselves in which case we just need to make it broadcastable to all heads,
-    # [batch_size, num_heads, query_seq_length, key_seq_length].
-    if attention_mask.dim() == 3:
+    if attention_mask.dim() == 4:
+        # Mask has already been broadcasted to the correct shape (either
+        # [batch_size, num_heads, query_seq_length, key_seq_length] for causal case or
+        # [batch_size, num_heads, seq_length, seq_length] for padding case)
+        extended_attention_mask = attention_mask
+    elif attention_mask.dim() == 3:
+        # We can provide a self-attention mask of dimensions [batch_size, query_seq_length, key_seq_length]
+        # ourselves in which case we just need to make it broadcastable to all heads,
+        # [batch_size, num_heads, query_seq_length, key_seq_length].
         extended_attention_mask = attention_mask[:, None, :, :]
     elif attention_mask.dim() == 2:
         # Provided a padding mask of dimensions [batch_size, seq_length]
-        # - if the model is an encoder, make the mask broadcastable to [batch_size, num_heads, seq_length, seq_length]
+        # if the model is an encoder, make the mask broadcastable to [batch_size, num_heads, seq_length, seq_length]
         extended_attention_mask = attention_mask[:, None, None, :]
     else:
         raise ValueError(
