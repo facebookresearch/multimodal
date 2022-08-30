@@ -10,8 +10,10 @@ import torch
 from test.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.models.mdetr.model import (
     mdetr_for_phrase_grounding,
+    mdetr_for_vqa,
     mdetr_resnet101,
 )
+from torchmultimodal.utils.common import remove_grad
 
 
 class TestMDETR:
@@ -220,6 +222,163 @@ class TestMDETR:
         assert_expected(
             token_embeddings_actual[1, :10, 1],
             token_embeddings_expected,
+            rtol=0,
+            atol=1e-3,
+        )
+
+    @pytest.fixture()
+    def mdetr_model_for_vqa(self):
+        model = mdetr_for_vqa()
+        model.eval()
+        remove_grad(model)
+        return model
+
+    def test_mdetr_model_for_vqa(
+        self,
+        mdetr_model_for_vqa,
+        test_tensors,
+        input_ids,
+        batch_size,
+        num_queries,
+    ):
+        out = mdetr_model_for_vqa(test_tensors, input_ids)
+        # logits_actual = out.model_output.pred_logits
+        # boxes_actual = out.model_output.pred_boxes
+
+        # logits_expected = torch.Tensor(
+
+        # )
+        # boxes_expected = torch.Tensor(
+
+        # )
+
+        # assert_expected(logits_actual[1, :10, 1], logits_expected, rtol=0, atol=1e-3)
+        # assert_expected(boxes_actual[1, :10, 1], boxes_expected, rtol=0, atol=1e-3)
+
+        # query_embeddings_actual = out.contrastive_embeddings.query_embeddings
+        # token_embeddings_actual = out.contrastive_embeddings.token_embeddings
+        # query_embeddings_expected = torch.Tensor(
+
+        # )
+        # token_embeddings_expected = torch.Tensor(
+
+        # )
+
+        # assert_expected(
+        #     query_embeddings_actual[1, :10, 1],
+        #     query_embeddings_expected,
+        #     rtol=0,
+        #     atol=1e-3,
+        # )
+        # assert_expected(
+        #     token_embeddings_actual[1, :10, 1],
+        #     token_embeddings_expected,
+        #     rtol=0,
+        #     atol=1e-3,
+        # )
+
+        # Finally, check the vqa heads
+        answer_type_actual = out.vqa_preds["answer_type"]
+        answer_obj_actual = out.vqa_preds["answer_obj"]
+        answer_rel_actual = out.vqa_preds["answer_rel"]
+        answer_attr_actual = out.vqa_preds["answer_attr"]
+        answer_cat_actual = out.vqa_preds["answer_cat"]
+        answer_global_actual = out.vqa_preds["answer_global"]
+
+        answer_type_expected = torch.Tensor(
+            [-0.5345, -0.5067, -0.4841, -0.7165, -0.1300]
+        )
+        answer_obj_expected = torch.Tensor([0.7397, -0.7879, -1.1478])
+        answer_rel_expected = torch.Tensor(
+            [
+                0.1138,
+                -0.0270,
+                0.5583,
+                -0.0701,
+                0.5942,
+                -0.5173,
+                0.2762,
+                -0.7870,
+                -0.3243,
+                0.1833,
+            ]
+        )
+        answer_attr_expected = torch.Tensor(
+            [
+                0.1531,
+                -0.5439,
+                0.9922,
+                1.1380,
+                -0.3717,
+                -0.1283,
+                -0.3008,
+                0.7216,
+                -0.2271,
+                -0.0351,
+            ]
+        )
+        answer_cat_expected = torch.Tensor(
+            [
+                0.1644,
+                -0.1254,
+                -0.2684,
+                0.3595,
+                -0.0538,
+                0.3129,
+                -1.0193,
+                -0.4543,
+                0.4901,
+                -1.1946,
+            ]
+        )
+        answer_global_expected = torch.Tensor(
+            [
+                0.8541,
+                -0.0703,
+                -0.2690,
+                0.5855,
+                1.7249,
+                0.3501,
+                -0.3301,
+                -0.5751,
+                -0.1189,
+                0.8937,
+            ]
+        )
+
+        assert_expected(
+            answer_type_actual[1],
+            answer_type_expected,
+            rtol=0,
+            atol=1e-3,
+        )
+        assert_expected(
+            answer_obj_actual[1],
+            answer_obj_expected,
+            rtol=0,
+            atol=1e-3,
+        )
+        assert_expected(
+            answer_rel_actual[1, :10],
+            answer_rel_expected,
+            rtol=0,
+            atol=1e-3,
+        )
+        assert_expected(
+            answer_attr_actual[1, :10],
+            answer_attr_expected,
+            rtol=0,
+            atol=1e-3,
+        )
+        assert_expected(
+            answer_cat_actual[1, :10],
+            answer_cat_expected,
+            rtol=0,
+            atol=1e-3,
+        )
+        assert_expected(
+            answer_global_actual[1, :10],
+            answer_global_expected,
             rtol=0,
             atol=1e-3,
         )
