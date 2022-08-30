@@ -97,7 +97,9 @@ class ALBEFModel(nn.Module):
         image_embeds = self.vision_encoder(image)
         text_embeds = self.text_encoder(text, text_atts)
         multimodal_embeddings = self.multimodal_encoder(
-            image_embeds, text_embeds.last_hidden_state, text_atts
+            hidden_states=text_embeds.last_hidden_state,
+            attention_mask=text_atts,
+            encoder_hidden_states=image_embeds,
         )
 
         with torch.no_grad():
@@ -109,7 +111,9 @@ class ALBEFModel(nn.Module):
             image_embeds_m = self.vision_encoder_m(image)
             text_embeds_m = self.text_encoder_m(text, text_atts)
             multimodal_embeddings_m = self.multimodal_encoder_m(
-                image_embeds_m, text_embeds_m.last_hidden_state, text_atts
+                hidden_states=text_embeds_m.last_hidden_state,
+                attention_mask=text_atts,
+                encoder_hidden_states=image_embeds_m,
             )
 
         return ALBEFOutput(
@@ -128,10 +132,10 @@ class ALBEFModelWithSimilarity(nn.Module):
     negative image-text pairs multimodal embeddings, and image-text similarity, as used in ITC
     and ITM losses.
 
-    Args:   model (ALBEFModel): Instantiated ALBEF model.
+    Args:   albef_model (ALBEFModel): Instantiated ALBEF model.
             vision_proj (nn.Module): Instantiated vision projection layer.
             text_proj (nn.Module): Instantiated text projection layer.
-            embed_dim (int): Embedding size of the vision and text projection layers. Default is 256.
+            embed_size (int): Embedding size of the vision and text projection layers. Default is 256.
             queue_size (int): Size of image and text queues for momentum distillation. Default is 65536.
             masked_token_id (int): The token id indicating a masked token. Default is -100.
             temp (float): Temperature parameter. Default is 0.07.
@@ -144,16 +148,16 @@ class ALBEFModelWithSimilarity(nn.Module):
 
     def __init__(
         self,
-        model: ALBEFModel,
+        albef_model: ALBEFModel,
         vision_proj: nn.Module,
         text_proj: nn.Module,
-        embed_dim: int = 256,
+        embed_size: int = 256,
         queue_size: int = 65536,
         mask_token_id: int = -100,
         temp: float = 0.07,
     ) -> None:
         super().__init__()
-        self.model = model
+        self.albef_model = albef_model
         self.vision_proj = vision_proj
         self.text_proj = text_proj
         self.vision_proj_m = copy.deepcopy(vision_proj)
@@ -163,12 +167,12 @@ class ALBEFModelWithSimilarity(nn.Module):
         remove_grad(self.text_proj_m)
 
         self.queue_size = queue_size
-        self.temp = temp
+        self.temp = nn.Parameter(torch.ones([]) * temp)
 
         # queues keep track of the most recent M image and text representations for momentum distillation
         # queues decouple M from the batch size, allowing it to be big
-        self.register_buffer("image_queue", torch.randn(embed_dim, queue_size))
-        self.register_buffer("text_queue", torch.randn(embed_dim, queue_size))
+        self.register_buffer("image_queue", torch.randn(embed_size, queue_size))
+        self.register_buffer("text_queue", torch.randn(embed_size, queue_size))
         self.register_buffer(
             "idx_queue", torch.full((1, self.queue_size), mask_token_id)
         )
@@ -188,7 +192,7 @@ class ALBEFModelWithSimilarity(nn.Module):
         text_atts: Tensor,
         idx: Tensor,
     ) -> ALBEFWithSimilarityOutput:
-        outputs = self.model(image, text, text_atts)
+        outputs = self.albef_model(image, text, text_atts)
 
         # reshape idx to (B, 1)
         idx = idx.view(-1, 1)
@@ -207,10 +211,10 @@ class ALBEFModelWithSimilarity(nn.Module):
         image_embeds_neg, text_embeds_neg, text_atts_neg = self._neg_embeddings(
             outputs.image_embeddings, outputs.text_embeddings, text_atts, similarity
         )
-        multimodal_embeddings_neg = self.model.multimodal_encoder(
-            torch.cat([image_embeds_neg, outputs.image_embeddings], dim=0),
+        multimodal_embeddings_neg = self.albef_model.multimodal_encoder(
             torch.cat([outputs.text_embeddings, text_embeds_neg], dim=0),
             torch.cat([text_atts, text_atts_neg], dim=0),
+            torch.cat([image_embeds_neg, outputs.image_embeddings], dim=0),
         )
 
         return ALBEFWithSimilarityOutput(
@@ -257,8 +261,10 @@ class ALBEFModelWithSimilarity(nn.Module):
         text_feat = F.normalize(self.text_proj(text_embeds[:, 0, :]), dim=-1)
 
         with torch.no_grad():
-            momentum_update(self.vision_proj, self.vision_proj_m, self.model.momentum)
-            momentum_update(self.text_proj, self.text_proj_m, self.model.momentum)
+            momentum_update(
+                self.vision_proj, self.vision_proj_m, self.albef_model.momentum
+            )
+            momentum_update(self.text_proj, self.text_proj_m, self.albef_model.momentum)
             image_feat_m = F.normalize(
                 self.vision_proj_m(image_embeds_m[:, 0, :]), dim=-1
             )

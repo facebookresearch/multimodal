@@ -11,6 +11,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, NamedTuple, Optional, Tuple, Union
 
+import pytest
 import torch
 import torch.distributed as dist
 from torch import Tensor
@@ -21,10 +22,8 @@ def gpu_test(gpu_count: int = 1):
     Annotation for GPU tests, skipping the test if the
     required amount of GPU is not available
     """
-    import unittest
-
     message = f"Not enough GPUs to run the test: required {gpu_count}"
-    return unittest.skipIf(torch.cuda.device_count() < gpu_count, message)
+    return pytest.mark.skipif(torch.cuda.device_count() < gpu_count, reason=message)
 
 
 def init_distributed_on_file(world_size: int, gpu_id: int, sync_file: str):
