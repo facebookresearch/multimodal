@@ -81,9 +81,11 @@ class TestCLIPTransform(unittest.TestCase):
         # Check encoding of long text
         actual_long_text = transformed_texts[-1]
         expected_long_text = torch.tensor(
-            [self.bos_token] + self.text1_tokens[1:-1] * 20 + [self.eos_token],
+            [self.bos_token]
+            + (self.text1_tokens[1:-1] * 20)[: self.context_length - 2]
+            + [self.eos_token],
             dtype=torch.long,
-        )[: self.context_length]
+        )
         assert_expected(actual_long_text, expected_long_text)
 
         # Check zero padding for short texts

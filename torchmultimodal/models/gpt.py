@@ -57,6 +57,7 @@ class MultimodalGPT(nn.Module):
             transformer decoder. Defaults to ``None``.
         norm_layer (Callable[..., nn.Module], optional): Which normalization layer to use. Supports ``nn.Module`` or
             partial. If ``None``, ``nn.LayerNorm`` will be used as the default.
+        use_gpt_init (bool): Whether to use GPT model specific initialization. Defaults to ``True``.
 
     Args:
         in_tokens (Tensor, optional): Tensor of dimension ``(b, in_seq_len, c)`` containing tokens
@@ -70,19 +71,20 @@ class MultimodalGPT(nn.Module):
         attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or ``(b, q_seq_len, k_seq_len)``
             where prefixes ``q`` and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s
             for masked positions. Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or ``(b, h, q_seq_len, k_seq_len)``.
-            Masks need to be specified for each attention head. Defaults to ``None``.
+        head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or
+            ``(b, h, q_seq_len, k_seq_len)``. Masks need to be specified for each attention head.
+            Defaults to ``None``.
         logits_mask (Tensor, optional): Tensor of dimension ``(seq_len, num_tokens)`` or ``(b, seq_len, num_tokens)``
             to ensure we only calculate probabilities from tokens of the corresponding modality sequence.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
-        causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
+        causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
         right_shift (bool): If ``True``, shifts the embedding vectors to the right and prepends it with start of
             sentence token. Defaults to ``False``. This option is disregarded during training mode
         return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
             layer. Defaults to ``False``.
-        return_hidden_states (bool): If ``True``, returns the embeddings of each transformer layer. Defaults to
-            ``False``.
+        return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
+            Defaults to ``False``.
 
     Raises:
         AttributeError: If input tokenizer does not implement methods ``encode`` and ``lookup`` or if output
@@ -101,6 +103,7 @@ class MultimodalGPT(nn.Module):
         in_projection: Optional[nn.Module] = None,
         out_projection: Optional[nn.Module] = None,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
+        use_gpt_init: bool = True,
     ) -> None:
         super().__init__()
         if not all(
@@ -136,6 +139,18 @@ class MultimodalGPT(nn.Module):
         # This will give us equal probabilities after the soft max layer initially to avoid biasing
         # towards any particular prediction category
         self.to_logit.weight.data.copy_(torch.zeros(num_tokens, d_model))
+
+        if use_gpt_init:
+            self.initialize_parameters()
+
+    def initialize_parameters(self) -> None:
+        # Initialize weights of the layers in question, e.g.,  after loading checkpoints
+        # Only do this when the layers have weights data, e.g., for text tokenizer the projection
+        # layer is dummy (nn.Identity)
+        if hasattr(self.in_projection, "weight"):
+            self.in_projection.weight.data.normal_(std=0.02)  # type: ignore
+        if hasattr(self.out_projection, "weight"):
+            self.out_projection.weight.data.normal_(std=0.02)  # type: ignore
 
     def forward(
         self,
@@ -359,13 +374,13 @@ class MultimodalTransformerDecoder(nn.Module):
             Masks need to be specified for each attention head. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
-        causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
+        causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
         right_shift (bool): If ``True``, shifts the embedding vectors to the right and prepends it with start of
             sentence token. Defaults to ``False``. This option is disregarded during training mode
         return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
             layer. Defaults to ``False``.
-        return_hidden_states (bool): If ``True``, returns the embeddings of each transformer layer. Defaults to
-            ``False``.
+        return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
+            Defaults to ``False``.
     """
 
     def __init__(
@@ -465,11 +480,11 @@ class TransformerDecoder(nn.Module):
             Masks need to be specified for each attention head. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
-        causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
+        causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
         return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
             layer. Defaults to ``False``.
-        return_hidden_states (bool): If ``True``, returns the embeddings of each transformer layer. Defaults to
-            ``False``.
+        return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
+            Defaults to ``False``.
     """
 
     def __init__(
@@ -558,7 +573,7 @@ class TransformerDecoderLayer(nn.Module):
             specified for each attention head. Defaults to ``None``.
         use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
             recomputes key and value for each decoding step. Defaults to ``False``.
-        causal (bool. optional): If ``True``, use causal attention. Defaults to ``False``.
+        causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
         return_attn_weights (bool, optional): If ``True``, returns attention probabilities of the layer.
             Defaults to ``False``.
     """
