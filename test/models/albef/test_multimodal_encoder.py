@@ -21,7 +21,7 @@ def test_multimodal_encoder(multimodal_encoder):
     image_embeds = torch.randn(2, 2, 3)
     text_embeds = torch.randn(2, 2, 3)
     text_atts = torch.Tensor([[1, 1], [1, 0]])
-    output = multimodal_encoder(image_embeds, text_embeds, text_atts)
+    output = multimodal_encoder(text_embeds, text_atts, image_embeds)
     expected = Tensor(
         [
             [[0.794870, 0.615549, -1.410419], [1.314163, -1.109555, -0.204607]],

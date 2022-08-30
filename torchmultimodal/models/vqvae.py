@@ -29,13 +29,14 @@ class VQVAE(nn.Module):
 
     Attributes:
         encoder (nn.Module): Model that accepts single Tensor as input in forward, ``encoder(x)``.
-                             Will be used to project input into codebook layer. Expects channel
-                             dim of encoder output to match ``codebook_embedding_dim``.
+            Will be used to project input into codebook layer. Expects channel
+            dim of encoder output to match ``embedding_dim`` of codebook.
+            See :class:`~torchmultimodal.modules.layers.codebook.Codebook`.
         decoder (nn.Module): Model that accepts single Tensor as input in forward, ``decoder(x)``.
-                             Should be able to accept output shape of codebook layer, which matches
-                             output shape of encoder.
-        codebook_num_embeddings (int): Number of embedding vectors in codebook
-        codebook_embedding_dim (int): Dimensionality of embedding vectors in codebook
+            Should be able to accept output shape of codebook layer, which matches output shape of
+            the encoder.
+        num_embeddings (int): Number of embedding vectors in codebook.
+        embedding_dim (int): Dimensionality of embedding vectors in codebook.
 
     Args:
         x (Tensor): Input data of shape ``[b, c, d1, ..., dn]``.
@@ -45,13 +46,15 @@ class VQVAE(nn.Module):
         self,
         encoder: nn.Module,
         decoder: nn.Module,
-        codebook_num_embeddings: int,
-        codebook_embedding_dim: int,
+        num_embeddings: int,
+        embedding_dim: int,
     ) -> None:
         super().__init__()
         self.encoder = encoder
         self.decoder = decoder
-        self.codebook = Codebook(codebook_num_embeddings, codebook_embedding_dim)
+        self.codebook = Codebook(num_embeddings, embedding_dim)
+        self.num_embeddings = num_embeddings
+        self.embedding_dim = embedding_dim
 
     def latent_shape(self, input_shape: Union[Size, Tuple]) -> Tuple[int, ...]:
         """Returns the downsampled shape of the encoder output: (d1, ..., dn)"""
