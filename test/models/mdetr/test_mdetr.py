@@ -11,9 +11,9 @@ from test.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.models.mdetr.model import (
     mdetr_for_phrase_grounding,
     mdetr_for_vqa,
+    mdetr_gqa_heads,
     mdetr_resnet101,
 )
-from torchmultimodal.utils.common import remove_grad
 
 
 class TestMDETR:
@@ -228,9 +228,8 @@ class TestMDETR:
 
     @pytest.fixture()
     def mdetr_model_for_vqa(self):
-        model = mdetr_for_vqa()
+        model = mdetr_for_vqa(vqa_heads=mdetr_gqa_heads())
         model.eval()
-        remove_grad(model)
         return model
 
     def test_mdetr_model_for_vqa(
@@ -238,44 +237,86 @@ class TestMDETR:
         mdetr_model_for_vqa,
         test_tensors,
         input_ids,
-        batch_size,
-        num_queries,
     ):
         out = mdetr_model_for_vqa(test_tensors, input_ids)
-        # logits_actual = out.model_output.pred_logits
-        # boxes_actual = out.model_output.pred_boxes
+        logits_actual = out.model_output.pred_logits
+        boxes_actual = out.model_output.pred_boxes
 
-        # logits_expected = torch.Tensor(
+        logits_expected = torch.Tensor(
+            [
+                -0.7126,
+                -0.6930,
+                -0.6905,
+                -0.7025,
+                -0.6926,
+                -0.6882,
+                -0.7152,
+                -0.6839,
+                -0.6889,
+                -0.7048,
+            ]
+        )
+        boxes_expected = torch.Tensor(
+            [
+                0.4744,
+                0.4744,
+                0.4738,
+                0.4745,
+                0.4739,
+                0.4739,
+                0.4748,
+                0.4736,
+                0.4744,
+                0.4751,
+            ]
+        )
 
-        # )
-        # boxes_expected = torch.Tensor(
+        assert_expected(logits_actual[1, :10, 1], logits_expected, rtol=0, atol=1e-3)
+        assert_expected(boxes_actual[1, :10, 1], boxes_expected, rtol=0, atol=1e-3)
 
-        # )
+        query_embeddings_actual = out.contrastive_embeddings.query_embeddings
+        token_embeddings_actual = out.contrastive_embeddings.token_embeddings
+        query_embeddings_expected = torch.Tensor(
+            [
+                -0.0871,
+                -0.0867,
+                -0.0875,
+                -0.0897,
+                -0.0884,
+                -0.0876,
+                -0.0861,
+                -0.0897,
+                -0.0858,
+                -0.0840,
+            ]
+        )
+        token_embeddings_expected = torch.Tensor(
+            [
+                -0.2426,
+                -0.2365,
+                -0.2369,
+                -0.2321,
+                -0.2325,
+                -0.2430,
+                -0.2335,
+                -0.2370,
+                -0.2253,
+                -0.2358,
+            ]
+        )
 
-        # assert_expected(logits_actual[1, :10, 1], logits_expected, rtol=0, atol=1e-3)
-        # assert_expected(boxes_actual[1, :10, 1], boxes_expected, rtol=0, atol=1e-3)
-
-        # query_embeddings_actual = out.contrastive_embeddings.query_embeddings
-        # token_embeddings_actual = out.contrastive_embeddings.token_embeddings
-        # query_embeddings_expected = torch.Tensor(
-
-        # )
-        # token_embeddings_expected = torch.Tensor(
-
-        # )
-
-        # assert_expected(
-        #     query_embeddings_actual[1, :10, 1],
-        #     query_embeddings_expected,
-        #     rtol=0,
-        #     atol=1e-3,
-        # )
-        # assert_expected(
-        #     token_embeddings_actual[1, :10, 1],
-        #     token_embeddings_expected,
-        #     rtol=0,
-        #     atol=1e-3,
-        # )
+        assert_expected(
+            query_embeddings_actual[1, :10, 1],
+            query_embeddings_expected,
+            rtol=0,
+            atol=1e-3,
+        )
+        assert_expected(
+            token_embeddings_actual[1, :10, 1],
+            token_embeddings_expected,
+            rtol=0,
+            atol=1e-3,
+        )
 
         # Finally, check the vqa heads
         answer_type_actual = out.vqa_preds["answer_type"]
@@ -285,99 +326,97 @@ class TestMDETR:
         answer_cat_actual = out.vqa_preds["answer_cat"]
         answer_global_actual = out.vqa_preds["answer_global"]
 
-        answer_type_expected = torch.Tensor(
-            [-0.5345, -0.5067, -0.4841, -0.7165, -0.1300]
-        )
-        answer_obj_expected = torch.Tensor([0.7397, -0.7879, -1.1478])
+        answer_type_expected = torch.Tensor([0.0760, 0.4733, -1.0210, 0.1674, 0.0846])
+        answer_obj_expected = torch.Tensor([-0.3186, -0.0333, -0.5663])
         answer_rel_expected = torch.Tensor(
             [
-                0.1138,
-                -0.0270,
-                0.5583,
-                -0.0701,
-                0.5942,
-                -0.5173,
-                0.2762,
-                -0.7870,
-                -0.3243,
-                0.1833,
+                0.2682,
+                0.2664,
+                0.1586,
+                -0.0358,
+                -1.3060,
+                0.0389,
+                0.7450,
+                -0.5142,
+                0.1172,
+                -0.7142,
             ]
         )
         answer_attr_expected = torch.Tensor(
             [
-                0.1531,
-                -0.5439,
-                0.9922,
-                1.1380,
-                -0.3717,
-                -0.1283,
-                -0.3008,
-                0.7216,
-                -0.2271,
-                -0.0351,
+                0.1528,
+                0.4297,
+                0.2812,
+                0.2316,
+                0.1397,
+                1.8865,
+                0.1437,
+                -0.5668,
+                0.6351,
+                -0.6617,
             ]
         )
         answer_cat_expected = torch.Tensor(
             [
-                0.1644,
-                -0.1254,
-                -0.2684,
-                0.3595,
-                -0.0538,
-                0.3129,
-                -1.0193,
-                -0.4543,
-                0.4901,
-                -1.1946,
+                -0.7169,
+                -0.5856,
+                0.3027,
+                -0.1104,
+                -0.9241,
+                0.7520,
+                0.6357,
+                1.6550,
+                -0.4437,
+                -0.2308,
             ]
         )
         answer_global_expected = torch.Tensor(
             [
-                0.8541,
-                -0.0703,
-                -0.2690,
-                0.5855,
-                1.7249,
-                0.3501,
-                -0.3301,
-                -0.5751,
-                -0.1189,
-                0.8937,
+                0.1416,
+                -0.1790,
+                0.6460,
+                0.5342,
+                -0.9321,
+                -0.7176,
+                0.8754,
+                0.1958,
+                -0.5698,
+                0.1433,
             ]
         )
 
         assert_expected(
-            answer_type_actual[1],
+            answer_type_actual[0],
             answer_type_expected,
             rtol=0,
             atol=1e-3,
         )
         assert_expected(
-            answer_obj_actual[1],
+            answer_obj_actual[0],
             answer_obj_expected,
             rtol=0,
             atol=1e-3,
         )
         assert_expected(
-            answer_rel_actual[1, :10],
+            answer_rel_actual[0, :10],
             answer_rel_expected,
             rtol=0,
             atol=1e-3,
         )
         assert_expected(
-            answer_attr_actual[1, :10],
+            answer_attr_actual[0, :10],
             answer_attr_expected,
             rtol=0,
             atol=1e-3,
         )
         assert_expected(
-            answer_cat_actual[1, :10],
+            answer_cat_actual[0, :10],
             answer_cat_expected,
             rtol=0,
             atol=1e-3,
         )
         assert_expected(
-            answer_global_actual[1, :10],
+            answer_global_actual[0, :10],
             answer_global_expected,
             rtol=0,
             atol=1e-3,
