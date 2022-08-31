@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import warnings
-from typing import Any, NamedTuple, Optional, Tuple
+from typing import Any, List, NamedTuple, Optional, Tuple
 
 import torch
 from torch import nn, Tensor
@@ -160,7 +160,7 @@ class GenerationUtil:
     def _filter_logits(
         self, logits: Tensor, top_k: Optional[int] = None, top_p: Optional[float] = None
     ) -> Tensor:
-        logits_filters = []
+        logits_filters: List[Any] = []
         if top_k is not None:
             logits_filters.append(LogitsFilterTopK(top_k))
         if top_p is not None:
