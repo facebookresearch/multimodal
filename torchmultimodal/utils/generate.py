@@ -84,7 +84,6 @@ class GenerationUtil:
         in_tokens = self.model.encode(x, "in", **model_kwargs)  # type: ignore
         batch_size, in_seq_len = in_tokens.shape
         attn_mask = get_causal_attention_mask(in_seq_len)  # (in_seq_len, in_seq_len)
-        logits_filter = LogitsFilter(top_k=top_k, top_p=top_p)
         # Construct step-wise logits mask
         logits_mask = get_logits_mask(
             in_seq_len=0,
@@ -145,7 +144,7 @@ class GenerationUtil:
             logits = out.logits
 
             logits_view = logits.view(-1, logits.shape[-1])  # (b, num_tokens)
-            logits_view = logits_filter(logits_view)
+            logits_view = self._filter_logits(logits_view, top_k=top_k, top_p=top_p)
             probs = F.softmax(logits_view, dim=-1)
             samples.append(torch.multinomial(probs, 1))  # (b, 1)
             model_outputs = model_outputs + (out,)
@@ -157,6 +156,20 @@ class GenerationUtil:
         samples = self.model.decode(samples)  # type: ignore
 
         return SampleOutput(samples=samples, model_outputs=model_outputs)
+
+    def _filter_logits(
+        self, logits: Tensor, top_k: Optional[int] = None, top_p: Optional[float] = None
+    ) -> Tensor:
+        logits_filters = []
+        if top_k is not None:
+            logits_filters.append(LogitsFilterTopK(top_k))
+        if top_p is not None:
+            logits_filters.append(LogitsFilterTopP(top_p))
+
+        for _filter in logits_filters:
+            logits = _filter(logits)
+
+        return logits
 
 
 def get_logits_mask(
@@ -187,12 +200,61 @@ def get_logits_mask(
     return mask
 
 
-class LogitsFilter:
-    """Filters a distribution of logits using top_k and/or nucleus (top_p) filtering
+class LogitsFilterTopK:
+    """Filters a distribution of logits using top_k
 
     Attributes:
         top_k (int, optional): Keeps the top_k tokens with the highest probability (top_k filtering).
             Defaults to ``None``.
+        filter_value (float, optional): Constant value to filter unwanted logits. Defaults to ``-inf``.
+        min_tokens_to_keep (int, optional): Minimum number of tokens to keep per batch example in the output.
+            Defaults to ``1``.
+
+    Code reference: https://gist.github.com/thomwolf/1a5a29f6962089e871b94cbd09daf317
+
+    Args:
+        logits (Tensor): Logits distribution shape ``(b, num_tokens)`` where ``b`` is batch size,
+            ``num_tokens`` is the number of tokens.
+
+    Returns:
+        Filtered logits tensor.
+
+    Raises:
+        ValueError: If 'top_k' is outside of valid numerical ranges.
+
+    """
+
+    def __init__(
+        self,
+        top_k: Optional[int] = None,
+        min_tokens_to_keep: int = 1,
+        filter_value: float = -float("inf"),
+    ) -> None:
+        if top_k is not None and top_k < 0:
+            raise ValueError(f"'top_k' must be non-negative but got {top_k}.")
+
+        self.min_tokens_to_keep = min_tokens_to_keep
+        self.filter_value = filter_value
+        self.top_k = top_k
+
+    def __call__(self, logits: Tensor) -> Tensor:
+        if self.top_k == 0:
+            return logits
+
+        top_k = min(
+            max(self.top_k, self.min_tokens_to_keep), logits.size(-1)
+        )  # Safety check
+        # Remove all tokens with a probability less than the last token of the top-k
+        indices_to_remove = logits < torch.topk(logits, top_k)[0][..., -1:]  # (b, 1)
+        logits[indices_to_remove] = self.filter_value
+
+        return logits
+
+
+class LogitsFilterTopP:
+    """Filters a distribution of logits using nucleus (top_p) filtering
+
+    Attributes:
         top_p (float, optional): Keeps the top tokens with cumulative probability >= top_p (nucleus filtering).
             Nucleus filtering is described in Holtzman et al. (http://arxiv.org/abs/1904.09751).
             Defaults to ``None``.
@@ -210,48 +272,23 @@ class LogitsFilter:
         Filtered logits tensor.
 
     Raises:
-        ValueError: If 'top_k' or 'top_p' are outside of valid numerical ranges.
+        ValueError: If 'top_p' is outside of valid numerical ranges.
     """
 
     def __init__(
         self,
-        top_k: Optional[int] = None,
         top_p: Optional[float] = None,
         min_tokens_to_keep: int = 1,
         filter_value: float = -float("inf"),
     ) -> None:
-        if top_k is not None and top_k < 0:
-            raise ValueError(f"'top_k' must be non-negative but got {top_k}.")
         if top_p is not None and (top_p > 1.0 or top_p < 0.0):
             raise ValueError(f"'top_p' must be within `[0.0, 1.0]` but got {top_p}.")
 
         self.min_tokens_to_keep = min_tokens_to_keep
         self.filter_value = filter_value
-        self.top_k = top_k
         self.top_p = top_p
 
     def __call__(self, logits: Tensor) -> Tensor:
-        if self.top_k is not None:
-            logits = self._filter_top_k(logits)
-        if self.top_p is not None:
-            logits = self._filter_top_p(logits)
-
-        return logits
-
-    def _filter_top_k(self, logits: Tensor) -> Tensor:
-        if self.top_k == 0:
-            return logits
-
-        top_k = min(
-            max(self.top_k, self.min_tokens_to_keep), logits.size(-1)
-        )  # Safety check
-        # Remove all tokens with a probability less than the last token of the top-k
-        indices_to_remove = logits < torch.topk(logits, top_k)[0][..., -1:]  # (b, 1)
-        logits[indices_to_remove] = self.filter_value
-
-        return logits
-
-    def _filter_top_p(self, logits: Tensor) -> Tensor:
         if self.top_p == 1.0:
             return logits
 
@@ -263,7 +300,7 @@ class LogitsFilter:
         if self.min_tokens_to_keep > 1:
             # Keep at least min_tokens_to_keep (set to min_tokens_to_keep-1 because we add
             # the first one below)
-            sorted_indices_to_remove[..., : self.min_tokens_to_keep] = 0
+            sorted_indices_to_remove[..., : self.min_tokens_to_keep - 1] = 0
         # Shift the indices to the right to keep also the first token above the threshold
         sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
         sorted_indices_to_remove[..., 0] = 0

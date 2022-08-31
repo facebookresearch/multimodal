@@ -14,7 +14,8 @@ from torchmultimodal.models.video_gpt import video_gpt
 from torchmultimodal.utils.generate import (
     GenerationUtil,
     get_logits_mask,
-    LogitsFilter,
+    LogitsFilterTopK,
+    LogitsFilterTopP,
     SampleOutput,
 )
 
@@ -110,18 +111,40 @@ class TestGenerationUtil:
         )  # (b, c, *input_shape)
         assert_expected(actual.sum().item(), -41.6888, rtol=1e-4, atol=1e-5)
 
+    def test_filter_logits(self, generation_model):
+        kwargs = {"top_k": 5, "top_p": 0.7}
+        logits = torch.arange(10, dtype=torch.float).unsqueeze(0)
+        actual = generation_model._filter_logits(logits, **kwargs)
+        # pick top 5 tokens then take those > 70% percentile
+        expected = torch.tensor(
+            [
+                [
+                    -float("inf"),
+                    -float("inf"),
+                    -float("inf"),
+                    -float("inf"),
+                    -float("inf"),
+                    -float("inf"),
+                    -float("inf"),
+                    -float("inf"),
+                    8.0,
+                    9.0,
+                ]
+            ]
+        )
+        assert_expected(actual, expected)
 
-class TestLogitsFilter:
+
+class TestLogitsFilterTopK:
     _func_params = {
         "top_k": 0,
-        "top_p": 1.0,
         "filter_value": 0.0,
         "min_tokens_to_keep": 1,
     }
 
     @pytest.fixture
     def filter_fn(self):
-        return LogitsFilter
+        return LogitsFilterTopK
 
     def test_min_tokens_to_keep(self, filter_fn):
         kwargs = {**self._func_params, **{"top_k": 1, "min_tokens_to_keep": 2}}
@@ -133,15 +156,6 @@ class TestLogitsFilter:
 
     def test_top_k_invalid(self, filter_fn):
         kwargs = {**self._func_params, **{"top_k": -1}}
-        with pytest.raises(ValueError):
-            logits_filter = filter_fn(**kwargs)
-
-    def test_top_p_invalid(self, filter_fn):
-        kwargs = {**self._func_params, **{"top_p": 2.0}}
-        with pytest.raises(ValueError):
-            logits_filter = filter_fn(**kwargs)
-
-        kwargs = {**self._func_params, **{"top_p": -1.0}}
         with pytest.raises(ValueError):
             logits_filter = filter_fn(**kwargs)
 
@@ -161,6 +175,43 @@ class TestLogitsFilter:
         expected = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 5.0, 6.0, 7.0, 8.0, 9.0]])
         assert_expected(actual, expected)
 
+
+class TestLogitsFilterTopP:
+    _func_params = {
+        "top_p": 1.0,
+        "filter_value": 0.0,
+        "min_tokens_to_keep": 1,
+    }
+
+    @pytest.fixture
+    def filter_fn(self):
+        return LogitsFilterTopP
+
+    def test_min_tokens_to_keep(self, filter_fn):
+        kwargs = {**self._func_params, **{"top_p": 0.0, "min_tokens_to_keep": 2}}
+        logits_filter = filter_fn(**kwargs)
+        logits = torch.arange(10, dtype=torch.float).unsqueeze(0)
+        actual = logits_filter(logits)
+        expected = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8.0, 9.0]])
+        assert_expected(actual, expected)
+
+    def test_top_p_invalid(self, filter_fn):
+        kwargs = {**self._func_params, **{"top_p": 2.0}}
+        with pytest.raises(ValueError):
+            logits_filter = filter_fn(**kwargs)
+
+        kwargs = {**self._func_params, **{"top_p": -1.0}}
+        with pytest.raises(ValueError):
+            logits_filter = filter_fn(**kwargs)
+
+    def test_default(self, filter_fn):
+        kwargs = self._func_params
+        logits_filter = filter_fn(**kwargs)
+        logits = torch.arange(10, dtype=torch.float).unsqueeze(0)
+        actual = logits_filter(logits)
+        expected = logits
+        assert_expected(actual, expected)
+
     def test_top_p(self, filter_fn):
         kwargs = {**self._func_params, **{"top_p": 0.9}}
         logits_filter = filter_fn(**kwargs)
@@ -168,13 +219,4 @@ class TestLogitsFilter:
         actual = logits_filter(logits)
         # 9 tokens should be kept as the logits are of uniform distribution
         expected = torch.tensor([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0]])
-        assert_expected(actual, expected)
-
-    def test_top_k_top_p(self, filter_fn):
-        kwargs = {**self._func_params, **{"top_k": 5, "top_p": 0.7}}
-        logits_filter = filter_fn(**kwargs)
-        logits = torch.arange(10, dtype=torch.float).unsqueeze(0)
-        actual = logits_filter(logits)
-        # pick top 5 tokens then take those > 70% percentile
-        expected = torch.tensor([[0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 8.0, 9.0]])
         assert_expected(actual, expected)
