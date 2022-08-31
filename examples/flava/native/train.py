@@ -13,6 +13,7 @@ from functools import partial
 from typing import Any, Dict, Tuple, Union
 
 import datasets
+import numpy as np
 import torch
 import torch.distributed as dist
 from common.data import MultiDataModule
@@ -50,6 +51,9 @@ from torch.distributed.fsdp.sharded_grad_scaler import ShardedGradScaler
 from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
+from torchmultimodal.models.flava.image_encoder import ImageTransformer
+from torchmultimodal.models.flava.transformer import FLAVATransformerWithoutEmbeddings
+from torchmultimodal.modules.encoders.bert_text_encoder import BERTTextEncoder
 from torchmultimodal.modules.layers.transformer import TransformerEncoderLayer
 from torchmultimodal.modules.losses.flava import FLAVAPretrainingLossOutput
 
@@ -166,7 +170,12 @@ class Trainer:
                 mixed_precision=mp,
                 auto_wrap_policy=partial(
                     transformer_auto_wrap_policy,
-                    transformer_layer_cls={TransformerEncoderLayer},
+                    transformer_layer_cls={
+                        TransformerEncoderLayer,
+                        BERTTextEncoder,
+                        ImageTransformer,
+                        FLAVATransformerWithoutEmbeddings,
+                    },
                 ),
             )
 
@@ -242,7 +251,8 @@ class Trainer:
             model,
             **self.config.training.optimizer,
         )
-
+        warmup_steps_to_remove = 100
+        iteration_times = []
         while True:
             t0 = time.time()
             self.epochs += 1
@@ -255,6 +265,16 @@ class Trainer:
                 self.steps += 1
 
                 if self.config.training.max_steps < self.steps:
+                    if self.rank == 0:
+                        iteration_times = iteration_times[warmup_steps_to_remove:]
+                        avg_it_time = np.mean(iteration_times)
+                        avg_throughput = (
+                            config.training.batch_size
+                            * dist.get_world_size()
+                            * len(iteration_times)
+                        ) / np.sum(iteration_times)
+                        print0("Average iteration time", avg_it_time)
+                        print0("Average throughput", avg_throughput)
                     print0("Max steps reached, exiting")
                     return
 
@@ -290,10 +310,14 @@ class Trainer:
 
                 scheduler.step()
 
+                torch.cuda.synchronize()
                 t1 = time.time()
                 batch_time = t1 - t0
                 batch_size = config.training.batch_size * dist.get_world_size()
                 items_time = batch_size / (t1 - t0)
+
+                if self.rank == 0:
+                    iteration_times.append(batch_time)
 
                 t0 = t1
                 self.log("stats/sec per batch", batch_time)
@@ -314,6 +338,11 @@ class Trainer:
                     "stats/max_gpu_allocated_gb",
                     torch.cuda.max_memory_allocated() / 1024**3,
                 )
+                cuda_info = torch.cuda.memory_stats()
+
+                m_num_retries = cuda_info.get("num_alloc_retries", 0)
+
+                print0("num retries ", m_num_retries)
                 # TODO implement imagenet eval
                 # TODO implement checkpoint saving
 
