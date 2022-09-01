@@ -13,6 +13,7 @@ from functools import partial
 from typing import Any, Dict, Tuple, Union
 
 import datasets
+import numpy as np
 import torch
 import torch.distributed as dist
 from common.data import MultiDataModule
@@ -242,6 +243,8 @@ class Trainer:
             model,
             **self.config.training.optimizer,
         )
+        it_times_to_remove = config.get("it_times_to_remove", 100)
+        iteration_times = []
 
         while True:
             t0 = time.time()
@@ -255,6 +258,16 @@ class Trainer:
                 self.steps += 1
 
                 if self.config.training.max_steps < self.steps:
+                    if self.rank == 0:
+                        iteration_times = iteration_times[it_times_to_remove:]
+                        avg_it_time = np.mean(iteration_times)
+                        avg_throughput = (
+                            config.training.batch_size
+                            * dist.get_world_size()
+                            * len(iteration_times)
+                        ) / np.sum(iteration_times)
+                        print0("Average iteration time", avg_it_time)
+                        print0("Average throughput", avg_throughput)
                     print0("Max steps reached, exiting")
                     return
 
@@ -289,7 +302,7 @@ class Trainer:
                     optimizer.step()
 
                 scheduler.step()
-
+                torch.cuda.synchronize()
                 t1 = time.time()
                 batch_time = t1 - t0
                 batch_size = config.training.batch_size * dist.get_world_size()
@@ -310,6 +323,12 @@ class Trainer:
                     )
                     self.log("train/loss", norm_total_loss)
                     self.log("stats/batch_size", batch_size)
+
+                    iteration_times.append(batch_time)
+
+                    cuda_info = torch.cuda.memory_stats()
+                    print("cuda alloc retries ", cuda_info.get("num_alloc_retries", 0))
+
                 self.log(
                     "stats/max_gpu_allocated_gb",
                     torch.cuda.max_memory_allocated() / 1024**3,
