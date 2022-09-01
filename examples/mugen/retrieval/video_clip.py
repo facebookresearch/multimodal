@@ -13,15 +13,12 @@ from torch import nn
 
 from torchmultimodal.models.clip.model import CLIP
 from torchmultimodal.utils.common import load_module_from_url
-from torchvision.models.feature_extraction import create_feature_extractor
 
 from torchvision.models.video import S3D
 from transformers import DistilBertConfig, DistilBertModel
 
 
-PRETRAINED_S3D_KINETICS400_URL = (
-    "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/S3D_kinetics400_v1.pth"
-)
+PRETRAINED_VIDEO_ENCODER_URL = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/video_encoder-weights-b0e27f13.pth"
 
 
 class TextEncoder(nn.Module):
@@ -81,7 +78,6 @@ class VideoEncoder(nn.Module):
     Attributes:
         model (nn.Module): Module extracted from :class:`~torchvision.models.video.S3D`.
             Code reference: https://github.com/pytorch/vision/blob/main/torchvision/models/video/s3d.py
-        return_node_name (str): Name of the last layer extracted from S3D.
         out_dim (int): Output dimension of VideoEncoder.
 
     Inputs:
@@ -90,29 +86,20 @@ class VideoEncoder(nn.Module):
 
     """
 
-    def __init__(self, num_classes: int = 400) -> None:
+    def __init__(self) -> None:
         super().__init__()
-        base = S3D(num_classes=num_classes)
-        self.return_node_name = "features"
-        self.model = create_feature_extractor(base, [self.return_node_name])
-        # Dry run to get the `out_channel` dim of the returned leaf node
-        # or `in_channel` dim of the first removed layer
-        x = torch.randn(1, 3, 16, 224, 224)
-        with torch.no_grad():
-            out = self.model(x)[self.return_node_name]
-        self.out_dim = out.shape[1]
-        self.avgpool = nn.AvgPool3d(kernel_size=(2, 7, 7), stride=1)
+        self.model = S3D()
+        # Getting input channels from the Conv3d layer
+        self.out_dim = self.model.classifier[1].in_channels
+        # Transform the classifier into identity
+        self.model.classifier = nn.Identity()
 
     def forward(self, x):
         if x.shape[1] != 3:
             raise ValueError(
                 "Channels must be at first (zero-indexed) dimension of input and of size 3."
             )
-        x = self.model(x)[self.return_node_name]
-        x = self.avgpool(x)
-        x = torch.mean(x, dim=(2, 3, 4))
-
-        return x
+        return self.model(x)
 
 
 class Projection(nn.Module):
@@ -156,10 +143,9 @@ def videoclip(
     text_model_name: str = "distilbert-base-uncased",
     text_model_config: Optional[Dict[str, Any]] = None,
     text_padding_value: int = 0,
-    s3d_num_classes: int = 400,
     video_pretrained: bool = True,
     video_trainable: bool = True,
-    video_pretrain_path: str = PRETRAINED_S3D_KINETICS400_URL,
+    video_pretrain_path: str = PRETRAINED_VIDEO_ENCODER_URL,
     proj_out_dim: int = 256,
     proj_dropout: float = 0.1,
 ) -> CLIP:
@@ -177,13 +163,12 @@ def videoclip(
             Defaults to ``None``, indicating the default DistilBERT config.
         text_padding_value (int): value that was used to pad the input text.
             Defaults to ``0``, Hugging Face's BERT pad token.
-        s3d_num_classes (int): number of classes for classification of S3D model. Defaults to ``400``.
         video_pretrained (bool): whether to use a pretrained model or not.
             Defaults to ``True``.
         video_trainable (bool): whether the video encoder's weights should be trainable.
             Defaults to ``True``. Ignored if ``video_pretrained`` is ``False``.
         video_pretrain_path (str): local path or remote URL to video encoder pretrained weights.
-            Defaults to ``PRETRAINED_S3D_KINETICS400_URL``, the weights MUGEN used from
+            Defaults to ``PRETRAINED_VIDEO_ENCODER_URL``, the weights MUGEN used from
             pretraining S3D on Kinetics 400. Ignored if ``video_pretrained`` is ``False``.
         proj_out_dim (int): output dimension to project both encoders' outputs to.
             Defaults to ``256``, the value used by MUGEN.
@@ -213,7 +198,7 @@ def videoclip(
         Projection(text_model.out_dim, out_dim=proj_out_dim, dropout_prob=proj_dropout),
     )
 
-    video_model = VideoEncoder(num_classes=s3d_num_classes)
+    video_model = VideoEncoder()
     if video_pretrained:
         print(f"Loading pretrained video encoder from {video_pretrain_path}.")
         load_module_from_url(video_model, video_pretrain_path)

@@ -8,7 +8,7 @@ from typing import Any, Tuple
 
 import torch
 from torch import nn
-from torchmultimodal.models.flava.flava_model import flava_model_for_pretraining
+from torchmultimodal.models.flava.model import flava_model_for_pretraining
 from transformers.optimization import get_cosine_schedule_with_warmup
 
 
