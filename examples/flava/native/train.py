@@ -129,10 +129,8 @@ class Trainer:
             self._logger.add_scalar(name, value, self.steps)
 
     def create_model(self) -> torch.nn.Module:
-        model_size = self.config["model"]["size"]
-        model_config = self.config["model"][model_size]
-
-        print0(f"using model config: {model_size}")
+        model_config = self.config.get("model", {})
+        print0(f"using model config: {model_config}")
 
         model = FLAVAPreTrainModule(**model_config)
         strategy = self.config.training.strategy

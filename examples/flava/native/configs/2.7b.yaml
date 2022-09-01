@@ -1,5 +1,5 @@
 training:
-  strategy: ddp # can be changed to ddp or fsdp
+  strategy: fsdp # can be changed to ddp or fsdp
   seed: 1337
 
   batch_size: 8
@@ -23,7 +23,7 @@ training:
   half_precision_format: "bfloat16"  # or float16
   enable_half_reduce_in_fsdp: True  # handles the reduction across devices in half precision
 
-  activation_checkpointing: False
+  activation_checkpointing: True
   activation_checkpointing_reentrant: False # false for non-reentrant
 
 datasets:
@@ -62,3 +62,19 @@ datasets:
           - ["caption", "text"]
         split_key_mapping:
           validation: train
+
+model:
+  image_num_hidden_layers: 40
+  image_hidden_size: 1408
+  image_intermediate_size: 6144
+  image_num_attention_heads: 16
+
+  text_num_hidden_layers: 40
+  text_hidden_size: 1408
+  text_intermediate_size: 6144
+  text_num_attention_heads: 16
+
+  multimodal_num_hidden_layers: 20
+  multimodal_hidden_size: 1408
+  multimodal_intermediate_size: 6144
+  multimodal_num_attention_heads: 16
