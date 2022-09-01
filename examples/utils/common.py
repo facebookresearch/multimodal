@@ -30,7 +30,8 @@ def store_model_weights(
         model (nn.Module): The model on which the weights will be loaded for validation purposes.
         checkpoint_path (str): The path of the checkpoint we will load.
         checkpoint_key (str, optional): The key of the checkpoint where the model weights are stored.
-            Default: "model".
+            For example, ``model`` is a common key used by many.
+            If ``None``, the checkpoint file is treated as model weights file. Default: ``None``.
         strict (bool): whether to strictly enforce that the keys
             in :attr:`state_dict` match the keys returned by this module's
             :meth:`~torch.nn.Module.state_dict` function. Default: ``True``
