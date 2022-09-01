@@ -234,6 +234,22 @@ class Trainer:
         data = move_to_device(data, self.device)
         return self.datamodule.on_after_batch_transfer(data, None)
 
+    def _log_iteration_times(self, iteration_times):
+        it_times_to_remove = config.get("it_times_to_remove", 100)
+        start_idx = (
+            it_times_to_remove
+            if it_times_to_remove < self.config.training.max_steps
+            else 0
+        )
+        iteration_times = iteration_times[start_idx:]
+        avg_it_time = np.mean(iteration_times)
+        avg_throughput = (
+            config.training.batch_size * dist.get_world_size() * len(iteration_times)
+        ) / np.sum(iteration_times)
+        print0(f"Average over {len(iteration_times)} steps")
+        print0(f"Average iteration time {avg_it_time}")
+        print0(f"Average throughput {avg_throughput}")
+
     def train(self) -> None:
         print0(OmegaConf.to_container(self.config.training))
         self.model = self.create_model()
@@ -243,7 +259,7 @@ class Trainer:
             model,
             **self.config.training.optimizer,
         )
-        it_times_to_remove = config.get("it_times_to_remove", 100)
+
         iteration_times = []
 
         while True:
@@ -259,15 +275,7 @@ class Trainer:
 
                 if self.config.training.max_steps < self.steps:
                     if self.rank == 0:
-                        iteration_times = iteration_times[it_times_to_remove:]
-                        avg_it_time = np.mean(iteration_times)
-                        avg_throughput = (
-                            config.training.batch_size
-                            * dist.get_world_size()
-                            * len(iteration_times)
-                        ) / np.sum(iteration_times)
-                        print0("Average iteration time", avg_it_time)
-                        print0("Average throughput", avg_throughput)
+                        self._log_iteration_times(iteration_times)
                     print0("Max steps reached, exiting")
                     return
 
