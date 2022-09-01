@@ -235,20 +235,20 @@ class Trainer:
         return self.datamodule.on_after_batch_transfer(data, None)
 
     def _log_iteration_times(self, iteration_times):
-        it_times_to_remove = config.get("it_times_to_remove", 100)
+        profile_warmup_steps = config.get("profile_warmup_steps", 100)
         start_idx = (
-            it_times_to_remove
-            if it_times_to_remove < self.config.training.max_steps
+            profile_warmup_steps
+            if profile_warmup_steps < self.config.training.max_steps
             else 0
         )
         iteration_times = iteration_times[start_idx:]
         avg_it_time = np.mean(iteration_times)
         avg_throughput = (
-            config.training.batch_size * dist.get_world_size() * len(iteration_times)
-        ) / np.sum(iteration_times)
+            config.training.batch_size * dist.get_world_size()
+        ) / avg_it_time
         print0(f"Average over {len(iteration_times)} steps")
-        print0(f"Average iteration time {avg_it_time}")
-        print0(f"Average throughput {avg_throughput}")
+        print0(f"Average iteration time {round(avg_it_time,4)}")
+        print0(f"Average throughput {round(avg_throughput,4)}")
 
     def train(self) -> None:
         print0(OmegaConf.to_container(self.config.training))
