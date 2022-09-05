@@ -13,6 +13,7 @@ from functools import partial
 from typing import Any, Dict, Tuple, Union
 
 import datasets
+import numpy as np
 import torch
 import torch.distributed as dist
 from common.data import MultiDataModule
@@ -129,10 +130,8 @@ class Trainer:
             self._logger.add_scalar(name, value, self.steps)
 
     def create_model(self) -> torch.nn.Module:
-        model_size = self.config["model"]["size"]
-        model_config = self.config["model"][model_size]
-
-        print0(f"using model config: {model_size}")
+        model_config = self.config.get("model", {})
+        print0(f"using model config: {model_config}")
 
         model = FLAVAPreTrainModule(**model_config)
         strategy = self.config.training.strategy
@@ -235,6 +234,22 @@ class Trainer:
         data = move_to_device(data, self.device)
         return self.datamodule.on_after_batch_transfer(data, None)
 
+    def _log_iteration_times(self, iteration_times):
+        profile_warmup_steps = config.get("profile_warmup_steps", 100)
+        start_idx = (
+            profile_warmup_steps
+            if profile_warmup_steps < self.config.training.max_steps
+            else 0
+        )
+        iteration_times = iteration_times[start_idx:]
+        avg_it_time = np.mean(iteration_times)
+        avg_throughput = (
+            config.training.batch_size * dist.get_world_size()
+        ) / avg_it_time
+        print0(f"Average over {len(iteration_times)} steps")
+        print0(f"Average iteration time {round(avg_it_time,4)}")
+        print0(f"Average throughput {round(avg_throughput,4)}")
+
     def train(self) -> None:
         print0(OmegaConf.to_container(self.config.training))
         self.model = self.create_model()
@@ -244,6 +259,8 @@ class Trainer:
             model,
             **self.config.training.optimizer,
         )
+
+        iteration_times = []
 
         while True:
             t0 = time.time()
@@ -257,6 +274,8 @@ class Trainer:
                 self.steps += 1
 
                 if self.config.training.max_steps < self.steps:
+                    if self.rank == 0:
+                        self._log_iteration_times(iteration_times)
                     print0("Max steps reached, exiting")
                     return
 
@@ -291,7 +310,7 @@ class Trainer:
                     optimizer.step()
 
                 scheduler.step()
-
+                torch.cuda.synchronize()
                 t1 = time.time()
                 batch_time = t1 - t0
                 batch_size = config.training.batch_size * dist.get_world_size()
@@ -312,6 +331,12 @@ class Trainer:
                     )
                     self.log("train/loss", norm_total_loss)
                     self.log("stats/batch_size", batch_size)
+
+                    iteration_times.append(batch_time)
+
+                    cuda_info = torch.cuda.memory_stats()
+                    print("cuda alloc retries ", cuda_info.get("num_alloc_retries", 0))
+
                 self.log(
                     "stats/max_gpu_allocated_gb",
                     torch.cuda.max_memory_allocated() / 1024**3,
