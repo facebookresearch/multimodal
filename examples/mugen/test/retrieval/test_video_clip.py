@@ -85,7 +85,7 @@ class TestVideoEncoder:
     @pytest.fixture
     def utils(self):
         def make_input_video(c_dim=1):
-            input_shape = [2, 3, 32, 32, 32]
+            input_shape = [1, 3, 16, 224, 224]
             input_video = torch.randint(10, input_shape).float()
             input_video = (
                 shift_dim(input_video, 1, c_dim) if c_dim != 1 else input_video
@@ -99,9 +99,9 @@ class TestVideoEncoder:
         input_video = make_input_video()
         encoder = VideoEncoder()
         out = encoder(input_video)
-        expected_sum = 846.3781
+        expected_sum = 408.3521
         assert_expected(
-            actual=out.shape, expected=torch.Size([2, 1024])
+            actual=out.shape, expected=torch.Size([1, 1024])
         )  # batch x embedding
         assert_expected(
             actual=out.sum(), expected=torch.as_tensor(expected_sum), rtol=0, atol=1e-3
@@ -147,7 +147,7 @@ class TestVideoCLIPBuilder:
                 [101, 2117, 7820, 3793, 102, 0, 0, 0, 0],
             ]
         ).to(dtype=int)
-        input_video = torch.randint(10, [2, 3, 32, 32, 32]).float()
+        input_video = torch.randint(10, [2, 3, 16, 224, 224]).float()
         return input_text, input_video
 
     def test_forward_pretrained_trainable(self, utils, mocker):
@@ -164,7 +164,7 @@ class TestVideoCLIPBuilder:
         assert_expected(
             actual=output.embeddings_a,
             expected=torch.Tensor(
-                [[-0.7332, 0.6777, 0.0556], [-0.7345, 0.6761, 0.0583]]
+                [[-0.4496, -0.3655, 0.8150], [0.2190, -0.7907, 0.5717]]
             ),
             rtol=0,
             atol=1e-3,
@@ -172,7 +172,7 @@ class TestVideoCLIPBuilder:
         assert_expected(
             actual=output.embeddings_b,
             expected=torch.Tensor(
-                [[0.7953, -0.5579, -0.2374], [0.8051, -0.2850, -0.5202]]
+                [[0.7291, -0.0462, -0.6829], [0.7157, -0.0175, -0.6982]],
             ),
             rtol=0,
             atol=1e-3,
@@ -201,7 +201,7 @@ class TestVideoCLIPBuilder:
         assert_expected(
             actual=output.embeddings_a,
             expected=torch.Tensor(
-                [[-0.3398, 0.8129, -0.4730], [-0.8151, 0.4487, 0.3664]]
+                [[0.8164, -0.4178, -0.3987], [0.8147, -0.4537, -0.3611]]
             ),
             rtol=0,
             atol=1e-3,
@@ -209,7 +209,7 @@ class TestVideoCLIPBuilder:
         assert_expected(
             actual=output.embeddings_b,
             expected=torch.Tensor(
-                [[0.4003, -0.8164, 0.4162], [-0.2378, -0.5576, 0.7953]]
+                [[-0.0199, 0.7168, -0.6970], [0.5802, 0.2075, -0.7876]]
             ),
             rtol=0,
             atol=1e-3,
