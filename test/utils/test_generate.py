@@ -135,7 +135,9 @@ class TestGenerationUtil:
                 614,
                 815,
             ]
-        )
+        ).unsqueeze(
+            0
+        )  # (b, out_seq_len)
         assert_expected(actual, expected)
 
     def test_filter_logits(self, generation_model):
