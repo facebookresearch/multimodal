@@ -90,13 +90,7 @@ class TestGenerationUtil:
         with pytest.warns(UserWarning):
             generator = GenerationUtil(model=model)
 
-    def test_sample(self, generation_model, mocker):
-        # prevents the generation of tokens out side of codebook codes as the model
-        # is not pre-trained so any token id is possible
-        mocker.patch(
-            "torchmultimodal.utils.generate.torch.multinomial",
-            return_value=torch.tensor([[0]]),
-        )
+    def test_sample(self, generation_model):
         input_shape = self._model_params["input_shape"]
         latent_shape = self._model_params["latent_shape"]
         latent_seq_len = torch.prod(torch.tensor(latent_shape)).item()
@@ -105,11 +99,44 @@ class TestGenerationUtil:
             x, max_seq_len=latent_seq_len, use_cache=True, causal=True
         )
         assert isinstance(out, SampleOutput)
-        actual = out.samples
-        assert_expected(
-            actual.shape, torch.Size([1, 3, 4, 8, 8])
-        )  # (b, c, *input_shape)
-        assert_expected(actual.sum().item(), -41.6888, rtol=1e-4, atol=1e-5)
+        expected = out.tokens
+        actual = torch.tensor(
+            [
+                477,
+                124,
+                624,
+                773,
+                559,
+                139,
+                213,
+                118,
+                364,
+                1014,
+                730,
+                871,
+                445,
+                982,
+                362,
+                942,
+                32,
+                536,
+                506,
+                280,
+                598,
+                81,
+                225,
+                689,
+                20,
+                661,
+                281,
+                782,
+                904,
+                595,
+                614,
+                815,
+            ]
+        )
+        assert_expected(actual, expected)
 
     def test_filter_logits(self, generation_model):
         kwargs = {"top_k": 5, "top_p": 0.7}
