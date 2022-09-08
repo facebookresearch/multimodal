@@ -60,9 +60,9 @@ class MultimodalGPT(nn.Module):
         use_gpt_init (bool): Whether to use GPT model specific initialization. Defaults to ``True``.
 
     Args:
-        in_tokens (Tensor, optional): Tensor of dimension ``(b, in_seq_len, c)`` containing tokens
+        in_tokens (Tensor, optional): Tensor of dimension ``(b, in_seq_len)`` containing tokens
             for the input modality. Defaults to ``None``.
-        out_tokens (Tensor, optional): Tensor of dimension ``(b, out_seq_len, c')`` containing tokens
+        out_tokens (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing tokens
             for the output modality. Defaults to ``None``.
         in_pos_ids (Tensor, optional): Tensor of dimension ``(b, in_seq_len)`` containing indices for the
             input modality position embeddings. Defaults to ``None``.
