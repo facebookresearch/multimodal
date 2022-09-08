@@ -249,7 +249,7 @@ class MultimodalGPT(nn.Module):
                 0
             )  # (seq_len, num_tokens) -> (1, seq_len, num_tokens)
 
-        out = self.norm(hidden_states)
+        hidden_states = self.norm(hidden_states)
         logits = self.to_logit(hidden_states)
         max_neg_value = -torch.finfo(logits.dtype).max
         if logits_mask is not None:
