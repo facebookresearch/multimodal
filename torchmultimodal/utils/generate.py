@@ -33,8 +33,8 @@ class GenerationUtil:
 
     Attributes:
         model (nn.Module): Model that is wrapped for generation.
-        num_in_tokens (int): Number of input modality tokens.
-        num_out_tokens (int): Number of output modality tokens.
+        num_in_tokens (int): Number of unique token states for the input modality.
+        num_out_tokens (int): Number of unique token states for the output modality.
     """
 
     def __init__(self, model: nn.Module) -> None:
