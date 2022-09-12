@@ -101,7 +101,7 @@ def test_decode_video_checkpoint(model_fn, video_seq_len, expected):
     vqvae_model_key = f"mugen_L{video_seq_len}"
     test_params = {
         "video_seq_len": video_seq_len,
-        "video_vqvae_pretrained_model_key": vqvae_model_key,
+        "pretrained_video_vqvae_model_key": vqvae_model_key,
     }
     kwargs = {**_model_params, **test_params}
     model = model_fn(**kwargs)
@@ -134,7 +134,7 @@ def test_lookup(model_fn, modality, expected_shape, expected_sum):
 @pytest.mark.parametrize(
     "video_seq_len, expected", [(8, 782.1641), (16, -442.4437), (32, 585.2963)]
 )
-def test_forward(model_fn, video_seq_len, expected):
+def test_forward_no_pretrained(model_fn, video_seq_len, expected):
     test_params = {"video_seq_len": video_seq_len}
     kwargs = {**_model_params, **test_params}
     n_head = kwargs["n_head"]
@@ -155,16 +155,44 @@ def test_forward(model_fn, video_seq_len, expected):
     assert_expected(actual.sum().item(), expected, rtol=1e-5, atol=1e-4)
 
 
-# TODO: Update this test when the gpt ckpt is available
 @pytest.mark.parametrize(
     "video_seq_len, expected",
     [(8, 431.3439), (16, -180.2783), (32, 462.27)],
 )
-def test_forward_checkpoint(model_fn, video_seq_len, expected):
+def test_forward_vqvae_pretrained(model_fn, video_seq_len, expected):
     vqvae_model_key = f"mugen_L{video_seq_len}"
     test_params = {
         "video_seq_len": video_seq_len,
-        "video_vqvae_pretrained_model_key": vqvae_model_key,
+        "pretrained_video_vqvae_model_key": vqvae_model_key,
+    }
+    kwargs = {**_model_params, **test_params}
+    n_head = kwargs["n_head"]
+
+    x = torch.tensor([[1, 2, 3, 4]])
+    y = torch.tensor([[5, 6, 7]])
+    attn_mask = torch.tril(torch.ones(7, 7)).unsqueeze(0)  # (b, seq_len, seq_len)
+    head_mask = torch.ones(1, n_head, 7, 7)  # (b, h, seq_len, seq_len)
+
+    model = model_fn(**kwargs)
+    model.eval()
+    num_tokens = model.num_in_tokens + model.num_out_tokens
+    logits_mask = torch.ones(1, 7, num_tokens)  # (b, seq_len, num_tokens)
+
+    out = model(x, y, attn_mask=attn_mask, head_mask=head_mask, logits_mask=logits_mask)
+    actual = out.decoder_output.last_hidden_states
+    assert_expected(actual.shape, (1, 7, 768))
+    assert_expected(actual.sum().item(), expected, rtol=1, atol=1e-4)
+
+
+@pytest.mark.parametrize(
+    "video_seq_len, expected",
+    [(8, 1520.8452), (16, -2085.2417), (32, -5190.5591)],
+)
+def test_forward_gpt_pretrained(model_fn, video_seq_len, expected):
+    gpt_model_key = f"mugen_L{video_seq_len}"
+    test_params = {
+        "video_seq_len": video_seq_len,
+        "pretrained_text_video_gpt_model_key": gpt_model_key,
     }
     kwargs = {**_model_params, **test_params}
     n_head = kwargs["n_head"]
