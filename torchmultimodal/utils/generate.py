@@ -112,15 +112,15 @@ class GenerationUtil:
         )
 
         model_outputs: Tuple[Any, ...] = ()
-        # Take the last token of the input modality as the "sos" token for the ouput modality
-        samples = [in_tokens[:, -1:]]
+        samples: List[Tensor] = []
         idx = 0
         while idx < max_seq_len:
             # Attention mask is not required as the cached key/value sequence is only up to the
             # current step
             if idx == 0:
+                # Take the last token of the input modality as the "sos" token for the ouput modality
                 out = self.model(
-                    in_tokens=samples[-1],
+                    in_tokens=in_tokens[:, -1:],
                     in_pos_ids=torch.tensor([in_seq_len - 1]).unsqueeze(0),
                     logits_mask=logits_mask,
                     use_cache=use_cache,
@@ -151,9 +151,7 @@ class GenerationUtil:
             model_outputs = model_outputs + (out,)
             idx += 1
 
-        samples = torch.cat(
-            samples[1:], dim=1
-        )  # remove the "sos" token: (b, out_seq_len)
+        samples = torch.cat(samples, dim=1)
         decoded = self.model.decode(samples)  # type: ignore
 
         return SampleOutput(
