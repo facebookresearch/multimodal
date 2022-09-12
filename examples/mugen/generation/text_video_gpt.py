@@ -167,7 +167,7 @@ def text_video_gpt(
             not in PRETRAINED_TEXT_VIDEO_GPT_URL_MAPPING
         ):
             raise KeyError(
-                f"Invalide pretrained model key: {pretrained_text_video_gpt_model_key}"
+                f"Invalid pretrained model key: {pretrained_text_video_gpt_model_key}"
             )
 
         load_module_from_url(
