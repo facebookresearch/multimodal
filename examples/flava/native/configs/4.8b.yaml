@@ -1,0 +1,80 @@
+training:
+  strategy: fsdp # can be changed to ddp or fsdp
+  seed: 1337
+
+  batch_size: 12
+  num_workers: 4
+  prefetch_factor: 3
+
+  optimizer:
+    learning_rate: 1e-3
+    adam_eps: 1e-8
+    adam_weight_decay: 0.1
+    adam_betas: [0.9, 0.999]
+
+  warmup_steps: 10000
+  max_steps: 100000
+
+  validation_steps: 5000
+  log_interval: 10
+
+  enable_tf32: True
+  enable_amp: True
+  half_precision_format: "bfloat16"  # or float16
+  enable_half_reduce_in_fsdp: True  # handles the reduction across devices in half precision
+
+  activation_checkpointing: True
+  activation_checkpointing_reentrant: False # false for non-reentrant
+
+datasets:
+  _target_: flava.definitions.TrainingDatasetsInfo
+  selected:
+  - image
+  - vl
+  - text
+  image:
+    _target_: flava.definitions.TrainingSingleDatasetInfo
+    train:
+      - _target_: flava.definitions.HFDatasetInfo
+        key: imagenet-1k
+        subset: default
+  text:
+    _target_: flava.definitions.TrainingSingleDatasetInfo
+    train:
+      - _target_: flava.definitions.HFDatasetInfo
+        key: wikitext
+        subset: wikitext-103-raw-v1
+    datamodule_extra_kwargs:
+      text_columns: ["text"]
+  vl:
+    _target_: flava.definitions.TrainingSingleDatasetInfo
+    train:
+      - _target_: flava.definitions.HFDatasetInfo
+        key: red_caps
+        subset: backpacking
+        rename_columns:
+          - ["caption", "text"]
+    val:
+      - _target_: flava.definitions.HFDatasetInfo
+        key: red_caps
+        subset: backpacking
+        rename_columns:
+          - ["caption", "text"]
+        split_key_mapping:
+          validation: train
+
+model:
+  image_num_hidden_layers: 48
+  image_hidden_size: 1664
+  image_intermediate_size: 8192
+  image_num_attention_heads: 16
+
+  text_num_hidden_layers: 48
+  text_hidden_size: 1664
+  text_intermediate_size: 8192
+  text_num_attention_heads: 16
+
+  multimodal_num_hidden_layers: 24
+  multimodal_hidden_size: 1664
+  multimodal_intermediate_size: 8192
+  multimodal_num_attention_heads: 16
