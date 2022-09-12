@@ -43,8 +43,8 @@ class MultimodalGPT(nn.Module):
 
     Attributes:
         d_model (int): Embedding dimension of the transformer decoder.
-        num_in_tokens (int): Number of token states for the input modality.
-        num_out_tokens (int): Number of token states for the output modality.
+        num_in_tokens (int): Number of unique token states for the input modality.
+        num_out_tokens (int): Number of unique token states for the output modality.
         latent_shape ([Tuple[int, ...]): Shape of the latent space of the output modality tokenizer. Used to reshape
             sequence of generated tokens to be decoded back to data.
         in_tokenizer (nn.Module): Tokenizer for the input modality. Must have methods ``encode``, ``lookup``.

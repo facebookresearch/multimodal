@@ -15,7 +15,8 @@ from torchmultimodal.utils.attention import get_causal_attention_mask
 
 
 class SampleOutput(NamedTuple):
-    samples: Tensor
+    decoded: Tensor  # generated sample data
+    tokens: Tensor  # generated tokens before being decoded back to data
     model_outputs: Tuple[Any, ...]
 
 
@@ -32,8 +33,8 @@ class GenerationUtil:
 
     Attributes:
         model (nn.Module): Model that is wrapped for generation.
-        num_in_tokens (int): Number of input modality tokens.
-        num_out_tokens (int): Number of output modality tokens.
+        num_in_tokens (int): Number of unique token states for the input modality.
+        num_out_tokens (int): Number of unique token states for the output modality.
     """
 
     def __init__(self, model: nn.Module) -> None:
@@ -146,16 +147,18 @@ class GenerationUtil:
             logits_view = logits.view(-1, logits.shape[-1])  # (b, num_tokens)
             logits_view = self._filter_logits(logits_view, top_k=top_k, top_p=top_p)
             probs = F.softmax(logits_view, dim=-1)
-            samples.append(torch.multinomial(probs, 1))  # (b, 1)
+            samples.append(torch.multinomial(probs, 1) - self.num_in_tokens)  # (b, 1)
             model_outputs = model_outputs + (out,)
             idx += 1
 
         samples = torch.cat(
             samples[1:], dim=1
         )  # remove the "sos" token: (b, out_seq_len)
-        samples = self.model.decode(samples)  # type: ignore
+        decoded = self.model.decode(samples)  # type: ignore
 
-        return SampleOutput(samples=samples, model_outputs=model_outputs)
+        return SampleOutput(
+            decoded=decoded, tokens=samples, model_outputs=model_outputs
+        )
 
     def _filter_logits(
         self, logits: Tensor, top_k: Optional[int] = None, top_p: Optional[float] = None
