@@ -17,6 +17,18 @@ from torchmultimodal.utils.common import checkpoint_wrapper, get_clones
 
 
 class TransformerDecoderOutput(NamedTuple):
+    """Contains output from ``forward`` of :class:`MultimodalTransformerDecoder`, :class:`TransformerDecoder`.
+
+    Attributes:
+        last_hidden_states (Tensor): Output from the last layer of the transformer.
+        hidden_states (Tuple[Tensor, ...], optional): Outputs from all layers of the transformer.
+            Defaults to ``None``.
+        attention_weights (Tuple[Tensor, ...], optional): Attention probabilities from all layers of the
+            transformer. Defaults to ``None``.
+        past_key_values (Tuple[Dict[str, Tensor], ...]], optional): If ``use_cache`` is on, contains
+            key/value tensors prior to the current step along the sequence. Defaults to ``None``.
+    """
+
     last_hidden_states: Tensor
     hidden_states: Optional[Tuple[Tensor, ...]] = None
     attention_weights: Optional[Tuple[Tensor, ...]] = None
@@ -24,12 +36,30 @@ class TransformerDecoderOutput(NamedTuple):
 
 
 class TransformerLayerOutput(NamedTuple):
+    """Contains output from :meth:`TransformerDecoderLayer.forward`.
+
+    Attributes:
+        hidden_states (Tensor): Output from the current layer.
+        attention_weights (Tensor, optional): Attention probability tensor of the current layer.
+            Defaults to ``None``.
+        past_key_values (Dict[str, Tensor], optional): If ``use_cache`` is on, contains key/value tensors
+            prior to the current step along the sequence. Defaults to ``None``.
+    """
+
     hidden_states: Tensor
     attention_weights: Optional[Tensor] = None
     past_key_values: Optional[Dict[str, Tensor]] = None
 
 
 class MultimodalGPTOutput(NamedTuple):
+    """Contains output from :meth:`MultimodalGPT.forward`.
+
+    Attributes:
+        decoder_output (TransformerDeocoderOutput): Contains output from the multimodal transformer decoder.
+            See :class:`MultimodalTransformerDecoder`.
+        logits (Tensor): Logits computed from the last hidden state of the multimodal transformer decoder.
+    """
+
     decoder_output: TransformerDecoderOutput
     logits: Tensor
 
@@ -60,9 +90,9 @@ class MultimodalGPT(nn.Module):
         use_gpt_init (bool): Whether to use GPT model specific initialization. Defaults to ``True``.
 
     Args:
-        in_tokens (Tensor, optional): Tensor of dimension ``(b, in_seq_len, c)`` containing tokens
+        in_tokens (Tensor, optional): Tensor of dimension ``(b, in_seq_len)`` containing tokens
             for the input modality. Defaults to ``None``.
-        out_tokens (Tensor, optional): Tensor of dimension ``(b, out_seq_len, c')`` containing tokens
+        out_tokens (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing tokens
             for the output modality. Defaults to ``None``.
         in_pos_ids (Tensor, optional): Tensor of dimension ``(b, in_seq_len)`` containing indices for the
             input modality position embeddings. Defaults to ``None``.
@@ -85,6 +115,9 @@ class MultimodalGPT(nn.Module):
             layer. Defaults to ``False``.
         return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
             Defaults to ``False``.
+
+    Returns:
+        An instance of :class:`MultimodalGPTOutput`.
 
     Raises:
         AttributeError: If input tokenizer does not implement methods ``encode`` and ``lookup`` or if output
@@ -249,7 +282,7 @@ class MultimodalGPT(nn.Module):
                 0
             )  # (seq_len, num_tokens) -> (1, seq_len, num_tokens)
 
-        out = self.norm(hidden_states)
+        hidden_states = self.norm(hidden_states)
         logits = self.to_logit(hidden_states)
         max_neg_value = -torch.finfo(logits.dtype).max
         if logits_mask is not None:
@@ -272,7 +305,7 @@ class MultimodalGPT(nn.Module):
         Returns:
             A tensor of token ids of shape ``(b, seq_len)``.
 
-        Rasies:
+        Raises:
             ValueError: If ``modality`` is neither ``in`` nor ``out``.
         """
         if modality == "in":
@@ -299,6 +332,10 @@ class MultimodalGPT(nn.Module):
         Returns:
             The decoded data, e.g., ``List[str]`` for text, a tensor of shape ``(b, c, d1. ,,, dn)`` for
                 audio/image/video.
+
+        Raises:
+            ValueError: If the shape of ``token_ids`` is not of dimension two.
+            ValueError: If the sequence dim of ``token_ids`` does not match that inferred from ``latent_shape``.
         """
         if len(token_ids.shape) != 2:
             raise ValueError(
@@ -321,8 +358,17 @@ class MultimodalGPT(nn.Module):
     def lookup(self, token_ids: Tensor, modality: str) -> Tensor:
         """Looks up the latent embeddings corresponding to the token ids during generation.
 
-        We ask each tokenizer to implement this method. An example is
-        :py:class:`torchmultimodal.models.vqvae.VQVAE`.
+        We ask each tokenizer to implement this method. An example is :class:`torchmultimodal.models.vqvae.VQVAE`.
+
+        Args:
+            token_ids (Tensor): Token ID sequence ``(b, seq_len)``.
+            modality (str): The modality at which this method is performed.
+
+        Returns:
+            A tensor of embeddings corresponding to the token ids.
+
+        Raises:
+            ValueError: If ``modality`` is neither ``in`` nor ``out``.
         """
         if modality == "in":
             tokenizer = self.in_tokenizer
@@ -381,6 +427,9 @@ class MultimodalTransformerDecoder(nn.Module):
             layer. Defaults to ``False``.
         return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
             Defaults to ``False``.
+
+    Returns:
+        An instace of :class:`TransformerDecoderOutput`.
     """
 
     def __init__(
@@ -485,6 +534,9 @@ class TransformerDecoder(nn.Module):
             layer. Defaults to ``False``.
         return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
             Defaults to ``False``.
+
+    Returns:
+        An instance of :class:`TransformerDecoderOutput`.
     """
 
     def __init__(
@@ -576,6 +628,9 @@ class TransformerDecoderLayer(nn.Module):
         causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
         return_attn_weights (bool, optional): If ``True``, returns attention probabilities of the layer.
             Defaults to ``False``.
+
+    Returns:
+        An instance of :class:`TransformerLayerOutput`.
     """
 
     def __init__(
