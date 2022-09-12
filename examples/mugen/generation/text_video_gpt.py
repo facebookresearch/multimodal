@@ -25,13 +25,17 @@ from torchmultimodal.modules.layers.attention import SelfAttention
 from torchmultimodal.modules.layers.position_embedding import (
     BroadcastedPositionEmbedding,
 )
+from torchmultimodal.utils.common import load_module_from_url
 
 
-BPE_PRETRAINED_TOKENIZER_URL = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024.json"
+PRETRAINED_BPE_TOKENIZER_URL = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024.json"
+PRETRAINED_TEXT_VIDEO_GPT_URL_MAPPING = {
+    "mugen_L32": "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/text_video_gpt_L32_weights-17db9549.pth",
+    "mugen_L16": "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/text_video_gpt_L16_weights-5dfc5a0a.pth",
+    "mugen_L8": "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/text_video_gpt_L8_weights-72b6d2ab.pth",
+}
 
 
-# TODO: Load gpt ckpt + add option to builder to load from pretrained (will remove after
-# the next PR)
 def text_video_gpt(
     text_seq_len: int = 128,
     video_seq_len: int = 32,
@@ -43,8 +47,9 @@ def text_video_gpt(
     attn_dropout: float = 0.3,
     num_decoder_layers: int = 12,
     use_gpt_init: bool = True,
-    text_pretrained_tokenizer_url: str = BPE_PRETRAINED_TOKENIZER_URL,
-    video_vqvae_pretrained_model_key: Optional[str] = None,
+    pretrained_text_tokenizer_url: str = PRETRAINED_BPE_TOKENIZER_URL,
+    pretrained_video_vqvae_model_key: Optional[str] = None,
+    pretrained_text_video_gpt_model_key: Optional[str] = None,
 ) -> MultimodalGPT:
     """Builds a text-to-video GPT model from user inputs
 
@@ -71,11 +76,17 @@ def text_video_gpt(
             Defaults to ``0.3``.
         num_decoder_layers (int): Number of transformer decoder layers. Defaults to ``12``.
         use_gpt_init (bool): Whether uses parameter initialization of GPT model. Defaults to ``True``.
-        text_pretrained_tokenizer_url (str): Remote location of the pretrained text tokenizer file. Defaults
+        pretrained_text_tokenizer_url (str): Remote location of the pretrained text tokenizer file. Defaults
             to `"MUGEN pretrained tokenizer file
             "<https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024.json>`_.
-        video_vqvae_pretrained_model_key (str, optional): Key to select the pretrained MUGEN VideoVQVAE weights
+        pretrained_video_vqvae_model_key (str, optional): Key to select the pretrained MUGEN VideoVQVAE weights
             file. For allowed values, see :py:module:`examples/mugen/generation/video_vqvae.py`.
+            Defaults to ``None``.
+        pretrained_text_video_gpt_model_key (str, optional): Key to select the pretrained MUGEN TextVideoGPT
+            weights file. The provided key should match that of MUGEN VideoVQVAE to ensure the two models were
+            pretrained for the same video sequence length. For example ``L32`` means the video sequence length
+            is ``32``. The loaded weights will override those from the frozen VideoVQVAE model.
+            Defaults to ``None``.
 
     Returns:
         An instance of :py:class:`torchmultimodal.models.gpt.MultimodalGPT`.
@@ -83,7 +94,7 @@ def text_video_gpt(
 
     # builds text tokenizer from pre-trained
     text_tokenizer_local_path = _PATH_MANAGER.get_local_path(
-        text_pretrained_tokenizer_url
+        pretrained_text_tokenizer_url
     )
     tokenizer = Tokenizer.from_file(text_tokenizer_local_path)
 
@@ -97,7 +108,7 @@ def text_video_gpt(
 
     # builds video tokenizer
     video_vqvae = video_vqvae_mugen(
-        pretrained_model_key=video_vqvae_pretrained_model_key,
+        pretrained_model_key=pretrained_video_vqvae_model_key,
         freeze_model=True,
     )
     video_vqvae.eval()
@@ -137,7 +148,7 @@ def text_video_gpt(
         text_pos_emb, video_pos_emb, decoder, right_shift
     )
 
-    return MultimodalGPT(
+    model = MultimodalGPT(
         d_model=d_model,
         num_in_tokens=num_text_tokens,
         num_out_tokens=num_video_tokens,
@@ -149,6 +160,22 @@ def text_video_gpt(
         out_projection=video_projection,
         use_gpt_init=use_gpt_init,
     )
+
+    if pretrained_text_video_gpt_model_key is not None:
+        if (
+            pretrained_text_video_gpt_model_key
+            not in PRETRAINED_TEXT_VIDEO_GPT_URL_MAPPING
+        ):
+            raise KeyError(
+                f"Invalide pretrained model key: {pretrained_text_video_gpt_model_key}"
+            )
+
+        load_module_from_url(
+            model,
+            PRETRAINED_TEXT_VIDEO_GPT_URL_MAPPING[pretrained_text_video_gpt_model_key],
+        )
+
+    return model
 
 
 def latent_shape(
