@@ -132,7 +132,7 @@ def test_lookup(model_fn, modality, expected_shape, expected_sum):
 
 
 @pytest.mark.parametrize(
-    "video_seq_len, expected", [(8, 63.9277), (16, 27.3964), (32, -7.2096)]
+    "video_seq_len, expected", [(8, 782.1641), (16, -442.4437), (32, 585.2963)]
 )
 def test_forward(model_fn, video_seq_len, expected):
     test_params = {"video_seq_len": video_seq_len}
@@ -156,10 +156,9 @@ def test_forward(model_fn, video_seq_len, expected):
 
 
 # TODO: Update this test when the gpt ckpt is available
-# For now it's expected that the results are the same as without the ckpt
 @pytest.mark.parametrize(
     "video_seq_len, expected",
-    [(8, 63.9277), (16, 27.3964), (32, -7.2096)],
+    [(8, 431.3439), (16, -180.2783), (32, 462.27)],
 )
 def test_forward_checkpoint(model_fn, video_seq_len, expected):
     vqvae_model_key = f"mugen_L{video_seq_len}"

@@ -688,16 +688,17 @@ class TransformerDecoderLayer(nn.Module):
         )
 
         if return_attn_weights:
-            x, attn_probs = attn_out
+            attn_hidden_states, attn_probs = attn_out
         else:
-            x = attn_out
+            attn_hidden_states = attn_out
 
         if use_cache:
             past_key_values = self.attention.cache
 
-        x = x + self.dropout_attn(x)
-        x = self._mlp_block(self.norm_mlp(x))
-        x = x + self.dropout_mlp(x)
+        x = x + self.dropout_attn(attn_hidden_states)
+
+        mlp_hidden_states = self._mlp_block(self.norm_mlp(x))
+        x = x + self.dropout_mlp(mlp_hidden_states)
 
         return TransformerLayerOutput(
             hidden_states=x,
