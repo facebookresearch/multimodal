@@ -23,7 +23,7 @@ training:
   half_precision_format: "bfloat16"  # or float16
   enable_half_reduce_in_fsdp: True  # handles the reduction across devices in half precision
 
-  activation_checkpointing: False
+  activation_checkpointing: True
   activation_checkpointing_reentrant: False # false for non-reentrant
 
 datasets:
@@ -64,17 +64,19 @@ datasets:
           validation: train
 
 model:
-  image_num_hidden_layers: 24
-  image_hidden_size: 1024
-  image_intermediate_size: 4096
+  image_num_hidden_layers: 64
+  image_hidden_size: 2048
+  image_intermediate_size: 10240
   image_num_attention_heads: 16
 
-  text_num_hidden_layers: 24
-  text_hidden_size: 1024
-  text_intermediate_size: 4096
+  text_num_hidden_layers: 64
+  text_hidden_size: 2048
+  text_intermediate_size: 10240
   text_num_attention_heads: 16
 
-  multimodal_num_hidden_layers: 12
-  multimodal_hidden_size: 1024
-  multimodal_intermediate_size: 4096
+  multimodal_num_hidden_layers: 40
+  multimodal_hidden_size: 2048
+  multimodal_intermediate_size: 10240
   multimodal_num_attention_heads: 16
+
+  # codebook_image_size: 8192

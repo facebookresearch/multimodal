@@ -38,6 +38,9 @@ from flava.native.utils import (
     setup_distributed_device,
 )
 from flava.utils import build_datamodule_kwargs
+from torchmultimodal.models.flava.image_encoder import ImageTransformer
+from torchmultimodal.models.flava.model import DalleVAEEncoder, DalleEncoderBlock
+from torchmultimodal.models.flava.text_encoder import BERTTextEncoder
 
 from omegaconf import DictConfig, OmegaConf
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import (
@@ -133,7 +136,7 @@ class Trainer:
         model_config = self.config.get("model", {})
         print0(f"using model config: {model_config}")
 
-        model = FLAVAPreTrainModule(**model_config)
+        model = FLAVAPreTrainModule(**model_config).cuda()
         strategy = self.config.training.strategy
 
         print0(
@@ -167,7 +170,14 @@ class Trainer:
                 mixed_precision=mp,
                 auto_wrap_policy=partial(
                     transformer_auto_wrap_policy,
-                    transformer_layer_cls={TransformerEncoderLayer},
+                    transformer_layer_cls={
+                            TransformerEncoderLayer,
+                            ImageTransformer,
+                            BERTTextEncoder,
+                            DalleVAEEncoder,
+                            DalleEncoderBlock,
+
+                    },
                 ),
             )
 
@@ -347,8 +357,10 @@ class Trainer:
                 self.validate()
 
     def validate(self):
-        if self.steps % self.config.training.validation_steps != 0 or self.steps == 0:
-            return
+        # self.imagenet_validate()
+        return
+        # if self.steps % self.config.training.validation_steps != 0 or self.steps == 0:
+        #     return
 
         model = self.model
         model.eval()
