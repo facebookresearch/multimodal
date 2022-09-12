@@ -402,7 +402,7 @@ class TestMultimodalGPT:
             "decoder_output": {
                 "last_hidden_states": (
                     torch.Size([1, 7, 4]),  # (b, seq_len, d_model)
-                    -10.8185,
+                    64.5348,
                 ),
                 "hidden_states": None,
                 "attention_weights": None,
@@ -474,7 +474,7 @@ class TestMultimodalTransformerDecoder:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 3, 4]),
-                -3.3081,
+                0.2222,
             ),  # (b, in_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
@@ -489,7 +489,7 @@ class TestMultimodalTransformerDecoder:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 4, 4]),
-                -4.9438,
+                5.2093,
             ),  # (b, out_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
@@ -507,7 +507,7 @@ class TestMultimodalTransformerDecoder:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 7, 4]),
-                -7.2657,
+                7.9519,
             ),  # (b, in_seq_len + out_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
@@ -535,7 +535,7 @@ class TestMultimodalTransformerDecoder:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 7, 4]),
-                -7.2657,
+                7.9519,
             ),  # (b, in_seq_len + out_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
@@ -562,7 +562,7 @@ class TestMultimodalTransformerDecoder:
         expected = {
             "last_hidden_states": (
                 torch.Size([1, 7, 4]),
-                -8.0229,
+                10.1681,
             ),  # (b, in_seq_len + out_seq_len, d_model)
             "hidden_states": None,
             "attention_weights": None,
@@ -623,7 +623,7 @@ class TestTransformerDecoderLayer:
         actual = decoder_layer(decoder_input)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
-            "hidden_states": (torch.Size([1, 3, 4]), 2.8170),  # (b, seq_len, d_model)
+            "hidden_states": (torch.Size([1, 3, 4]), 5.1956),  # (b, seq_len, d_model)
             "attention_weights": None,
             "past_key_values": None,
         }
@@ -636,7 +636,7 @@ class TestTransformerDecoderLayer:
         actual = decoder_layer(decoder_input, attn_mask, head_mask)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
-            "hidden_states": (torch.Size([1, 3, 4]), 2.8429),  # (b, seq_len, seq_len)
+            "hidden_states": (torch.Size([1, 3, 4]), 7.0397),  # (b, seq_len, seq_len)
             "attention_weights": None,
             "past_key_values": None,
         }
@@ -646,7 +646,7 @@ class TestTransformerDecoderLayer:
         actual = decoder_layer(decoder_input, use_cache=True, return_attn_weights=True)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
-            "hidden_states": (torch.Size([1, 3, 4]), 2.8170),  # (b, seq_len, seq_len)
+            "hidden_states": (torch.Size([1, 3, 4]), 5.1956),  # (b, seq_len, seq_len)
             "attention_weights": (
                 torch.Size([1, 2, 3, 3]),
                 6.0,
