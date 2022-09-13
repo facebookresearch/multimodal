@@ -15,7 +15,7 @@ from torchmultimodal.utils.attention import get_causal_attention_mask
 
 
 class SampleOutput(NamedTuple):
-    """Contains outputs from :meth:`GenerationUtil.sample`.
+    """Outputs from :meth:`~torchmultimodal.utils.generate.GenerationUtil.sample`.
 
     Attributes:
         decoded (Any): Generated sample data for the ouput modality.

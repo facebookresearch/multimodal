@@ -13,10 +13,19 @@ from torchmultimodal.utils.common import shift_dim
 
 
 class CodebookOutput(NamedTuple):
-    encoded_flat: Tensor  # the flattened encoder output
-    quantized_flat: Tensor  # the chosen nearest embeddings
-    codebook_indices: Tensor  # indices of the chosen embeddings
-    quantized: Tensor  # the chosen embeddings (unflattened)
+    """Outputs from :class:`~torchmultimodal.modules.layers.codebook.Codebook`.
+
+    Attributes:
+        encoded_flat (Tensor): The flattened encoder output of shape ``(b x d1 x ... x dn, c)``.
+        quantized_flat (Tensor): The nearest embeddings for the encoded of shape ``(b x d1 x ... x dn, emb_dim)``.
+        codebook_indices (Tensor): Indices of the nearest embeddings of shape ``(b, d1, d2, ..., dn)``.
+        quantized (Tensor): The nearest embeddings reshaped back to ``(b, emb_dim, d1, ..., dn)``.
+    """
+
+    encoded_flat: Tensor
+    quantized_flat: Tensor
+    codebook_indices: Tensor
+    quantized: Tensor
 
 
 class Codebook(nn.Module):
@@ -44,14 +53,10 @@ class Codebook(nn.Module):
         epsilon (float): Noise used in Laplace smoothing of codebook usage. Defaults to ``1e-7``.
 
     Args:
-        z (Tensor): Tensor containing a batch of encoder outputs of shape ``[b, c, d1, ..., dn]``.
+        z (Tensor): Tensor containing a batch of encoder outputs of shape ``(b, c, d1, ..., dn)``.
 
     Returns:
-        A namedtuple of fields including:
-            * encoded_flat (Tensor): Input from encoder flattened to ``[b x d1 x d2 .... x dn, c]``.
-            * quantized_flat (Tensor): Quantized embeddings flattened of shape ``[b x d1 x d2 ... x dn, emb_dim]``.
-            * codebook_indices (Tensor): Indices of the chosen embeddings of shape ``[b, d1, ..., dn]``.
-            * quantized (Tensor): The chosen nearest embeddings of shape ``[b, c, d1, ..., dn]``.
+        An instance of :class:`~torchmultimodal.modules.layers.codebook.CodebookOutput`.
     """
 
     def __init__(

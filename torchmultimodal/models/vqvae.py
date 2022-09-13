@@ -12,8 +12,15 @@ from torchmultimodal.utils.common import shift_dim
 
 
 class VQVAEOutput(NamedTuple):
-    decoded: Tensor  # output of decoder
-    codebook_output: CodebookOutput  # output of codebook layer to be used in loss calculations
+    """Outputs from :class:`~torchmultimodal.models.vqvae.VQVAE`.
+
+    Attributes:
+        decoded (Tensor): Output of the decoder.
+        codebook_output (CodebookOutput): Output of codebook layer to be used in loss calculations.
+    """
+
+    decoded: Tensor
+    codebook_output: CodebookOutput
 
 
 class VQVAE(nn.Module):
@@ -40,6 +47,9 @@ class VQVAE(nn.Module):
 
     Args:
         x (Tensor): Input data of shape ``[b, c, d1, ..., dn]``.
+
+    Returns:
+        An instance of :class:`~torchmultimodal.models.vqvae.VQVAEOutput`.
     """
 
     def __init__(
