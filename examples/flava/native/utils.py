@@ -20,6 +20,7 @@ from tqdm import tqdm
 
 # optional syntax-highlighting for console output
 try:
+    raise ImportError
     from rich.console import Console
 
     c = Console(force_terminal=True)
@@ -70,6 +71,7 @@ def setup_distributed_device() -> torch.device:
         return torch.device("cpu")
 
     dist.init_process_group("nccl")
+    print(f"init pg with ws {dist.get_world_size()}")
     local_rank = int(os.environ["LOCAL_RANK"])
     print("local rank", local_rank)
     torch.cuda.set_device(local_rank)

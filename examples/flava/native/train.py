@@ -11,6 +11,7 @@
 import time
 from functools import partial
 from typing import Any, Dict, Tuple, Union
+from torchdistx import deferred_init
 
 import datasets
 import torch
@@ -52,6 +53,13 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 from torchmultimodal.modules.layers.transformer import TransformerEncoderLayer
 from torchmultimodal.modules.losses.flava import FLAVAPretrainingLossOutput
+from torchmultimodal.models.flava.image_encoder import ImageTransformer
+from torchmultimodal.models.flava.model import FLAVATransformerWithoutEmbeddings, DalleVAEEncoder, DalleEncoderBlock
+from torchmultimodal.modules.encoders.bert_text_encoder import BERTTextEncoder
+from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
+from torchmultimodal.modules.layers.transformer import TransformerEncoder
+
+
 
 
 def get_datamodules(config: FLAVAArguments) -> Tuple[MultiDataModule, ImageDataModule]:
@@ -114,6 +122,9 @@ class Trainer:
         )
 
         self.scaler = ShardedGradScaler() if config.training.enable_amp else None
+        self.amp_enabled = config.training.enable_amp
+        self.amp_enabled = False
+        self.scaler= None
 
     def log(
         self,
@@ -132,7 +143,8 @@ class Trainer:
         model_config = self.config.get("model", {})
         print0(f"using model config: {model_config}")
 
-        model = FLAVAPreTrainModule(**model_config)
+#        model = FLAVAPreTrainModule(**model_config)
+        model = deferred_init.deferred_init(FLAVAPreTrainModule, **model_config)
         strategy = self.config.training.strategy
 
         print0(
@@ -140,7 +152,7 @@ class Trainer:
             f"size: {get_model_size_gb(model):.3} GB"
         )
 
-        model = model.to(self.device)
+#        model = model.to(self.device)
         print0(f"after moving to cuda: {torch.cuda.memory_allocated()/1024**3:.3} GB")
         if strategy == "ddp":
             # TODO do we have to do this in FSDP too? see https://github.com/pytorch/pytorch/issues/75478
@@ -156,33 +168,50 @@ class Trainer:
             mp = None
             if self.config.training.enable_half_reduce_in_fsdp:
                 mp = MixedPrecision(
-                    # param_dtype=self.half_dtype,  not working
+                    #param_dtype=self.half_dtype,  #not working
                     reduce_dtype=self.half_dtype,
-                    # buffer_dtype=self.half_dtype,
+                    #buffer_dtype=self.half_dtype,
                 )
 
-            model = FSDP(
-                model,
-                mixed_precision=mp,
-                auto_wrap_policy=partial(
-                    transformer_auto_wrap_policy,
-                    transformer_layer_cls={TransformerEncoderLayer},
-                ),
-            )
+            wrapper_cls = {
+                    TransformerEncoderLayer,
+                    ImageTransformer,
+                    FLAVATransformerWithoutEmbeddings,
+                    DalleVAEEncoder,
+                    DalleEncoderBlock,
+                    BERTTextEncoder,
+                    TransformerEncoder,
+            #        BERTTextEmbeddings,
+                    }
+            wrapper_cls = {
+                    TransformerEncoderLayer,
+                    ImageTransformer,
+                    BERTTextEncoder,
+                    DalleVAEEncoder,
+                    DalleEncoderBlock,
+            }
+            #wrapper_cls = {TransformerEncoderLayer}
+            print(f"mp config {mp}")
 
             if self.config.training.activation_checkpointing:
                 # note: activation checkpointing wrapper currently is faulty
                 # - non-reentrant does not support kwargs in TransformerEncoderLayer
                 # - memory reduction from checkpointing is less than expected
 
+                print("Applying activation checkpoint")
+                #checkpoint_cls = (TransformerEncoderLayer, ImageTransformer, BERTTextEncoder)
+                checkpoint_cls = (TransformerEncoderLayer,)
                 check_fn = lambda submodule: isinstance(
-                    submodule, TransformerEncoderLayer
+                    submodule, checkpoint_cls
                 )
                 if self.config.training.activation_checkpointing_reentrant:
                     checkpoint_impl = CheckpointImpl.REENTRANT
+                    print("usign reentrant")
                 else:
                     checkpoint_impl = CheckpointImpl.NO_REENTRANT
+                    print("using non reentrant")
 
+#                checkpoint_impl = CheckpointImpl.REENTRANT
                 non_reentrant_wrapper = partial(
                     checkpoint_wrapper,
                     offload_to_cpu=False,
@@ -194,6 +223,17 @@ class Trainer:
                     check_fn=check_fn,
                 )
 
+            model = FSDP(
+                model,
+                mixed_precision=mp,
+                #forward_prefetch=True,
+                device_id=self.device,
+                auto_wrap_policy=partial(
+                    transformer_auto_wrap_policy,
+                    transformer_layer_cls=wrapper_cls,
+                ),
+            )
+            print0(f"Wrapped model {model}")
             print0(f"after FSDP {torch.cuda.memory_allocated()/1024**3:.3} GB")
 
         else:
@@ -250,6 +290,7 @@ class Trainer:
             dataloader.set_epoch(self.epochs)
 
             for i, data in enumerate(dataloader):
+                # resets all memory stats, including max mem allocated etc
                 torch.cuda.reset_peak_memory_stats()
 
                 self.steps += 1
@@ -261,13 +302,16 @@ class Trainer:
                 model.train()
                 data = self.preprocess_data(data)
                 optimizer.zero_grad(set_to_none=True)
-
+                div = 1024**3
                 with torch.cuda.amp.autocast(
-                    dtype=self.half_dtype, enabled=bool(self.scaler)
+                    dtype=self.half_dtype, enabled=self.amp_enabled
                 ):
+                    print0(
+                        f"before forward pass {torch.cuda.memory_allocated()/1024**3:.3} GB max {torch.cuda.max_memory_allocated() / div}"
+                    )
                     output = model(data)
                 print0(
-                    f"after forward pass {torch.cuda.memory_allocated()/1024**3:.3} GB"
+                    f"after forward pass {torch.cuda.memory_allocated()/1024**3:.3} GB max {torch.cuda.max_memory_allocated() / div}"
                 )
                 self.log(
                     "stats/fwd memory alloc",
@@ -282,11 +326,32 @@ class Trainer:
 
                 if self.scaler:
                     self.scaler.scale(total_loss).backward()
+                    print0(
+                        f"after backward pass {torch.cuda.memory_allocated()/1024**3:.3} GB"
+                    )
                     self.scaler.step(optimizer)
+                    print0(
+                        f"after optimizer  {torch.cuda.memory_allocated()/1024**3:.3} GB"
+                    )
                     self.scaler.update()
                 else:
                     total_loss.backward()
+                    print0(
+                        f"after backward pass {torch.cuda.memory_allocated()/1024**3:.3} GB max {torch.cuda.max_memory_allocated() / div}"
+                    )
+
+                    for flat_param in model.parameters():
+                        fp_shape = flat_param.shape
+                        if flat_param.grad is not None:
+                            g_shape = flat_param.grad.shape
+                        else:
+                            g_shape = None
+                        print0(f"shape: {fp_shape}: {g_shape}")
+                    dist.barrier()
                     optimizer.step()
+                    print0(
+                        f"after optimizer {torch.cuda.memory_allocated()/1024**3:.3} GB max {torch.cuda.max_memory_allocated() / div}"
+                    )
 
                 scheduler.step()
 
@@ -300,6 +365,7 @@ class Trainer:
                 self.log("stats/items per sec", items_time)
 
                 total_loss = total_loss.detach()
+                print0(f"max_memory_allocated {torch.cuda.max_memory_allocated()} max_memory_reserved {torch.cuda.max_memory_reserved()}")
                 dist.reduce(total_loss, dst=0)
 
                 if self.rank == 0:

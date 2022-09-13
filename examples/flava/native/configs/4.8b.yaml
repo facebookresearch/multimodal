@@ -19,12 +19,12 @@ training:
   log_interval: 10
 
   enable_tf32: True
-  enable_amp: True
+  enable_amp: False
   half_precision_format: "bfloat16"  # or float16
   enable_half_reduce_in_fsdp: True  # handles the reduction across devices in half precision
 
   activation_checkpointing: True
-  activation_checkpointing_reentrant: True # false for non-reentrant
+  activation_checkpointing_reentrant: False # false for non-reentrant
 
 datasets:
   _target_: flava.definitions.TrainingDatasetsInfo
@@ -64,17 +64,17 @@ datasets:
           validation: train
 
 model:
-  image_num_hidden_layers: 32
-  image_hidden_size: 1280
-  image_intermediate_size: 5120
+  image_num_hidden_layers: 48
+  image_hidden_size: 1664
+  image_intermediate_size: 8192
   image_num_attention_heads: 16
 
-  text_num_hidden_layers: 32
-  text_hidden_size: 1280
-  text_intermediate_size: 5120
+  text_num_hidden_layers: 48
+  text_hidden_size: 1664
+  text_intermediate_size: 8192
   text_num_attention_heads: 16
 
-  multimodal_num_hidden_layers: 16
-  multimodal_hidden_size: 1280
-  multimodal_intermediate_size: 5120
+  multimodal_num_hidden_layers: 24
+  multimodal_hidden_size: 1664
+  multimodal_intermediate_size: 8192
   multimodal_num_attention_heads: 16

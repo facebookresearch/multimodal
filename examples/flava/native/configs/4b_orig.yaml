@@ -2,10 +2,10 @@ training:
   strategy: fsdp # can be changed to ddp or fsdp
   seed: 1337
 
-  batch_size: 8
-  num_workers: 4
-  prefetch_factor: 3
-
+  batch_size: 16
+  num_workers: 1
+  prefetch_factor: 2
+  
   optimizer:
     learning_rate: 1e-3
     adam_eps: 1e-8
@@ -15,16 +15,16 @@ training:
   warmup_steps: 10000
   max_steps: 100000
 
-  validation_steps: 5000
+  validation_steps: 500
   log_interval: 10
 
   enable_tf32: True
-  enable_amp: True
+  enable_amp:  False
   half_precision_format: "bfloat16"  # or float16
   enable_half_reduce_in_fsdp: True  # handles the reduction across devices in half precision
-
+  
   activation_checkpointing: True
-  activation_checkpointing_reentrant: True # false for non-reentrant
+  activation_checkpointing_reentrant: False # false for non-reentrant
 
 datasets:
   _target_: flava.definitions.TrainingDatasetsInfo
@@ -51,7 +51,7 @@ datasets:
     train:
       - _target_: flava.definitions.HFDatasetInfo
         key: red_caps
-        subset: backpacking
+        subset: backpacking # larger dataset because dataloader keeps resetting
         rename_columns:
           - ["caption", "text"]
     val:
@@ -64,17 +64,21 @@ datasets:
           validation: train
 
 model:
-  image_num_hidden_layers: 32
-  image_hidden_size: 1280
-  image_intermediate_size: 5120
+  checkpoint_activations: True
+
+  image_num_hidden_layers: 48
+  image_hidden_size: 1664
+  image_intermediate_size: 8192
   image_num_attention_heads: 16
 
-  text_num_hidden_layers: 32
-  text_hidden_size: 1280
-  text_intermediate_size: 5120
+  text_num_hidden_layers: 48
+  text_hidden_size: 1664
+  text_intermediate_size: 8192
   text_num_attention_heads: 16
 
-  multimodal_num_hidden_layers: 16
-  multimodal_hidden_size: 1280
-  multimodal_intermediate_size: 5120
+  multimodal_num_hidden_layers: 24
+  multimodal_hidden_size: 1664
+  multimodal_intermediate_size: 8192
   multimodal_num_attention_heads: 16
+
+  codebook_image_size: 8192
