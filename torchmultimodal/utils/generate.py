@@ -15,8 +15,18 @@ from torchmultimodal.utils.attention import get_causal_attention_mask
 
 
 class SampleOutput(NamedTuple):
-    decoded: Tensor  # generated sample data
-    tokens: Tensor  # generated tokens before being decoded back to data
+    """Contains outputs from :meth:`GenerationUtil.sample`.
+
+    Attributes:
+        decoded (Any): Generated sample data for the ouput modality.
+        tokens (Tensor): Generated tokens ``(b, seq_len)`` for the output modality before being decoded
+            back to data.
+        model_outputs (Tuple[Any, ...]): A tuple of length ``seq_len`` containing output objects from
+            the model's forward pass at each step of generation.
+    """
+
+    decoded: Any
+    tokens: Tensor
     model_outputs: Tuple[Any, ...]
 
 
