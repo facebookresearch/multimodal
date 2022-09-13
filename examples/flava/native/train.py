@@ -146,6 +146,32 @@ class Trainer:
 
         model = model.to(self.device)
         print0(f"after moving to cuda: {torch.cuda.memory_allocated()/1024**3:.3} GB")
+
+        if self.config.training.activation_checkpointing:
+            # note: activation checkpointing wrapper currently is faulty
+            # - non-reentrant does not support kwargs in TransformerEncoderLayer
+            # - memory reduction from checkpointing is less than expected
+
+            check_fn = lambda submodule: isinstance(
+                submodule, TransformerEncoderLayer
+            )
+            if self.config.training.activation_checkpointing_reentrant:
+                checkpoint_impl = CheckpointImpl.REENTRANT
+            else:
+                checkpoint_impl = CheckpointImpl.NO_REENTRANT
+
+            non_reentrant_wrapper = partial(
+                checkpoint_wrapper,
+                offload_to_cpu=False,
+                checkpoint_impl=checkpoint_impl,
+            )
+            apply_activation_checkpointing_wrapper(
+                model,
+                checkpoint_wrapper_fn=non_reentrant_wrapper,
+                check_fn=check_fn,
+            )
+
+
         if strategy == "ddp":
             # TODO do we have to do this in FSDP too? see https://github.com/pytorch/pytorch/issues/75478
             model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
@@ -181,29 +207,6 @@ class Trainer:
                 ),
             )
 
-            if self.config.training.activation_checkpointing:
-                # note: activation checkpointing wrapper currently is faulty
-                # - non-reentrant does not support kwargs in TransformerEncoderLayer
-                # - memory reduction from checkpointing is less than expected
-
-                check_fn = lambda submodule: isinstance(
-                    submodule, TransformerEncoderLayer
-                )
-                if self.config.training.activation_checkpointing_reentrant:
-                    checkpoint_impl = CheckpointImpl.REENTRANT
-                else:
-                    checkpoint_impl = CheckpointImpl.NO_REENTRANT
-
-                non_reentrant_wrapper = partial(
-                    checkpoint_wrapper,
-                    offload_to_cpu=False,
-                    checkpoint_impl=checkpoint_impl,
-                )
-                apply_activation_checkpointing_wrapper(
-                    model,
-                    checkpoint_wrapper_fn=non_reentrant_wrapper,
-                    check_fn=check_fn,
-                )
 
             print0(f"after FSDP {torch.cuda.memory_allocated()/1024**3:.3} GB")
 

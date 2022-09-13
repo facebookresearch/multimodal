@@ -10,7 +10,6 @@
 from typing import Callable, NamedTuple, Optional, Tuple, Union
 
 from torch import nn, Tensor
-from torch.utils.checkpoint import checkpoint
 from torchmultimodal.modules.layers.attention import MultiHeadAttention, SelfAttention
 from torchmultimodal.modules.layers.mlp import MLP
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
@@ -378,12 +377,17 @@ class TransformerEncoder(nn.Module):
             if return_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
-            layer_outputs = checkpoint(layer_module, hidden_states, attention_mask, head_mask, return_attn_weights)
+            layer_outputs = layer_module(
+                hidden_states,
+                attention_mask=attention_mask,
+                head_mask=head_mask,
+                return_attn_weights=return_attn_weights,
+            )
             # layer_outputs = layer_module(
             #     hidden_states,
-            #     attention_mask=attention_mask,
-            #     head_mask=head_mask,
-            #     return_attn_weights=return_attn_weights,
+            #     attention_mask,
+            #     head_mask,
+            #     return_attn_weights,
             # )
 
             if return_attn_weights:
