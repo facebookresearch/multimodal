@@ -377,11 +377,19 @@ class TransformerEncoder(nn.Module):
             if return_hidden_states:
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
+            # Revert after rohans PR lands
+
+            # layer_outputs = layer_module(
+            #     hidden_states,
+            #     attention_mask=attention_mask,
+            #     head_mask=head_mask,
+            #     return_attn_weights=return_attn_weights,
+            # )
             layer_outputs = layer_module(
                 hidden_states,
-                attention_mask=attention_mask,
-                head_mask=head_mask,
-                return_attn_weights=return_attn_weights,
+                attention_mask,
+                head_mask,
+                return_attn_weights,
             )
 
             if return_attn_weights:
