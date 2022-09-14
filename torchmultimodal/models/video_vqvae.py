@@ -179,7 +179,8 @@ class VideoEncoder(nn.Module):
             x (Tensor): Input video data with shape ``(b, c, d1, d2, d3)``.
 
         Raises:
-            ValueError: If the lengths of ``in_channel_dims``, ``kernel_sizes``, and ``strides`` are not all equivalent.
+            ValueError: If the lengths of ``in_channel_dims``, ``kernel_sizes``, and ``strides`` are
+                not all equivalent.
         """
         in_channel = x.shape[1]
         if in_channel != self.convs[0].conv.in_channels:
@@ -222,8 +223,8 @@ class VideoDecoder(nn.Module):
             input_dim (int): Input channel dimension for first conv layer before attention stack
             n_res_layers (int): Number of ``AttentionResidualBlocks`` to include. Default is ``4``.
             attn_hidden_dim (int): Size of hidden dimension in attention block. Default is ``240``.
-            kwargs (Any): Keyword arguments to be passed into ``SamePadConvTranspose3d``
-                and used by ``nn.ConvTranspose3d``.
+            kwargs (Any): Keyword arguments to be passed into ``SamePadConvTranspose3d`` and used by
+                ``nn.ConvTranspose3d``.
         """
         super().__init__()
 

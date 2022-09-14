@@ -44,12 +44,6 @@ class VQVAE(nn.Module):
             the encoder.
         num_embeddings (int): Number of embedding vectors in codebook.
         embedding_dim (int): Dimensionality of embedding vectors in codebook.
-
-    Args:
-        x (Tensor): Input data of shape ``[b, c, d1, ..., dn]``.
-
-    Returns:
-        An instance of :class:`~torchmultimodal.models.vqvae.VQVAEOutput`.
     """
 
     def __init__(
@@ -111,6 +105,13 @@ class VQVAE(nn.Module):
         return self.codebook.lookup(indices)
 
     def forward(self, x: Tensor) -> VQVAEOutput:
+        """
+        Args:
+            x (Tensor): Input data of shape ``(b, c, d1, ..., dn)``.
+
+        Returns:
+            An instance of :class:`~torchmultimodal.models.vqvae.VQVAEOutput`.
+        """
         encoded = self.encoder(x)
         codebook_output = self.codebook(encoded)
         decoded = self.decoder(codebook_output.quantized)

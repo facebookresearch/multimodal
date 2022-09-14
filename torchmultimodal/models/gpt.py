@@ -181,14 +181,15 @@ class MultimodalGPT(nn.Module):
                 input modality position embeddings. Defaults to ``None``.
             out_pos_ids (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing indices for the
                 output modality position embeddings. Defaults to ``None``.
-            attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or ``(b, q_seq_len, k_seq_len)``
-                where prefixes ``q`` and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s
-                for masked positions. Defaults to ``None``.
+            attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or
+                ``(b, q_seq_len, k_seq_len)`` where prefixes ``q`` and ``k`` stand for query and key.
+                Contains 1s for positions to attend to and 0s for masked positions. Defaults to ``None``.
             head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or
                 ``(b, h, q_seq_len, k_seq_len)``. Masks need to be specified for each attention head.
                 Defaults to ``None``.
-            logits_mask (Tensor, optional): Tensor of dimension ``(seq_len, num_tokens)`` or ``(b, seq_len, num_tokens)``
-                to ensure we only calculate probabilities from tokens of the corresponding modality sequence.
+            logits_mask (Tensor, optional): Tensor of dimension ``(seq_len, num_tokens)`` or
+                ``(b, seq_len, num_tokens)`` to ensure we only calculate probabilities from tokens of the
+                corresponding modality sequence.
             use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
                 recomputes key and value for each decoding step. Defaults to ``False``.
             causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
@@ -406,7 +407,7 @@ class MultimodalTransformerDecoder(nn.Module):
             out_pos_emb (nn.Module): Output modality position embedding layer.
             decoder (nn.Module): The transformer decoder. An instance of :py:class:`TransformerDecoder`.
             right_shift (nn.Module): Layer that shifts the embedding vectors to the right and prepends it with
-            start of sentence token (SOS). An instance of :py:class:`RightShift`.
+                start of sentence token (SOS). An instance of :py:class:`RightShift`.
 
         Note:
             * During training mode, the SOS token is prepended to the left of the concatenated input and
@@ -446,13 +447,14 @@ class MultimodalTransformerDecoder(nn.Module):
                 input modality position embeddings. Defaults to ``None``.
             out_pos_ids (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing indices for the
                 output modality position embeddings. Defaults to ``None``.
-            attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or ``(b, q_seq_len, k_seq_len)``
-                where prefixes ``q`` and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s
-                for masked positions. Defaults to ``None``.
-            head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or ``(b, h, q_seq_len, k_seq_len)``.
-                Masks need to be specified for each attention head. Defaults to ``None``.
-            use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
-                recomputes key and value for each decoding step. Defaults to ``False``.
+            attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or
+                ``(b, q_seq_len, k_seq_len)`` where prefixes ``q`` and ``k`` stand for query and key.
+                Contains 1s for positions to attend to and 0s for masked positions. Defaults to ``None``.
+            head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or
+                ``(b, h, q_seq_len, k_seq_len)``. Masks need to be specified for each attention head.
+                Defaults to ``None``.
+            use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding.
+                If ``False``, recomputes key and value for each decoding step. Defaults to ``False``.
             causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
             right_shift (bool): If ``True``, shifts the embedding vectors to the right and prepends it with start of
                 sentence token. Defaults to ``False``. This option is disregarded during training mode
@@ -526,8 +528,8 @@ class TransformerDecoder(nn.Module):
     ) -> None:
         """
         Args:
-            decoder_layer (nn.Module): The transformer decoder layer. An instance of
-                :py:class:`TransformerDecoderLayer
+            decoder_layer (nn.Module): The transformer decoder layer.
+                An instance of :class:`TransformerDecoderLayer`.
             num_layers (int): The number of transformer decoder layers to be stacked up.
         """
         super().__init__()
@@ -547,11 +549,12 @@ class TransformerDecoder(nn.Module):
         """
         Args:
             hidden_states (Tensor): Tensor of the embedding vectors of dimension ``(b, seq_len, emb_dim)``.
-            attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or ``(b, q_seq_len, k_seq_len)``
-                where prefixes ``q`` and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s
-                for masked positions. Defaults to ``None``.
-            head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or ``(b, h, q_seq_len, k_seq_len)``.
-                Masks need to be specified for each attention head. Defaults to ``None``.
+            attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or
+                ``(b, q_seq_len, k_seq_len)`` where prefixes ``q`` and ``k`` stand for query and key.
+                Contains 1s for positions to attend to and 0s for masked positions. Defaults to ``None``.
+            head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or
+                ``(b, h, q_seq_len, k_seq_len)``. Masks need to be specified for each attention head.
+                Defaults to ``None``.
             use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
                 recomputes key and value for each decoding step. Defaults to ``False``.
             causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
