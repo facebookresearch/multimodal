@@ -33,17 +33,6 @@ class VQVAE(nn.Module):
     high-fidelity reconstruction of input data. It was first introduced in "Neural
     Discrete Representation Learning" (Oord et al. 2017) and has since seen success in
     tokenizing and generating high-resolution image, audio, and video data.
-
-    Attributes:
-        encoder (nn.Module): Model that accepts single Tensor as input in forward, ``encoder(x)``.
-            Will be used to project input into codebook layer. Expects channel
-            dim of encoder output to match ``embedding_dim`` of codebook.
-            See :class:`~torchmultimodal.modules.layers.codebook.Codebook`.
-        decoder (nn.Module): Model that accepts single Tensor as input in forward, ``decoder(x)``.
-            Should be able to accept output shape of codebook layer, which matches output shape of
-            the encoder.
-        num_embeddings (int): Number of embedding vectors in codebook.
-        embedding_dim (int): Dimensionality of embedding vectors in codebook.
     """
 
     def __init__(
@@ -53,6 +42,18 @@ class VQVAE(nn.Module):
         num_embeddings: int,
         embedding_dim: int,
     ) -> None:
+        """
+        Args:
+            encoder (nn.Module): Model that accepts single Tensor as input in forward, ``encoder(x)``.
+                Will be used to project input into codebook layer. Expects channel
+                dim of encoder output to match ``embedding_dim`` of codebook.
+                See :class:`~torchmultimodal.modules.layers.codebook.Codebook`.
+            decoder (nn.Module): Model that accepts single Tensor as input in forward, ``decoder(x)``.
+                Should be able to accept output shape of codebook layer, which matches output shape of
+                the encoder.
+            num_embeddings (int): Number of embedding vectors in codebook.
+            embedding_dim (int): Dimensionality of embedding vectors in codebook.
+        """
         super().__init__()
         self.encoder = encoder
         self.decoder = decoder

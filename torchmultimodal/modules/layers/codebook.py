@@ -42,21 +42,6 @@ class Codebook(nn.Module):
     https://colab.research.google.com/github/zalandoresearch/pytorch-vq-vae/blob/master/vq-vae.ipynb
     and by the implementation in MUGEN (Hayes et al. 2022), found here:
     https://github.com/mugen-org/MUGEN_baseline/blob/main/lib/models/video_vqvae/vqvae.py
-
-    Attributes:
-        num_embeddings (int): Number of vectors in the embedding space.
-        embedding_dim (int): Dimensionality of the embedding vectors.
-        decay (float): Factor used in exponential moving average update of the embeddings.
-            Defaults to ``0.99``.
-        codebook_usage_threshold (float): Threshold for the average number of times an embedding vector
-            is chosen below which it will be re-initialized. Defaults to ``1.0``.
-        epsilon (float): Noise used in Laplace smoothing of codebook usage. Defaults to ``1e-7``.
-
-    Args:
-        z (Tensor): Tensor containing a batch of encoder outputs of shape ``(b, c, d1, ..., dn)``.
-
-    Returns:
-        An instance of :class:`~torchmultimodal.modules.layers.codebook.CodebookOutput`.
     """
 
     def __init__(
@@ -67,6 +52,16 @@ class Codebook(nn.Module):
         codebook_usage_threshold: float = 1.0,
         epsilon: float = 1e-7,
     ) -> None:
+        """
+        Args:
+            num_embeddings (int): Number of vectors in the embedding space.
+            embedding_dim (int): Dimensionality of the embedding vectors.
+            decay (float, optional): Factor used in exponential moving average update of the embeddings.
+                Defaults to ``0.99``.
+            codebook_usage_threshold (float, optional): Threshold for the average number of times an embedding vector
+                is chosen below which it will be re-initialized. Defaults to ``1.0``.
+            epsilon (float, optional): Noise used in Laplace smoothing of codebook usage. Defaults to ``1e-7``.
+        """
         super().__init__()
         # Embedding weights and parameters for EMA update will be registered to buffer, as they
         # will not be updated by the optimizer but are still model parameters.
@@ -233,6 +228,13 @@ class Codebook(nn.Module):
         return quantized_flat, codebook_indices_flat
 
     def forward(self, z: Tensor) -> CodebookOutput:
+        """
+        Args:
+            z (Tensor): Tensor containing a batch of encoder outputs of shape ``(b, c, d1, ..., dn)``.
+
+        Returns:
+            An instance of :class:`~torchmultimodal.modules.layers.codebook.CodebookOutput`.
+        """
         # Flatten encoder outputs, tile to match num embeddings, get random encoder outputs
         encoded_flat, permuted_shape = self._preprocess(z)
 
