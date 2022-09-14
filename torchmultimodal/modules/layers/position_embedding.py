@@ -19,20 +19,6 @@ class BroadcastedPositionEmbedding(nn.Module):
 
         Each embedding vector of the ``i``-th dim is repeated by ``N`` times, where
     :math:`N = \prod_{j>i}\text{dim}[j]`.
-
-    Attributes:
-        latent_shape (Tuple[int, ...]): Shape of encoded data before batching and embedding.
-        embedding_dim (int): The size of each embedding vector.
-
-    Raises:
-        ValueError: if ``embedding_dim`` is not an integer multiple of ``len(shape)``
-
-    Args:
-        position_ids (Tensor): batches of of 1D integer tensors indicating locations of the broadcasted
-            position embeddings to be returned.
-
-    Returns:
-        A tensor with the position embeddings selected by position ids.
     """
 
     def __init__(
@@ -40,6 +26,14 @@ class BroadcastedPositionEmbedding(nn.Module):
         latent_shape: Tuple[int, ...],
         embedding_dim: int,
     ) -> None:
+        """
+        Args:
+            latent_shape (Tuple[int, ...]): Shape of encoded data before batching and embedding.
+            embedding_dim (int): The size of each embedding vector.
+
+        Raises:
+            ValueError: if ``embedding_dim`` is not an integer multiple of ``len(shape)``
+        """
         super().__init__()
         if embedding_dim % len(latent_shape) != 0:
             raise ValueError(
@@ -105,8 +99,20 @@ class BroadcastedPositionEmbedding(nn.Module):
         return emb
 
     def forward(self, position_ids: Tensor) -> Tensor:
-        if torch.max(position_ids) >= len(self.indices) or torch.min(position_ids) < -1:
-            raise IndexError(f"Invalid position ids: {position_ids}")
+        """
+        Args:
+            position_ids (Tensor): batches of of 1D integer tensors indicating locations of the broadcasted
+                position embeddings to be returned.
+
+        Returns:
+            A tensor with the position embeddings selected by position ids.
+
+        Raises:
+            IndexError: If any position id(s) provided is outside of the indices range.
+        """
+        mask = torch.logical_or(position_ids >= len(self.indices), position_ids < -1)
+        if mask.sum().item():
+            raise IndexError(f"Invalid position ids: {position_ids[mask]}")
 
         embeddings = []
         for i in range(self.n_dim):
