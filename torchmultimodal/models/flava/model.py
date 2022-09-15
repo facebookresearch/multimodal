@@ -568,10 +568,6 @@ def flava_model_for_classification(
     return classification_model
 
 
-def to_2tuple(x: int) -> Tuple[int, int]:
-    return (x, x)
-
-
 class DalleConv2d(nn.Module):
     def __init__(self, n_in: int, n_out: int, kw: int) -> None:
         super().__init__()
