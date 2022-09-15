@@ -19,6 +19,13 @@ class BroadcastedPositionEmbedding(nn.Module):
 
         Each embedding vector of the ``i``-th dim is repeated by ``N`` times, where
     :math:`N = \prod_{j>i}\text{dim}[j]`.
+
+    Args:
+        latent_shape (Tuple[int, ...]): Shape of encoded data before batching and embedding.
+        embedding_dim (int): The size of each embedding vector.
+
+    Raises:
+        ValueError: if ``embedding_dim`` is not an integer multiple of ``len(shape)``.
     """
 
     def __init__(

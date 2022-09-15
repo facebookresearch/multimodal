@@ -70,6 +70,28 @@ class MultimodalGPT(nn.Module):
     This module implements the GPT model for generation of one modality given another
     following the paper `"Improving Language Understanding by Generative Pre-Training
     "<https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf>`_.
+
+    Args:
+        d_model (int): Embedding dimension of the transformer decoder.
+        num_in_tokens (int): Number of unique token states for the input modality.
+        num_out_tokens (int): Number of unique token states for the output modality.
+        latent_shape ([Tuple[int, ...]): Shape of the latent space of the output modality tokenizer. Used to reshape
+            sequence of generated tokens to be decoded back to data.
+        in_tokenizer (nn.Module): Tokenizer for the input modality. Must have methods ``encode``, ``lookup``.
+        out_tokenizer (nn.Module): Tokenizer for the output modality. Must have methods ``encode``, ``decode``.
+        mm_decoder (nn.Module): Multimodal transformer decoder. An instace of
+            :py:class:`MultimodalTransformerDecoder`.
+        in_projection (nn.Module, optional): Projects the input modality token embeddings to match size of the
+            transformer decoder. Defaults to ``None``.
+        out_projection (nn.Module, optional): Projects the output modality token embeddings to match size of the
+            transformer decoder. Defaults to ``None``.
+        norm_layer (Callable[..., nn.Module], optional): Which normalization layer to use. Supports ``nn.Module`` or
+            partial. If ``None``, ``nn.LayerNorm`` will be used as the default.
+        use_gpt_init (bool): Whether to use GPT model specific initialization. Defaults to ``True``.
+
+    Raises:
+        AttributeError: If input tokenizer does not implement methods ``encode`` and ``lookup`` or if output
+        tokenizer does not implement methods ``encode``, ``lookup`` and ``decode``.
     """
 
     def __init__(
@@ -86,29 +108,6 @@ class MultimodalGPT(nn.Module):
         norm_layer: Optional[Callable[..., nn.Module]] = None,
         use_gpt_init: bool = True,
     ) -> None:
-        """
-        Args:
-            d_model (int): Embedding dimension of the transformer decoder.
-            num_in_tokens (int): Number of unique token states for the input modality.
-            num_out_tokens (int): Number of unique token states for the output modality.
-            latent_shape ([Tuple[int, ...]): Shape of the latent space of the output modality tokenizer. Used to reshape
-                sequence of generated tokens to be decoded back to data.
-            in_tokenizer (nn.Module): Tokenizer for the input modality. Must have methods ``encode``, ``lookup``.
-            out_tokenizer (nn.Module): Tokenizer for the output modality. Must have methods ``encode``, ``decode``.
-            mm_decoder (nn.Module): Multimodal transformer decoder. An instace of
-                :py:class:`MultimodalTransformerDecoder`.
-            in_projection (nn.Module, optional): Projects the input modality token embeddings to match size of the
-                transformer decoder. Defaults to ``None``.
-            out_projection (nn.Module, optional): Projects the output modality token embeddings to match size of the
-                transformer decoder. Defaults to ``None``.
-            norm_layer (Callable[..., nn.Module], optional): Which normalization layer to use. Supports ``nn.Module`` or
-                partial. If ``None``, ``nn.LayerNorm`` will be used as the default.
-            use_gpt_init (bool): Whether to use GPT model specific initialization. Defaults to ``True``.
-
-        Raises:
-            AttributeError: If input tokenizer does not implement methods ``encode`` and ``lookup`` or if output
-            tokenizer does not implement methods ``encode``, ``lookup`` and ``decode``.
-        """
         super().__init__()
         if not all(
             [hasattr(in_tokenizer, attr_name) for attr_name in ["encode", "lookup"]]
@@ -392,6 +391,20 @@ class MultimodalTransformerDecoder(nn.Module):
         * During generation the future data points are predicted step-wise from the past. The input modality
             is processed before the output modality (see ``torchmultimodal.utils.common.generate``). Therefore,
             at any point in time the input data contains only one modality.
+
+    Args:
+        in_pos_emb (nn.Module): Input modality position embedding layer.
+        out_pos_emb (nn.Module): Output modality position embedding layer.
+        decoder (nn.Module): The transformer decoder. An instance of :py:class:`TransformerDecoder`.
+        right_shift (nn.Module): Layer that shifts the embedding vectors to the right and prepends it with
+            start of sentence token (SOS). An instance of :py:class:`RightShift`.
+
+    Note:
+        * During training mode, the SOS token is prepended to the left of the concatenated input and
+            output modality sequence;
+        * During generation mode, the SOS token is only required for the input modality sequence as
+            the initial token to be learnt from. Right shift should be turned off
+            (``right_shift = False``, see args) when we start to generate the output modality samples.
     """
 
     def __init__(
@@ -401,21 +414,6 @@ class MultimodalTransformerDecoder(nn.Module):
         decoder: nn.Module,
         right_shift: nn.Module,
     ) -> None:
-        """
-        Args:
-            in_pos_emb (nn.Module): Input modality position embedding layer.
-            out_pos_emb (nn.Module): Output modality position embedding layer.
-            decoder (nn.Module): The transformer decoder. An instance of :py:class:`TransformerDecoder`.
-            right_shift (nn.Module): Layer that shifts the embedding vectors to the right and prepends it with
-                start of sentence token (SOS). An instance of :py:class:`RightShift`.
-
-        Note:
-            * During training mode, the SOS token is prepended to the left of the concatenated input and
-                output modality sequence;
-            * During generation mode, the SOS token is only required for the input modality sequence as
-                the initial token to be learnt from. Right shift should be turned off
-                (``right_shift = False``, see args) when we start to generate the output modality samples.
-        """
         super().__init__()
 
         self.in_pos_emb = in_pos_emb
@@ -519,19 +517,19 @@ class MultimodalTransformerDecoder(nn.Module):
 
 
 class TransformerDecoder(nn.Module):
-    """A transformer decoder"""
+    """A transformer decoder.
+
+    Args:
+        decoder_layer (nn.Module): The transformer decoder layer.
+            An instance of :class:`TransformerDecoderLayer`.
+        num_layers (int): The number of transformer decoder layers to be stacked up.
+    """
 
     def __init__(
         self,
         decoder_layer: nn.Module,
         num_layers: int = 12,
     ) -> None:
-        """
-        Args:
-            decoder_layer (nn.Module): The transformer decoder layer.
-                An instance of :class:`TransformerDecoderLayer`.
-            num_layers (int): The number of transformer decoder layers to be stacked up.
-        """
         super().__init__()
         self.layers = get_clones(decoder_layer, num_layers)
         self.num_layers = num_layers
@@ -615,6 +613,14 @@ class TransformerDecoderLayer(nn.Module):
     well-behaved at initialization for training stability. This is also called "Pre-LN Transformer" studied in
     `"On Layer Normalization in the Transformer Architecture"<https://arxiv.org/pdf/2002.04745.pdf>`_
 
+    Args:
+        d_model (int): Dimension of the embeddings.
+        n_head (int): Number of attention heads.
+        dropout (float, optional): Dropout probability used in the dropout layers. Defaults to ``0.1``.
+        activation (Union[str, Callable], optional): Activation used by the feedforward layer. Defaults to
+            ``SiLU``.
+        attn_module (nn.Module): Self attention module. Defaults to ``SelfAttention`` with dropout rate equal
+            to ``0.1``.
     """
 
     def __init__(
@@ -625,16 +631,6 @@ class TransformerDecoderLayer(nn.Module):
         activation: Callable[..., nn.Module] = SiLU,
         attn_module: nn.Module = SelfAttention(attn_dropout=0.1),
     ) -> None:
-        """
-        Args:
-            d_model (int): Dimension of the embeddings.
-            n_head (int): Number of attention heads.
-            dropout (float, optional): Dropout probability used in the dropout layers. Defaults to ``0.1``.
-            activation (Union[str, Callable], optional): Activation used by the feedforward layer. Defaults to
-                ``SiLU``.
-            attn_module (nn.Module): Self attention module. Defaults to ``SelfAttention`` with dropout rate equal
-                to ``0.1``.
-        """
         super().__init__()
 
         self.norm_attn = nn.LayerNorm(d_model)
@@ -748,6 +744,12 @@ class RightShift(nn.Module):
     has generated anything it needs a token to start with. Hence, the start-of-sentence (SOS) token.
     The SOS token is a learnable parameter of the decoder and the choice of its initialization is taken
     from VideoGPT: https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/attention.py#L517
+
+    Args:
+        embedding_dim (int): Dimension of the embedding vector for each token along the sequence.
+
+    Attributes:
+        sos (nn.Parameter): The starting token to be prepended to the sequence.
     """
 
     def __init__(self, embedding_dim: int) -> None:
@@ -756,6 +758,13 @@ class RightShift(nn.Module):
         self.sos = nn.Parameter(torch.FloatTensor(embedding_dim).normal_(std=0.02))
 
     def forward(self, x: Tensor) -> Tensor:
+        """
+        Args:
+            x (Tensor): An input tensor of shape ``(b, seq_len, emb_dim)``.
+
+        Returns;
+            A tensor of the same shape as that of the input with the ``sos`` token prepended.
+        """
         x_shape = list(x.shape)
         x = x.flatten(start_dim=1, end_dim=-2)  # (batch, seq_len, emb)
         sos = self.sos.unsqueeze(0).unsqueeze(1).repeat(x_shape[0], 1, 1)  # (b, 1, emb)
