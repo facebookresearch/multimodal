@@ -1,8 +1,8 @@
 training:
-  strategy: fsdp # can be changed to ddp or fsdp
+  strategy: ddp # can be changed to ddp or fsdp
   seed: 1337
 
-  batch_size: 16
+  batch_size: 8
   num_workers: 4
   prefetch_factor: 3
 
@@ -62,20 +62,3 @@ datasets:
           - ["caption", "text"]
         split_key_mapping:
           validation: train
-
-
-model:
-  image_num_hidden_layers: 64
-  image_hidden_size: 2048
-  image_intermediate_size: 10240
-  image_num_attention_heads: 16
-
-  text_num_hidden_layers: 64
-  text_hidden_size: 2048
-  text_intermediate_size: 10240
-  text_num_attention_heads: 16
-
-  multimodal_num_hidden_layers: 40
-  multimodal_hidden_size: 2048
-  multimodal_intermediate_size: 10240
-  multimodal_num_attention_heads: 16

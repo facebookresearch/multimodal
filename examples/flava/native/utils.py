@@ -100,18 +100,11 @@ def rank0_only(func):
 def _zero_shot_classifier(model, device, text_transform, *args, **kwargs):
     zeroshot_weights = []
     for classname in tqdm(imagenet_classnames):
-        # print0("zero shot", classname)
         texts = text_transform(
             [template(classname) for template in openai_imagenet_template]
         )["input_ids"]
-        # print0("done text transform")
-        # print0("texts", texts.shape)
-        # print0("text device", texts.device)
-        # print("rank", os.environ["LOCAL_RANK"])
         texts = texts.to(device)
-        # print0("before forward")
         class_embeddings = model(texts, action="encode_text")
-        # print0("after forward")
         class_embeddings /= class_embeddings.norm(dim=-1, keepdim=True)
         class_embedding = class_embeddings.mean(dim=0)
         class_embedding /= class_embedding.norm()
@@ -130,7 +123,6 @@ def _accuracy(output, target, topk=(1,)):
     ]
 
 
-# @rank0_only
 def run_imagenet_zero_shot(model, dataloader, device, text_transform, *args, **kwargs):
     print0("Starting ImageNet Zero-Shot Eval")
     print0("Building classifier")

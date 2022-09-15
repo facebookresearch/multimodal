@@ -10,7 +10,7 @@ from functools import partial
 from typing import List
 
 import requests
-from datasets import concatenate_datasets, load_dataset, DownloadConfig
+from datasets import concatenate_datasets, load_dataset
 from datasets.utils.file_utils import get_datasets_user_agent
 from flava.definitions import HFDatasetInfo
 from PIL import Image, UnidentifiedImageError
@@ -27,8 +27,6 @@ def build_datasets_from_info(dataset_infos: List[HFDatasetInfo], split: str = "t
             dataset_info.subset,
             split=dataset_info.split_key_mapping[split],
             use_auth_token=True,
-            download_config=DownloadConfig(num_proc=64, resume_download=True),
-            ignore_verifications=True,
             **dataset_info.extra_kwargs,
         )
         if dataset_info.remove_columns is not None:

@@ -38,9 +38,6 @@ from flava.native.utils import (
     setup_distributed_device,
 )
 from flava.utils import build_datamodule_kwargs
-from torchmultimodal.models.flava.image_encoder import ImageTransformer
-from torchmultimodal.models.flava.model import DalleVAEEncoder, DalleEncoderBlock
-from torchmultimodal.models.flava.text_encoder import BERTTextEncoder
 
 from omegaconf import DictConfig, OmegaConf
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import (
@@ -54,6 +51,9 @@ from torch.distributed.fsdp.sharded_grad_scaler import ShardedGradScaler
 from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
+from torchmultimodal.models.flava.image_encoder import ImageTransformer
+from torchmultimodal.models.flava.model import DalleEncoderBlock, DalleVAEEncoder
+from torchmultimodal.models.flava.text_encoder import BERTTextEncoder
 from torchmultimodal.modules.layers.transformer import TransformerEncoderLayer
 from torchmultimodal.modules.losses.flava import FLAVAPretrainingLossOutput
 
@@ -152,9 +152,7 @@ class Trainer:
             # - non-reentrant does not support kwargs in TransformerEncoderLayer
             # - memory reduction from checkpointing is less than expected
 
-            check_fn = lambda submodule: isinstance(
-                submodule, TransformerEncoderLayer
-            )
+            check_fn = lambda submodule: isinstance(submodule, TransformerEncoderLayer)
             if self.config.training.activation_checkpointing_reentrant:
                 checkpoint_impl = CheckpointImpl.REENTRANT
             else:
@@ -170,7 +168,6 @@ class Trainer:
                 checkpoint_wrapper_fn=non_reentrant_wrapper,
                 check_fn=check_fn,
             )
-
 
         if strategy == "ddp":
             # TODO do we have to do this in FSDP too? see https://github.com/pytorch/pytorch/issues/75478
@@ -197,16 +194,14 @@ class Trainer:
                 auto_wrap_policy=partial(
                     transformer_auto_wrap_policy,
                     transformer_layer_cls={
-                            TransformerEncoderLayer,
-                            ImageTransformer,
-                            BERTTextEncoder,
-                            DalleVAEEncoder,
-                            DalleEncoderBlock,
-
+                        TransformerEncoderLayer,
+                        ImageTransformer,
+                        BERTTextEncoder,
+                        DalleVAEEncoder,
+                        DalleEncoderBlock,
                     },
                 ),
             )
-
 
             print0(f"after FSDP {torch.cuda.memory_allocated()/1024**3:.3} GB")
 
@@ -360,10 +355,8 @@ class Trainer:
                 self.validate()
 
     def validate(self):
-        # self.imagenet_validate()
-        return
-        # if self.steps % self.config.training.validation_steps != 0 or self.steps == 0:
-        #     return
+        if self.steps % self.config.training.validation_steps != 0 or self.steps == 0:
+            return
 
         model = self.model
         model.eval()

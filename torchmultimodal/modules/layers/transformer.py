@@ -383,12 +383,6 @@ class TransformerEncoder(nn.Module):
                 head_mask=head_mask,
                 return_attn_weights=return_attn_weights,
             )
-            # layer_outputs = layer_module(
-            #     hidden_states,
-            #     attention_mask,
-            #     head_mask,
-            #     return_attn_weights,
-            # )
 
             if return_attn_weights:
                 hidden_states = layer_outputs[0]
