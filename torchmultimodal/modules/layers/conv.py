@@ -13,21 +13,20 @@ from torch.nn import functional as F
 
 
 class SamePadConv3d(nn.Module):
-    """Performs a same padded convolution on a 3D input. This maintains input shape with unit
-    stride, and divides input dims by non-unit stride.
+    """Performs a same padded convolution on a 3D input.
 
-    Code taken from VideoGPT
-    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
+    This maintains input shape with unit stride, and divides input dims by non-unit stride.
+
+    Code reference:
+        https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
 
     Args:
-        in_channels (int): number of channels in input, same as Conv3d
-        out_channels (int): number of channels for output, same as Conv3d
-        kernel_size (int or Tuple): size of convolutional filter, same as Conv3d
-        stride (int or Tuple): stride for convolution, same as Conv3d
-        bias (bool): use a bias for convolutional layer or not, same as Conv3d
-
-    Inputs:
-        x (Tensor): input of dims B x C x D1 x D2 x D3
+        in_channels (int): Number of channels in input, same as ``nn.Conv3d``.
+        out_channels (int): Number of channels for output, same as ``nn.Conv3d``.
+        kernel_size (int or Tuple[int, int, int]): Size of convolutional filter, same as ``nn.Conv3d``.
+        stride (int or Tuple[int, int, int], optional): Stride for convolution, same as ``nn.Conv3d``.
+        bias (bool, optional): If ``True`` use a bias for convolutional layer or not,
+            same as ``nn.Conv3d``. Defaults to ``True``.
     """
 
     def __init__(
@@ -61,6 +60,10 @@ class SamePadConv3d(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
+        """
+        Args:
+            x (Tensor): Input of shape ``(b, c, d1, d2, d3)``.
+        """
         # Calculate padding needed based on input shape only once to reduce run time
         if self.pad_input is None:
             self.pad_input = calculate_same_padding(
@@ -71,20 +74,19 @@ class SamePadConv3d(nn.Module):
 
 class SamePadConvTranspose3d(nn.Module):
     """Performs a same padded transposed convolution on a 3D input.
+
     This ensures output shape in input shape multiplied by stride.
 
-    Code taken from VideoGPT
-    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
+    Code reference:
+        https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
 
     Args:
-        in_channels (int): number of channels in input, same as Conv3d
-        out_channels (int): number of channels for output, same as Conv3d
-        kernel_size (int or Tuple): size of convolutional filter, same as Conv3d
-        stride (int or Tuple): stride for convolution, same as Conv3d
-        bias (bool): use a bias for convolutional layer or not, same as Conv3d
-
-    Inputs:
-        x (Tensor): input of dims B x C x D1 x D2 x D3
+        in_channels (int): Number of channels in input, same as Conv3d
+        out_channels (int): Number of channels for output, same as Conv3d
+        kernel_size (int or Tuple[int, int, int]): Size of convolutional filter, same as Conv3d
+        stride (int or Tuple[int, int, int], optional): Stride for convolution, same as Conv3d
+        bias (bool, optional): If ``True`` use a bias for convolutional layer or not,
+            same as ``nn.Conv3d``. Defaults to ``True``.
     """
 
     def __init__(
@@ -113,6 +115,10 @@ class SamePadConvTranspose3d(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
+        """
+        Args:
+            x (Tensor): Input of shape ``(b, c, d1, d2, d3)``.
+        """
         # Calculate padding needed based on input shape only once to reduce run time
         if self.pad_input is None:
             self.pad_input = calculate_same_padding(
@@ -127,7 +133,7 @@ class SamePadConvTranspose3d(nn.Module):
 def calculate_same_padding(
     kernel_size: Union[int, Tuple[int, ...]],
     stride: Union[int, Tuple[int, ...]],
-    input_shape: Union[Size, Tuple],
+    input_shape: Union[Size, Tuple[int, ...]],
 ) -> Tuple:
     """Calculates padding amount on each dimension based on given kernel size and stride.
 
@@ -137,16 +143,16 @@ def calculate_same_padding(
     the TensorFlow implementation explained here:
     https://www.tensorflow.org/api_docs/python/tf/nn#notes_on_padding_2
 
-    Code taken from VideoGPT
-    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
+    Code reference:
+        https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
 
     Args:
-        kernel_size (int or Tuple): size of convolutional kernel
-        stride (int or Tuple): stride amount of kernel
-        input_shape (Tuple or Size): tuple describing shape of input, without batch or channel dimension
+        kernel_size (int or Tuple[int, ...]): Size of convolutional kernel.
+        stride (int or Tuple[int, ...]): Stride amount of kernel.
+        input_shape (Size or Tuple[int, ...]): Shape of input, without batch or channel dimension.
 
     Returns:
-        Tuple: the padding amount in a tuple of tuples for each dimension
+        A tuple of the padding amount in a tuple of tuples for each dimension.
     """
 
     n_dims = len(input_shape)
@@ -176,7 +182,7 @@ def calculate_same_padding(
 def calculate_transpose_padding(
     kernel_size: Union[int, Tuple[int, ...]],
     stride: Union[int, Tuple[int, ...]],
-    input_shape: Union[Size, Tuple],
+    input_shape: Union[Size, Tuple[int, ...]],
     input_pad: Union[int, Tuple[int, ...]] = 0,
 ) -> Tuple[Tuple, Tuple]:
     """Calculates padding for transposed convolution based on input dims, kernel size, and stride.
@@ -188,13 +194,14 @@ def calculate_transpose_padding(
     argument effectively expands the output. These two knobs are adjusted to meet desired output dim.
 
     Args:
-        kernel_size (int or Tuple): size of convolutional kernel
-        stride (int or Tuple): stride amount of kernel
-        input_shape (Tuple or Size): tuple describing shape of input, without batch or channel dimension
-        input_pad (int or Tuple): amount of padding added to input, must be twice length of kernel/stride/input_shape
+        kernel_size (int or Tuple[int, ...]): Size of convolutional kernel.
+        stride (int or Tuple[int, ...]): Stride amount of kernel.
+        input_shape (Size or Tuple[int, ...]): Shape of input, without batch or channel dimension.
+        input_pad (int or Tuple[int, ...]): Amount of padding added to input, must be twice length of
+            kernel/stride/input_shape.
 
     Returns:
-        Tuple: padding and output_padding to be used in ConvTranspose layers
+        A tuple of padding and output_padding to be used in ConvTranspose layers
     """
 
     n_dims = len(input_shape)
