@@ -13,13 +13,13 @@ from torchmultimodal.utils.common import shift_dim
 
 
 class SelfAttention(nn.Module):
-    """Computes attention over the entire n-dimensional input."""
+    """Computes attention over the entire n-dimensional input.
+
+    Args:
+        attn_dropout (float, optional): Probability of dropout after softmax. Default is ``0.0``.
+    """
 
     def __init__(self, attn_dropout: float = 0.0) -> None:
-        """
-        Args:
-            attn_dropout (float, optional): Probability of dropout after softmax. Default is ``0.0``.
-        """
         super().__init__()
         self.attn_dropout = attn_dropout
 
@@ -68,15 +68,15 @@ class SelfAttention(nn.Module):
 
 
 class AxialAttention(nn.Module):
-    """Computes attention over a single axis of the input. Other dims are flattened into the batch dimension."""
+    """Computes attention over a single axis of the input. Other dims are flattened into the batch dimension.
+
+    Args:
+        axial_dim (int): Dimension to compute attention on, indexed by input dimensions
+            (i.e., ``0`` for first input dimension, ``1`` for second).
+        attn_dropout (float): Probability of dropout after softmax. Default is ``0.0``.
+    """
 
     def __init__(self, axial_dim: int, attn_dropout: float = 0.0) -> None:
-        """
-        Args:
-            axial_dim (int): Dimension to compute attention on, indexed by input dimensions
-                (i.e., ``0`` for first input dimension, ``1`` for second).
-            attn_dropout (float): Probability of dropout after softmax. Default is ``0.0``.
-        """
         super().__init__()
         self.axial_dim = axial_dim + 2  # account for batch, head
         self.attn_dropout = attn_dropout
@@ -140,8 +140,19 @@ class MultiHeadAttention(nn.Module):
     attend to information from different representation subspaces at different positions,
     as described in `"Attention Is All You Need (Vaswani et al. 2017)"<https://arxiv.org/pdf/1706.03762.pdf>`_.
 
+    Args:
+        dim_q (int): Dimensionality of query embedding vector.
+        dim_kv (int): Dimensionality of key/value embedding vector.
+        n_head (int): Number of attention heads.
+        attn_module (nn.Module): Module of attention mechanism to use. Default is ``SelfAttention``.
+            See :class:`~torchmultimodal.modules.layers.attention.SelfAttention` for API details.
+        add_bias (bool): Whether to add bias to the q, k, v, linear layers or not. Default is ``True``.
+
     Attributes:
         cache (Dict[str, Tensor]): Dictionary that stores past key/value vectors.
+
+    Raises:
+        ValueError: When ``dim_q`` or ``dim_kv`` is not divisible by ``n_head``.
     """
 
     def __init__(
@@ -152,15 +163,6 @@ class MultiHeadAttention(nn.Module):
         attn_module: nn.Module = SelfAttention(),
         add_bias: bool = True,
     ) -> None:
-        """
-        Args:
-            dim_q (int): Dimensionality of query embedding vector.
-            dim_kv (int): Dimensionality of key/value embedding vector.
-            n_head (int): Number of attention heads.
-            attn_module (nn.Module): Module of attention mechanism to use. Default is ``SelfAttention``.
-                See :class:`~torchmultimodal.modules.layers.attention.SelfAttention` for API details.
-            add_bias (bool): Whether to add bias to the q, k, v, linear layers or not. Default is ``True``.
-        """
         super().__init__()
         if dim_q % n_head != 0 or dim_kv % n_head != 0:
             raise ValueError(
@@ -208,11 +210,11 @@ class MultiHeadAttention(nn.Module):
             causal (bool): Whether to use causal attention or not. Default is ``False``.
 
         Returns:
-            A tuple of output tensor and attention probabilities.
+            * If ``return_attn_weights`` is ``True``: A tuple of output tensor and attention probabilities.
+            * If ``return_attn_weights`` is ``False``: A single output tensor.
 
         Raises:
             TypeError: An error occurred when ``causal`` is ``True`` and ``attn_module`` is ``AxialAttention``.
-            ValueError: When ``dim_q`` or ``dim_kv`` is not divisible by ``n_head``.
         """
         if isinstance(self.attn, AxialAttention) and causal:
             raise TypeError("Causal axial attention is not supported.")
@@ -270,17 +272,16 @@ class AxialAttentionBlock(nn.Module):
 
     Follows implementation by VideoGPT:
         https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
+
+    Args:
+        n_dims (int): Dimensionality of input data, not including batch or embedding dims.
+        qkv_dim (int): Dimensionality of query/key/value embedding vectors.
+        n_head (int): Number of heads in multihead attention. Must divide into ``qkv_dim``
+            evenly.
     """
 
     def __init__(self, n_dims: int, qkv_dim: int, n_head: int) -> None:
         super().__init__()
-        """
-        Args:
-            n_dims (int): Dimensionality of input data, not including batch or embedding dims.
-            qkv_dim (int): Dimensionality of query/key/value embedding vectors.
-            n_head (int): Number of heads in multihead attention. Must divide into ``qkv_dim``
-                evenly.
-        """
         self.qkv_dim = qkv_dim
         self.mha_attns = nn.ModuleList(
             [
@@ -296,10 +297,6 @@ class AxialAttentionBlock(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        """
-        Args:
-            x (Tensor): Input tensor of shape ``(b, c, d1, ..., dn)`` tensor, where ``c = qkv_dim``.
-        """
         n_channel = x.shape[1]
         if n_channel != self.qkv_dim:
             raise ValueError(

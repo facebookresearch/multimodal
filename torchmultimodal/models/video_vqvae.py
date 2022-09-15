@@ -100,6 +100,19 @@ class VideoEncoder(nn.Module):
 
     Follows VideoGPT's implementation:
         https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
+
+    Args:
+        in_channel_dims (Tuple[int, ...]): Input channel dimension for each layer in conv stack.
+        kernel_sizes (Tuple[Tuple[int, int, int], ...]): Kernel sizes for each layer in conv stack.
+        strides (Tuple[Tuple[int, int, int], ...]): Strides for each layer in conv stack.
+        output_dim (int): Size of hidden dimension of final output.
+        n_res_layers (int, optional): Number of ``AttentionResidualBlocks`` to include. Default is ``4``.
+        attn_hidden_dim (int, optional): Size of hidden dimension in attention block. Default is ``240``.
+        kwargs (Any): Keyword arguments to be passed into ``SamePadConv3d`` and used by ``nn.Conv3d``.
+
+    Raises:
+        ValueError: If the lengths of ``in_channel_dims``, ``kernel_sizes``, and ``strides`` are not
+            all equivalent.
     """
 
     def __init__(
@@ -112,16 +125,6 @@ class VideoEncoder(nn.Module):
         attn_hidden_dim: int = 240,
         **kwargs: Any,
     ):
-        """
-        Args:
-            in_channel_dims (Tuple[int, ...]): Input channel dimension for each layer in conv stack.
-            kernel_sizes (Tuple[Tuple[int, int, int], ...]): Kernel sizes for each layer in conv stack.
-            strides (Tuple[Tuple[int, int, int], ...]): Strides for each layer in conv stack.
-            output_dim (int): Size of hidden dimension of final output.
-            n_res_layers (int, optional): Number of ``AttentionResidualBlocks`` to include. Default is ``4``.
-            attn_hidden_dim (int, optional): Size of hidden dimension in attention block. Default is ``240``.
-            kwargs (Any): Keyword arguments to be passed into ``SamePadConv3d`` and used by ``nn.Conv3d``.
-        """
         super().__init__()
 
         assert_equal_lengths(
@@ -177,10 +180,6 @@ class VideoEncoder(nn.Module):
         """
         Args:
             x (Tensor): Input video data with shape ``(b, c, d1, d2, d3)``.
-
-        Raises:
-            ValueError: If the lengths of ``in_channel_dims``, ``kernel_sizes``, and ``strides`` are
-                not all equivalent.
         """
         in_channel = x.shape[1]
         if in_channel != self.convs[0].conv.in_channels:
@@ -203,6 +202,20 @@ class VideoDecoder(nn.Module):
 
     Follows VideoGPT's implementation:
         https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
+
+    Args:
+        out_channel_dims (Tuple[int, ...]): Output channel dimension for each layer in conv stack.
+        kernel_sizes (Tuple[Tuple[int, int, int], ...]): Kernel sizes for each layer in conv stack.
+        strides (Tuple[Tuple[int, int, int], ...]): Strides for each layer in conv stack
+        input_dim (int): Input channel dimension for first conv layer before attention stack
+        n_res_layers (int): Number of ``AttentionResidualBlocks`` to include. Default is ``4``.
+        attn_hidden_dim (int): Size of hidden dimension in attention block. Default is ``240``.
+        kwargs (Any): Keyword arguments to be passed into ``SamePadConvTranspose3d`` and used by
+            ``nn.ConvTranspose3d``.
+
+    Raises:
+        ValueError: If the lengths of ``out_channel_dims``, ``kernel_sizes``, and ``strides`` are not
+            all equivalent.
     """
 
     def __init__(
@@ -215,17 +228,6 @@ class VideoDecoder(nn.Module):
         attn_hidden_dim: int = 240,
         **kwargs: Any,
     ):
-        """
-        Args:
-            out_channel_dims (Tuple[int, ...]): Output channel dimension for each layer in conv stack.
-            kernel_sizes (Tuple[Tuple[int, int, int], ...]): Kernel sizes for each layer in conv stack.
-            strides (Tuple[Tuple[int, int, int], ...]): Strides for each layer in conv stack
-            input_dim (int): Input channel dimension for first conv layer before attention stack
-            n_res_layers (int): Number of ``AttentionResidualBlocks`` to include. Default is ``4``.
-            attn_hidden_dim (int): Size of hidden dimension in attention block. Default is ``240``.
-            kwargs (Any): Keyword arguments to be passed into ``SamePadConvTranspose3d`` and used by
-                ``nn.ConvTranspose3d``.
-        """
         super().__init__()
 
         assert_equal_lengths(
@@ -265,12 +267,7 @@ class VideoDecoder(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         """
         Args:
-            x (Tensor): Input tokenized data with shape ``(b, c, d1, d2, d3)``.
-
-        Raises:
-            ValueError: If the lengths of ``out_channel_dims``, ``kernel_sizes``,
-                and ``strides`` are not all equivalent.
-            ValueError: If input Tensor channel dim does not match ``embedding_dim``.
+            x (Tensor): Input quantized embeddings with shape ``(b, emb_dim, d1, d2, d3)``.
         """
         in_channel = x.shape[1]
         if in_channel != self.conv_in.conv.in_channels:
@@ -292,16 +289,16 @@ class AttentionResidualBlock(nn.Module):
     Code reference:
         https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
 
+    Args:
+        hidden_dim (int, optional): Size of channel dim of input. Default is ``240``.
+        n_head (int, optional): Number of heads in multihead attention. Must divide into hidden_dim evenly.
+            Default is ``2``.
+
+    Raises:
+        ValueError: If ``hidden_dim`` is less than ``2``.
     """
 
     def __init__(self, hidden_dim: int = 240, n_head: int = 2) -> None:
-        """
-        Args:
-            hidden_dim (int, optional): Size of channel dim of input. Default is ``240``.
-            n_head (int, optional): Number of heads in multihead attention. Must divide into hidden_dim evenly.
-                Default is ``2``.
-
-        """
         super().__init__()
         # To avoid hidden dim becoming 0 in middle layers
         if hidden_dim < 2:
@@ -322,7 +319,7 @@ class AttentionResidualBlock(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         """
         Args:
-            x (Tensor): Input tesor of shape ``(b, c, d1, ..., dn)``.
+            x (Tensor): Input of shape ``(b, c, d1, d2, d3)``.
         """
         return x + self.block(x)
 
