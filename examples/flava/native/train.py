@@ -52,7 +52,6 @@ from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 from torchmultimodal.models.flava.image_encoder import ImageTransformer
-from torchmultimodal.models.flava.model import DalleEncoderBlock, DalleVAEEncoder
 from torchmultimodal.models.flava.text_encoder import BERTTextEncoder
 from torchmultimodal.modules.layers.transformer import TransformerEncoderLayer
 from torchmultimodal.modules.losses.flava import FLAVAPretrainingLossOutput
