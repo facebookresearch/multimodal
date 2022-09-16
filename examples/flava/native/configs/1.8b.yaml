@@ -23,8 +23,7 @@ training:
   half_precision_format: "bfloat16"  # or float16
   enable_half_reduce_in_fsdp: True  # handles the reduction across devices in half precision
 
-  activation_checkpointing: False
-  activation_checkpointing_reentrant: False # false for non-reentrant
+  activation_checkpointing: True
 
 datasets:
   _target_: flava.definitions.TrainingDatasetsInfo

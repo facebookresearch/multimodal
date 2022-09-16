@@ -2,7 +2,7 @@ training:
   strategy: fsdp # can be changed to ddp or fsdp
   seed: 1337
 
-  batch_size: 8
+  batch_size: 12
   num_workers: 4
   prefetch_factor: 3
 
@@ -63,17 +63,17 @@ datasets:
           validation: train
 
 model:
-  image_num_hidden_layers: 40
-  image_hidden_size: 1408
-  image_intermediate_size: 6144
+  image_num_hidden_layers: 48
+  image_hidden_size: 1664
+  image_intermediate_size: 8192
   image_num_attention_heads: 16
 
-  text_num_hidden_layers: 40
-  text_hidden_size: 1408
-  text_intermediate_size: 6144
+  text_num_hidden_layers: 48
+  text_hidden_size: 1664
+  text_intermediate_size: 8192
   text_num_attention_heads: 16
 
-  multimodal_num_hidden_layers: 20
-  multimodal_hidden_size: 1408
-  multimodal_intermediate_size: 6144
+  multimodal_num_hidden_layers: 24
+  multimodal_hidden_size: 1664
+  multimodal_intermediate_size: 8192
   multimodal_num_attention_heads: 16

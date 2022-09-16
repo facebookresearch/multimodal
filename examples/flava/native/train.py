@@ -145,15 +145,11 @@ class Trainer:
 
         if self.config.training.activation_checkpointing:
             check_fn = lambda submodule: isinstance(submodule, TransformerEncoderLayer)
-            if self.config.training.activation_checkpointing_reentrant:
-                checkpoint_impl = CheckpointImpl.REENTRANT
-            else:
-                checkpoint_impl = CheckpointImpl.NO_REENTRANT
 
             non_reentrant_wrapper = partial(
                 checkpoint_wrapper,
                 offload_to_cpu=False,
-                checkpoint_impl=checkpoint_impl,
+                checkpoint_impl=CheckpointImpl.REENTRANT,
             )
             apply_activation_checkpointing_wrapper(
                 model,
