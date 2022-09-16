@@ -117,9 +117,11 @@ class BroadcastedPositionEmbedding(nn.Module):
         Raises:
             IndexError: If any position id(s) provided is outside of the indices range.
         """
-        mask = torch.logical_or(position_ids >= len(self.indices), position_ids < -1)
-        if mask.sum().item():
-            raise IndexError(f"Invalid position ids: {position_ids[mask]}")
+        invalid_ids = position_ids[
+            torch.logical_or(position_ids >= len(self.indices), position_ids < -1)
+        ]
+        if len(invalid_ids):
+            raise IndexError(f"Invalid position ids: {invalid_ids}")
 
         embeddings = []
         for i in range(self.n_dim):
