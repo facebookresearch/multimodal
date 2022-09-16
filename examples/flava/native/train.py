@@ -144,7 +144,6 @@ class Trainer:
             f"size: {get_model_size_gb(model):.3} GB"
         )
 
-
         if self.config.training.activation_checkpointing:
             check_fn = lambda submodule: isinstance(submodule, TransformerEncoderLayer)
             if self.config.training.activation_checkpointing_reentrant:
@@ -167,8 +166,10 @@ class Trainer:
             # TODO do we have to do this in FSDP too? see https://github.com/pytorch/pytorch/issues/75478
             model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
             model = model.to(self.device)
-            
-            print0(f"after moving to cuda: {torch.cuda.memory_allocated()/1024**3:.3} GB")
+
+            print0(
+                f"after moving to cuda: {torch.cuda.memory_allocated()/1024**3:.3} GB"
+            )
 
             model = DDP(
                 model,
