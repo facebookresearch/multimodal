@@ -2,7 +2,7 @@ training:
   strategy: fsdp # can be changed to ddp or fsdp
   seed: 1337
 
-  batch_size: 16
+  batch_size: 8
   num_workers: 4
   prefetch_factor: 3
 

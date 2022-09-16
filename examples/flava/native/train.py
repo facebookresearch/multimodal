@@ -144,8 +144,6 @@ class Trainer:
             f"size: {get_model_size_gb(model):.3} GB"
         )
 
-        model = model.to(self.device)
-        print0(f"after moving to cuda: {torch.cuda.memory_allocated()/1024**3:.3} GB")
 
         if self.config.training.activation_checkpointing:
             check_fn = lambda submodule: isinstance(submodule, TransformerEncoderLayer)
@@ -168,6 +166,10 @@ class Trainer:
         if strategy == "ddp":
             # TODO do we have to do this in FSDP too? see https://github.com/pytorch/pytorch/issues/75478
             model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
+            model = model.to(self.device)
+            
+            print0(f"after moving to cuda: {torch.cuda.memory_allocated()/1024**3:.3} GB")
+
             model = DDP(
                 model,
                 device_ids=[self.rank],
@@ -187,14 +189,13 @@ class Trainer:
             model = FSDP(
                 model,
                 mixed_precision=mp,
+                device_id=self.device,
                 auto_wrap_policy=partial(
                     transformer_auto_wrap_policy,
                     transformer_layer_cls={
                         TransformerEncoderLayer,
                         ImageTransformer,
                         BERTTextEncoder,
-                        DalleVAEEncoder,
-                        DalleEncoderBlock,
                     },
                 ),
             )
@@ -351,6 +352,8 @@ class Trainer:
                 self.validate()
 
     def validate(self):
+        self.imagenet_validate()
+
         if self.steps % self.config.training.validation_steps != 0 or self.steps == 0:
             return
 
@@ -377,7 +380,6 @@ class Trainer:
         print0(f"step {self.steps} EVAL loss: {norm_validation_loss:.4}")
 
     def imagenet_validate(self):
-        # not working due to an FSDP issue
         print0("imagenet validation")
         with torch.no_grad():
             with torch.cuda.amp.autocast(
