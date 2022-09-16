@@ -62,18 +62,19 @@ datasets:
         split_key_mapping:
           validation: train
 
+
 model:
-  image_num_hidden_layers: 40
-  image_hidden_size: 1408
-  image_intermediate_size: 6144
+  image_num_hidden_layers: 64
+  image_hidden_size: 2048
+  image_intermediate_size: 10240
   image_num_attention_heads: 16
 
-  text_num_hidden_layers: 40
-  text_hidden_size: 1408
-  text_intermediate_size: 6144
+  text_num_hidden_layers: 64
+  text_hidden_size: 2048
+  text_intermediate_size: 10240
   text_num_attention_heads: 16
 
-  multimodal_num_hidden_layers: 20
-  multimodal_hidden_size: 1408
-  multimodal_intermediate_size: 6144
+  multimodal_num_hidden_layers: 40
+  multimodal_hidden_size: 2048
+  multimodal_intermediate_size: 10240
   multimodal_num_attention_heads: 16

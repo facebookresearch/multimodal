@@ -123,7 +123,6 @@ def _accuracy(output, target, topk=(1,)):
     ]
 
 
-@rank0_only
 def run_imagenet_zero_shot(model, dataloader, device, text_transform, *args, **kwargs):
     print0("Starting ImageNet Zero-Shot Eval")
     print0("Building classifier")
