@@ -352,8 +352,6 @@ class Trainer:
                 self.validate()
 
     def validate(self):
-        self.imagenet_validate()
-
         if self.steps % self.config.training.validation_steps != 0 or self.steps == 0:
             return
 
