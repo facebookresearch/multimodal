@@ -302,9 +302,8 @@ class TransformerEncoderLayer(nn.Module):
             head_mask=head_mask,
         )
         attn_residual = attn_output + x
-        ff_residual = attn_residual + self._feedforward_block(
-            self.attention_layernorm(attn_residual)
-        )
+        attn_residual = self.attention_layernorm(attn_residual)
+        ff_residual = attn_residual + self._feedforward_block(attn_residual)
         outputs = self.feedforward_layernorm(ff_residual)
         if return_attn_weights:
             return outputs, attn_weights
