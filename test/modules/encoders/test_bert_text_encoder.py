@@ -27,8 +27,8 @@ class TestBERTTextEncoder:
         output = encoder(input_ids, text_atts)
         expected = Tensor(
             [
-                [[-0.7098, -0.7044, 1.4142], [-0.5453, -0.8574, 1.4027]],
-                [[-0.2194, -1.1002, 1.3196], [0.3886, -1.3719, 0.9833]],
+                [[-0.658658, -0.754473, 1.413131], [-0.501156, -0.894687, 1.395843]],
+                [[-0.148285, -1.143851, 1.292136], [0.424911, -1.380611, 0.955700]],
             ]
         )
         assert_expected(output.last_hidden_state, expected, rtol=0, atol=1e-4)
