@@ -136,7 +136,7 @@ class Trainer:
         model_config = self.config.get("model", {})
         print0(f"using model config: {model_config}")
 
-        model = FLAVAPreTrainModule(**model_config).cuda()
+        model = FLAVAPreTrainModule(**model_config)
         strategy = self.config.training.strategy
 
         print0(
