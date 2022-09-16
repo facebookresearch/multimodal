@@ -148,10 +148,6 @@ class Trainer:
         print0(f"after moving to cuda: {torch.cuda.memory_allocated()/1024**3:.3} GB")
 
         if self.config.training.activation_checkpointing:
-            # note: activation checkpointing wrapper currently is faulty
-            # - non-reentrant does not support kwargs in TransformerEncoderLayer
-            # - memory reduction from checkpointing is less than expected
-
             check_fn = lambda submodule: isinstance(submodule, TransformerEncoderLayer)
             if self.config.training.activation_checkpointing_reentrant:
                 checkpoint_impl = CheckpointImpl.REENTRANT
