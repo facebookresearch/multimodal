@@ -40,7 +40,8 @@ jobs:
       - name: Install dependencies
         run: |
           set -eux
-          python -m pip install --pre torch torchvision torchtext --extra-index-url https://download.pytorch.org/whl/nightly/cpu
+          python -m pip install --pre torch torchvision torchtext --extra-index-url \
+            https://download.pytorch.org/whl/nightly/cpu
           python -m pip install -r requirements.txt
       - name: Test installation of dependencies
         run: |
@@ -53,7 +54,8 @@ jobs:
       - name: Build torchmultimodal nightly
         run: |
           set -eux
-          python setup.py bdist_wheel --package_name torchmultimodal-nightly --python-tag=${{ matrix.python-version }}
+          python setup.py bdist_wheel --package_name torchmultimodal-nightly \
+            --python-tag=${{ matrix.python-version }}
       - name: Install wheel
         run: |
           set -eux
@@ -65,4 +67,5 @@ jobs:
         run: |
           set -eux
           python -m pip install pytest pytest-mock pytest-cov
-          python -m pytest --junitxml=junit/test-results.xml --cov=. --cov-report=xml --cov-report=html--cov=. test -vv
+          python -m pytest --junitxml=junit/test-results.xml --cov=. \
+            --cov-report=xml --cov-report=html--cov=. test -vv
