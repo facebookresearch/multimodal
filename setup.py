@@ -17,7 +17,7 @@ def clean_html(raw_html):
     return cleantext
 
 
-def _get_version():
+def get_version():
     # get version string from version.py
     version_file = os.path.join(os.path.dirname(__file__), "version.py")
     version_regex = r"__version__ = ['\"]([^'\"]*)['\"]"
