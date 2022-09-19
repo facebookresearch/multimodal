@@ -69,7 +69,9 @@ if __name__ == "__main__":
     setup(
         name=name,
         include_package_data=True,
-        packages=find_packages(exclude=("examples*", "test*")),  # Excluded folders don't get packaged
+        packages=find_packages(
+            exclude=("examples*", "test*")
+        ),  # Excluded folders don't get packaged
         python_requires=">=3.7",
         install_requires=read_requirements("requirements.txt"),
         version=version,
