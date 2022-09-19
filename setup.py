@@ -5,8 +5,10 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import argparse
 import os
 import re
+from datetime import date
 
 from setuptools import find_packages, setup
 
@@ -46,7 +48,7 @@ def get_nightly_version():
     return f"{today.year}.{today.month}.{today.day}"
 
 
-def parse_args(argv: List[str]) -> argparse.Namespace:
+def parse_args(argv):  # Pass in a list of string from CLI
     parser = argparse.ArgumentParser(description="torchmultimodal setup")
     parser.add_argument(
         "--package_name",
@@ -65,6 +67,10 @@ if __name__ == "__main__":
     is_nightly = "nightly" in name
 
     version = get_nightly_version() if is_nightly else get_version()
+
+    print(f"-- {name} building version: {version}")
+
+    sys.argv = [sys.argv[0]] + unknown
 
     setup(
         name=name,
