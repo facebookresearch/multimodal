@@ -10,11 +10,19 @@ defaults:
 
 jobs:
   build_wheel:
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        python-version: [3.7, 3.8, 3.9]
-    runs-on: ${{ matrix.os }}
+        include:
+         - os: ubuntu-latest
+           python-version: 3.7
+           python-tag: "py37"
+         - os: ubuntu-latest
+           python-version: 3.8
+           python-tag: "py38"
+         - os: ubuntu-latest
+           python-version: 3.9
+           python-tag: "py39"
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
@@ -55,7 +63,7 @@ jobs:
         run: |
           set -eux
           python setup.py bdist_wheel --package_name torchmultimodal-nightly \
-            --python-tag=${{ matrix.python-version }}
+            --python-tag=${{ matrix.python-tag }}
       - name: Install wheel
         run: |
           set -eux
