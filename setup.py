@@ -8,6 +8,7 @@
 import argparse
 import os
 import re
+import sys
 from datetime import date
 
 from setuptools import find_packages, setup
@@ -60,7 +61,7 @@ def parse_args(argv):  # Pass in a list of string from CLI
 
 
 if __name__ == "__main__":
-    args, unknown = parse_args(argv)
+    args, unknown = parse_args(sys.argv[1:])
 
     # Set up package name and version
     name = args.package_name
