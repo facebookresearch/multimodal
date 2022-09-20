@@ -41,7 +41,7 @@ For now we only support Linux platform through [PyPI](https://pypi.org/).
 ### Building from Source
 
 Alternatively, you can also build from our source code:
-    
+
     ```
     git clone --recursive https://github.com/facebookresearch/multimodal.git multimodal
     cd multimodal

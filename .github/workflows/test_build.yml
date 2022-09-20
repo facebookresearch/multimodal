@@ -84,7 +84,6 @@ jobs:
         run: |
           set -eux
           python -m twine upload dist/torchmultimodal_nightly-*.whl \
-            --repository testpypi \
             --username __token__ --password "$PYPI_API_TOKEN" \
             --skip-existing \
             --verbose
