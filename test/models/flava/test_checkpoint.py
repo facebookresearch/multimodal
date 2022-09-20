@@ -99,11 +99,7 @@ class TestFLAVACheckpoint:
 
     def _assert_tensor_dicts_equal(self, dict_actual, dict_expected):
         for key in dict_expected:
-            actual = (
-                torch.zeros(1)
-                if dict_actual[key] is None
-                else dict_actual[key]
-            )
+            actual = torch.zeros(1) if dict_actual[key] is None else dict_actual[key]
             expected = (
                 torch.zeros(1)
                 if dict_expected[key] is None
