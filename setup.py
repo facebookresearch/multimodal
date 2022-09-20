@@ -59,11 +59,14 @@ if __name__ == "__main__":
         author="PyTorch Multimodal Team",
         author_email="torchmultimodal@fb.com",
         classifiers=[
+            "Development Status :: 4 - Beta",
+            "Intended Audience :: Developers",
+            "Intended Audience :: Science/Research",
+            "License :: OSI Approved :: BSD License",
+            "Topic :: Scientific/Engineering :: Artificial Intelligence",
             "Programming Language :: Python :: 3.7",
             "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
-            "License :: OSI Approved :: BSD License",
-            "Topic :: Scientific/Engineering :: Artificial Intelligence",
         ],
         extras_require={"dev": read_requirements("dev-requirements.txt")},
     )
