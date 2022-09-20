@@ -57,7 +57,7 @@ if __name__ == "__main__":
         long_description_content_type="text/markdown",
         url="https://github.com/facebookresearch/multimodal",
         author="PyTorch Multimodal Team",
-        author_email="kartikayk@fb.com",  # TODO: Get a group email address to manage packaging
+        author_email="torchmultimodal@fb.com",
         classifiers=[
             "Programming Language :: Python :: 3.7",
             "Programming Language :: Python :: 3.8",
