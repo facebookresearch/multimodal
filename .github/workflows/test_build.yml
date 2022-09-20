@@ -9,7 +9,7 @@ defaults:
     shell: bash -l {0}
 
 jobs:
-  build_wheel:
+  build_and_upload_wheel:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -77,3 +77,12 @@ jobs:
           python -m pip install pytest pytest-mock pytest-cov
           python -m pytest --junitxml=junit/test-results.xml \
             --cov-report=xml --cov-report=html --cov=. test -vv
+      - name: Push wheel to PyPI
+        run: |
+          set -eux
+          python -m pip install twine
+          python -m twine upload dist/torchmultimodal_nightly-*.whl \
+            --repository testpypi \
+            --username __token__ --password "$TESTPYPI_API_TOKEN" \
+            --skip-existing \
+            --verbose

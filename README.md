@@ -1,4 +1,4 @@
-# TorchMultimodal (Alpha Release)
+# TorchMultimodal (Beta Release)
 
 ## Introduction
 TorchMultimodal is a PyTorch library for training state-of-the-art multimodal multi-task models at scale. It provides:
