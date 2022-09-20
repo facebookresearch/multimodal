@@ -1,2 +1,2 @@
 DALL-E==0.1
-iopath
+iopath==0.1.10
