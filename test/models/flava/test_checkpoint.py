@@ -102,7 +102,7 @@ class TestFLAVACheckpoint:
             actual = (
                 torch.zeros(1)
                 if dict_actual[key] is None
-                else torch.tensor(dict_actual[key])
+                else dict_actual[key]
             )
             expected = (
                 torch.zeros(1)
