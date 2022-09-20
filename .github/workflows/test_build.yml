@@ -9,7 +9,7 @@ defaults:
     shell: bash -l {0}
 
 jobs:
-  build_wheel:
+  build_and_upload_wheel:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -42,9 +42,9 @@ jobs:
       - name: Update pip
         run: |
           python -m pip install --upgrade pip
-      - name: Update wheel
+      - name: Update build/packaging tools
         run: |
-          python -m pip install --upgrade wheel
+          python -m pip install --upgrade setuptools wheel twine
       - name: Install dependencies
         run: |
           set -eux
@@ -62,9 +62,10 @@ jobs:
       - name: Build torchmultimodal nightly
         run: |
           set -eux
+          rm -r dist || true
           python setup.py bdist_wheel --package_name torchmultimodal-nightly \
             --python-tag=${{ matrix.python-tag }}
-      - name: Install wheel
+      - name: Install torchmultimodal nightly
         run: |
           set -eux
           python -m pip install dist/torchmultimodal*.whl
@@ -77,3 +78,12 @@ jobs:
           python -m pip install pytest pytest-mock pytest-cov
           python -m pytest --junitxml=junit/test-results.xml \
             --cov-report=xml --cov-report=html --cov=. test -vv
+      - name: Push wheel to PyPI
+        env:
+          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          set -eux
+          python -m twine upload dist/torchmultimodal_nightly-*.whl \
+            --username __token__ --password "$PYPI_API_TOKEN" \
+            --skip-existing \
+            --verbose
