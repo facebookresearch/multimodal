@@ -34,20 +34,20 @@ The following assumes conda is installed.
 Nightly binary on Linux for Python 3.7, 3.8 and 3.9 can be installed via pip wheels.
 For now we only support Linux platform through [PyPI](https://pypi.org/).
 
-    ```
-    python -m pip install torchmultimodal_nightly
-    ```
+```
+python -m pip install torchmultimodal-nightly
+```
 
 ### Building from Source
 
 Alternatively, you can also build from our source code:
 
-    ```
-    git clone --recursive https://github.com/facebookresearch/multimodal.git multimodal
-    cd multimodal
+```
+git clone --recursive https://github.com/facebookresearch/multimodal.git multimodal
+cd multimodal
 
-    pip install -e .
-    ```
+pip install -e .
+```
 For developers please follow the [development installation](https://github.com/facebookresearch/multimodal/blob/main/CONTRIBUTING.md#development-installation).
 
 ## Documentation
