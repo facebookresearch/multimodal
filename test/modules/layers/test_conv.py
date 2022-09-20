@@ -5,8 +5,8 @@
 # LICENSE file in the root directory of this source tree.
 
 import unittest
-from itertools import product
 import warnings
+from itertools import product
 
 import torch
 from test.test_utils import assert_expected
@@ -95,7 +95,7 @@ class TestSamePadConv3d(unittest.TestCase):
 
     def test_samepadconv3d_forward(self):
         with warnings.catch_warnings():
-            warnings.simplefilter('ignore', category=UserWarning)
+            warnings.simplefilter("ignore", category=UserWarning)
             for i, (inp, kernel, stride) in enumerate(self.test_cases):
                 conv = SamePadConv3d(1, 1, kernel, stride, padding=0)
                 out = conv(inp)
