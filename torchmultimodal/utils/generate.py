@@ -15,8 +15,18 @@ from torchmultimodal.utils.attention import get_causal_attention_mask
 
 
 class SampleOutput(NamedTuple):
-    decoded: Tensor  # generated sample data
-    tokens: Tensor  # generated tokens before being decoded back to data
+    """Outputs from :meth:`~torchmultimodal.utils.generate.GenerationUtil.sample`.
+
+    Attributes:
+        decoded (Any): Generated sample data for the ouput modality.
+        tokens (Tensor): Generated tokens ``(b, seq_len)`` for the output modality before being decoded
+            back to data.
+        model_outputs (Tuple[Any, ...]): A tuple of length ``seq_len`` containing output objects from
+            the model's forward pass at each step of generation.
+    """
+
+    decoded: Any
+    tokens: Tensor
     model_outputs: Tuple[Any, ...]
 
 
@@ -31,8 +41,10 @@ class GenerationUtil:
         * compute scores for prediction
     See :class:`~torchmultimodal.models.gpt.MultimodalGPT` for the API details.
 
-    Attributes:
+    Args:
         model (nn.Module): Model that is wrapped for generation.
+
+    Attributes:
         num_in_tokens (int): Number of unique token states for the input modality.
         num_out_tokens (int): Number of unique token states for the output modality.
     """
@@ -204,21 +216,14 @@ def get_logits_mask(
 class LogitsFilterTopK:
     """Filters a distribution of logits using top_k
 
-    Attributes:
+    Code reference: https://gist.github.com/thomwolf/1a5a29f6962089e871b94cbd09daf317
+
+    Args:
         top_k (int, optional): Keeps the top_k tokens with the highest probability (top_k filtering).
             Defaults to ``None``.
         filter_value (float, optional): Constant value to filter unwanted logits. Defaults to ``-inf``.
         min_tokens_to_keep (int, optional): Minimum number of tokens to keep per batch example in the output.
             Defaults to ``1``.
-
-    Code reference: https://gist.github.com/thomwolf/1a5a29f6962089e871b94cbd09daf317
-
-    Args:
-        logits (Tensor): Logits distribution shape ``(b, num_tokens)`` where ``b`` is batch size,
-            ``num_tokens`` is the number of tokens.
-
-    Returns:
-        Filtered logits tensor.
 
     Raises:
         ValueError: If 'top_k' is outside of valid numerical ranges.
@@ -239,6 +244,14 @@ class LogitsFilterTopK:
         self.top_k = top_k
 
     def __call__(self, logits: Tensor) -> Tensor:
+        """
+        Args:
+            logits (Tensor): Logits distribution shape ``(b, num_tokens)`` where ``b`` is batch size,
+                ``num_tokens`` is the number of tokens.
+
+        Returns:
+            Filtered logits tensor.
+        """
         if self.top_k == 0:
             return logits
 
@@ -255,22 +268,15 @@ class LogitsFilterTopK:
 class LogitsFilterTopP:
     """Filters a distribution of logits using nucleus (top_p) filtering
 
-    Attributes:
+    Code reference: https://gist.github.com/thomwolf/1a5a29f6962089e871b94cbd09daf317
+
+    Args:
         top_p (float, optional): Keeps the top tokens with cumulative probability >= top_p (nucleus filtering).
             Nucleus filtering is described in Holtzman et al. (http://arxiv.org/abs/1904.09751).
             Defaults to ``None``.
         filter_value (float, optional): Constant value to filter unwanted logits. Defaults to ``-inf``.
         min_tokens_to_keep (int, optional): Minimum number of tokens to keep per batch example in the output.
             Defaults to ``1``.
-
-    Code reference: https://gist.github.com/thomwolf/1a5a29f6962089e871b94cbd09daf317
-
-    Args:
-        logits (Tensor): Logits distribution shape ``(b, num_tokens)`` where ``b`` is batch size,
-            ``num_tokens`` is the number of tokens.
-
-    Returns:
-        Filtered logits tensor.
 
     Raises:
         ValueError: If 'top_p' is outside of valid numerical ranges.
@@ -290,6 +296,14 @@ class LogitsFilterTopP:
         self.top_p = top_p
 
     def __call__(self, logits: Tensor) -> Tensor:
+        """
+        Args:
+            logits (Tensor): Logits distribution shape ``(b, num_tokens)`` where ``b`` is batch size,
+                ``num_tokens`` is the number of tokens.
+
+        Returns:
+            Filtered logits tensor.
+        """
         if self.top_p == 1.0:
             return logits
 
