@@ -4,7 +4,7 @@ on:
   pull_request:
 
 env:
-  PYTHON_VERSION_LINT: 3.8
+  PYTHON_VERSION: "3.8"
 
 defaults:
   run:
@@ -21,7 +21,7 @@ jobs:
       - name: Setup python
         uses: actions/setup-python@v4
         with:
-          python-version: "$PYTHON_VERSION_LINT"
+          python-version: $PYTHON_VERSION
       - name: Update pip
         run: |
           python -m pip install --upgrade pip
@@ -47,7 +47,7 @@ jobs:
           auto-update-conda: true
           miniconda-version: "latest"
           activate-environment: lint
-          python-version: "$PYTHON_VERSION_LINT"
+          python-version: $PYTHON_VERSION
       - name: Install dependencies
         run: |
           set -eux
