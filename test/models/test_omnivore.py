@@ -18,17 +18,17 @@ def device():
     return get_current_device()
 
 
-@pytest.fixture(autouse=False)
+@pytest.fixture()
 def omnivore_swin_t_model(device):
     return omnivore.omnivore_swin_t().to(device)
 
 
-@pytest.fixture(autouse=False)
+@pytest.fixture()
 def omnivore_swin_s_model(device):
     return omnivore.omnivore_swin_s().to(device)
 
 
-@pytest.fixture(autouse=False)
+@pytest.fixture()
 def omnivore_swin_b_model(device):
     return omnivore.omnivore_swin_b().to(device)
 
