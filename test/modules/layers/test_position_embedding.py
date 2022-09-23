@@ -90,7 +90,9 @@ class TestBroadcastedPositionEmbedding:
 
     def test_forward_invalid_input(self, pos_emb):
         """Test raising error when position ids contain illegal values"""
-        with pytest.raises(IndexError):
-            pos_emb(position_ids=torch.tensor([-2, 0]))
-        with pytest.raises(IndexError):
-            pos_emb(position_ids=torch.tensor([0, 6]))
+        with pytest.raises(IndexError) as exc_info:
+            pos_emb(position_ids=torch.tensor([[-2, 0]]))
+        assert exc_info.value.args[0] == "Invalid position ids: tensor([-2])"
+        with pytest.raises(IndexError) as exc_info:
+            pos_emb(position_ids=torch.tensor([[0, 6]]))
+        assert exc_info.value.args[0] == "Invalid position ids: tensor([6])"
