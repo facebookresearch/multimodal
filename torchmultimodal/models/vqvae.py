@@ -12,8 +12,15 @@ from torchmultimodal.utils.common import shift_dim
 
 
 class VQVAEOutput(NamedTuple):
-    decoded: Tensor  # output of decoder
-    codebook_output: CodebookOutput  # output of codebook layer to be used in loss calculations
+    """Outputs from :class:`~torchmultimodal.models.vqvae.VQVAE`.
+
+    Attributes:
+        decoded (Tensor): Output of the decoder.
+        codebook_output (CodebookOutput): Output of codebook layer to be used in loss calculations.
+    """
+
+    decoded: Tensor
+    codebook_output: CodebookOutput
 
 
 class VQVAE(nn.Module):
@@ -27,7 +34,7 @@ class VQVAE(nn.Module):
     Discrete Representation Learning" (Oord et al. 2017) and has since seen success in
     tokenizing and generating high-resolution image, audio, and video data.
 
-    Attributes:
+    Args:
         encoder (nn.Module): Model that accepts single Tensor as input in forward, ``encoder(x)``.
             Will be used to project input into codebook layer. Expects channel
             dim of encoder output to match ``embedding_dim`` of codebook.
@@ -37,9 +44,6 @@ class VQVAE(nn.Module):
             the encoder.
         num_embeddings (int): Number of embedding vectors in codebook.
         embedding_dim (int): Dimensionality of embedding vectors in codebook.
-
-    Args:
-        x (Tensor): Input data of shape ``[b, c, d1, ..., dn]``.
     """
 
     def __init__(
@@ -101,6 +105,13 @@ class VQVAE(nn.Module):
         return self.codebook.lookup(indices)
 
     def forward(self, x: Tensor) -> VQVAEOutput:
+        """
+        Args:
+            x (Tensor): Input data of shape ``(b, c, d1, ..., dn)``.
+
+        Returns:
+            An instance of :class:`~torchmultimodal.models.vqvae.VQVAEOutput`.
+        """
         encoded = self.encoder(x)
         codebook_output = self.codebook(encoded)
         decoded = self.decoder(codebook_output.quantized)
