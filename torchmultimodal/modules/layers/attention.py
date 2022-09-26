@@ -15,18 +15,8 @@ from torchmultimodal.utils.common import shift_dim
 class SelfAttention(nn.Module):
     """Computes attention over the entire n-dimensional input.
 
-    Attributes:
-        attn_dropout (float): probability of dropout after softmax. Default is ``0.0``.
-
     Args:
-        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor where h is the number of attention heads
-        attention_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
-                                           Contains 1s for positions to attend to and 0s for masked positions.
-                                           Applied before softmax.
-        head_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
-                                      Contains 1s for positions to attend to and 0s for masked positions.
-                                      Applied after dropout, before matrix multiplication with values.
-
+        attn_dropout (float, optional): Probability of dropout after softmax. Default is ``0.0``.
     """
 
     def __init__(self, attn_dropout: float = 0.0) -> None:
@@ -41,10 +31,26 @@ class SelfAttention(nn.Module):
         attention_mask: Optional[Tensor] = None,
         head_mask: Optional[Tensor] = None,
     ) -> Tuple[Tensor, Tensor]:
+        """
+        Args:
+            q (Tensor): Query input of shape ``(b, h, d1, ..., dn, dim_q)`` where ``h`` is the number of
+                attention heads, ``(d1, ..., dn)`` are the query latent dimensions and ``dim_q`` is the dimension
+                of the query embeddings.
+            k, v (Tensor): Key/value input of shape ``(b, h, d1', ..., dn', dim_kv)`` where ``h`` is the number
+                of attention heads, ``(d1', ..., dn')`` are the key/value latent dimensions and ``dim_kv`` is
+                the dimension of the key/value embeddings.
+            attention_mask (Tensor, optional): Tensor of shape ``(b, h, q_dn, k_dn)`` where ``q_dn`` is the
+                dimension of the flattened query input along its latent dimensions and ``k_dn`` that of the
+                flattened key input. Contains 1s for positions to attend to and 0s for masked positions.
+            head_mask (Tensor, optional): Tensor of shape ``(b, h, q_dn, k_dn)``.
+                Contains 1s for positions to attend to and 0s for masked positions.
 
+        Returns:
+            A tuple of output tensor and attention probabilities.
+        """
         _, _, *shape, _ = q.shape
 
-        # flatten to b, h, (d1, ..., dn), c
+        # flatten to b, h, (d1, ..., dn), dim_q/dim_kv
         q = q.flatten(start_dim=2, end_dim=-2)
         k = k.flatten(start_dim=2, end_dim=-2)
         v = v.flatten(start_dim=2, end_dim=-2)
@@ -62,29 +68,18 @@ class SelfAttention(nn.Module):
 
 
 class AxialAttention(nn.Module):
-    """Computes attention over a single axis of the input. Other dims are flattened
-    into the batch dimension.
-
-    Attributes:
-        axial_dim (int): dimension to compute attention on, index by input dimensions
-            (i.e., 0 for first input dimension, 1 for second)
-        attn_dropout (float): probability of dropout after softmax. Default is ``0.0``.
+    """Computes attention over a single axis of the input. Other dims are flattened into the batch dimension.
 
     Args:
-        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor where h is the number of attention heads
-        attention_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
-                                           Contains 1s for positions to attend to and 0s for masked positions.
-                                           Applied before softmax.
-        head_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
-                                      Contains 1s for positions to attend to and 0s for masked positions.
-                                      Applied after dropout, before matrix multiplication with values.
-
+        axial_dim (int): Dimension to compute attention on, indexed by input dimensions
+            (i.e., ``0`` for first input dimension, ``1`` for second).
+        attn_dropout (float): Probability of dropout after softmax. Default is ``0.0``.
     """
 
     def __init__(self, axial_dim: int, attn_dropout: float = 0.0) -> None:
         super().__init__()
-        self.attn_dropout = attn_dropout
         self.axial_dim = axial_dim + 2  # account for batch, head
+        self.attn_dropout = attn_dropout
 
     def forward(
         self,
@@ -94,12 +89,29 @@ class AxialAttention(nn.Module):
         attention_mask: Optional[Tensor] = None,
         head_mask: Optional[Tensor] = None,
     ) -> Tuple[Tensor, Tensor]:
+        """
+        Args:
+            q (Tensor): Query input of shape ``(b, h, d1, ..., dn, dim_q)`` where ``h`` is the number of
+                attention heads, ``(d1, ..., dn)`` are the query latent dimensions and ``dim_q`` is the dimension
+                of the query embeddings.
+            k, v (Tensor): Key/value input of shape ``(b, h, d1', ..., dn', dim_kv)`` where ``h`` is the number
+                of attention heads, ``(d1', ..., dn')`` are the key/value latent dimensions and ``dim_kv`` is
+                the dimension of the key/value embeddings.
+            attention_mask (Tensor, optional): Tensor of shape ``(b, h, d1, ..., q_dn, k_dn)`` where ``q_dn`` is
+                the dimension of the axis to compute attention on of the query and ``k_dn`` that of the key.
+                Contains 1s for positions to attend to and 0s for masked positions.
+            head_mask (Tensor, optional): Tensor of shape ``(b, h, d1, ..., q_dn, k_dn)``.
+                Contains 1s for positions to attend to and 0s for masked positions.
+
+        Returns:
+            A tuple of output tensor and attention probabilities.
+        """
         # Ensure axial dim is within right dimensions, should be between head dim and embedding dim
         if self.axial_dim >= len(q.shape) - 1:
             raise ValueError("axial dim does not match input shape")
 
         # flatten all dims into batch dimension except chosen axial dim and channel dim
-        # b, h, d1, ..., dn, c -> (b, h, d1, ..., dn-1), axial_dim, c
+        # b, h, d1, ..., dn, dim_q/dim_kv -> (b, h, d1, ..., dn-1), axial_dim, dim_q/dim_kv
         q = shift_dim(q, self.axial_dim, -2).flatten(end_dim=-3)
         k = shift_dim(k, self.axial_dim, -2).flatten(end_dim=-3)
         v = shift_dim(v, self.axial_dim, -2)
@@ -126,42 +138,21 @@ class MultiHeadAttention(nn.Module):
     multiple 'heads'. This enables the computation of attention multiple times in
     parallel, creating more varied representations and allows the model to jointly
     attend to information from different representation subspaces at different positions,
-    as described in Attention Is All You Need (Vaswani et al. 2017).
-
-    Attributes:
-        dim_q (int): dimensionality of query embedding vector
-        dim_kv (int): dimensionality of key/value embedding vector
-        n_head (int): number of attention heads
-        attn_module (nn.Module): module of attention mechanism to use. Default is ``SelfAttention``.
-                                 Should have interface of:
-                                    (q: Tensor,
-                                    k: Tensor,
-                                    v: Tensor,
-                                    attention_mask: Optional[Tensor],
-                                    head_mask: Optional[Tensor],
-                                    )
-                                 and returns output Tensor and attn weights Tensor
-        add_bias (bool): add bias to the q, k, v, linear layers or not. Default is ``True``.
+    as described in `"Attention Is All You Need (Vaswani et al. 2017)"<https://arxiv.org/pdf/1706.03762.pdf>`_.
 
     Args:
-        q (Tensor): a tensor of shape [b, d1, ..., dn, c] or [b, seq_len, c]
-            (for autoregressive decoding it's typical to pass in flattened tensors).
-        kv (Optional[Tensor]): a tensor of shape [b, d1, ..., dn, c] or [b, seq_len, c].
-                               If this argument is specified, this module become multiheaded cross-attention.
-        attention_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
-                                           Contains 1s for positions to attend to and 0s for masked positions.
-                                           Applied before softmax.
-        head_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
-                                      Contains 1s for positions to attend to and 0s for masked positions.
-                                      Applied after dropout, before matrix multiplication with values.
-        use_cache (bool): If True, caches past k and v tensors for faster decoding. If False, recompute k and v for each
-                          decoding step. Default is ``False``.
-        causal (bool): use causal attention or not. Default is ``False``.
+        dim_q (int): Dimensionality of query embedding vector.
+        dim_kv (int): Dimensionality of key/value embedding vector.
+        n_head (int): Number of attention heads.
+        attn_module (nn.Module): Module of attention mechanism to use. Default is ``SelfAttention``.
+            See :class:`~torchmultimodal.modules.layers.attention.SelfAttention` for API details.
+        add_bias (bool): Whether to add bias to the q, k, v, linear layers or not. Default is ``True``.
+
+    Attributes:
+        cache (Dict[str, Tensor]): Dictionary that stores past key/value vectors.
 
     Raises:
-        TypeError: an error occurred when ``causal`` is ``True`` and ``attn_module`` is
-            ``AxialAttention``.
-        ValueError: when dim_q or dim_kv is not divisible by n_head
+        ValueError: When ``dim_q`` or ``dim_kv`` is not divisible by ``n_head``.
     """
 
     def __init__(
@@ -200,6 +191,31 @@ class MultiHeadAttention(nn.Module):
         use_cache: bool = False,
         causal: bool = False,
     ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+        """
+        Args:
+            q (Tensor): Query of shape ``(b, d1, ..., dn, dim_q)`` or ``(b, seq_len, dim_q)``
+                (for autoregressive decoding it's typical to pass in flattened tensors).
+            kv (Tensor, optional): Key (and value) of shape ``(b, d1', ..., dn', dim_kv)`` or
+                ``(b, seq_len', dim_kv)``. If this argument is specified, cross-attention will be applied.
+                Default is ``None``.
+            attention_mask (Tensor, optional): Tensor of shape ``(b, h, d1, ..., q_dn, k_dn)`` where ``q_dn`` is
+                the dimension of the axis to compute attention on of the query and ``k_dn`` that of the key.
+                If the input tensors are flattened across the entire latent dimensions, ``q_dn = d1 x ... x dn``
+                and ``k_dn = d1' x ... x dn'``. Contains 1s for positions to attend to and 0s
+                for masked positions.
+            head_mask (Tensor, optional): Tensor of shape ``(b, h, d1, ..., q_dn, k_dn)``.
+                Contains 1s for positions to attend to and 0s for masked positions.
+            use_cache (bool): If ``True``, caches past ``k`` and ``v`` tensors for faster decoding.
+                If ``False``, recomputes ``k`` and ``v`` for each decoding step. Default is ``False``.
+            causal (bool): Whether to use causal attention or not. Default is ``False``.
+
+        Returns:
+            * If ``return_attn_weights`` is ``True``: A tuple of output tensor and attention probabilities.
+            * If ``return_attn_weights`` is ``False``: A single output tensor.
+
+        Raises:
+            TypeError: An error occurred when ``causal`` is ``True`` and ``attn_module`` is ``AxialAttention``.
+        """
         if isinstance(self.attn, AxialAttention) and causal:
             raise TypeError("Causal axial attention is not supported.")
 
@@ -249,20 +265,19 @@ class AxialAttentionBlock(nn.Module):
     multiple axial attention layers will allow information to propagate among the
     multiple dimensions of the input. This enables attention calculations on high
     dimensional inputs (images, videos) where full attention would be computationally
-    expensive and unfeasible. For more details, see "Axial Attention in
-    Multidimensional Transformers" (Ho et al. 2019) and CCNet (Huang et al. 2019).
+    expensive and unfeasible. For more details, see `"Axial Attention in
+    Multidimensional Transformers (Ho et al. 2019)"<https://arxiv.org/pdf/1912.12180.pdf>`_
+    and `"CCNet: Criss-Cross Attention for Semantic Segmentation (Huang et al. 2019)
+    "<https://arxiv.org/pdf/1811.11721.pdf>`_.
 
     Follows implementation by VideoGPT:
-    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
-
-    Attributes:
-        n_dims (int): dimensionality of input data, not including batch or channel dims
-        qkv_dim (int): dimensionality of linear projections Wq, Wk, and Wv in attention
-        n_head (int): number of heads in multihead attention. Must divide into qkv_dim
-                      evenly
+        https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
 
     Args:
-        x (Tensor): a [b, c, d1, ..., dn] tensor, where c == qkv_dim
+        n_dims (int): Dimensionality of input data, not including batch or embedding dims.
+        qkv_dim (int): Dimensionality of query/key/value embedding vectors.
+        n_head (int): Number of heads in multihead attention. Must divide into ``qkv_dim``
+            evenly.
     """
 
     def __init__(self, n_dims: int, qkv_dim: int, n_head: int) -> None:
@@ -310,15 +325,25 @@ def scaled_dot_product_attention(
     Computes attention as described in Attention Is All You Need (Vaswani et al. 2017)
 
     Args:
-        q, k, v (Tensor): a [b, h, d1, ..., dn, c] tensor or a flattened tensor of shape [b, seq_len, c]
-                          where first dim is batch dim and last dim is channel dim
-        attention_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
-                                           Contains 1s for positions to attend to and 0s for masked positions.
-                                           Applied before softmax.
-        head_mask (Optional[Tensor]): Tensor of shape [b, h, d1, ..., q_dn, k_dn].
-                                      Contains 1s for positions to attend to and 0s for masked positions.
-                                      Applied after dropout, before matrix multiplication with values.
-        attn_dropout (float): probability of dropout after softmax. Default is ``0.0``.
+        q (Tensor): Query of shape ``(b, h, d1, ..., dn, dim_qk)`` or ``(b, h, seq_len, dim_qk)`` where
+            ``h`` is number of attention heads, ``d1, ..., dn`` are latent dimensions and ``dim_qk` is
+            the embedding dim of the query tensor.
+        k (Tensor): Key of shape ``(b, h, d1', ...., dn', dim_qk)`` or ``(b, h, seq_len', dim_qk)`` where
+            ``h`` is the number of attention heads, ``d1', ..., dn'` are latent dimensions and ``dim_qk``
+            is the key embedding dim aligned with query embedding dim,
+            see :class:`~torchmultimodal.modules.layers.attention.MultiHeadAttention`.
+        v (Tensor): Value of shape ``(b, h, d1', ..., dn', dim_v)`` or ``(b, h, seq_len', dim_v)`` where
+            ``h`` is the number of attention heads, ``d1', ..., dn'`` are latent dimensions and ``dim_v``
+            is the embedding dim of the value tensor.
+        attention_mask (Tensor, optional): Tensor of shape ``(b, h, d1, ..., q_dn, k_dn)``.
+            Contains 1s for positions to attend to and 0s for masked positions. Applied before softmax.
+        head_mask (Tensor, optional): Tensor of shape ``(b, h, d1, ..., q_dn, k_dn)``.
+            Contains 1s for positions to attend to and 0s for masked positions.
+            Applied after dropout, before matrix multiplication with values.
+        attn_dropout (float): Probability of dropout after softmax. Default is ``0.0``.
+
+    Returns:
+        A tuple of output tensor and attention probabilities.
     """
 
     # Take the dot product between "query" and "key" and scale to get the raw attention scores.
