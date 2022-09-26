@@ -6,7 +6,7 @@ on:
 
 defaults:
   run:
-    shell: bash -l -eux -o pipefail {0}
+    shell: bash -l -euo pipefail {0}
 
 jobs:
   build_and_upload_wheel:
