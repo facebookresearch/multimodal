@@ -70,7 +70,7 @@ class MILEncoder(nn.Module):
         ] = deepset_fusion_cls(
             channel_to_encoder_dim=channel_to_encoder_dim,
             mlp=mlp,
-            pooling_function=pooling_function,
+            pooling_function=pooling_function,  # type: ignore
             apply_attention=apply_attention,
             attention_dim=attention_dim,
             modality_normalize=modality_normalize,
