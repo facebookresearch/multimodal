@@ -70,14 +70,20 @@ jobs:
           set -eux
           python -m pip install dist/torchmultimodal*.whl
       - name: Test torchmultimodal installation
+        # Go one-level up to avoid importing the source code
         run: |
+          set -eux
+          pushd ../
           python -c "import torchmultimodal"
-      - name: Run unit tests with coverage
+          popd
+      - name: Run unit tests against the installation
+        # import-model MUST be `append` to give precedence to the installed package
+        # rather than the source code
         run: |
           set -eux
           python -m pip install pytest pytest-mock pytest-cov
-          python -m pytest --junitxml=junit/test-results.xml \
-            --cov-report=xml --cov-report=html --cov=. test -vv
+          pytest tests --import-mode=append --junitxml=junit/test-results.xml \
+            --cov-report=xml --cov-report=html --cov=. --durations=20 -vv
       - name: Push wheel to PyPI
         env:
           PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
