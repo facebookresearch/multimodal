@@ -1,89 +1,34 @@
-name: Build/Push Nightly Binary
-
+name: Test build workflow
 on:
-  # manual trigger
   workflow_dispatch:
-
-defaults:
-  run:
-    shell: bash -l {0}
-
 jobs:
-  build_and_upload_wheel:
-    runs-on: ${{ matrix.os }}
+  build_wheel:
     strategy:
       matrix:
-        include:
-         - os: ubuntu-latest
-           python-version: 3.7
-           python-tag: "py37"
-         - os: ubuntu-latest
-           python-version: 3.8
-           python-tag: "py38"
-         - os: ubuntu-latest
-           python-version: 3.9
-           python-tag: "py39"
+        os: [ubuntu-latest]
+        python-version: [3.7, 3.8, 3.9]
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v3
-      - name: Set up conda
-        uses: conda-incubator/setup-miniconda@v2
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
         with:
-          auto-update-conda: true
-          miniconda-version: "latest"
-          activate-environment: build_binary
           python-version: ${{ matrix.python-version }}
-      - name: Check conda info
-        run: |
-          conda info
-      - name: Check python version with conda
-        run: |
-          python --version
-      - name: Update pip
-        run: |
-          python -m pip install --upgrade pip
-      - name: Update build/packaging tools
-        run: |
-          python -m pip install --upgrade setuptools wheel twine
+      - name: Check out repository
+        uses: actions/checkout@v2
       - name: Install dependencies
         run: |
-          set -eux
-          python -m pip install --pre torch torchvision torchtext --extra-index-url \
-            https://download.pytorch.org/whl/nightly/cpu
-          python -m pip install -r requirements.txt
-      - name: Test installation of dependencies
+          pip3 install --pre torch torchvision torchtext --extra-index-url https://download.pytorch.org/whl/nightly/cpu
+          pip3 install -r dev-requirements.txt
+      - name: Build wheel
         run: |
-          python -c "import torch"
-          echo "Import torch succeeded"
-          python -c "import torchtext"
-          echo "Import torchtext succeeded"
-          python -c "import torchvision"
-          echo "Import torchvision succeeded"
-      - name: Build torchmultimodal nightly
+          pip3 install wheel
+          python setup.py bdist_wheel
+      - name: Install wheel
         run: |
-          set -eux
-          rm -r dist || true
-          python setup.py bdist_wheel --package_name torchmultimodal-nightly \
-            --python-tag=${{ matrix.python-tag }}
-      - name: Install torchmultimodal nightly
-        run: |
-          set -eux
-          python -m pip install dist/torchmultimodal*.whl
-      - name: Test torchmultimodal installation
+          pip3 install dist/torchmultimodal*.whl
+      - name: Test import
         run: |
           python -c "import torchmultimodal"
-      - name: Run unit tests with coverage
+      - name: Run unit tests for sanity
         run: |
-          set -eux
-          python -m pip install pytest pytest-mock pytest-cov
-          python -m pytest --junitxml=junit/test-results.xml \
-            --cov-report=xml --cov-report=html --cov=. test -vv
-      - name: Push wheel to PyPI
-        env:
-          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-        run: |
-          set -eux
-          python -m twine upload dist/torchmultimodal_nightly-*.whl \
-            --username __token__ --password "$PYPI_API_TOKEN" \
-            --skip-existing \
-            --verbose
+          pytest test -vv
