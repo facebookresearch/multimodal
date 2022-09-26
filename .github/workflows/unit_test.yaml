@@ -32,6 +32,6 @@ jobs:
         run: |
           set -eux
           conda activate test
-          pytest --cov=. --cov-report xml test -vv
+          pytest --cov=. --cov-report xml tests -vv
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v2
