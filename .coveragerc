@@ -1,9 +1,9 @@
 [run]
 omit =
-    *test/*
+    *tests/*
     *examples/*
 
 [report]
 omit =
-    *test/*
+    *tests/*
     *examples/*

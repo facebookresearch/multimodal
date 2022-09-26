@@ -36,6 +36,6 @@ jobs:
       - name: Run unit tests with coverage
         run: |
           set -eux
-          python -m pytest --cov=. --cov-report=xml test -vv
+          pytest tests --cov=. --cov-report=xml --durations=20 -vv
       - name: Upload Coverage to Codecov
         uses: codecov/codecov-action@v3
