@@ -37,19 +37,21 @@ def video_vqvae(
         encoder_hidden_dim (int, optional): Size of channel dims in encoder conv layers.
         encoder_kernel_size (int, optional): Kernel size for encoder.
         encoder_stride (int, optional): Stride for encoder.
-        encoder_n_layers (int, optional): Number of layers in encoder. Does not include attention stack and pre-codebook conv layer.
+        encoder_n_layers (int, optional): Number of layers in encoder. Does not include attention stack
+            and pre-codebook conv layer.
         n_res_layers (int, optional): Number of ``AttentionResidualBlocks`` to include in encoder and decoder.
         attn_hidden_dim (int, optional): Size of hidden dim of ``AttentionResidualBlocks``.
         num_embeddings (int, optional): Number of embedding vectors used in ``Codebook``.
         embedding_dim (int, optional): Dimensionality of embedding vectors in ``Codebook``.
-        decoder_hidden_dim (int, optional): Size of channel dims in decoder conv tranpose layers.
+        decoder_hidden_dim (int, optional): Size of channel dims in decoder conv transpose layers.
         decoder_kernel_size (int, optional): Kernel size for decoder.
         decoder_stride (int, optional): Stride for decoder.
         decoder_n_layers (int, optional): Number of layers in decoder. Does not include attention stack and
             post-codebook conv transpose layer.
 
     Returns:
-        VQVAE: constructed ``VQVAE`` model using ``VideoEncoder``, ``Codebook``, and ``VideoDecoder``
+        An instance of :class:`~torchmultimodal.models.vqvae.VQVAE` initialized with ``VideoEncoder``,
+            ``Codebook`` and ``VideoDecoder``
     """
 
     encoder_in_channel_dims = (in_channel_dim,) + (encoder_hidden_dim,) * max(
@@ -88,29 +90,29 @@ def video_vqvae(
 
 
 class VideoEncoder(nn.Module):
-    """Encoder for Video VQVAE. Stacks specified number of ``SamePadConv3d`` layers
+    """Encoder for Video VQVAE.
+
+    Stacks specified number of ``SamePadConv3d`` layers
     followed by a stack of ``AttentionResidualBlocks`` and a final ``SamePadConv3d``
     layer before the codebook. The residual blocks use Axial Attention to enhance
     representations of video data without significantly increasing computational
-    cost. Follows VideoGPT's implementation:
-    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
+    cost.
+
+    Follows VideoGPT's implementation:
+        https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
 
     Args:
-        in_channel_dims (Tuple[int, ...]): input channel dimension for each layer in conv stack
-        kernel_sizes (Tuple[Tuple[int, int, int], ...]): kernel sizes for each layer in conv stack
-        strides (Tuple[Tuple[int, int, int], ...]): strides for each layer in conv stack
-        output_dim (int): size of hidden dimension of final output
-        n_res_layers (int): number of ``AttentionResidualBlocks`` to include. Default is 4.
-        attn_hidden_dim (int): size of hidden dimension in attention block. Default is 240.
-
-        **kwargs (dict): keyword arguments to be passed into ``SamePadConv3d`` and used by ``nn.Conv3d``
+        in_channel_dims (Tuple[int, ...]): Input channel dimension for each layer in conv stack.
+        kernel_sizes (Tuple[Tuple[int, int, int], ...]): Kernel sizes for each layer in conv stack.
+        strides (Tuple[Tuple[int, int, int], ...]): Strides for each layer in conv stack.
+        output_dim (int): Size of hidden dimension of final output.
+        n_res_layers (int, optional): Number of ``AttentionResidualBlocks`` to include. Default is ``4``.
+        attn_hidden_dim (int, optional): Size of hidden dimension in attention block. Default is ``240``.
+        kwargs (Any): Keyword arguments to be passed into ``SamePadConv3d`` and used by ``nn.Conv3d``.
 
     Raises:
-        ValueError: if the lengths of ``in_channel_dims``, ``kernel_sizes``,
-                    and ``strides`` are not all equivalent
-
-    Inputs:
-        x (Tensor): input video data with shape (b x c x d1 x d2 x d3)
+        ValueError: If the lengths of ``in_channel_dims``, ``kernel_sizes``, and ``strides`` are not
+            all equivalent.
     """
 
     def __init__(
@@ -175,6 +177,10 @@ class VideoEncoder(nn.Module):
         return tuple(latent_shape)
 
     def forward(self, x: Tensor) -> Tensor:
+        """
+        Args:
+            x (Tensor): Input video data with shape ``(b, c, d1, d2, d3)``.
+        """
         in_channel = x.shape[1]
         if in_channel != self.convs[0].conv.in_channels:
             raise ValueError(
@@ -187,30 +193,29 @@ class VideoEncoder(nn.Module):
 
 
 class VideoDecoder(nn.Module):
-    """Decoder for Video VQVAE. Takes quantized output from codebook and applies a
-    ``SamePadConv3d`` layer, a stack of ``AttentionResidualBlocks``, followed by a
-    specified number of ``SamePadConvTranspose3d`` layers. The residual
-    blocks use Axial Attention to enhance representations of video data without
-    significantly increasing computational cost. Follows VideoGPT's implementation:
-    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
+    """Decoder for Video VQVAE.
+
+    Takes quantized output from codebook and applies a ``SamePadConv3d`` layer, a stack of
+    ``AttentionResidualBlocks``, followed by a specified number of ``SamePadConvTranspose3d``
+    layers. The residual blocks use Axial Attention to enhance representations of video data
+    without significantly increasing computational cost.
+
+    Follows VideoGPT's implementation:
+        https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
 
     Args:
-        out_channel_dims (Tuple[int, ...]): output channel dimension for each layer in conv stack
-        kernel_sizes (Tuple[Tuple[int, int, int], ...]): kernel sizes for each layer in conv stack
-        strides (Tuple[Tuple[int, int, int], ...]): strides for each layer in conv stack
-        input_dim (int): input channel dimension for first conv layer before attention stack
-        n_res_layers (int): number of ``AttentionResidualBlocks`` to include. Default is 4.
-        attn_hidden_dim (int): size of hidden dimension in attention block. Default is 240.
-        **kwargs (dict): keyword arguments to be passed into ``SamePadConvTranspose3d``
-                         and used by ``nn.ConvTranspose3d``
+        out_channel_dims (Tuple[int, ...]): Output channel dimension for each layer in conv stack.
+        kernel_sizes (Tuple[Tuple[int, int, int], ...]): Kernel sizes for each layer in conv stack.
+        strides (Tuple[Tuple[int, int, int], ...]): Strides for each layer in conv stack
+        input_dim (int): Input channel dimension for first conv layer before attention stack
+        n_res_layers (int): Number of ``AttentionResidualBlocks`` to include. Default is ``4``.
+        attn_hidden_dim (int): Size of hidden dimension in attention block. Default is ``240``.
+        kwargs (Any): Keyword arguments to be passed into ``SamePadConvTranspose3d`` and used by
+            ``nn.ConvTranspose3d``.
 
     Raises:
-        ValueError: if the lengths of ``out_channel_dims``, ``kernel_sizes``,
-                    and ``strides`` are not all equivalent
-        ValueError: if input Tensor channel dim does not match ``embedding_dim``
-
-    Inputs:
-        x (Tensor): input tokenized data with shape (b x c x d1 x d2 x d3)
+        ValueError: If the lengths of ``out_channel_dims``, ``kernel_sizes``, and ``strides`` are not
+            all equivalent.
     """
 
     def __init__(
@@ -260,6 +265,10 @@ class VideoDecoder(nn.Module):
         self.convts = nn.Sequential(*transpose_convolutions)
 
     def forward(self, x: Tensor) -> Tensor:
+        """
+        Args:
+            x (Tensor): Input quantized embeddings with shape ``(b, emb_dim, d1, d2, d3)``.
+        """
         in_channel = x.shape[1]
         if in_channel != self.conv_in.conv.in_channels:
             raise ValueError(
@@ -272,18 +281,21 @@ class VideoDecoder(nn.Module):
 
 
 class AttentionResidualBlock(nn.Module):
-    """Residual block with axial attention as designed by VideoGPT (Yan et al. 2021)
-    and used in MUGEN (Hayes et al. 2022). Follows implementation by VideoGPT:
-    https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
+    """Residual block with axial attention.
+
+    Implements the component as proposed in `"VideoGPT: Video Generation using VQ-VAE and
+    Transformers (Yan et al. 2022)"<https://arxiv.org/pdf/2104.10157.pdf>`_.
+
+    Code reference:
+        https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
 
     Args:
-        hidden_dim (int): size of channel dim of input. Also determines dim of linear
-                          projections Wq, Wk, and Wv in attention. Default is 240.
-        n_head (int): number of heads in multihead attention. Must divide into hidden_dim
-                      evenly. Default is 2 from VideoGPT.
+        hidden_dim (int, optional): Size of channel dim of input. Default is ``240``.
+        n_head (int, optional): Number of heads in multihead attention. Must divide into hidden_dim evenly.
+            Default is ``2``.
 
-    Inputs:
-        x (Tensor): a [b, c, d1, ..., dn] tensor
+    Raises:
+        ValueError: If ``hidden_dim`` is less than ``2``.
     """
 
     def __init__(self, hidden_dim: int = 240, n_head: int = 2) -> None:
@@ -305,6 +317,10 @@ class AttentionResidualBlock(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
+        """
+        Args:
+            x (Tensor): Input of shape ``(b, c, d1, d2, d3)``.
+        """
         return x + self.block(x)
 
 

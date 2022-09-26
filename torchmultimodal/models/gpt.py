@@ -17,7 +17,7 @@ from torchmultimodal.utils.common import checkpoint_wrapper, get_clones
 
 
 class TransformerDecoderOutput(NamedTuple):
-    """Contains output from ``forward`` of :class:`MultimodalTransformerDecoder`, :class:`TransformerDecoder`.
+    """Outputs from :class:`~torchmultimodal.models.gpt.TransformerDecoder`.
 
     Attributes:
         last_hidden_states (Tensor): Output from the last layer of the transformer.
@@ -36,7 +36,7 @@ class TransformerDecoderOutput(NamedTuple):
 
 
 class TransformerLayerOutput(NamedTuple):
-    """Contains output from :meth:`TransformerDecoderLayer.forward`.
+    """Outputs from :class:`~torchmultimodal.models.gpt.TransformerDecoderLayer`.
 
     Attributes:
         hidden_states (Tensor): Output from the current layer.
@@ -52,7 +52,7 @@ class TransformerLayerOutput(NamedTuple):
 
 
 class MultimodalGPTOutput(NamedTuple):
-    """Contains output from :meth:`MultimodalGPT.forward`.
+    """Outputs from :meth:`~torchmultimodal.models.gpt.MultimodalGPT.forward`.
 
     Attributes:
         decoder_output (TransformerDeocoderOutput): Contains output from the multimodal transformer decoder.
@@ -71,7 +71,7 @@ class MultimodalGPT(nn.Module):
     following the paper `"Improving Language Understanding by Generative Pre-Training
     "<https://cdn.openai.com/research-covers/language-unsupervised/language_understanding_paper.pdf>`_.
 
-    Attributes:
+    Args:
         d_model (int): Embedding dimension of the transformer decoder.
         num_in_tokens (int): Number of unique token states for the input modality.
         num_out_tokens (int): Number of unique token states for the output modality.
@@ -89,39 +89,9 @@ class MultimodalGPT(nn.Module):
             partial. If ``None``, ``nn.LayerNorm`` will be used as the default.
         use_gpt_init (bool): Whether to use GPT model specific initialization. Defaults to ``True``.
 
-    Args:
-        in_tokens (Tensor, optional): Tensor of dimension ``(b, in_seq_len)`` containing tokens
-            for the input modality. Defaults to ``None``.
-        out_tokens (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing tokens
-            for the output modality. Defaults to ``None``.
-        in_pos_ids (Tensor, optional): Tensor of dimension ``(b, in_seq_len)`` containing indices for the
-            input modality position embeddings. Defaults to ``None``.
-        out_pos_ids (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing indices for the
-            output modality position embeddings. Defaults to ``None``.
-        attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or ``(b, q_seq_len, k_seq_len)``
-            where prefixes ``q`` and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s
-            for masked positions. Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or
-            ``(b, h, q_seq_len, k_seq_len)``. Masks need to be specified for each attention head.
-            Defaults to ``None``.
-        logits_mask (Tensor, optional): Tensor of dimension ``(seq_len, num_tokens)`` or ``(b, seq_len, num_tokens)``
-            to ensure we only calculate probabilities from tokens of the corresponding modality sequence.
-        use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
-            recomputes key and value for each decoding step. Defaults to ``False``.
-        causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
-        right_shift (bool): If ``True``, shifts the embedding vectors to the right and prepends it with start of
-            sentence token. Defaults to ``False``. This option is disregarded during training mode
-        return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
-            layer. Defaults to ``False``.
-        return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
-            Defaults to ``False``.
-
-    Returns:
-        An instance of :class:`MultimodalGPTOutput`.
-
     Raises:
         AttributeError: If input tokenizer does not implement methods ``encode`` and ``lookup`` or if output
-            tokenizer does not implement methods ``encode``, ``lookup`` and ``decode``.
+        tokenizer does not implement methods ``encode``, ``lookup`` and ``decode``.
     """
 
     def __init__(
@@ -200,6 +170,38 @@ class MultimodalGPT(nn.Module):
         return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> MultimodalGPTOutput:
+        """
+        Args:
+            in_tokens (Tensor, optional): Tensor of dimension ``(b, in_seq_len)`` containing tokens
+                for the input modality. Defaults to ``None``.
+            out_tokens (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing tokens
+                for the output modality. Defaults to ``None``.
+            in_pos_ids (Tensor, optional): Tensor of dimension ``(b, in_seq_len)`` containing indices for the
+                input modality position embeddings. Defaults to ``None``.
+            out_pos_ids (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing indices for the
+                output modality position embeddings. Defaults to ``None``.
+            attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or
+                ``(b, q_seq_len, k_seq_len)`` where prefixes ``q`` and ``k`` stand for query and key.
+                Contains 1s for positions to attend to and 0s for masked positions. Defaults to ``None``.
+            head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or
+                ``(b, h, q_seq_len, k_seq_len)``. Masks need to be specified for each attention head.
+                Defaults to ``None``.
+            logits_mask (Tensor, optional): Tensor of dimension ``(seq_len, num_tokens)`` or
+                ``(b, seq_len, num_tokens)`` to ensure we only calculate probabilities from tokens of the
+                corresponding modality sequence.
+            use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
+                recomputes key and value for each decoding step. Defaults to ``False``.
+            causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
+            right_shift (bool): If ``True``, shifts the embedding vectors to the right and prepends it with start of
+                sentence token. Defaults to ``False``. This option is disregarded during training mode
+            return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
+                layer. Defaults to ``False``.
+            return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
+                Defaults to ``False``.
+
+        Returns:
+            An instance of :class:`~torchmultimodal.models.gpt.MultimodalGPTOutput`.
+        """
         decoder_output = self.fwd(
             in_tokens=in_tokens,
             out_tokens=out_tokens,
@@ -390,46 +392,19 @@ class MultimodalTransformerDecoder(nn.Module):
             is processed before the output modality (see ``torchmultimodal.utils.common.generate``). Therefore,
             at any point in time the input data contains only one modality.
 
-    Attributes:
+    Args:
         in_pos_emb (nn.Module): Input modality position embedding layer.
         out_pos_emb (nn.Module): Output modality position embedding layer.
         decoder (nn.Module): The transformer decoder. An instance of :py:class:`TransformerDecoder`.
         right_shift (nn.Module): Layer that shifts the embedding vectors to the right and prepends it with
             start of sentence token (SOS). An instance of :py:class:`RightShift`.
 
-        Note:
-            * During training mode, the SOS token is prepended to the left of the concatenated input and
-                output modality sequence;
-            * During generation mode, the SOS token is only required for the input modality sequence as
-                the initial token to be learnt from. Right shift should be turned off
-                (``right_shift = False``, see args) when we start to generate the output modality samples.
-
-    Args:
-        in_modality (Tensor, optional): Tensor of dimension ``(b, in_seq_len, d_model)`` containing tokenized
-            embeddings for the input modality. Defaults to ``None``.
-        out_modality (Tensor, optional): Tensor of dimension ``(b, out_seq_len, d_model')`` containing tokenized
-            embeddings for the output modality. Defaults to ``None``.
-        in_pos_ids (Tensor, optional): Tensor of dimension ``(b, in_seq_len)`` containing indices for the
-            input modality position embeddings. Defaults to ``None``.
-        out_pos_ids (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing indices for the
-            output modality position embeddings. Defaults to ``None``.
-        attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or ``(b, q_seq_len, k_seq_len)``
-            where prefixes ``q`` and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s
-            for masked positions. Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or ``(b, h, q_seq_len, k_seq_len)``.
-            Masks need to be specified for each attention head. Defaults to ``None``.
-        use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
-            recomputes key and value for each decoding step. Defaults to ``False``.
-        causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
-        right_shift (bool): If ``True``, shifts the embedding vectors to the right and prepends it with start of
-            sentence token. Defaults to ``False``. This option is disregarded during training mode
-        return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
-            layer. Defaults to ``False``.
-        return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
-            Defaults to ``False``.
-
-    Returns:
-        An instace of :class:`TransformerDecoderOutput`.
+    Note:
+        * During training mode, the SOS token is prepended to the left of the concatenated input and
+            output modality sequence;
+        * During generation mode, the SOS token is only required for the input modality sequence as
+            the initial token to be learnt from. Right shift should be turned off
+            (``right_shift = False``, see args) when we start to generate the output modality samples.
     """
 
     def __init__(
@@ -460,6 +435,35 @@ class MultimodalTransformerDecoder(nn.Module):
         return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> TransformerDecoderOutput:
+        """
+        Args:
+            in_modality (Tensor, optional): Tensor of dimension ``(b, in_seq_len, d_model)`` containing tokenized
+                embeddings for the input modality. Defaults to ``None``.
+            out_modality (Tensor, optional): Tensor of dimension ``(b, out_seq_len, d_model')`` containing tokenized
+                embeddings for the output modality. Defaults to ``None``.
+            in_pos_ids (Tensor, optional): Tensor of dimension ``(b, in_seq_len)`` containing indices for the
+                input modality position embeddings. Defaults to ``None``.
+            out_pos_ids (Tensor, optional): Tensor of dimension ``(b, out_seq_len)`` containing indices for the
+                output modality position embeddings. Defaults to ``None``.
+            attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or
+                ``(b, q_seq_len, k_seq_len)`` where prefixes ``q`` and ``k`` stand for query and key.
+                Contains 1s for positions to attend to and 0s for masked positions. Defaults to ``None``.
+            head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or
+                ``(b, h, q_seq_len, k_seq_len)``. Masks need to be specified for each attention head.
+                Defaults to ``None``.
+            use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding.
+                If ``False``, recomputes key and value for each decoding step. Defaults to ``False``.
+            causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
+            right_shift (bool): If ``True``, shifts the embedding vectors to the right and prepends it with start of
+                sentence token. Defaults to ``False``. This option is disregarded during training mode
+            return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
+                layer. Defaults to ``False``.
+            return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
+                Defaults to ``False``.
+
+        Returns:
+            An instace of :class:`~torchmultimodal.models.gpt.TransformerDecoderOutput`.
+        """
         if (in_modality is None) and (out_modality is None):
             raise ValueError(
                 "in_modality and out_modality sequences cannot be both empty"
@@ -513,30 +517,12 @@ class MultimodalTransformerDecoder(nn.Module):
 
 
 class TransformerDecoder(nn.Module):
-    """A transformer decoder
-
-    Attributes:
-        decoder_layer (nn.Module): The transformer decoder layer. An instance of
-            :py:class:`TransformerDecoderLayer
-        num_layers (int): The number of transformer decoder layers to be stacked up.
+    """A transformer decoder.
 
     Args:
-        hidden_states (Tensor): Tensor of the embedding vectors of dimension ``(b, seq_len, emb_dim)``.
-        attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or ``(b, q_seq_len, k_seq_len)``
-            where prefixes ``q`` and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s
-            for masked positions. Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or ``(b, h, q_seq_len, k_seq_len)``.
-            Masks need to be specified for each attention head. Defaults to ``None``.
-        use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
-            recomputes key and value for each decoding step. Defaults to ``False``.
-        causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
-        return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
-            layer. Defaults to ``False``.
-        return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
-            Defaults to ``False``.
-
-    Returns:
-        An instance of :class:`TransformerDecoderOutput`.
+        decoder_layer (nn.Module): The transformer decoder layer.
+            An instance of :class:`TransformerDecoderLayer`.
+        num_layers (int): The number of transformer decoder layers to be stacked up.
     """
 
     def __init__(
@@ -558,6 +544,26 @@ class TransformerDecoder(nn.Module):
         return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> TransformerDecoderOutput:
+        """
+        Args:
+            hidden_states (Tensor): Tensor of the embedding vectors of dimension ``(b, seq_len, emb_dim)``.
+            attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or
+                ``(b, q_seq_len, k_seq_len)`` where prefixes ``q`` and ``k`` stand for query and key.
+                Contains 1s for positions to attend to and 0s for masked positions. Defaults to ``None``.
+            head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or
+                ``(b, h, q_seq_len, k_seq_len)``. Masks need to be specified for each attention head.
+                Defaults to ``None``.
+            use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
+                recomputes key and value for each decoding step. Defaults to ``False``.
+            causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
+            return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
+                layer. Defaults to ``False``.
+            return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
+                Defaults to ``False``.
+
+        Returns:
+            An instance of :class:`~torchmultimodal.models.gpt.TransformerDecoderOutput`.
+        """
         if attn_mask is not None and attn_mask.dim() == 2:
             attn_mask = attn_mask[
                 None, None, :, :
@@ -607,7 +613,7 @@ class TransformerDecoderLayer(nn.Module):
     well-behaved at initialization for training stability. This is also called "Pre-LN Transformer" studied in
     `"On Layer Normalization in the Transformer Architecture"<https://arxiv.org/pdf/2002.04745.pdf>`_
 
-    Attributes:
+    Args:
         d_model (int): Dimension of the embeddings.
         n_head (int): Number of attention heads.
         dropout (float, optional): Dropout probability used in the dropout layers. Defaults to ``0.1``.
@@ -615,22 +621,6 @@ class TransformerDecoderLayer(nn.Module):
             ``SiLU``.
         attn_module (nn.Module): Self attention module. Defaults to ``SelfAttention`` with dropout rate equal
             to ``0.1``.
-
-    Args:
-        x (Tensor): input embedding vectors.
-        attn_mask (Tensor, optional): Tensor of dimension ``(b, q_seq_len, k_seq_len)`` where prefixes ``q``
-            and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s for masked positions.
-            Defaults to ``None``.
-        head_mask (Tensor, optional): Tensor of dimension ``(b, h, q_seq_len, k_seq_len)``. Masks need to be
-            specified for each attention head. Defaults to ``None``.
-        use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
-            recomputes key and value for each decoding step. Defaults to ``False``.
-        causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
-        return_attn_weights (bool, optional): If ``True``, returns attention probabilities of the layer.
-            Defaults to ``False``.
-
-    Returns:
-        An instance of :class:`TransformerLayerOutput`.
     """
 
     def __init__(
@@ -675,6 +665,23 @@ class TransformerDecoderLayer(nn.Module):
         causal: bool = False,
         return_attn_weights: bool = False,
     ) -> TransformerLayerOutput:
+        """
+        Args:
+            x (Tensor): input embedding vectors.
+            attn_mask (Tensor, optional): Tensor of dimension ``(b, q_seq_len, k_seq_len)`` where prefixes ``q``
+                and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s for masked positions.
+                Defaults to ``None``.
+            head_mask (Tensor, optional): Tensor of dimension ``(b, h, q_seq_len, k_seq_len)``. Masks need to be
+                specified for each attention head. Defaults to ``None``.
+            use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
+                recomputes key and value for each decoding step. Defaults to ``False``.
+            causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
+            return_attn_weights (bool, optional): If ``True``, returns attention probabilities of the layer.
+                Defaults to ``False``.
+
+        Returns:
+            An instance of :class:`~torchmultimodal.models.gpt.TransformerLayerOutput`.
+        """
         attn_probs = None
         past_key_values = None
 
@@ -737,6 +744,12 @@ class RightShift(nn.Module):
     has generated anything it needs a token to start with. Hence, the start-of-sentence (SOS) token.
     The SOS token is a learnable parameter of the decoder and the choice of its initialization is taken
     from VideoGPT: https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/attention.py#L517
+
+    Args:
+        embedding_dim (int): Dimension of the embedding vector for each token along the sequence.
+
+    Attributes:
+        sos (nn.Parameter): The starting token to be prepended to the sequence.
     """
 
     def __init__(self, embedding_dim: int) -> None:
@@ -745,6 +758,13 @@ class RightShift(nn.Module):
         self.sos = nn.Parameter(torch.FloatTensor(embedding_dim).normal_(std=0.02))
 
     def forward(self, x: Tensor) -> Tensor:
+        """
+        Args:
+            x (Tensor): An input tensor of shape ``(b, seq_len, emb_dim)``.
+
+        Returns;
+            A tensor of the same shape as that of the input with the ``sos`` token prepended.
+        """
         x_shape = list(x.shape)
         x = x.flatten(start_dim=1, end_dim=-2)  # (batch, seq_len, emb)
         sos = self.sos.unsqueeze(0).unsqueeze(1).repeat(x_shape[0], 1, 1)  # (b, 1, emb)
