@@ -8,7 +8,7 @@ env:
 
 defaults:
   run:
-    shell: bash -l {0}
+    shell: bash -l -eo pipefail {0}
 
 jobs:
   lint:
@@ -21,8 +21,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Update pip
-        run: |
-          python -m pip install --upgrade pip
+        run: python -m pip install --upgrade pip
       - name: Install lint utilities
         run: |
           python -m pip install pre-commit
@@ -48,9 +47,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install dependencies
         run: |
-          set -eux
           conda install pytorch torchvision torchtext cpuonly -c pytorch-nightly
           pip install -e ".[dev]"
       - name: Type check all files
-        run: |
-          python -m mypy --install-types --non-interactive --config-file mypy.ini
+        run: python -m mypy --install-types --non-interactive --config-file mypy.ini
