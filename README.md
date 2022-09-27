@@ -40,7 +40,7 @@ python -m pip install torchmultimodal-nightly
 
 ### Building from Source
 
-Alternatively, you can also build from our source code:
+Alternatively, you can also build from our source code and run our [examples](https://github.com/facebookresearch/multimodal/tree/main/examples):
 
 ```
 git clone --recursive https://github.com/facebookresearch/multimodal.git multimodal
