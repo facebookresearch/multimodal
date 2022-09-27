@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import unittest
+import warnings
 from itertools import product
 
 import torch
@@ -93,11 +94,13 @@ class TestSamePadConv3d(unittest.TestCase):
             )
 
     def test_samepadconv3d_forward(self):
-        for i, (inp, kernel, stride) in enumerate(self.test_cases):
-            conv = SamePadConv3d(1, 1, kernel, stride, padding=0)
-            out = conv(inp)
-            out_shape_conv_actual = torch.tensor(out.shape)
-            assert_expected(out_shape_conv_actual, self.out_shape_conv_expected[i])
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=UserWarning)
+            for i, (inp, kernel, stride) in enumerate(self.test_cases):
+                conv = SamePadConv3d(1, 1, kernel, stride, padding=0)
+                out = conv(inp)
+                out_shape_conv_actual = torch.tensor(out.shape)
+                assert_expected(out_shape_conv_actual, self.out_shape_conv_expected[i])
 
     def test_calculate_transpose_padding_assert(self):
         with self.assertRaises(ValueError):
