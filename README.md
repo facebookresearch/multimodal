@@ -1,4 +1,4 @@
-# TorchMultimodal (Alpha Release)
+# TorchMultimodal (Beta Release)
 
 ## Introduction
 TorchMultimodal is a PyTorch library for training state-of-the-art multimodal multi-task models at scale. It provides:
@@ -10,30 +10,45 @@ As a first open source example, researchers will be able to train and extend FLA
 ## Installation
 
 TorchMultimodal requires Python >= 3.7. The library can be installed with or without CUDA support.
+The following assumes conda is installed.
 
-### Building from Source
+### Prerequisites
+1. Install conda environment
 
-1. Create conda environment
     ```
-    conda create -n torch-multimodal python=<python_version>
+    conda create -n torch-multimodal python=\<python_version\>
     conda activate torch-multimodal
     ```
+
 2. Install pytorch, torchvision, and torchtext. See [PyTorch documentation](https://pytorch.org/get-started/locally/).
-   For now we only support Linux platform.
+
     ```
     conda install pytorch torchvision torchtext cudatoolkit=11.3 -c pytorch-nightly -c nvidia
 
     # For CPU-only install
     conda install pytorch torchvision torchtext cpuonly -c pytorch-nightly
     ```
-3. Download and install TorchMultimodal and remaining requirements.
-    ```
-    git clone --recursive https://github.com/facebookresearch/multimodal.git torchmultimodal
-    cd torchmultimodal
 
-    pip install -e .
-    ```
-    For developers please follow the [development installation](https://github.com/facebookresearch/multimodal/blob/main/CONTRIBUTING.md#development-installation).
+### Install from binaries
+
+Nightly binary on Linux for Python 3.7, 3.8 and 3.9 can be installed via pip wheels.
+For now we only support Linux platform through [PyPI](https://pypi.org/).
+
+```
+python -m pip install torchmultimodal-nightly
+```
+
+### Building from Source
+
+Alternatively, you can also build from our source code and run our [examples](https://github.com/facebookresearch/multimodal/tree/main/examples):
+
+```
+git clone --recursive https://github.com/facebookresearch/multimodal.git multimodal
+cd multimodal
+
+pip install -e .
+```
+For developers please follow the [development installation](https://github.com/facebookresearch/multimodal/blob/main/CONTRIBUTING.md#development-installation).
 
 ## Documentation
 

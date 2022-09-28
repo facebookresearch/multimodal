@@ -5,8 +5,11 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import argparse
 import os
 import re
+import sys
+from datetime import date
 
 from setuptools import find_packages, setup
 
@@ -41,17 +44,44 @@ def read_requirements(file):
     return reqs.strip().split("\n")
 
 
+def get_nightly_version():
+    today = date.today()
+    return f"{today.year}.{today.month}.{today.day}"
+
+
+def parse_args(argv):  # Pass in a list of string from CLI
+    parser = argparse.ArgumentParser(description="torchmultimodal setup")
+    parser.add_argument(
+        "--package_name",
+        type=str,
+        default="torchmultimodal",
+        help="The name of this output wheel",
+    )
+    return parser.parse_known_args(argv)
+
+
 if __name__ == "__main__":
+    args, unknown = parse_args(sys.argv[1:])
+
+    # Set up package name and version
+    name = args.package_name
+    is_nightly = "nightly" in name
+
+    version = get_nightly_version() if is_nightly else get_version()
+
+    print(f"-- {name} building version: {version}")
+
+    sys.argv = [sys.argv[0]] + unknown
 
     setup(
-        name="torchmultimodal",
+        name=name,
         include_package_data=True,
         packages=find_packages(
             exclude=("examples*", "tests*")
         ),  # Excluded folders don't get packaged
         python_requires=">=3.7",
         install_requires=read_requirements("requirements.txt"),
-        version=get_version(),
+        version=version,
         description="PyTorch Multimodal Library",
         long_description=fetch_long_description(),
         long_description_content_type="text/markdown",
