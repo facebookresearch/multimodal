@@ -45,6 +45,8 @@ class CLIPViTEncoder(nn.Module):
         layers: int,
     ):
         super().__init__()
+        torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
+
         self.conv = nn.Conv2d(
             in_channels=3,
             out_channels=width,
@@ -115,6 +117,7 @@ class CLIPViTEncoder(nn.Module):
 class ResNetForCLIPBottleneck(nn.Module):
     def __init__(self, inplanes: int, planes: int, stride: int = 1):
         super().__init__()
+        torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
 
         # all conv layers have stride 1.
         # an avgpool is performed after the second convolution when stride > 1
@@ -178,6 +181,8 @@ class AttentionPool2d(nn.Module):
         self, spacial_dim: int, embed_dim: int, num_heads: int, output_dim: int = None
     ):
         super().__init__()
+        torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
+
         self.positional_embedding = nn.Parameter(
             torch.randn(spacial_dim**2 + 1, embed_dim) / embed_dim**0.5
         )
@@ -251,6 +256,8 @@ class ResNetForCLIP(nn.Module):
         use_clip_init: bool = True,
     ):
         super().__init__()
+        torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
+
         self.output_dim = output_dim
         self.input_resolution = input_resolution
 
