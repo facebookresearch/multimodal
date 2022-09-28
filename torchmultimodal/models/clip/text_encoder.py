@@ -45,6 +45,8 @@ class CLIPTextEncoder(nn.Module):
         use_clip_init: bool = True,
     ):
         super().__init__()
+        torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
+
         self.token_embedding = torch.nn.Embedding(vocab_size, width)
         self.positional_embedding = torch.nn.Parameter(
             torch.empty(context_length, width)
