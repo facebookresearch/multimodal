@@ -24,7 +24,6 @@ training:
   enable_half_reduce_in_fsdp: True  # handles the reduction across devices in half precision
 
   activation_checkpointing: False
-  activation_checkpointing_reentrant: False # false for non-reentrant
 
 datasets:
   _target_: flava.definitions.TrainingDatasetsInfo
