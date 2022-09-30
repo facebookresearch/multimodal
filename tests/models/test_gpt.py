@@ -7,6 +7,8 @@
 import pytest
 
 import torch
+
+from tests.test_utils import assert_expected, assert_expected_namedtuple, set_rng_seed
 from torch import nn
 from torch.nn import functional as F
 from torchmultimodal.models.gpt import (
@@ -20,8 +22,6 @@ from torchmultimodal.models.gpt import (
     TransformerLayerOutput,
 )
 from torchmultimodal.utils.common import shift_dim
-
-from ..test_utils import assert_expected, assert_expected_namedtuple, set_rng_seed
 
 
 @pytest.fixture(autouse=True)

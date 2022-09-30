@@ -41,7 +41,7 @@ from flava.utils import build_datamodule_kwargs
 
 from omegaconf import DictConfig, OmegaConf
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import (
-    apply_activation_checkpointing_wrapper,
+    apply_activation_checkpointing,
     checkpoint_wrapper,
     CheckpointImpl,
 )
@@ -53,6 +53,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.tensorboard import SummaryWriter
 from torchmultimodal.models.flava.image_encoder import ImageTransformer
 from torchmultimodal.models.flava.text_encoder import BERTTextEncoder
+from torchmultimodal.models.flava.transformer import FLAVATransformerWithoutEmbeddings
 from torchmultimodal.modules.layers.transformer import TransformerEncoderLayer
 from torchmultimodal.modules.losses.flava import FLAVAPretrainingLossOutput
 
@@ -151,7 +152,7 @@ class Trainer:
                 offload_to_cpu=False,
                 checkpoint_impl=CheckpointImpl.REENTRANT,
             )
-            apply_activation_checkpointing_wrapper(
+            apply_activation_checkpointing(
                 model,
                 checkpoint_wrapper_fn=non_reentrant_wrapper,
                 check_fn=check_fn,
@@ -192,6 +193,7 @@ class Trainer:
                         TransformerEncoderLayer,
                         ImageTransformer,
                         BERTTextEncoder,
+                        FLAVATransformerWithoutEmbeddings,
                     },
                 ),
             )
