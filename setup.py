@@ -17,7 +17,7 @@ def clean_html(raw_html):
     return cleantext
 
 
-def _get_version():
+def get_version():
     # get version string from version.py
     version_file = os.path.join(os.path.dirname(__file__), "version.py")
     version_regex = r"__version__ = ['\"]([^'\"]*)['\"]"
@@ -41,36 +41,32 @@ def read_requirements(file):
     return reqs.strip().split("\n")
 
 
-DISTNAME = "torchmultimodal"
-DESCRIPTION = "Multimodal modeling in PyTorch"
-LONG_DESCRIPTION = fetch_long_description()
-LONG_DESCRIPTION_CONTENT_TYPE = "text/markdown"
-AUTHOR = "PyTorch Multimodal"
-AUTHOR_EMAIL = "kartikayk@fb.com"
-# Need to exclude folders in test as well so as they don't create an extra package
-EXCLUDES = ("examples*", "test*")
-
-
 if __name__ == "__main__":
 
     setup(
-        name=DISTNAME,
+        name="torchmultimodal",
         include_package_data=True,
-        packages=find_packages(exclude=EXCLUDES),
+        packages=find_packages(
+            exclude=("examples*", "tests*")
+        ),  # Excluded folders don't get packaged
         python_requires=">=3.7",
         install_requires=read_requirements("requirements.txt"),
-        version=_get_version(),
-        description=DESCRIPTION,
-        long_description=LONG_DESCRIPTION,
-        long_description_content_type=LONG_DESCRIPTION_CONTENT_TYPE,
+        version=get_version(),
+        description="PyTorch Multimodal Library",
+        long_description=fetch_long_description(),
+        long_description_content_type="text/markdown",
         url="https://github.com/facebookresearch/multimodal",
-        author=AUTHOR,
-        author_email=AUTHOR_EMAIL,
+        author="PyTorch Multimodal Team",
+        author_email="torchmultimodal@fb.com",
         classifiers=[
-            "Programming Language :: Python :: 3.8",
-            "Programming Language :: Python :: 3.9",
+            "Development Status :: 4 - Beta",
+            "Intended Audience :: Developers",
+            "Intended Audience :: Science/Research",
             "License :: OSI Approved :: BSD License",
             "Topic :: Scientific/Engineering :: Artificial Intelligence",
+            "Programming Language :: Python :: 3.7",
+            "Programming Language :: Python :: 3.8",
+            "Programming Language :: Python :: 3.9",
         ],
         extras_require={"dev": read_requirements("dev-requirements.txt")},
     )
