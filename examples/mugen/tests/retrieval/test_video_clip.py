@@ -13,7 +13,7 @@ from examples.mugen.retrieval.video_clip import (
     VideoEncoder,
 )
 
-from test.test_utils import assert_expected, get_asset_path, set_rng_seed
+from tests.test_utils import assert_expected, get_asset_path, set_rng_seed
 from torchmultimodal import _PATH_MANAGER
 from torchmultimodal.utils.common import shift_dim
 

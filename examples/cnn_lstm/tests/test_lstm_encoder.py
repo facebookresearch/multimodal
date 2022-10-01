@@ -8,7 +8,7 @@ import pytest
 
 import torch
 from examples.cnn_lstm.lstm_encoder import LSTMEncoder
-from test.test_utils import assert_expected
+from tests.test_utils import assert_expected
 
 
 class TestLSTMEncoder:
