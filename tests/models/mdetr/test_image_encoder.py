@@ -33,5 +33,5 @@ class TestMDETRImageEncoder(unittest.TestCase):
         # Get corresponding slice from last layer of outputs
         out, _ = self.resnet101_encoder(self.test_tensor, self.mask)
         actual = out[:, 2, :, :]
-        self.assertEqual(out.size(), (4, 2048, 2, 2))
+        assert_expected(out.size(), (4, 2048, 2, 2))
         assert_expected(actual, expected, rtol=0.0, atol=1e-4)

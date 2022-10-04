@@ -7,6 +7,7 @@
 import unittest
 
 import torch
+from tests.test_utils import assert_expected
 from torch import nn
 from torchmultimodal.modules.fusions.deepset_fusion import (
     deepset_transformer,
@@ -39,10 +40,10 @@ class TestDeepSetFusionModule(unittest.TestCase):
 
     def _do_assertions(self, fusion):
         fused = fusion(self.input)
-        self.assertEqual(fused.size(), (self.batch_size, 4))
+        assert_expected(fused.size(), (self.batch_size, 4))
 
         fused_bsz_1 = fusion(self.input_bsz_1)
-        self.assertEqual(fused_bsz_1.size(), (1, 4))
+        assert_expected(fused_bsz_1.size(), (1, 4))
 
     def test_deepset_sum(self):
         fusion = DeepsetFusionModule(self.channel_to_encoder_dim, self.mlp, torch.sum)

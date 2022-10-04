@@ -7,6 +7,7 @@
 import unittest
 
 import torch
+from tests.test_utils import assert_expected
 from torchmultimodal.modules.fusions.attention_fusion import AttentionFusionModule
 
 
@@ -25,14 +26,14 @@ class TestAttentionFusionModule(unittest.TestCase):
     def test_no_projection_dim(self):
         fusion = AttentionFusionModule(self.channel_to_encoder_dim)
         fused = fusion(self.input)
-        self.assertEqual(fused.size(), (self.batch_size, 3))
+        assert_expected(fused.size(), (self.batch_size, 3))
 
     def test_input_projection_dim(self):
         fusion = AttentionFusionModule(
             self.channel_to_encoder_dim, encoding_projection_dim=2
         )
         fused = fusion(self.input)
-        self.assertEqual(fused.size(), (self.batch_size, 2))
+        assert_expected(fused.size(), (self.batch_size, 2))
 
     def test_scripted_model(self):
         fusion = AttentionFusionModule(
@@ -40,4 +41,4 @@ class TestAttentionFusionModule(unittest.TestCase):
         )
         scripted_model = torch.jit.script(fusion)
         fused = scripted_model(self.input)
-        self.assertEqual(fused.size(), (self.batch_size, 2))
+        assert_expected(fused.size(), (self.batch_size, 2))

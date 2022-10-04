@@ -7,6 +7,7 @@
 import unittest
 
 import torch
+from tests.test_utils import assert_expected
 from torch import nn
 from torchmultimodal.modules.encoders.mil_encoder import MILEncoder
 from torchmultimodal.modules.layers.mlp import MLP
@@ -55,10 +56,10 @@ class TestMILEncoder(unittest.TestCase):
             torch.sum,
         )
         out = mil_encoder(self.input)
-        self.assertEqual(out.size(), (self.batch_size, self.mlp_out_dim))
+        assert_expected(out.size(), (self.batch_size, self.mlp_out_dim))
 
         out = mil_encoder(self.input_bsz_1)
-        self.assertEqual(out.size(), (1, self.mlp_out_dim))
+        assert_expected(out.size(), (1, self.mlp_out_dim))
 
     def test_transformer_pooling(self):
         partition_sizes = [2, 1]
@@ -71,7 +72,7 @@ class TestMILEncoder(unittest.TestCase):
         )
         input = torch.rand(self.batch_size, 3, 8)
         out = mil_encoder(input)
-        self.assertEqual(out.size(), (self.batch_size, self.mlp_out_dim))
+        assert_expected(out.size(), (self.batch_size, self.mlp_out_dim))
 
     def test_scripting(self):
         partition_sizes = [self.partition_size] * 5

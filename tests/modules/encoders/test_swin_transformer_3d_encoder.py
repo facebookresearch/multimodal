@@ -8,7 +8,7 @@ import unittest
 
 import torch
 
-from tests.test_utils import set_rng_seed
+from tests.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
     PatchEmbed3d,
     PatchMerging,
@@ -57,7 +57,7 @@ class TestSwinTransformer3dComponents(unittest.TestCase):
         x_in = torch.randn(1, 1, 56, 56, 12)
         x_out = module(x_in)
 
-        self.assertEqual(x_out.size(), torch.Size([1, 1, 28, 28, 24]))
+        assert_expected(x_out.size(), torch.Size([1, 1, 28, 28, 24]))
         self.assertAlmostEqual(x_out.abs().sum().item(), 8705.25390, 1)
 
     def test_shifted_window_attention_3d(self):
@@ -67,7 +67,7 @@ class TestSwinTransformer3dComponents(unittest.TestCase):
         x_in = torch.randn(1, 1, 56, 56, 12)
         x_out = module(x_in)
 
-        self.assertEqual(x_out.size(), torch.Size([1, 1, 56, 56, 12]))
+        assert_expected(x_out.size(), torch.Size([1, 1, 56, 56, 12]))
         self.assertAlmostEqual(x_out.abs().sum().item(), 6189.71777, 1)
 
     def test_shifted_window_attention_3d_zero_shift(self):
@@ -77,5 +77,5 @@ class TestSwinTransformer3dComponents(unittest.TestCase):
         x_in = torch.randn(1, 1, 56, 56, 12)
         x_out = module(x_in)
 
-        self.assertEqual(x_out.size(), torch.Size([1, 1, 56, 56, 12]))
+        assert_expected(x_out.size(), torch.Size([1, 1, 56, 56, 12]))
         self.assertAlmostEqual(x_out.abs().sum().item(), 6131.83691, 1)
