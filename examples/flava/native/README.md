@@ -1,12 +1,25 @@
-# Training Instructions
+# Usage Instructions
+
+This is a lightweight native pytorch implementation to run scaling studies on the FLAVA model. The original code is located at: [`examples/flava/train.py`](https://github.com/facebookresearch/multimodal/blob/main/examples/flava/train.py)
 
 ## Prerequisites
 
-- Installed PyTorch 1.13 or nightly 
-- `git clone https://github.com/facebookresearch/multimodal`
-`cd multimodal/examples`
+- Install torchmultimodal library [from source](https://github.com/facebookresearch/multimodal/blob/main/README.md#building-from-source)
+- `cd multimodal/examples`
+- `pip install -r flava/requirements.txt`
 
-Configuration presets can be found at: `examples/flava/native/configs`
+## Training
+
+### Configuration
+
+Configuration presets for various model sizes can be found at: `examples/flava/native/configs`
+
+Some config settings that are relevant for scaling: (local) `batch_size`, `activation_checkpointing`, `strategy`.
+
+Configs can be overridden through command line, for example: `python -m flava.native.train config=flava/native/configs/pretrain_debug.yaml training.batch_size=8 training.enable_amp=True training.activation_checkpointing=True training.strategy=fsdp`
+
+### Running
+
 
 Using [`torchrun`](https://pytorch.org/docs/stable/elastic/run.html):
 
