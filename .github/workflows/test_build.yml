@@ -1,6 +1,10 @@
 name: Build/Push Nightly Binary
 
 on:
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    # Runs at midnight every day
+    - cron:  '0 0 * * *' 
   # manual trigger
   workflow_dispatch:
 
