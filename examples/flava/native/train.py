@@ -196,6 +196,7 @@ class Trainer:
                         FLAVATransformerWithoutEmbeddings,
                     },
                 ),
+                limit_all_gathers=True,
             )
 
             print0(f"after FSDP {torch.cuda.memory_allocated()/1024**3:.3} GB")
