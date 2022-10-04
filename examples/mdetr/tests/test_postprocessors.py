@@ -9,7 +9,7 @@ from copy import deepcopy
 import pytest
 import torch
 from examples.mdetr.data.postprocessors import PostProcessFlickr
-from test.test_utils import assert_expected, set_rng_seed
+from tests.test_utils import assert_expected, set_rng_seed
 
 
 @pytest.fixture(scope="class")

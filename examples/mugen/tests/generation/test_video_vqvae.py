@@ -8,7 +8,7 @@ import pytest
 import torch
 
 from examples.mugen.generation.video_vqvae import video_vqvae_mugen
-from test.test_utils import assert_expected, set_rng_seed
+from tests.test_utils import assert_expected, set_rng_seed
 
 
 @pytest.fixture(autouse=True)

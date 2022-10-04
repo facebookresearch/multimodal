@@ -9,7 +9,7 @@ import random
 import pytest
 import torch
 from examples.mdetr.matcher import HungarianMatcher
-from test.test_utils import assert_expected, set_rng_seed
+from tests.test_utils import assert_expected, set_rng_seed
 from torchvision.ops.boxes import box_convert
 
 

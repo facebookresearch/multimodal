@@ -8,7 +8,7 @@ import pytest
 
 import torch
 from examples.cnn_lstm.cnn_lstm import cnn_lstm_classifier
-from test.test_utils import assert_expected, set_rng_seed
+from tests.test_utils import assert_expected, set_rng_seed
 
 
 @pytest.fixture(autouse=True)
