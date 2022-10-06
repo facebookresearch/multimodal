@@ -116,6 +116,7 @@ class TestMDETRTransformer:
             embedding_dim,
         )
         expected = torch.Tensor(
-            [[-1.6592, 0.3761], [-2.5531, 0.7192], [-1.2693, 0.3763], [-1.1510, 0.1224]]
+            [[-2.1366, 0.4760], [-2.1231, 0.4731], [-1.1372, 0.3629], [-1.2459,
+                0.1853]]
         )
         assert_expected(actual[1, :, :, 1], expected, rtol=0, atol=1e-3)
