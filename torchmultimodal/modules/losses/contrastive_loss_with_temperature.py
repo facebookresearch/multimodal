@@ -167,9 +167,9 @@ class ContrastiveLossWithTemperature(nn.Module):
             If ``None``, then temperature will not be clamped to a maximum value.
             Defaults to ``ln(100)``, as in the CLIP paper.
 
-    Inputs: image_embeddings (Tensor): Tensor containing image features.
+    Inputs: embeddings_a (Tensor): Tensor containing features from the first input or modality.
                 (In the CLIP model, these are the outputs of the image encoder.)
-            text_embeddings (Tensor): Tensor containing text features.
+            embeddings_b (Tensor): Tensor containing features from the second input or modality.
                 (In the CLIP model, these are the outputs of the text encoder.)
             backprop_in_gather (bool): Whether to backpropagate the gradients from
                 all_gather to all workers (versus just the local worker).
