@@ -96,13 +96,13 @@ Please write your tests in pytest to help us with the transition.*
 
 To run a specific test:
 ```
-pytest test/<test-module.py> -vv -k <test_myfunc>
-# e.g. pytest test/models/test_cnn_lstm.py -vv -k TestCNNLSTMModule
+pytest tests/<test-module.py> -vv -k <test_myfunc>
+# e.g. pytest tests/models/test_cnn_lstm.py -vv -k TestCNNLSTMModule
 ```
 
 To run all tests:
 ```
-pytest test -vv
+pytest tests -vv
 ```
 
 ## License
