@@ -97,7 +97,7 @@ class CLIPImageTransform:
 
     def __init__(
         self,
-        image_size: Union[int, Tuple[int, int]] = (224, 224),
+        image_size: Union[int, Tuple[int, int]] = 224,
         image_interpolation: InterpolationMode = InterpolationMode.BICUBIC,
         image_mean: Tuple[float, float, float] = CLIP_DEFAULT_MEAN,
         image_std: Tuple[float, float, float] = CLIP_DEFAULT_STD,
