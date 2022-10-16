@@ -74,11 +74,9 @@ class TestContrastiveLossWithTemperature:
         torch.manual_seed(1234)
         clip_loss = ContrastiveLossWithTemperature()
         clip_loss = clip_loss.to(get_current_device())
-        image_embeddings = torch.randn(3, 5)
-        text_embeddings = torch.randn(3, 5)
-        loss = clip_loss(
-            image_embeddings=image_embeddings, text_embeddings=text_embeddings
-        )
+        embeddings_a = torch.randn(3, 5)
+        embeddings_b = torch.randn(3, 5)
+        loss = clip_loss(embeddings_a=embeddings_a, embeddings_b=embeddings_b)
 
         assert_expected(loss.item(), 9.8753, rtol=0, atol=1e-3)
 
@@ -90,10 +88,10 @@ class TestContrastiveLossWithTemperature:
         clip_loss_above_max = ContrastiveLossWithTemperature(
             logit_scale=3, logit_scale_max=2
         ).to(get_current_device())
-        image_embeddings = torch.randn(3, 5)
-        text_embeddings = torch.randn(3, 5)
-        loss_at_max = clip_loss_at_max(image_embeddings, text_embeddings).item()
-        loss_above_max = clip_loss_above_max(image_embeddings, text_embeddings).item()
+        embeddings_a = torch.randn(3, 5)
+        embeddings_b = torch.randn(3, 5)
+        loss_at_max = clip_loss_at_max(embeddings_a, embeddings_b).item()
+        loss_above_max = clip_loss_above_max(embeddings_a, embeddings_b).item()
         assert_expected(loss_above_max, loss_at_max, rtol=0, atol=1e-3)
 
     def test_temperature_clamp_min(self):
@@ -104,21 +102,21 @@ class TestContrastiveLossWithTemperature:
         clip_loss_below_min = ContrastiveLossWithTemperature(
             logit_scale=1, logit_scale_min=2
         ).to(get_current_device())
-        image_embeddings = torch.randn(3, 5)
-        text_embeddings = torch.randn(3, 5)
-        loss_at_min = clip_loss_at_min(image_embeddings, text_embeddings).item()
-        loss_below_min = clip_loss_below_min(image_embeddings, text_embeddings).item()
+        embeddings_a = torch.randn(3, 5)
+        embeddings_b = torch.randn(3, 5)
+        loss_at_min = clip_loss_at_min(embeddings_a, embeddings_b).item()
+        loss_below_min = clip_loss_below_min(embeddings_a, embeddings_b).item()
         assert_expected(loss_below_min, loss_at_min, rtol=0, atol=1e-3)
 
     def test_loss_with_ce_kwargs(self):
         torch.manual_seed(1234)
         clip_loss = ContrastiveLossWithTemperature()
         clip_loss = clip_loss.to(get_current_device())
-        image_embeddings = torch.randn(3, 5)
-        text_embeddings = torch.randn(3, 5)
+        embeddings_a = torch.randn(3, 5)
+        embeddings_b = torch.randn(3, 5)
         loss = clip_loss(
-            image_embeddings=image_embeddings,
-            text_embeddings=text_embeddings,
+            embeddings_a=embeddings_a,
+            embeddings_b=embeddings_b,
             cross_entropy_kwargs={"label_smoothing": 0.1},
         )
 
