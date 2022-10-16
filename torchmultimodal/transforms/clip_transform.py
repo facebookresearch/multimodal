@@ -108,8 +108,6 @@ class CLIPImageTransform:
             image_transforms.ToTensor(),
             image_transforms.Normalize(image_mean, image_std),
         ]
-        if isinstance(image_size, int):
-            image_size = (image_size, image_size)
         base_transform: List[Callable]
         if is_train:
             base_transform = [
