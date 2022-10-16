@@ -13,12 +13,18 @@ from torch import nn
 
 from torchmultimodal.models.clip.image_encoder import CLIPViTEncoder, ResNetForCLIP
 from torchmultimodal.models.clip.text_encoder import CLIPTextEncoder
+from torchmultimodal.utils.common import load_module_from_url
 from torchvision.models.resnet import Bottleneck, ResNet
 
 
 class CLIPOutput(NamedTuple):
     embeddings_a: torch.Tensor
     embeddings_b: torch.Tensor
+
+
+_CLIP_PRETRAINED_URLS = {
+    "clip_vit_b32": "https://download.pytorch.org/models/multimodal/clip/clip_vit_b32.pt"
+}
 
 
 class CLIP(nn.Module):
@@ -71,12 +77,15 @@ def clip_vit_b16() -> CLIP:
     return CLIP(vision_encoder, text_encoder)
 
 
-def clip_vit_b32() -> CLIP:
+def clip_vit_b32(pretrained=True) -> CLIP:
     vision_encoder = CLIPViTEncoder(
         image_size=224, patch_size=32, layers=12, heads=12, width=768, embedding_dim=512
     )
     text_encoder = CLIPTextEncoder(embedding_dim=512)
-    return CLIP(vision_encoder, text_encoder)
+    clip = CLIP(vision_encoder, text_encoder)
+    if pretrained:
+        load_module_from_url(clip, _CLIP_PRETRAINED_URLS["clip_vit_b32"])
+    return clip
 
 
 def clip_vit_l14() -> CLIP:
