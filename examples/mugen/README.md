@@ -1,12 +1,12 @@
 # MUGEN: A Playground for Video-Audio-Text Multimodal Understanding and GENeration
 
-Implementation of [MUGEN](https://arxiv.org/abs/2204.08058) in TorchMultimodal for text-video retrieval and generation.
+Implementation of [MUGEN](https://arxiv.org/abs/2204.08058) in TorchMultimodal for text-video modalities.
 
 Authors: Thomas Hayes, Songyang Zhang, Xi Yin, Guan Pang, Sasha Sheng, Harry Yang, Songwei Ge, Qiyuan Hu, Devi Parikh
 
 Detailed instructions can be found in the following directories:
-- [retrieval](https://github.com/facebookresearch/multimodal/tree/main/examples/mugen/retrieval)
-- [generation](https://github.com/facebookresearch/multimodal/tree/main/examples/mugen/generation).
+- [text-video retrieval](https://github.com/facebookresearch/multimodal/tree/main/examples/mugen/retrieval)
+- [text-to-video generation](https://github.com/facebookresearch/multimodal/tree/main/examples/mugen/generation)
 
 
 ## Prerequisites
