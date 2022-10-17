@@ -2,7 +2,7 @@
 
 Authors: Thomas Hayes, Songyang Zhang, Xi Yin, Guan Pang, Sasha Sheng, Harry Yang, Songwei Ge, Qiyuan Hu, Devi Parikh
 
-This folder contains the examples following [MUGEN](https://arxiv.org/abs/2204.080) as listed below:
+This folder contains the examples following [MUGEN](https://arxiv.org/abs/2204.08058):
 - [text-video retrieval](https://github.com/facebookresearch/multimodal/tree/main/examples/mugen/retrieval)
 - [text-to-video generation](https://github.com/facebookresearch/multimodal/tree/main/examples/mugen/generation)
 
