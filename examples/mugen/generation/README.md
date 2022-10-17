@@ -6,7 +6,7 @@ https://user-images.githubusercontent.com/23155714/196074330-6f03593c-da8e-473f-
 
 ```python
 from torchmultimodal.utils.generate import GenerationUtil
-from examples.mugen.generation.text_video_gpt import text_video_gpt, latent_shape
+from examples.mugen.generation.text_video_gpt import text_video_gpt
 
 
 model = text_video_gpt(video_seq_len=32, pretrained_text_video_gpt_model_key="mugen_L32")
