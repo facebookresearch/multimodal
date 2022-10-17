@@ -1,6 +1,4 @@
-# MUGEN: A Playground for Video-Audio-Text Multimodal Understanding and GENeration
-
-Implementation of [MUGEN](https://arxiv.org/abs/2204.08058) in TorchMultimodal for text-video modalities.
+# [MUGEN: A Playground for Video-Audio-Text Multimodal Understanding and GENeration](https://arxiv.org/abs/2204.08058)
 
 Authors: Thomas Hayes, Songyang Zhang, Xi Yin, Guan Pang, Sasha Sheng, Harry Yang, Songwei Ge, Qiyuan Hu, Devi Parikh
 
