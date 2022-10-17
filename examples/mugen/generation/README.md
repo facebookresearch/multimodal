@@ -4,6 +4,23 @@ This directory contains the high-level model components for text-to-video genera
 
 https://user-images.githubusercontent.com/23155714/196074330-6f03593c-da8e-473f-8935-8bf1950baa33.mp4
 
+```
+from torchmultimodal.utils.generate import GenerationUtil
+from examples.mugen.generation.text_video_gpt import text_video_gpt, latent_shape
+
+
+model = text_video_gpt(video_seq_len=32, pretrained_text_video_gpt_model_key="mugen_L32")
+generator = GenerationUtil(model)
+
+output = generator.sample(
+    ['Mugen moves left to right on a cliff and picks up a gem.'],
+    max_seq_len=512,
+    use_cache=True,
+    causal=True,
+    device=<current_device>,
+)
+samples = output.decoded
+```
 
 ## Model
 The model architecture used by MUGEN follows [DALL-E](https://arxiv.org/abs/2102.12092) but with the image components replaced by those for video following [VideoGPT](https://arxiv.org/abs/2104.10157).
