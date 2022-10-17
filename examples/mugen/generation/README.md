@@ -13,10 +13,3 @@ VideoGPT is a generative model for video using a VQ-VAE model with video encoder
 
 ## Generation
 In this example generation refers to the auto-regressive process where we iteratively predict the next token id from the current until reaching the desired output length, a technique initially used by language modeling but has been extended to multimodal generation. To control the generation process, a top level abstraction is provided as a utility in [generate.py](https://github.com/facebookresearch/multimodal/blob/main/torchmultimodal/utils/generate.py) which takes the model as an input.
-
-## Prerequisites
-Follow the dev setup instructions in [CONTRIBUTING.md](https://github.com/facebookresearch/multimodal/blob/main/CONTRIBUTING.md). Then additionally install MUGEN-specific dependencies:
-```
-pip install -r examples/mugen/requirements.txt
-```
-The Colab demo relies on the MUGEN dataset. Follow the instructions to download the MUGEN dataset in the [dataset README.md](https://github.com/facebookresearch/multimodal/blob/main/examples/mugen/data/README.md).
