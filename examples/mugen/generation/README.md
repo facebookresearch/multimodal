@@ -4,7 +4,7 @@ This directory contains the high-level model components for text-to-video genera
 
 https://user-images.githubusercontent.com/23155714/196074330-6f03593c-da8e-473f-8935-8bf1950baa33.mp4
 
-```
+```python
 from torchmultimodal.utils.generate import GenerationUtil
 from examples.mugen.generation.text_video_gpt import text_video_gpt, latent_shape
 
