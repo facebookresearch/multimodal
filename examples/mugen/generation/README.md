@@ -1,8 +1,9 @@
 # Text-to-Video Generation with MUGEN
 
-This directory contains the high-level model components for text-to-video generation following [MUGEN](https://arxiv.org/abs/2204.08058) by T.Hayes, S.Zhang et al.(2022).
-They demonstrate how to use building blocks from TorchMultimodal to quickly assemble a new auto-regressive generative model for different pairs of modalities.
-In addition, this [Colab demo](https://colab.research.google.com/drive/1C3ZbH_l19g_KqW3CPeX2-8Q2sOUCpmZo?usp=sharing) shows how to generate a video clip from text prompts.
+This directory contains the high-level model components for text-to-video generation following [MUGEN](https://arxiv.org/abs/2204.08058). They demonstrate how to use building blocks from TorchMultimodal to quickly assemble a new auto-regressive generative model for different pairs of modalities. Here is a [colab demo](https://colab.research.google.com/drive/1C3ZbH_l19g_KqW3CPeX2-8Q2sOUCpmZo?usp=sharing) shows how to generate a video clip from text prompts.
+
+https://user-images.githubusercontent.com/23155714/196074330-6f03593c-da8e-473f-8935-8bf1950baa33.mp4
+
 
 ## Model
 The model architecture used by MUGEN follows [DALL-E](https://arxiv.org/abs/2102.12092) but with the image components replaced by those for video following [VideoGPT](https://arxiv.org/abs/2104.10157).
