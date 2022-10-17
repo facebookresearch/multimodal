@@ -9,13 +9,6 @@ The name "VideoCLIP" refers to its similarities to OpenAI's [CLIP](https://arxiv
 
 The VideoCLIP model follows the CLIP architecture but replaces the image encoder with a video encoder. VideoCLIP's video encoder is backed by [Separable 3D CNN (S3D)](https://arxiv.org/abs/1712.04851), a video classification model, and the text encoder is backed by [DistilBERT](https://arxiv.org/abs/1910.01108), a lightweight transformer for language modeling.
 
-## Prerequisites
-Follow the dev setup instructions in [CONTRIBUTING.md](https://github.com/facebookresearch/multimodal/blob/main/CONTRIBUTING.md). Then additionally install MUGEN-specific dependencies:
-```
-pip install -r examples/mugen/requirements.txt
-```
-Our training and evaluation scripts rely on the MUGEN dataset. Follow the instructions to download the MUGEN dataset in the [dataset README.md](https://github.com/facebookresearch/multimodal/blob/main/examples/mugen/data/README.md).
-
 ## Training
 The configurable parameters for training can be found in `configs/train.yaml`. Note that the training script supports training on 1 or more devices on a single node. Then run the following command:
 ```
