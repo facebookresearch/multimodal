@@ -1,6 +1,6 @@
 # MUGEN Retrieval
 
-This directory contains model components for MUGEN's video-text retrieval model, a tutorial notebook for the model usage (better viewed on [nbviewer](https://nbviewer.org/github/facebookresearch/multimodal/blob/main/examples/mugen/retrieval/evaluation.ipynb)), and training and evaluation scripts.
+This directory contains reference training and evaluation scripts for MUGEN's video-text retrieval model, including a tutorial notebook for the model usage [Colab](https://colab.research.google.com/drive/1gZfz1jsy79CNCK9t2_r43yt3z7v-w4HS?usp=sharing) or [GitHub](https://github.com/facebookresearch/multimodal/blob/main/examples/mugen/retrieval/tutorial.ipynb).
 
 ## Model
 MUGEN's video-text retrieval model follows from [VideoCLIP](https://arxiv.org/abs/2109.14084), a contrastive model for video and text.
