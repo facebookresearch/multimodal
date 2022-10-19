@@ -10,7 +10,6 @@ import torch
 
 from examples.mugen.generation.video_vqvae import video_vqvae_mugen
 
-from tokenizers import Tokenizer  # type: ignore
 from torch import nn, Tensor
 from torchmultimodal import _PATH_MANAGER
 
@@ -26,9 +25,11 @@ from torchmultimodal.modules.layers.position_embedding import (
     BroadcastedPositionEmbedding,
 )
 from torchmultimodal.utils.common import load_module_from_url
+from torchtext.transforms import CharBPETokenizer
 
 
-PRETRAINED_BPE_TOKENIZER_URL = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024.json"
+PRETRAINED_BPE_TOKENIZER_ENCODER_URL = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024_encoder.json"
+PRETRAINED_BPE_TOKENIZER_MERGES_URL = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024_merges.txt"
 PRETRAINED_TEXT_VIDEO_GPT_URL_MAPPING = {
     "mugen_L32": "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/text_video_gpt_L32_weights-17db9549.pth",
     "mugen_L16": "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/text_video_gpt_L16_weights-5dfc5a0a.pth",
@@ -47,7 +48,8 @@ def text_video_gpt(
     attn_dropout: float = 0.3,
     num_decoder_layers: int = 12,
     use_gpt_init: bool = True,
-    pretrained_text_tokenizer_url: str = PRETRAINED_BPE_TOKENIZER_URL,
+    pretrained_text_tokenizer_encoder_url: str = PRETRAINED_BPE_TOKENIZER_ENCODER_URL,
+    pretrained_text_tokenizer_merged_url: str = PRETRAINED_BPE_TOKENIZER_MERGES_URL,
     pretrained_video_vqvae_model_key: Optional[str] = None,
     pretrained_text_video_gpt_model_key: Optional[str] = None,
 ) -> MultimodalGPT:
@@ -76,9 +78,12 @@ def text_video_gpt(
             Defaults to ``0.3``.
         num_decoder_layers (int): Number of transformer decoder layers. Defaults to ``12``.
         use_gpt_init (bool): Whether uses parameter initialization of GPT model. Defaults to ``True``.
-        pretrained_text_tokenizer_url (str): Remote location of the pretrained text tokenizer file. Defaults
-            to `"MUGEN pretrained tokenizer file
-            "<https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024.json>`_.
+        pretrained_text_tokenizer_encoder_url (str): Remote location of the pretrained text tokenizer encoder file.
+            Defaults to `"MUGEN pretrained tokenizer encoder file
+            "<https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024_encoder.json>`_.
+        pretrained_text_tokenizer_merges_url (str): Remote location of the pretrained text tokenizer merges file.
+            Defaults to `"MUGEN pretrained tokenizer merges file
+            "<https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024_merges.txt>`_.
         pretrained_video_vqvae_model_key (str, optional): Key to select the pretrained MUGEN VideoVQVAE weights
             file. For allowed values, see :py:module:`examples/mugen/generation/video_vqvae.py`.
             Defaults to ``None``.
@@ -93,10 +98,18 @@ def text_video_gpt(
     """
 
     # builds text tokenizer from pre-trained
-    text_tokenizer_local_path = _PATH_MANAGER.get_local_path(
-        pretrained_text_tokenizer_url
+    text_tokenizer_encoder_local_path = _PATH_MANAGER.get_local_path(
+        pretrained_text_tokenizer_encoder_url
     )
-    tokenizer = Tokenizer.from_file(text_tokenizer_local_path)
+    text_tokenizer_merges_local_path = _PATH_MANAGER.get_local_path(
+        pretrained_text_tokenizer_merges_url
+    )
+    tokenizer = CharBPETokenizer(
+        bpe_encoder_path=text_tokenizer_encoder_local_path,
+        bpe_merges_path=text_tokenizer_merges_local_path,
+        unk_token="[UNK]",
+        special_tokens=["[PAD]","[CLS]","[SEP]","[UNK]","[MASK]"]
+    )
 
     # builds text tokenizer
     text_tokenizer = TextTokenizer(
