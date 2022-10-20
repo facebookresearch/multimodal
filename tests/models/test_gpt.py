@@ -238,7 +238,7 @@ def gpt(
 def get_pos_ids(x):
     b, seq_len, _ = x.shape
     pos_ids = torch.arange(seq_len, dtype=torch.long, device=x.device)
-    return pos_ids[None, :]  # (b, seq_len)
+    return pos_ids[None, :]  # (1, seq_len)
 
 
 class TestMultimodalGPT:

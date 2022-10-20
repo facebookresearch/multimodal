@@ -502,15 +502,15 @@ class MultimodalTransformerDecoder(nn.Module):
         )
 
     def _norm_pos_ids(self, x: Tensor, pos_ids: Optional[Tensor] = None) -> Tensor:
-        b, seq_len, _ = x.shape
+        _, seq_len, _ = x.shape
         if pos_ids is None:
             pos_ids = torch.arange(seq_len, dtype=torch.long, device=x.device)[
                 None, :
-            ]  # (b, seq_len)
+            ]  # (1, seq_len)
 
-        if pos_ids.shape != (b, seq_len):
+        if pos_ids.shape[1] != seq_len:
             raise ValueError(
-                "input sequence and position ids must be equal in batch size and length"
+                f"Input sequence and position ids must be equal in length: {pos_ids.shape[1]} != {seq_len}"
             )
 
         return pos_ids
