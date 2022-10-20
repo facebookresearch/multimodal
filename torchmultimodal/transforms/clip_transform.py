@@ -97,7 +97,7 @@ class CLIPImageTransform:
 
     def __init__(
         self,
-        image_size: Union[int, Tuple[int, int]] = (224, 224),
+        image_size: Union[int, Tuple[int, int]] = 224,
         image_interpolation: InterpolationMode = InterpolationMode.BICUBIC,
         image_mean: Tuple[float, float, float] = CLIP_DEFAULT_MEAN,
         image_std: Tuple[float, float, float] = CLIP_DEFAULT_STD,
@@ -108,8 +108,6 @@ class CLIPImageTransform:
             image_transforms.ToTensor(),
             image_transforms.Normalize(image_mean, image_std),
         ]
-        if isinstance(image_size, int):
-            image_size = (image_size, image_size)
         base_transform: List[Callable]
         if is_train:
             base_transform = [
@@ -166,7 +164,7 @@ class CLIPTransform:
 
     def __init__(
         self,
-        image_size: Union[int, Tuple[int, int]] = (224, 224),
+        image_size: Union[int, Tuple[int, int]] = 224,
         image_interpolation: InterpolationMode = InterpolationMode.BICUBIC,
         image_mean: Tuple[float, float, float] = CLIP_DEFAULT_MEAN,
         image_std: Tuple[float, float, float] = CLIP_DEFAULT_STD,

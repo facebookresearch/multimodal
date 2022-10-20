@@ -8,7 +8,7 @@ import unittest
 
 import torch
 from tests.test_utils import assert_expected, get_asset_path, set_rng_seed
-from torchmultimodal.transforms.clip_transform import CLIPTransform
+from torchmultimodal.transforms.clip_transform import CLIPImageTransform, CLIPTransform
 from torchvision.transforms import ToPILImage
 
 
@@ -92,3 +92,21 @@ class TestCLIPTransform(unittest.TestCase):
         actual_zero_pad_val = transformed_texts[:-1, self.text1_token_len :].max()
         expected_zero_pad_val = torch.tensor(0)
         assert_expected(actual_zero_pad_val, expected_zero_pad_val)
+
+    def test_clip_image_transform_int_resize(self):
+        image_transform = CLIPImageTransform(is_train=False)
+        # check the first transform which corresponds to the resize
+        transformed_image = image_transform.image_transform.transforms[0](self.image1)
+
+        actual_image_size = transformed_image.size
+        expected_image_size = (373, 224)
+        assert_expected(actual_image_size, expected_image_size)
+
+    def test_clip_image_transform_tuple_resize(self):
+        image_transform = CLIPImageTransform(image_size=(224, 224), is_train=False)
+        # check the first transform which corresponds to the resize
+        transformed_image = image_transform.image_transform.transforms[0](self.image1)
+
+        actual_image_size = transformed_image.size
+        expected_image_size = (224, 224)
+        assert_expected(actual_image_size, expected_image_size)
