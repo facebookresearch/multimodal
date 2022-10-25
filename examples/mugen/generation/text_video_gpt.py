@@ -28,7 +28,9 @@ from torchmultimodal.utils.common import load_module_from_url
 from torchtext.transforms import CharBPETokenizer
 
 
-PRETRAINED_BPE_TOKENIZER_ENCODER_URL = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024_encoder.json"
+PRETRAINED_BPE_TOKENIZER_ENCODER_URL = (
+    "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024_encoder.json"
+)
 PRETRAINED_BPE_TOKENIZER_MERGES_URL = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024_merges.txt"
 PRETRAINED_TEXT_VIDEO_GPT_URL_MAPPING = {
     "mugen_L32": "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/text_video_gpt_L32_weights-17db9549.pth",
@@ -49,7 +51,7 @@ def text_video_gpt(
     num_decoder_layers: int = 12,
     use_gpt_init: bool = True,
     pretrained_text_tokenizer_encoder_url: str = PRETRAINED_BPE_TOKENIZER_ENCODER_URL,
-    pretrained_text_tokenizer_merged_url: str = PRETRAINED_BPE_TOKENIZER_MERGES_URL,
+    pretrained_text_tokenizer_merges_url: str = PRETRAINED_BPE_TOKENIZER_MERGES_URL,
     pretrained_video_vqvae_model_key: Optional[str] = None,
     pretrained_text_video_gpt_model_key: Optional[str] = None,
 ) -> MultimodalGPT:
@@ -108,7 +110,7 @@ def text_video_gpt(
         bpe_encoder_path=text_tokenizer_encoder_local_path,
         bpe_merges_path=text_tokenizer_merges_local_path,
         unk_token="[UNK]",
-        special_tokens=["[PAD]","[CLS]","[SEP]","[UNK]","[MASK]"]
+        special_tokens=["[PAD]", "[CLS]", "[SEP]", "[UNK]", "[MASK]"]
     )
 
     # builds text tokenizer
@@ -214,8 +216,8 @@ class TextTokenizer(nn.Module):
     ) -> None:
         super().__init__()
         self.tokenizer = tokenizer
-        self.pad_id = self.tokenizer.encode("[PAD]").ids[0]  # type: ignore
-        self.vocab_size = self.tokenizer.get_vocab_size()  # type: ignore
+        self.pad_id = self.tokenizer.encode("[PAD]")[0]  # type: ignore
+        self.vocab_size = self.tokenizer.vocab_size  # type: ignore
         self.context_len = context_len
         # MUGEN treats padding as unique ids so adding them to the total text tokens
         # https://github.com/mugen-org/MUGEN_baseline/blob/main/lib/models/gpt/gpt.py#L44
@@ -228,7 +230,7 @@ class TextTokenizer(nn.Module):
             self.tokenizer.encode(sentence.strip().lower() + " [SEP]")  # type: ignore
             for sentence in sentences
         ]
-        token_ids = [t.ids[: self.context_len] for t in tokens]
+        token_ids = [t[: self.context_len] for t in tokens]
         # pad each sentence to be of length `context_len`
         for i, t in enumerate(token_ids):
             t += [self.pad_id] * (self.context_len - len(t))
