@@ -82,7 +82,6 @@ class TestMDETRTransformer:
         batch_size,
         embedding_dim,
     ):
-        pytest.skip("temp skip for PT side fixing")
         actual = transformer.encoder(
             src=src, src_key_padding_mask=src_key_padding_mask, pos=pos
         )
@@ -103,7 +102,6 @@ class TestMDETRTransformer:
         batch_size,
         embedding_dim,
     ):
-        pytest.skip("temp skip for PT side fixing")
         actual = transformer.decoder(
             tgt=tgt,
             memory=memory,
