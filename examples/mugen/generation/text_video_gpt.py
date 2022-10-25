@@ -28,9 +28,7 @@ from torchmultimodal.utils.common import load_module_from_url
 from torchtext.transforms import CharBPETokenizer
 
 
-PRETRAINED_BPE_TOKENIZER_ENCODER_URL = (
-    "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024_encoder.json"
-)
+PRETRAINED_BPE_TOKENIZER_ENCODER_URL = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024_encoder.json"
 PRETRAINED_BPE_TOKENIZER_MERGES_URL = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024_merges.txt"
 PRETRAINED_TEXT_VIDEO_GPT_URL_MAPPING = {
     "mugen_L32": "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/text_video_gpt_L32_weights-17db9549.pth",
@@ -110,7 +108,7 @@ def text_video_gpt(
         bpe_encoder_path=text_tokenizer_encoder_local_path,
         bpe_merges_path=text_tokenizer_merges_local_path,
         unk_token="[UNK]",
-        special_tokens=["[PAD]", "[CLS]", "[SEP]", "[UNK]", "[MASK]"]
+        special_tokens=["[PAD]", "[CLS]", "[SEP]", "[UNK]", "[MASK]"],
     )
 
     # builds text tokenizer
