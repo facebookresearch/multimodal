@@ -11,7 +11,6 @@ import torch
 from examples.mugen.generation.video_vqvae import video_vqvae_mugen
 
 from torch import nn, Tensor
-from torchmultimodal import _PATH_MANAGER
 
 from torchmultimodal.models.gpt import (
     MultimodalGPT,
@@ -28,8 +27,8 @@ from torchmultimodal.utils.common import load_module_from_url
 from torchtext.transforms import CharBPETokenizer
 
 
-PRETRAINED_BPE_TOKENIZER_ENCODER_URL = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024_encoder.json"
-PRETRAINED_BPE_TOKENIZER_MERGES_URL = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024_merges.txt"
+PRETRAINED_TOKENIZER_ENCODER_URL = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024_encoder.json"
+PRETRAINED_TOKENIZER_MERGES_URL = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/tokenizer-coinrun_1024_merges.txt"
 PRETRAINED_TEXT_VIDEO_GPT_URL_MAPPING = {
     "mugen_L32": "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/text_video_gpt_L32_weights-17db9549.pth",
     "mugen_L16": "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/text_video_gpt_L16_weights-5dfc5a0a.pth",
@@ -48,8 +47,8 @@ def text_video_gpt(
     attn_dropout: float = 0.3,
     num_decoder_layers: int = 12,
     use_gpt_init: bool = True,
-    pretrained_text_tokenizer_encoder_url: str = PRETRAINED_BPE_TOKENIZER_ENCODER_URL,
-    pretrained_text_tokenizer_merges_url: str = PRETRAINED_BPE_TOKENIZER_MERGES_URL,
+    pretrained_text_tokenizer_encoder_url: str = PRETRAINED_TOKENIZER_ENCODER_URL,
+    pretrained_text_tokenizer_merges_url: str = PRETRAINED_TOKENIZER_MERGES_URL,
     pretrained_video_vqvae_model_key: Optional[str] = None,
     pretrained_text_video_gpt_model_key: Optional[str] = None,
 ) -> MultimodalGPT:
@@ -98,15 +97,9 @@ def text_video_gpt(
     """
 
     # builds text tokenizer from pre-trained
-    text_tokenizer_encoder_local_path = _PATH_MANAGER.get_local_path(
-        pretrained_text_tokenizer_encoder_url
-    )
-    text_tokenizer_merges_local_path = _PATH_MANAGER.get_local_path(
-        pretrained_text_tokenizer_merges_url
-    )
     tokenizer = CharBPETokenizer(
-        bpe_encoder_path=text_tokenizer_encoder_local_path,
-        bpe_merges_path=text_tokenizer_merges_local_path,
+        bpe_encoder_path=pretrained_text_tokenizer_encoder_url,
+        bpe_merges_path=pretrained_text_tokenizer_merges_url,
         unk_token="[UNK]",
         special_tokens=["[PAD]", "[CLS]", "[SEP]", "[UNK]", "[MASK]"],
     )
