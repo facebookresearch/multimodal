@@ -11,8 +11,7 @@ from typing import Any, Dict, Optional, OrderedDict, Tuple, Union
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
-from torch.distributed import all_gather as all_gather_no_backprop
-from torch.distributed.nn.functional import all_gather as all_gather_with_backprop
+from torchmultimodal.utils.distributed import gather_tensor
 
 
 @dataclass
@@ -33,30 +32,10 @@ def _gather_embeddings_and_labels(
         labels = torch.arange(embeddings_a.size(0), device=embeddings_a.device)
         return embeddings_a, embeddings_b, labels
 
+    embeddings_a_all_gpus = gather_tensor(embeddings_a, backprop_in_gather)
+    embeddings_b_all_gpus = gather_tensor(embeddings_b, backprop_in_gather)
     # embeddings_a has shape [local_batch_size, embedding_dim]
     local_batch_size = embeddings_a.size(0)
-
-    world_size = torch.distributed.get_world_size()
-
-    # This uses the all_gather from torch.distributed.nn.functional,
-    # which backpropagates gradients to all workers
-    if backprop_in_gather:
-        embeddings_a_all_gpus = all_gather_with_backprop(embeddings_a)
-        embeddings_b_all_gpus = all_gather_with_backprop(embeddings_b)
-
-    # Otherwise just backprop to the current worker
-    # This means that the image gradients on a given worker will only
-    # consider the text samples from the same worker
-    else:
-        embeddings_a_all_gpus = [
-            torch.zeros_like(embeddings_a) for _ in range(world_size)
-        ]
-        embeddings_b_all_gpus = [
-            torch.zeros_like(embeddings_b) for _ in range(world_size)
-        ]
-        all_gather_no_backprop(embeddings_a_all_gpus, embeddings_a)
-        all_gather_no_backprop(embeddings_b_all_gpus, embeddings_b)
-
     labels = local_batch_size * torch.distributed.get_rank() + torch.arange(
         local_batch_size, device=embeddings_a.device
     )

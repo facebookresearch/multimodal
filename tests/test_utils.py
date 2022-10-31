@@ -76,12 +76,14 @@ def assert_expected(
     expected: Any,
     rtol: Optional[float] = None,
     atol: Optional[float] = None,
+    check_device=True,
 ):
     torch.testing.assert_close(
         actual,
         expected,
         rtol=rtol,
         atol=atol,
+        check_device=check_device,
         msg=f"actual: {actual}, expected: {expected}",
     )
 
