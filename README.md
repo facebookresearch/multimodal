@@ -23,7 +23,9 @@ The following assumes conda is installed.
 2. Install pytorch, torchvision, and torchtext. See [PyTorch documentation](https://pytorch.org/get-started/locally/).
 
     ```
-    conda install pytorch torchvision torchtext cudatoolkit=11.3 -c pytorch-nightly -c nvidia
+    # Use the current CUDA version as seen [here](https://pytorch.org/get-started/locally/)
+    # Select the nightly Pytorch build, Linux as the OS, and conda. Pick the most recent CUDA version.
+    conda install pytorch torchvision torchtext pytorch-cuda=\<cuda_version\> -c pytorch-nightly -c nvidia
 
     # For CPU-only install
     conda install pytorch torchvision torchtext cpuonly -c pytorch-nightly
