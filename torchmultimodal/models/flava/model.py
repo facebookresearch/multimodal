@@ -450,7 +450,7 @@ def flava_model(
     multimodal_layer_norm_eps: float = 1e-12,
     # projection
     text_and_image_proj_size: int = 768,
-    pretrained_model_key: Optional[str] = None,
+    pretrained: bool = False,
     **kwargs: Any,
 ) -> FLAVAModel:
     image_encoder = flava_image_encoder(
@@ -505,15 +505,15 @@ def flava_model(
         image_projection=image_projection,
     )
 
-    if pretrained_model_key is not None:
-        flava.load_model(FLAVA_MODEL_MAPPING[pretrained_model_key])
+    if pretrained:
+        flava.load_model(FLAVA_MODEL_MAPPING["flava_full"])
 
     return flava
 
 
 def flava_model_for_pretraining(
     codebook_image_size: int = 112,
-    pretrained_model_key: Optional[str] = None,
+    pretrained: bool = False,
     **flava_model_kwargs: Any,
     # TODO: Add parameters for loss here
 ) -> FLAVAForPreTraining:
@@ -528,8 +528,8 @@ def flava_model_for_pretraining(
         loss=losses,
     )
 
-    if pretrained_model_key is not None:
-        flava.load_model(FLAVA_FOR_PRETRAINED_MAPPING[pretrained_model_key])
+    if pretrained:
+        flava.load_model(FLAVA_FOR_PRETRAINED_MAPPING["flava_full"])
 
     return flava
 
@@ -542,7 +542,7 @@ def flava_model_for_classification(
     classifier_activation: Callable[..., nn.Module] = nn.ReLU,
     classifier_normalization: Optional[Callable[..., nn.Module]] = None,
     loss_fn: Optional[Callable[..., Tensor]] = None,
-    pretrained_model_key: Optional[str] = "flava_full",
+    pretrained: bool = True,
     **flava_model_kwargs: Any,
 ) -> FLAVAForClassification:
 
@@ -561,9 +561,10 @@ def flava_model_for_classification(
     classification_model = FLAVAForClassification(
         model=model, classifier=classifier, loss=loss_fn
     )
-    if pretrained_model_key is not None:
+
+    if pretrained:
         classification_model.load_model(
-            FLAVA_FOR_PRETRAINED_MAPPING[pretrained_model_key], strict=False
+            FLAVA_FOR_PRETRAINED_MAPPING["flava_full"], strict=False
         )
     return classification_model
 

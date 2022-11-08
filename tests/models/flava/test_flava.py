@@ -61,7 +61,7 @@ class TestFLAVA:
     def test_forward_classification(self, classification_inputs):
         text, image, labels = classification_inputs
 
-        flava = flava_model_for_classification(NUM_CLASSES, pretrained_model_key=None)
+        flava = flava_model_for_classification(NUM_CLASSES, pretrained=False)
         flava.eval()
 
         # Test multimodal scenario
