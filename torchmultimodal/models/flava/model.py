@@ -29,7 +29,7 @@ from torchmultimodal.modules.losses.flava import (
     FLAVAPretrainingLossOutput,
     Pooler,
 )
-from torchmultimodal.utils.common import ModelOutput, PretrainedMixin
+from torchmultimodal.utils.common import load_module_from_url, ModelOutput
 from typing_extensions import Literal
 
 
@@ -103,7 +103,7 @@ class FLAVAForClassificationOutput(ModelOutput):
     loss: Tensor
 
 
-class FLAVAModel(nn.Module, PretrainedMixin):
+class FLAVAModel(nn.Module):
     def __init__(
         self,
         image_encoder: nn.Module,
@@ -290,7 +290,7 @@ class FLAVAModel(nn.Module, PretrainedMixin):
         return self.mm_encoder(fused_state)
 
 
-class FLAVAForPreTraining(nn.Module, PretrainedMixin):
+class FLAVAForPreTraining(nn.Module):
     # TODOs:
     # 1. Expose logit scale
     # 2. For FLAVA model, allow interpolating the embeddings to
@@ -367,7 +367,7 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
         )
 
 
-class FLAVAForClassification(nn.Module, PretrainedMixin):
+class FLAVAForClassification(nn.Module):
     def __init__(
         self,
         model: FLAVAModel,
@@ -506,7 +506,8 @@ def flava_model(
     )
 
     if pretrained:
-        flava.load_model(FLAVA_MODEL_MAPPING["flava_full"])
+        load_module_from_url(flava, FLAVA_MODEL_MAPPING["flava_full"])
+        # flava.load_model(FLAVA_MODEL_MAPPING["flava_full"])
 
     return flava
 
@@ -529,7 +530,8 @@ def flava_model_for_pretraining(
     )
 
     if pretrained:
-        flava.load_model(FLAVA_FOR_PRETRAINED_MAPPING["flava_full"])
+        load_module_from_url(flava, FLAVA_FOR_PRETRAINED_MAPPING["flava_full"])
+        # flava.load_model(FLAVA_FOR_PRETRAINED_MAPPING["flava_full"])
 
     return flava
 
@@ -563,8 +565,13 @@ def flava_model_for_classification(
     )
 
     if pretrained:
-        classification_model.load_model(
-            FLAVA_FOR_PRETRAINED_MAPPING["flava_full"], strict=False
+        # classification_model.load_model(
+        #     FLAVA_FOR_PRETRAINED_MAPPING["flava_full"], strict=False
+        # )
+        load_module_from_url(
+            classification_model,
+            FLAVA_FOR_PRETRAINED_MAPPING["flava_full"],
+            strict=False,
         )
     return classification_model
 
@@ -702,7 +709,7 @@ class DalleEncoder(nn.Module):
         return self.blocks(x)
 
 
-class DalleVAEEncoder(nn.Module, PretrainedMixin):
+class DalleVAEEncoder(nn.Module):
     def __init__(
         self, image_size: Union[int, Tuple[int, int]] = 112, pretrained: bool = True
     ):
@@ -714,10 +721,11 @@ class DalleVAEEncoder(nn.Module, PretrainedMixin):
 
     def load_model(self) -> Any:  # type: ignore
         # TODO (T116682215): Network error due to FLAVA model relying on access to openAI
-        encoder = super().load_model(
-            "https://cdn.openai.com/dall-e/encoder.pkl", load_state_dict=False
+
+        encoder_state_dict = torch.hub.load_state_dict_from_url(
+            "https://cdn.openai.com/dall-e/encoder.pkl"
         )
-        self.encoder.load_state_dict(encoder.state_dict())  # type: ignore
+        self.encoder.load_state_dict(encoder_state_dict.state_dict())  # type: ignore
         return self.state_dict()
 
     def get_codebook_indices(self, images: Tensor) -> Tensor:
