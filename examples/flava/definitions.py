@@ -80,7 +80,6 @@ class TrainingArguments:
 
 @dataclass
 class ModelArguments:
-    # pretrained_model_key: Optional[str] = None
     pretrained: bool = False
 
 
