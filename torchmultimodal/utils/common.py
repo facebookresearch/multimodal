@@ -4,13 +4,11 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import hashlib
-import os
 import warnings
 from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import fields
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Tuple, Union
 
 import torch
 from torch import nn, Tensor
@@ -120,38 +118,6 @@ def remove_grad(model: nn.Module) -> None:
 def momentum_update(model: nn.Module, model_m: nn.Module, momentum: float) -> None:
     for param, param_m in zip(model.parameters(), model_m.parameters()):
         param_m.data = param_m.data * momentum + param.data * (1 - momentum)
-
-
-class PretrainedMixin:
-    def get_model_dir(self, url: str) -> str:
-        return os.path.join(
-            torch.hub.get_dir(),
-            "multimodal",
-            hashlib.sha256(url.encode("utf-8")).hexdigest(),
-        )
-
-    def load_model(
-        self,
-        pretrained_url: str,
-        load_state_dict: bool = True,
-        state_dict_key: Optional[str] = None,
-        strict: bool = True,
-    ) -> Any:
-        assert isinstance(
-            self, nn.Module
-        ), "load_model can only be called on an nn.Module instance"
-        if os.path.exists(pretrained_url):
-            state_dict = torch.load(pretrained_url)
-        else:
-            state_dict = torch.hub.load_state_dict_from_url(
-                pretrained_url, model_dir=self.get_model_dir(pretrained_url)
-            )
-        if state_dict_key:
-            state_dict = state_dict[state_dict_key]
-
-        if load_state_dict:
-            self.load_state_dict(state_dict, strict=strict)
-        return state_dict
 
 
 class ModelOutput(OrderedDict):
