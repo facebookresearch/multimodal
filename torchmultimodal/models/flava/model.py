@@ -58,15 +58,15 @@ FLAVAOutput.__annotations__ = {
     "multimodal_masked": TransformerOutput,
 }
 
-
+CKPT_KEY = "flava_full"
 FLAVA_FOR_PRETRAINED_MAPPING = {
     # This will no longer load with the updated model, but keeping here just in case
     # "flava_full": "https://huggingface.co/aps/flava_full_pretrained_encoders_torchmm/resolve/main/pytorch_model.bin",
-    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_for_pretraining_unified_text_encoder.pt",
+    CKPT_KEY: "https://download.pytorch.org/models/multimodal/flava/flava_for_pretraining_unified_text_encoder.pt",
 }
 
 FLAVA_MODEL_MAPPING = {
-    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_model_unified_text_encoder.pt",
+    CKPT_KEY: "https://download.pytorch.org/models/multimodal/flava/flava_model_unified_text_encoder.pt",
 }
 
 
@@ -506,8 +506,7 @@ def flava_model(
     )
 
     if pretrained:
-        load_module_from_url(flava, FLAVA_MODEL_MAPPING["flava_full"])
-        # flava.load_model(FLAVA_MODEL_MAPPING["flava_full"])
+        load_module_from_url(flava, FLAVA_MODEL_MAPPING[CKPT_KEY])
 
     return flava
 
@@ -530,8 +529,7 @@ def flava_model_for_pretraining(
     )
 
     if pretrained:
-        load_module_from_url(flava, FLAVA_FOR_PRETRAINED_MAPPING["flava_full"])
-        # flava.load_model(FLAVA_FOR_PRETRAINED_MAPPING["flava_full"])
+        load_module_from_url(flava, FLAVA_FOR_PRETRAINED_MAPPING[CKPT_KEY])
 
     return flava
 
@@ -565,12 +563,9 @@ def flava_model_for_classification(
     )
 
     if pretrained:
-        # classification_model.load_model(
-        #     FLAVA_FOR_PRETRAINED_MAPPING["flava_full"], strict=False
-        # )
         load_module_from_url(
             classification_model,
-            FLAVA_FOR_PRETRAINED_MAPPING["flava_full"],
+            FLAVA_FOR_PRETRAINED_MAPPING[CKPT_KEY],
             strict=False,
         )
     return classification_model
