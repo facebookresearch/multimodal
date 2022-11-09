@@ -13,10 +13,10 @@ import numpy as np
 
 import torch
 import utils.dist as dist
-from examples.mdetr.utils.metrics import RecallTracker
 from prettytable import PrettyTable
 from torch import Tensor
 from torchvision.ops.boxes import box_iou
+from utils.metrics import RecallTracker
 
 
 def get_sentence_data(filename) -> List[Dict[str, Any]]:

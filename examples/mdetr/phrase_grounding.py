@@ -10,16 +10,17 @@ import random
 from copy import deepcopy
 from pathlib import Path
 
-import examples.mdetr.utils.dist as dist
 import numpy as np
 import torch
-from examples.mdetr.data.datamodule import FlickrDataModule
-from examples.mdetr.data.flickr_eval import FlickrEvaluator
-from examples.mdetr.data.postprocessors import PostProcessFlickr
-from examples.mdetr.utils.args_parse import get_args_parser
-from examples.mdetr.utils.metrics import MetricLogger
-from examples.mdetr.utils.misc import targets_to
+
+import utils.dist as dist
+from data.datamodule import FlickrDataModule
+from data.flickr_eval import FlickrEvaluator
+from data.postprocessors import PostProcessFlickr
 from torchmultimodal.models.mdetr.model import mdetr_for_phrase_grounding
+from utils.args_parse import get_args_parser
+from utils.metrics import MetricLogger
+from utils.misc import targets_to
 
 
 @torch.no_grad()
@@ -100,7 +101,7 @@ def main(args):
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
-    torch.use_deterministic_algorithms(True)
+    torch.use_deterministic_algorithms(True, warn_only=True)
 
     # Set up datamodule
     datamodule = FlickrDataModule(args)
