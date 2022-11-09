@@ -71,9 +71,7 @@ class TestFLAVACheckpoint:
     @pytest.fixture
     def classification_model(self):
         def get_model():
-            flava = flava_model_for_classification(
-                num_classes=3, pretrained_model_key="flava_full"
-            )
+            flava = flava_model_for_classification(num_classes=3, pretrained=True)
             flava.eval()
             return flava
 
@@ -82,7 +80,7 @@ class TestFLAVACheckpoint:
     @pytest.fixture
     def pretraining_model(self):
         def get_model():
-            flava = flava_model_for_pretraining(pretrained_model_key="flava_full")
+            flava = flava_model_for_pretraining(pretrained=True)
             flava.eval()
             return flava
 
@@ -91,7 +89,7 @@ class TestFLAVACheckpoint:
     @pytest.fixture
     def model(self):
         def get_model():
-            flava = flava_model(pretrained_model_key="flava_full")
+            flava = flava_model(pretrained=True)
             flava.eval()
             return flava
 

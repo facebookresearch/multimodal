@@ -40,7 +40,6 @@ def transform(image, target):
 
 def collator(batch):
     texts = []
-    print(batch[0][0]["image"])
     images = torch.stack([x[0]["image"] for x in batch], dim=0)
     texts = torch.cat([torch.LongTensor(x[1]["input_ids"]) for x in batch], dim=0)
     return images, texts
@@ -61,7 +60,7 @@ def main():
     dataset = CocoCaptions(
         root=args.data_root, annFile=args.annotations, transforms=transform
     )
-    flava = flava_model(pretrained_model_key="flava_full")
+    flava = flava_model(pretrained=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logger.info(f"Using device: {device}")
     flava = flava.to(device)
