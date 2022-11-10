@@ -52,7 +52,7 @@ python train.py config=flava/configs/pretraining/debug.yaml training.lightning.m
 Similarly, let's say you want to use a pretrained model for your pretraining/finetuning.
 
 ```
-python -m flava.train config=configs/pretraining/debug.yaml model.pretrained_model_key=flava_full
+python -m flava.train config=configs/pretraining/debug.yaml model.pretrained=True
 ```
 
 ### Full Pretraining
@@ -64,7 +64,7 @@ python -m flava.train config=configs/pretraining/debug.yaml model.pretrained_mod
 Similarly to pretraining, finetuning can be launched by following command:
 
 ```
-python finetune.py config=configs/finetuning/qnli.yaml model.pretrained_model_key=flava_full
+python finetune.py config=configs/finetuning/qnli.yaml model.pretrained=True
 ```
 
 ### Linear Probe

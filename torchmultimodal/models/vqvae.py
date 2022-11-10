@@ -12,8 +12,15 @@ from torchmultimodal.utils.common import shift_dim
 
 
 class VQVAEOutput(NamedTuple):
-    decoded: Tensor  # output of decoder
-    codebook_output: CodebookOutput  # output of codebook layer to be used in loss calculations
+    """Outputs from :class:`~torchmultimodal.models.vqvae.VQVAE`.
+
+    Attributes:
+        decoded (Tensor): Output of the decoder.
+        codebook_output (CodebookOutput): Output of codebook layer to be used in loss calculations.
+    """
+
+    decoded: Tensor
+    codebook_output: CodebookOutput
 
 
 class VQVAE(nn.Module):
@@ -27,31 +34,31 @@ class VQVAE(nn.Module):
     Discrete Representation Learning" (Oord et al. 2017) and has since seen success in
     tokenizing and generating high-resolution image, audio, and video data.
 
-    Attributes:
-        encoder (nn.Module): Model that accepts single Tensor as input in forward, ``encoder(x)``.
-                             Will be used to project input into codebook layer. Expects channel
-                             dim of encoder output to match ``codebook_embedding_dim``.
-        decoder (nn.Module): Model that accepts single Tensor as input in forward, ``decoder(x)``.
-                             Should be able to accept output shape of codebook layer, which matches
-                             output shape of encoder.
-        codebook_num_embeddings (int): Number of embedding vectors in codebook
-        codebook_embedding_dim (int): Dimensionality of embedding vectors in codebook
-
     Args:
-        x (Tensor): Input data of shape ``[b, c, d1, ..., dn]``.
+        encoder (nn.Module): Model that accepts single Tensor as input in forward, ``encoder(x)``.
+            Will be used to project input into codebook layer. Expects channel
+            dim of encoder output to match ``embedding_dim`` of codebook.
+            See :class:`~torchmultimodal.modules.layers.codebook.Codebook`.
+        decoder (nn.Module): Model that accepts single Tensor as input in forward, ``decoder(x)``.
+            Should be able to accept output shape of codebook layer, which matches output shape of
+            the encoder.
+        num_embeddings (int): Number of embedding vectors in codebook.
+        embedding_dim (int): Dimensionality of embedding vectors in codebook.
     """
 
     def __init__(
         self,
         encoder: nn.Module,
         decoder: nn.Module,
-        codebook_num_embeddings: int,
-        codebook_embedding_dim: int,
+        num_embeddings: int,
+        embedding_dim: int,
     ) -> None:
         super().__init__()
         self.encoder = encoder
         self.decoder = decoder
-        self.codebook = Codebook(codebook_num_embeddings, codebook_embedding_dim)
+        self.codebook = Codebook(num_embeddings, embedding_dim)
+        self.num_embeddings = num_embeddings
+        self.embedding_dim = embedding_dim
 
     def latent_shape(self, input_shape: Union[Size, Tuple]) -> Tuple[int, ...]:
         """Returns the downsampled shape of the encoder output: (d1, ..., dn)"""
@@ -98,6 +105,13 @@ class VQVAE(nn.Module):
         return self.codebook.lookup(indices)
 
     def forward(self, x: Tensor) -> VQVAEOutput:
+        """
+        Args:
+            x (Tensor): Input data of shape ``(b, c, d1, ..., dn)``.
+
+        Returns:
+            An instance of :class:`~torchmultimodal.models.vqvae.VQVAEOutput`.
+        """
         encoded = self.encoder(x)
         codebook_output = self.codebook(encoded)
         decoded = self.decoder(codebook_output.quantized)

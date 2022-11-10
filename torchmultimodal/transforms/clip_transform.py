@@ -9,6 +9,7 @@ from typing import Callable, Iterable, List, Optional, Tuple, Union
 import torch
 from PIL.Image import Image
 from torch import Tensor
+from torchmultimodal import _PATH_MANAGER
 from torchtext import transforms as text_transforms
 from torchtext.transforms import CLIPTokenizer
 from torchvision import transforms as image_transforms
@@ -50,8 +51,9 @@ class CLIPTextTransform:
         num_merges: Optional[int] = 48894,
     ) -> None:
 
+        local_merges_path = _PATH_MANAGER.get_local_path(text_bpe_merges_path)
         tokenizer = CLIPTokenizer(
-            text_bpe_merges_path, text_encoder_json_path, num_merges=num_merges
+            local_merges_path, text_encoder_json_path, num_merges=num_merges
         )
         text_start_token = tokenizer([text_start_token])[0][0]
         text_end_token = tokenizer([text_end_token])[0][0]
@@ -60,9 +62,9 @@ class CLIPTextTransform:
         self.text_transform = text_transforms.Sequential(
             *[
                 tokenizer,
+                text_transforms.Truncate(text_max_length - 2),
                 text_transforms.AddToken(text_start_token, begin=True),
                 text_transforms.AddToken(text_end_token, begin=False),
-                text_transforms.Truncate(text_max_length),
                 text_transforms.StrToIntTransform(),
                 text_transforms.ToTensor(padding_value=0),
                 text_transforms.PadTransform(max_length=text_max_length, pad_value=0),
@@ -95,7 +97,7 @@ class CLIPImageTransform:
 
     def __init__(
         self,
-        image_size: Union[int, Tuple[int, int]] = (224, 224),
+        image_size: Union[int, Tuple[int, int]] = 224,
         image_interpolation: InterpolationMode = InterpolationMode.BICUBIC,
         image_mean: Tuple[float, float, float] = CLIP_DEFAULT_MEAN,
         image_std: Tuple[float, float, float] = CLIP_DEFAULT_STD,
@@ -106,8 +108,6 @@ class CLIPImageTransform:
             image_transforms.ToTensor(),
             image_transforms.Normalize(image_mean, image_std),
         ]
-        if isinstance(image_size, int):
-            image_size = (image_size, image_size)
         base_transform: List[Callable]
         if is_train:
             base_transform = [
@@ -164,7 +164,7 @@ class CLIPTransform:
 
     def __init__(
         self,
-        image_size: Union[int, Tuple[int, int]] = (224, 224),
+        image_size: Union[int, Tuple[int, int]] = 224,
         image_interpolation: InterpolationMode = InterpolationMode.BICUBIC,
         image_mean: Tuple[float, float, float] = CLIP_DEFAULT_MEAN,
         image_std: Tuple[float, float, float] = CLIP_DEFAULT_STD,
