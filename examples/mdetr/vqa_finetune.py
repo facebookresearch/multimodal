@@ -15,18 +15,19 @@ from copy import deepcopy
 from pathlib import Path
 from typing import Dict, Iterable, Optional
 
-import examples.mdetr.utils.dist as dist
 import numpy as np
 import torch
-from examples.mdetr.data.datamodule import GQADataModule
-from examples.mdetr.loss import build_mdetr_loss, build_weight_dict
-from examples.mdetr.matcher import HungarianMatcher
-from examples.mdetr.optimizer import adjust_learning_rate, build_optimizer, update_ema
-from examples.mdetr.utils.args_parse import get_args_parser
-from examples.mdetr.utils.metrics import MetricLogger, SmoothedValue
-from examples.mdetr.utils.misc import targets_to
-from examples.mdetr.vqa_eval import evaluate
+
+import utils.dist as dist
+from data.datamodule import GQADataModule
+from loss import build_mdetr_loss, build_weight_dict
+from matcher import HungarianMatcher
+from optimizer import adjust_learning_rate, build_optimizer, update_ema
 from torchmultimodal.models.mdetr.model import mdetr_for_vqa
+from utils.args_parse import get_args_parser
+from utils.metrics import MetricLogger, SmoothedValue
+from utils.misc import targets_to
+from vqa_eval import evaluate
 
 
 def train_one_epoch(

@@ -68,7 +68,9 @@ class ModifiedTransformerEncoder(nn.Module):
         return_hidden_states: bool = False,
     ) -> TransformerOutput:
         encoded = embeddings
-        mask = torch.squeeze(attention_mask.to(dtype=torch.bool))
+        batch_size, seq_len = embeddings.size()[:2]
+        mask = attention_mask.reshape(batch_size, seq_len)
+
         # Do this in a loop because otherwise it can cause OOM
         for layer in self.layers.layers:
             encoded = layer(encoded, src_key_padding_mask=mask)

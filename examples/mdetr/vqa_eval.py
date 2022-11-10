@@ -10,16 +10,17 @@ import random
 from copy import deepcopy
 from pathlib import Path
 
-import examples.mdetr.utils.dist as dist
 import numpy as np
 import torch
-from examples.mdetr.data.datamodule import GQADataModule
-from examples.mdetr.loss import build_mdetr_loss, build_weight_dict
-from examples.mdetr.matcher import HungarianMatcher
-from examples.mdetr.utils.args_parse import get_args_parser
-from examples.mdetr.utils.metrics import MetricLogger
-from examples.mdetr.utils.misc import targets_to
+
+import utils.dist as dist
+from data.datamodule import GQADataModule
+from loss import build_mdetr_loss, build_weight_dict
+from matcher import HungarianMatcher
 from torchmultimodal.models.mdetr.model import mdetr_for_vqa
+from utils.args_parse import get_args_parser
+from utils.metrics import MetricLogger
+from utils.misc import targets_to
 
 
 @torch.no_grad()

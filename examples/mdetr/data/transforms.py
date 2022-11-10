@@ -10,10 +10,10 @@ from typing import Any, Callable, Dict, Iterable, Union
 import PIL
 import torch
 import torchvision.transforms.functional as F
-from examples.mdetr.utils.misc import interpolate
 from PIL.Image import Image
 from torchvision import transforms as T
 from torchvision.ops.boxes import box_convert
+from utils.misc import interpolate
 
 
 def crop(image, target, region):

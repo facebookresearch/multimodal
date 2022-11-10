@@ -8,8 +8,8 @@ from functools import partial
 from typing import Callable, Optional
 
 import torch
-from examples.mdetr.data.dataset import build_flickr, build_gqa, collate_fn
-from examples.mdetr.data.transforms import MDETRTransform
+from data.dataset import build_flickr, build_gqa, collate_fn
+from data.transforms import MDETRTransform
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, DistributedSampler
 from transformers import RobertaTokenizerFast

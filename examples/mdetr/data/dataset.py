@@ -9,7 +9,7 @@ from pathlib import Path
 
 import torch
 
-from examples.mdetr.data.transforms import ConvertCocoPolysToMask, create_positive_map
+from data.transforms import ConvertCocoPolysToMask, create_positive_map
 from torchvision.datasets import CocoDetection
 
 
