@@ -14,7 +14,7 @@ In phrase grounding, the objective is to associate noun phrases in the caption o
 
 ### Instructions
 
-First, make sure you have followed the TorchMultimodal installation instructions in the [README](https://github.com/facebookresearch/multimodal/blob/main/README.md).
+First, make sure you have followed the [prerequisites](#prerequisites).
 
 To run the evaluation script, you will need to download the Flickr30k dataset. This includes images, standard annotations, and additional annotations used by MDETR.
 
@@ -47,7 +47,7 @@ wget https://zenodo.org/record/4729015/files/mdetr_annotations.tar.gz?download=1
 tar -xvzf 'mdetr_annotations.tar.gz?download=1'
 ```
 
-4) Modify the fields in `phrase_grounding.json` based on the locations of the files in (1) - (3). E.g. if root directory for (1)-(3) is /data, you should use
+4) Modify the fields in `phrase_grounding.json` based on the locations of the files in (1) - (3). E.g. if root directory for (1)-(3) is `/data`, you should use
 
 ```
 {
@@ -60,10 +60,15 @@ tar -xvzf 'mdetr_annotations.tar.gz?download=1'
   }
 ```
 
-5) Run the evaluation script:
+5) Run the evaluation script.
 
 ```
-# From REPO_ROOT/examples/mdetr
+cd examples/mdetr
+
+# Run on CPU
+python phrase_grounding.py --resume https://pytorch.s3.amazonaws.com/models/multimodal/mdetr/pretrained_resnet101_checkpoint.pth --ema --eval --dataset_config phrase_grounding.json
+
+# Run on two GPUs
 CUBLAS_WORKSPACE_CONFIG=:4096:8 torchrun --nproc_per_node=2 phrase_grounding.py --resume https://pytorch.s3.amazonaws.com/models/multimodal/mdetr/pretrained_resnet101_checkpoint.pth --ema --eval --dataset_config phrase_grounding.json
 ```
 
