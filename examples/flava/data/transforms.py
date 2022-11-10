@@ -9,7 +9,7 @@ from functools import partial
 from typing import Any, Callable, Optional
 
 import torch
-from torchmultimodal.transforms.flava_transform import MaskedImageModelingTransform
+from torchmultimodal.transforms.flava_transform import FLAVAImageTransform
 from torchvision import transforms
 from transformers import BertTokenizer
 
@@ -66,7 +66,7 @@ def default_torchvision_transforms(
 
 
 def default_image_pretraining_transforms():
-    return MaskedImageModelingTransform(), MaskedImageModelingTransform(is_train=False)
+    return FLAVAImageTransform(), FLAVAImageTransform(is_train=False)
 
 
 def default_text_transform(

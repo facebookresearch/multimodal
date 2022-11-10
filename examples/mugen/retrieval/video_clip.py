@@ -8,17 +8,17 @@ import warnings
 from typing import Any, Dict, Optional
 
 import torch
-from examples.mugen.retrieval.s3d import S3D
+
 from torch import nn
 
 from torchmultimodal.models.clip.model import CLIP
 from torchmultimodal.utils.common import load_module_from_url
+
+from torchvision.models.video import S3D
 from transformers import DistilBertConfig, DistilBertModel
 
 
-PRETRAINED_S3D_KINETICS400_URL = (
-    "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/S3D_kinetics400.pt"
-)
+PRETRAINED_VIDEO_ENCODER_URL = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/video_encoder-weights-b0e27f13.pth"
 
 
 class TextEncoder(nn.Module):
@@ -75,19 +75,24 @@ class VideoEncoder(nn.Module):
     Adapted from MUGEN's video encoder
         (https://github.com/mugen-org/MUGEN_baseline/blob/main/lib/models/videoclip/modules.py)
 
+    Attributes:
+        model (nn.Module): Module extracted from :class:`~torchvision.models.video.S3D`.
+            Code reference: https://github.com/pytorch/vision/blob/main/torchvision/models/video/s3d.py
+        out_dim (int): Output dimension of VideoEncoder.
+
     Inputs:
         x (Tensor): batch of videos with dimensions (batch, channel, time, height, width)
             Size of ``channel`` dimension must be ``3``.
 
     """
 
-    def __init__(
-        self,
-    ):
+    def __init__(self) -> None:
         super().__init__()
-        self.model = S3D(400)
-        self.out_dim = self.model.fc.in_channels
-        self.model.fc = nn.Identity()
+        self.model = S3D()
+        # Getting input channels from the Conv3d layer
+        self.out_dim = self.model.classifier[1].in_channels
+        # Transform the classifier into identity
+        self.model.classifier = nn.Identity()
 
     def forward(self, x):
         if x.shape[1] != 3:
@@ -140,7 +145,7 @@ def videoclip(
     text_padding_value: int = 0,
     video_pretrained: bool = True,
     video_trainable: bool = True,
-    video_pretrain_path: str = PRETRAINED_S3D_KINETICS400_URL,
+    video_pretrain_path: str = PRETRAINED_VIDEO_ENCODER_URL,
     proj_out_dim: int = 256,
     proj_dropout: float = 0.1,
 ) -> CLIP:
@@ -163,7 +168,7 @@ def videoclip(
         video_trainable (bool): whether the video encoder's weights should be trainable.
             Defaults to ``True``. Ignored if ``video_pretrained`` is ``False``.
         video_pretrain_path (str): local path or remote URL to video encoder pretrained weights.
-            Defaults to ``PRETRAINED_S3D_KINETICS400_URL``, the weights MUGEN used from
+            Defaults to ``PRETRAINED_VIDEO_ENCODER_URL``, the weights MUGEN used from
             pretraining S3D on Kinetics 400. Ignored if ``video_pretrained`` is ``False``.
         proj_out_dim (int): output dimension to project both encoders' outputs to.
             Defaults to ``256``, the value used by MUGEN.
@@ -197,6 +202,7 @@ def videoclip(
     if video_pretrained:
         print(f"Loading pretrained video encoder from {video_pretrain_path}.")
         load_module_from_url(video_model, video_pretrain_path)
+
     if video_pretrained and not video_trainable:
         # check `video_pretrained` because if model isn't pretrained, then it should be trainable
         for p in video_model.model.parameters():

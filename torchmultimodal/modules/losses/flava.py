@@ -7,14 +7,13 @@
 import math
 import warnings
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, OrderedDict, Union
 
 import torch
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
     contrastive_loss_with_temperature,
-    ContrastiveLossOutput,
 )
 from torchmultimodal.utils.common import ModelOutput
 
@@ -40,10 +39,15 @@ class MaskedPredictionLossOutput(ModelOutput):
 
 
 @dataclass
-class FLAVAGlobalContrastiveLossOutput(ContrastiveLossOutput):
+class FLAVAGlobalContrastiveLossOutput(OrderedDict):
     text_embedding: Tensor
     image_embedding: Tensor
     logit_scale: Tensor
+    image_logits: Tensor
+    text_logits: Tensor
+    image_loss: Tensor
+    text_loss: Tensor
+    loss: Tensor
 
 
 @dataclass
@@ -269,8 +273,8 @@ class FLAVAGlobalContrastiveLoss(nn.Module):
         self.logit_scale.data.clamp_(0, 4.6052)
 
         output = contrastive_loss_with_temperature(
-            image_embeddings=image_embedding,
-            text_embeddings=text_embedding,
+            embeddings_a=image_embedding,
+            embeddings_b=text_embedding,
             logit_scale=self.logit_scale,
             mask=mask,
             # Always true for FLAVA global contrastive loss
@@ -279,10 +283,10 @@ class FLAVAGlobalContrastiveLoss(nn.Module):
 
         return FLAVAGlobalContrastiveLossOutput(
             loss=output.loss,
-            image_logits=output.image_logits,
-            text_logits=output.text_logits,
-            image_loss=output.image_loss,
-            text_loss=output.text_loss,
+            image_logits=output.logits_a,
+            text_logits=output.logits_b,
+            image_loss=output.loss_a,
+            text_loss=output.loss_b,
             text_embedding=text_embedding,
             image_embedding=image_embedding,
             logit_scale=self.logit_scale.data,

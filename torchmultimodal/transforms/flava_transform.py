@@ -28,7 +28,7 @@ def map_pixels(x: torch.Tensor) -> torch.Tensor:
     return (1 - 2 * LOGIT_LAPLACE_EPS) * x + LOGIT_LAPLACE_EPS
 
 
-class MaskingGenerator:
+class ImageMaskingGenerator:
     def __init__(
         self,
         input_size: Union[Tuple, int],
@@ -203,7 +203,7 @@ class TwoWayRandomResizedCrop(transforms.RandomResizedCrop):
             )
 
 
-class MaskedImageModelingTransform:
+class FLAVAImageTransform:
     """Masked image modeling transform
     Randomly masks patches in an image based on scheme from Beit
     https://arxiv.org/pdf/2106.08254.pdf
@@ -280,7 +280,7 @@ class MaskedImageModelingTransform:
                 map_pixels,
             ]
         )
-        self.masked_position_generator = MaskingGenerator(
+        self.masked_position_generator = ImageMaskingGenerator(
             mask_window_size,
             num_masking_patches=mask_num_patches,
             max_num_patches=mask_max_patches,

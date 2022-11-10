@@ -45,6 +45,8 @@ class CLIP(nn.Module):
         encoder_b: nn.Module,
     ):
         super().__init__()
+        torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
+
         self.encoder_a = encoder_a
         self.encoder_b = encoder_b
 

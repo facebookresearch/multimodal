@@ -29,7 +29,7 @@ from torchmultimodal.modules.losses.flava import (
     FLAVAPretrainingLossOutput,
     Pooler,
 )
-from torchmultimodal.utils.common import ModelOutput, PretrainedMixin
+from torchmultimodal.utils.common import load_module_from_url, ModelOutput
 from typing_extensions import Literal
 
 
@@ -58,15 +58,15 @@ FLAVAOutput.__annotations__ = {
     "multimodal_masked": TransformerOutput,
 }
 
-
+CKPT_KEY = "flava_full"
 FLAVA_FOR_PRETRAINED_MAPPING = {
     # This will no longer load with the updated model, but keeping here just in case
     # "flava_full": "https://huggingface.co/aps/flava_full_pretrained_encoders_torchmm/resolve/main/pytorch_model.bin",
-    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_for_pretraining_unified.pt",
+    CKPT_KEY: "https://download.pytorch.org/models/multimodal/flava/flava_for_pretraining_unified_text_encoder.pt",
 }
 
 FLAVA_MODEL_MAPPING = {
-    "flava_full": "https://download.pytorch.org/models/multimodal/flava/flava_model_unified.pt",
+    CKPT_KEY: "https://download.pytorch.org/models/multimodal/flava/flava_model_unified_text_encoder.pt",
 }
 
 
@@ -93,9 +93,7 @@ def flava_multimodal_encoder(
     pooler = Pooler(hidden_size=hidden_size)
 
     return FLAVATransformerWithoutEmbeddings(
-        encoder=encoder,
-        layernorm=layernorm,
-        pooler=pooler,
+        encoder=encoder, layernorm=layernorm, pooler=pooler, hidden_size=hidden_size
     )
 
 
@@ -105,7 +103,7 @@ class FLAVAForClassificationOutput(ModelOutput):
     loss: Tensor
 
 
-class FLAVAModel(nn.Module, PretrainedMixin):
+class FLAVAModel(nn.Module):
     def __init__(
         self,
         image_encoder: nn.Module,
@@ -248,6 +246,8 @@ class FLAVAModel(nn.Module, PretrainedMixin):
         encoded_text = self.text_encoder(
             input_ids=text,
             attention_mask=text_mask,
+            return_attn_weights=True,
+            return_hidden_states=True,
         )
         if projection:
             projected_embeddings = self.text_projection(
@@ -290,7 +290,7 @@ class FLAVAModel(nn.Module, PretrainedMixin):
         return self.mm_encoder(fused_state)
 
 
-class FLAVAForPreTraining(nn.Module, PretrainedMixin):
+class FLAVAForPreTraining(nn.Module):
     # TODOs:
     # 1. Expose logit scale
     # 2. For FLAVA model, allow interpolating the embeddings to
@@ -367,7 +367,7 @@ class FLAVAForPreTraining(nn.Module, PretrainedMixin):
         )
 
 
-class FLAVAForClassification(nn.Module, PretrainedMixin):
+class FLAVAForClassification(nn.Module):
     def __init__(
         self,
         model: FLAVAModel,
@@ -450,7 +450,7 @@ def flava_model(
     multimodal_layer_norm_eps: float = 1e-12,
     # projection
     text_and_image_proj_size: int = 768,
-    pretrained_model_key: Optional[str] = None,
+    pretrained: bool = False,
     **kwargs: Any,
 ) -> FLAVAModel:
     image_encoder = flava_image_encoder(
@@ -505,20 +505,21 @@ def flava_model(
         image_projection=image_projection,
     )
 
-    if pretrained_model_key is not None:
-        flava.load_model(FLAVA_MODEL_MAPPING[pretrained_model_key])
+    if pretrained:
+        load_module_from_url(flava, FLAVA_MODEL_MAPPING[CKPT_KEY])
 
     return flava
 
 
 def flava_model_for_pretraining(
     codebook_image_size: int = 112,
-    pretrained_model_key: Optional[str] = None,
+    pretrained: bool = False,
     **flava_model_kwargs: Any,
     # TODO: Add parameters for loss here
 ) -> FLAVAForPreTraining:
     model = flava_model(**flava_model_kwargs)
-    losses = FLAVAPretrainingLoss()
+    hidden_size = flava_model_kwargs.get("multimodal_hidden_size", 768)
+    losses = FLAVAPretrainingLoss(hidden_size=hidden_size)
     codebook = DalleVAEEncoder(image_size=codebook_image_size)
 
     flava = FLAVAForPreTraining(
@@ -527,8 +528,8 @@ def flava_model_for_pretraining(
         loss=losses,
     )
 
-    if pretrained_model_key is not None:
-        flava.load_model(FLAVA_FOR_PRETRAINED_MAPPING[pretrained_model_key])
+    if pretrained:
+        load_module_from_url(flava, FLAVA_FOR_PRETRAINED_MAPPING[CKPT_KEY])
 
     return flava
 
@@ -541,7 +542,7 @@ def flava_model_for_classification(
     classifier_activation: Callable[..., nn.Module] = nn.ReLU,
     classifier_normalization: Optional[Callable[..., nn.Module]] = None,
     loss_fn: Optional[Callable[..., Tensor]] = None,
-    pretrained_model_key: Optional[str] = "flava_full",
+    pretrained: bool = True,
     **flava_model_kwargs: Any,
 ) -> FLAVAForClassification:
 
@@ -560,15 +561,14 @@ def flava_model_for_classification(
     classification_model = FLAVAForClassification(
         model=model, classifier=classifier, loss=loss_fn
     )
-    if pretrained_model_key is not None:
-        classification_model.load_model(
-            FLAVA_FOR_PRETRAINED_MAPPING[pretrained_model_key], strict=False
+
+    if pretrained:
+        load_module_from_url(
+            classification_model,
+            FLAVA_FOR_PRETRAINED_MAPPING[CKPT_KEY],
+            strict=False,
         )
     return classification_model
-
-
-def to_2tuple(x: int) -> Tuple[int, int]:
-    return (x, x)
 
 
 class DalleConv2d(nn.Module):
@@ -704,7 +704,7 @@ class DalleEncoder(nn.Module):
         return self.blocks(x)
 
 
-class DalleVAEEncoder(nn.Module, PretrainedMixin):
+class DalleVAEEncoder(nn.Module):
     def __init__(
         self, image_size: Union[int, Tuple[int, int]] = 112, pretrained: bool = True
     ):
@@ -716,10 +716,11 @@ class DalleVAEEncoder(nn.Module, PretrainedMixin):
 
     def load_model(self) -> Any:  # type: ignore
         # TODO (T116682215): Network error due to FLAVA model relying on access to openAI
-        encoder = super().load_model(
-            "https://cdn.openai.com/dall-e/encoder.pkl", load_state_dict=False
+
+        encoder_state_dict = torch.hub.load_state_dict_from_url(
+            "https://cdn.openai.com/dall-e/encoder.pkl"
         )
-        self.encoder.load_state_dict(encoder.state_dict())  # type: ignore
+        self.encoder.load_state_dict(encoder_state_dict.state_dict())  # type: ignore
         return self.state_dict()
 
     def get_codebook_indices(self, images: Tensor) -> Tensor:
