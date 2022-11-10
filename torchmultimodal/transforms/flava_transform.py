@@ -204,23 +204,26 @@ class TwoWayRandomResizedCrop(transforms.RandomResizedCrop):
 
 
 class FLAVAImageTransform:
-    """Masked image modeling transform
-    Randomly masks patches in an image based on scheme from Beit
-    https://arxiv.org/pdf/2106.08254.pdf
+    """FLAVA image transform which does basic transforms like resize etc on images,
+    randomly masks patches in an image based on scheme from Beit https://arxiv.org/pdf/2106.08254.pdf
+    and generates codebook tokens
 
     Args:
-        is_train (bool): whether transform is applied during training or not
-        encoder_input_size (int): size of image that is input to the image encoder
-        codebook_input_size (int): size of image that is input to the visual codebook
-        scale (Tuple[float, float]): scale passed to RandomResizedCrop transform
-        encoder_interpolation(str): interpolation for RandomResizedCrop or Resize transform for image passed to encoder
-        codebook_interpolation(str): interpolation for RandomResizedCrop or Resize transform for image passed to visual codebook
-        image_mean (Tuple[float, float, float]): mean for image normalization
-        image_std (Tuple[float, float, float]): standard deviation for image normalization
-        mask_window_size (int): dimension of mask
-        mask_num_patches (int): number of patches to mask
-        mask_max_patches (int): max number of patches to mask
-        mask_min_patches (int): min number of patches to mask
+        is_train (bool): whether transform is applied during training or not. Defaults to True.
+        encoder_input_size (int): size of image that is input to the image encoder. Default is 224.
+        codebook_input_size (int): size of image that is input to the visual codebook. Default is 112.
+        scale (Tuple[float, float]): scale passed to RandomResizedCrop transform. Default is 112.
+        encoder_interpolation(str): interpolation for RandomResizedCrop or Resize transform for image passed to encoder.\
+            Default is BICUBIC
+        codebook_interpolation(str): interpolation for RandomResizedCrop or Resize transform for image passed to visual codebook. \
+            Default is LANCZOS
+        image_mean (Tuple[float, float, float]): mean for image normalization. Default is (0.48145466, 0.4578275, 0.40821073)
+        image_std (Tuple[float, float, float]): standard deviation for image normalization. \
+            Default is (0.26862954, 0.26130258, 0.27577711)
+        mask_window_size (int): dimension of mask. Default is 14.
+        mask_num_patches (int): number of patches to mask. Default is 75.
+        mask_max_patches (int): max number of patches to mask. Default is None.
+        mask_min_patches (int): min number of patches to mask. Default is 16.
     Inputs:
         images (Union[List[Image.Image], Image.Image]): input image / list of images
     """

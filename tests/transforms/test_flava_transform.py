@@ -12,11 +12,11 @@ from torchvision import transforms
 
 
 class TestFLAVAImageTransform:
-    @pytest.fixture
+    @pytest.fixture(autouse=True)
     def set_seed(self):
         set_rng_seed(1234)
 
-    def test_image_masking_train(self, set_seed):
+    def test_image_transform_train(self):
         transform = FLAVAImageTransform(
             encoder_input_size=3,
             codebook_input_size=3,
