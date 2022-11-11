@@ -34,9 +34,9 @@ class ImageMaskingGenerator:
         input_size: Union[Tuple, int],
         num_masking_patches: int,
         min_num_patches: int = 4,
-        max_num_patches: int = None,
+        max_num_patches: Optional[int] = None,
         min_aspect: float = 0.3,
-        max_aspect: float = None,
+        max_aspect: Optional[float] = None,
     ) -> None:
         if not isinstance(input_size, tuple):
             input_size = (input_size,) * 2
@@ -209,7 +209,8 @@ class FLAVAImageTransform:
     and generates codebook tokens
 
     Args:
-        is_train (bool): whether transform is applied during training or not. Defaults to True.
+        is_train (bool): whether transform is applied during training or not. Random crop and interpolation is enabled for training.
+         Defaults to True.
         encoder_input_size (int): size of image that is input to the image encoder. Default is 224.
         codebook_input_size (int): size of image that is input to the visual codebook. Default is 112.
         scale (Tuple[float, float]): scale passed to RandomResizedCrop transform. Default is 112.
@@ -222,7 +223,7 @@ class FLAVAImageTransform:
             Default is (0.26862954, 0.26130258, 0.27577711)
         mask_window_size (int): dimension of mask. Default is 14.
         mask_num_patches (int): number of patches to mask. Default is 75.
-        mask_max_patches (int): max number of patches to mask. Default is None.
+        mask_max_patches (Optional[int]): max number of patches to mask. Default is None.
         mask_min_patches (int): min number of patches to mask. Default is 16.
     Inputs:
         images (Union[List[Image.Image], Image.Image]): input image / list of images
