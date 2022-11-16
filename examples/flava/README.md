@@ -33,8 +33,14 @@ To access the ImageNet dataset, you must first create an account at [HuggingFace
 
 After making sure your access token was saved to `~/.huggingface/token`, launch your FLAVA debug pretraining job by running the following command:
 
+For GPU (default config):
 ```
 python -m flava.train config=flava/configs/pretraining/debug.yaml
+```
+
+For CPU (for testing):
+```
+python -m flava.train config=flava/configs/pretraining/debug.yaml training.lightning.accelerator=cpu training.lightning.gpus=0 training.lightning.strategy=null
 ```
 
 Note that:
@@ -46,13 +52,13 @@ Note that:
 You can update the configuration by changing the config specified by `config` parameter or you can specify the parameters to be overridden by using a dotlist. For example, if you want to run the model with different numbers of training steps, you can do:
 
 ```
-python train.py config=flava/configs/pretraining/debug.yaml training.lightning.max_steps=1000
+python -m flava.train config=flava/configs/pretraining/debug.yaml training.lightning.max_steps=1000
 ```
 
 Similarly, let's say you want to use a pretrained model for your pretraining/finetuning.
 
 ```
-python -m flava.train config=configs/pretraining/debug.yaml model.pretrained=True
+python -m flava.train config=flava/configs/pretraining/debug.yaml model.pretrained=True
 ```
 
 ### Full Pretraining
@@ -64,7 +70,14 @@ python -m flava.train config=configs/pretraining/debug.yaml model.pretrained=Tru
 Similarly to pretraining, finetuning can be launched by following command:
 
 ```
-python finetune.py config=configs/finetuning/qnli.yaml model.pretrained=True
+python -m flava.finetune config=flava/configs/finetuning/qnli.yaml model.pretrained=True
+```
+
+### COCO zero shot
+Download COCO dataset and annotations to disk
+
+```
+python -m flava.coco_zero_shot --data_root <folder with dataset> --annotations <path to annotation json>
 ```
 
 ### Linear Probe
