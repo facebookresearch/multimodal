@@ -107,12 +107,12 @@ class TestMDETRLosses:
                 pred_logits, n_boxes_per_sample, positive_map, indices, num_boxes
             )
         )
-        expected = torch.tensor(5.0893)
+        expected = torch.tensor(5.2867)
         assert_expected(actual, expected, rtol=0, atol=1e-3)
 
     def test_box_losses(self, pred_boxes, target_boxes, indices, num_boxes):
         actual = box_losses(pred_boxes, target_boxes, indices, num_boxes)
-        expected_l1_loss = torch.tensor(0.7721)
-        expected_giou_loss = torch.tensor(1.1768)
+        expected_l1_loss = torch.tensor(0.8463)
+        expected_giou_loss = torch.tensor(1.2569)
         assert_expected(actual.l1_loss, expected_l1_loss, rtol=0, atol=1e-3)
         assert_expected(actual.giou_loss, expected_giou_loss, rtol=0, atol=1e-3)
