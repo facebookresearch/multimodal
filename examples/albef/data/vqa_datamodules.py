@@ -7,12 +7,12 @@
 from typing import List, Optional, Tuple
 
 import torch
-from examples.albef.data.transforms import (
+from data.transforms import (
     ALBEFTextTransform,
     testing_image_transform,
     training_image_transform,
 )
-from examples.albef.data.vqa_dataset import VQADataset
+from data.vqa_dataset import VQADataset
 from pytorch_lightning import LightningDataModule
 from torch import Tensor
 from torch.nn.utils.rnn import pad_sequence

@@ -9,16 +9,9 @@ from typing import List, Tuple, Union
 
 import torch
 
-from torchtext.transforms import (
-    AddToken,
-    BERTTokenizer,
-    PadTransform,
-    Sequential,
-    StrToIntTransform,
-    ToTensor,
-    Truncate,
-)
+from torchtext.transforms import PadTransform, Sequential, ToTensor, Truncate
 from torchvision import transforms
+from transformers.models.bert.tokenization_bert import BertTokenizer
 
 # mean and standard deviation from the ALBEF repo:
 # https://github.com/salesforce/ALBEF/blob/main/dataset/__init__.py#L16
@@ -32,11 +25,9 @@ class ALBEFTextTransform:
     a Tensor of token ids using BERTTokenizer.
 
     Args:
-        vocab_file (str): Local or URL path to pre-trained vocab file.
-            Defaults to HuggingFace BERT base (uncased) model's vocab file.
+        pretrained_tokenizer (str): Pretrained tokenizer to use.
+            Default: "bert-base-uncased"
         do_pre_process (bool): Whether to pre-process input text.
-            Defaults to True.
-        do_lower_case (bool): Whether to convert input text to lowercase.
             Defaults to True.
         truncate (bool): Whether to truncate input text to max_seq_length.
             Defaults to False.
@@ -58,9 +49,8 @@ class ALBEFTextTransform:
 
     def __init__(
         self,
-        vocab_file: str = "https://huggingface.co/bert-base-uncased/resolve/main/vocab.txt",
+        pretrained_tokenizer: str = "bert-base-uncased",
         do_pre_process: bool = True,
-        do_lower_case: bool = True,
         truncate: bool = False,
         pad_to_max_seq_len: bool = False,
         add_end_token: bool = True,
@@ -73,20 +63,11 @@ class ALBEFTextTransform:
         self.cls_token_id = cls_token_id
         self.sep_token_id = sep_token_id
         self.pad_token_id = pad_token_id
+        self.add_end_token = add_end_token
 
-        # start_token + max_word_tokens + optional(end_token) = max_seq_len
-        max_word_tokens = max_seq_len - (2 if add_end_token else 1)
-
-        self.tokenizer = Sequential(
-            BERTTokenizer(
-                vocab_path=vocab_file, do_lower_case=do_lower_case, return_tokens=False
-            ),
-            StrToIntTransform(),
-            Truncate(max_seq_len=max_word_tokens) if truncate else torch.nn.Identity(),
-            AddToken(self.cls_token_id, begin=True),
-            AddToken(self.sep_token_id, begin=False)
-            if add_end_token
-            else torch.nn.Identity(),
+        self.tokenizer = BertTokenizer.from_pretrained(pretrained_tokenizer)
+        self.transform = Sequential(
+            Truncate(max_seq_len=max_seq_len) if truncate else torch.nn.Identity(),
             ToTensor(padding_value=self.pad_token_id),
             PadTransform(max_length=max_seq_len, pad_value=self.pad_token_id)
             if pad_to_max_seq_len
@@ -113,7 +94,11 @@ class ALBEFTextTransform:
                 text = self.pre_process(text)
             else:
                 text = [self.pre_process(t) for t in text]
-        input_ids = self.tokenizer(text)
+        tokens = self.tokenizer(text)["input_ids"]
+        if not self.add_end_token and tokens[-1] == self.sep_token_id:
+            tokens = tokens[:-1]
+        input_ids = self.transform(tokens)
+
         return input_ids
 
 

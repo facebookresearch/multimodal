@@ -7,12 +7,12 @@
 from typing import List, Optional, Tuple
 
 import torch
-from examples.albef.data.retrieval_dataset import (
+from data.retrieval_dataset import (
     ImageToTextRetrievalDataset,
     RetrievalTrainingDataset,
     TextToImageRetrievalDataset,
 )
-from examples.albef.data.transforms import (
+from data.transforms import (
     ALBEFTextTransform,
     testing_image_transform,
     training_image_transform,
