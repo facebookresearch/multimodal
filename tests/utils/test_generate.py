@@ -91,6 +91,9 @@ class TestGenerationUtil:
             generator = GenerationUtil(model=model)
 
     def test_sample(self, generation_model):
+        pytest.skip(
+            "temp skip until PT side PR lands: https://github.com/pytorch/pytorch/pull/69967"
+        )
         input_shape = self._model_params["input_shape"]
         latent_shape = self._model_params["latent_shape"]
         latent_seq_len = torch.prod(torch.tensor(latent_shape)).item()
@@ -102,38 +105,38 @@ class TestGenerationUtil:
         expected = out.tokens
         actual = torch.tensor(
             [
-                477,
-                124,
-                624,
-                773,
-                559,
-                139,
-                213,
-                118,
-                364,
-                1014,
-                730,
-                871,
-                445,
-                982,
-                362,
-                942,
-                32,
-                536,
-                506,
-                280,
-                598,
-                81,
-                225,
-                689,
-                20,
-                661,
-                281,
-                782,
-                904,
-                595,
-                614,
-                815,
+                432,
+                691,
+                524,
+                796,
+                392,
+                298,
+                249,
+                697,
+                79,
+                927,
+                198,
+                224,
+                289,
+                63,
+                331,
+                686,
+                792,
+                1019,
+                109,
+                296,
+                342,
+                855,
+                211,
+                171,
+                376,
+                613,
+                696,
+                605,
+                1018,
+                812,
+                255,
+                670,
             ]
         ).unsqueeze(
             0
