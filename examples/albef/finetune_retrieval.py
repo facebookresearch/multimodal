@@ -10,24 +10,28 @@ import os
 import random
 import time
 
-import examples.utils.distributed as dist_utils
 import ruamel.yaml as yaml
 import torch
 import torch.backends.cudnn as cudnn
 import torch.distributed as dist
-from examples.albef.data.retrieval_datamodule import RetrievalDataModule
-from examples.albef.model import albef_model_for_retrieval
-from examples.albef.utils import add_weight_decay
+from data.retrieval_datamodule import RetrievalDataModule
+from model import albef_model_for_retrieval
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
+from utils import (
+    add_weight_decay,
+    get_rank,
+    get_world_size,
+    init_distributed_mode,
+    is_dist_avail_and_initialized,
+    is_main_process,
+)
 
 
 def train(model, datamodule, args, device):
     model.train()
 
-    model_without_ddp = (
-        model.module if dist_utils.is_dist_avail_and_initialized() else model
-    )
+    model_without_ddp = model.module if is_dist_avail_and_initialized() else model
 
     optimizer_params = add_weight_decay(model, args["weight_decay"])
     optimizer = AdamW(optimizer_params, lr=args["lr"])
@@ -40,9 +44,9 @@ def train(model, datamodule, args, device):
     warmup_iterations = warmup_steps * step_size
 
     data_loader = datamodule.train_dataloader(
-        is_distributed=dist_utils.is_dist_avail_and_initialized(),
-        num_tasks=dist_utils.get_world_size(),
-        global_rank=dist_utils.get_rank(),
+        is_distributed=is_dist_avail_and_initialized(),
+        num_tasks=get_world_size(),
+        global_rank=get_rank(),
     )
 
     start_time = time.time()
@@ -80,7 +84,7 @@ def train(model, datamodule, args, device):
                 loss_str = "loss {}".format(loss.item())
                 print(time_str, epoch_str, batch_str, loss_str)
 
-        if dist_utils.is_main_process():
+        if is_main_process():
             save_obj = {
                 "model": model_without_ddp.state_dict(),
                 "optimizer": optimizer.state_dict(),
@@ -94,7 +98,7 @@ def train(model, datamodule, args, device):
                 ),
             )
 
-        if dist_utils.is_dist_avail_and_initialized():
+        if is_dist_avail_and_initialized():
             dist.barrier()
             torch.cuda.empty_cache()
 
@@ -146,8 +150,8 @@ def image_to_text(
     args,
 ):
     start_time = time.time()
-    world_size = dist_utils.get_world_size()
-    rank = dist_utils.get_rank()
+    world_size = get_world_size()
+    rank = get_rank()
     step = sims_matrix.size(0) // world_size + 1
     start = rank * step
     end = min(sims_matrix.size(0), start + step)
@@ -187,8 +191,8 @@ def text_to_image(
     args,
 ):
     start_time = time.time()
-    world_size = dist_utils.get_world_size()
-    rank = dist_utils.get_rank()
+    world_size = get_world_size()
+    rank = get_rank()
     step = sims_matrix.size(0) // world_size + 1
     start = rank * step
     end = min(sims_matrix.size(0), start + step)
@@ -252,7 +256,7 @@ def evaluation(model, datamodule, args, device):
         args,
     )
 
-    if dist_utils.is_dist_avail_and_initialized():
+    if is_dist_avail_and_initialized():
         dist.barrier()
         torch.distributed.all_reduce(
             image_to_text_scores, op=torch.distributed.ReduceOp.SUM
@@ -352,10 +356,10 @@ def main():
     args = parser.parse_args()
     config = yaml.load(open(args.config, "r"), Loader=yaml.Loader)
 
-    dist_utils.init_distributed_mode(config)
+    init_distributed_mode(config)
     device = torch.device(config["device"])
 
-    seed = config["seed"] + dist_utils.get_rank()
+    seed = config["seed"] + get_rank()
     torch.manual_seed(seed)
     random.seed(seed)
     cudnn.benchmark = True
@@ -363,7 +367,7 @@ def main():
     datamodule = RetrievalDataModule(**config["datamodule_args"])
     model = albef_model_for_retrieval(config, pretrained=True)
     model = model.to(device)
-    if dist_utils.is_dist_avail_and_initialized():
+    if is_dist_avail_and_initialized():
         model = torch.nn.parallel.DistributedDataParallel(
             model, device_ids=[config["gpu"]]
         )

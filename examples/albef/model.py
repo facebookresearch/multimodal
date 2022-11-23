@@ -13,7 +13,7 @@ from torch import nn, Tensor
 from torchmultimodal.models.albef.image_encoder import ALBEFVisionEncoder
 from torchmultimodal.models.albef.model import ALBEFModel, ALBEFModelWithSimilarity
 from torchmultimodal.models.albef.multimodal_encoder import ALBEFMultimodalEncoder
-from torchmultimodal.models.albef.text_encoder import ALBEFTextEncoder
+from torchmultimodal.modules.encoders.bert_text_encoder import bert_text_encoder
 from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 from torchmultimodal.modules.losses.albef import (
     CausalLanguageModelingLoss,
@@ -617,7 +617,7 @@ def albef_model_for_vqa(
     config: Dict[str, Any], pretrained: bool = False
 ) -> ALBEFModelForVQA:
     vision_encoder = ALBEFVisionEncoder(**config["vision_encoder_args"])
-    text_encoder = ALBEFTextEncoder(**config["text_encoder_args"])
+    text_encoder = bert_text_encoder(**config["text_encoder_args"])
     question_multimodal_encoder = ALBEFMultimodalEncoder(
         **config["multimodal_encoder_args"]
     )
@@ -643,7 +643,7 @@ def albef_model_for_retrieval(
     config: Dict[str, Any], pretrained: bool = False
 ) -> ALBEFModelForRetrieval:
     vision_encoder = ALBEFVisionEncoder(**config["vision_encoder_args"])
-    text_encoder = ALBEFTextEncoder(**config["text_encoder_args"])
+    text_encoder = bert_text_encoder(**config["text_encoder_args"])
     multimodal_encoder = ALBEFMultimodalEncoder(**config["multimodal_encoder_args"])
     vision_proj = nn.Linear(**config["projection_args"])
     text_proj = nn.Linear(**config["projection_args"])
