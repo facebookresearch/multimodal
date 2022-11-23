@@ -4,10 +4,10 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import examples.omnivore.data.transforms as CT  # custom transforms
+import omnivore.data.transforms as CT  # custom transforms
 import torch
 import torchvision.transforms as T
-from examples.omnivore.data.rand_aug3d import RandAugment3d
+from omnivore.data.rand_aug3d import RandAugment3d
 from torchvision.transforms.functional import InterpolationMode
 
 

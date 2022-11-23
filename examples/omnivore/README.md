@@ -105,7 +105,7 @@ root
 
 Example command to run training on ImageNet1K, Kinetics400, and SunRGBD datasets
 ```
-torchrun --nproc_per_node=8 --nnodes=8 train.py \
+torchrun --nproc_per_node=8 --nnodes=8  -m omnivore.train \
     --batch-size=128 --workers=6 --extra-video-dataloader-workers=6 \
     --cache-video-dataset --eval-every-num-epoch=10 --model="omnivore_swin_t" \
     --lr=0.002 --lr-warmup-epochs=25 --lr-warmup-method=linear \
@@ -129,8 +129,8 @@ torchrun --nproc_per_node=8 --nnodes=8 train.py \
 
 Example command to run evaluation on Omnivore with Swin Transformer Tiny variant.
 ```
-torchrun --nproc_per_node=8 --nnodes=1 train.py \
-    --batch-size=128 --workers=6 --mode="omnivore_swin_t" \
+torchrun --nproc_per_node=8 --nnodes=1 -m omnivore.train \
+    --batch-size=128 --workers=6 --model="omnivore_swin_t" \
     --cache-video-dataset \
     --extra-video-dataloader-workers=7 \
     --kinetics-dataset-workers=12 \

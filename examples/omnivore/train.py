@@ -12,12 +12,12 @@ import logging
 import os
 import time
 
-import examples.omnivore.data.data_builder as data_builder
-import examples.omnivore.utils as utils
+import omnivore.data.data_builder as data_builder
 
 import torch
 import torch.utils.data
 import torchmultimodal.models.omnivore as omnivore
+from omnivore import utils
 from torch import nn
 
 
