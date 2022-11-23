@@ -13,11 +13,11 @@ import logging
 import os
 import time
 
-import examples.omnivore.utils as utils
+import omnivore.utils as utils
 import torch
 import torchvision
 import torchvision.datasets.samplers as video_samplers
-from examples.omnivore.data import datasets, presets, transforms
+from omnivore.data import datasets, presets, transforms
 from torch.utils.data.dataloader import default_collate
 from torchvision.transforms.functional import InterpolationMode
 
