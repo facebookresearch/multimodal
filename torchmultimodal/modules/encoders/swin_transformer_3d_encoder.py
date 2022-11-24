@@ -10,16 +10,18 @@
 
 from typing import Callable, List, Optional
 
-from torch import nn, Tensor
+from torch import nn
 from torchvision.models.video.swin_transformer import (
     SwinTransformer3d as TVSwinTransformer3d,
     PatchMerging as TVPatchMerging,
-    PatchEmbed3d as TVPatchEmbed3d
+    PatchEmbed3d as TVPatchEmbed3d,
+    ShiftedWindowAttention3d as TVShiftedWindowAttention3d,
 )
 
 # We redefine this because they are imported on other script
 PatchMerging = TVPatchMerging
 PatchEmbed3d = TVPatchEmbed3d
+ShiftedWindowAttention3d = TVShiftedWindowAttention3d
 
 
 class SwinTransformer3d(TVSwinTransformer3d):
