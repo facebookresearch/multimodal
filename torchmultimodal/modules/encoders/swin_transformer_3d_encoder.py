@@ -12,22 +12,21 @@ from typing import Callable, List, Optional
 
 from torch import nn
 from torchvision.models.video.swin_transformer import (
-    SwinTransformer3d as TVSwinTransformer3d,
-    PatchMerging as TVPatchMerging,
     PatchEmbed3d as TVPatchEmbed3d,
-    ShiftedWindowAttention3d as TVShiftedWindowAttention3d,
+    PatchMerging as TVPatchMerging,
+    SwinTransformer3d as TVSwinTransformer3d,
 )
 
 # We redefine this because they are imported on other script
 PatchMerging = TVPatchMerging
 PatchEmbed3d = TVPatchEmbed3d
-ShiftedWindowAttention3d = TVShiftedWindowAttention3d
 
 
 class SwinTransformer3d(TVSwinTransformer3d):
     """
     Implements 3D Swin Transformer from the `"Video Swin Transformer" <https://arxiv.org/abs/2106.13230>`_ paper.
-    We upstream the model from torchvision: https://github.com/pytorch/vision/blob/main/torchvision/models/video/swin_transformer.py#L363
+    We upstream the model from torchvision:
+    https://github.com/pytorch/vision/blob/main/torchvision/models/video/swin_transformer.py#L363
     Args:
         patch_size (List[int]): Patch size.
         embed_dim (int): Patch embedding dimension.
@@ -44,6 +43,7 @@ class SwinTransformer3d(TVSwinTransformer3d):
         norm_layer (nn.Module, optional): Normalization layer. Default: None.
         patch_embed (nn.Module, optional): Patch Embedding layer. Default: None.
     """
+
     def __init__(
         self,
         patch_size: List[int],
