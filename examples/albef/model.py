@@ -13,14 +13,14 @@ from torch import nn, Tensor
 from torchmultimodal.models.albef.image_encoder import ALBEFVisionEncoder
 from torchmultimodal.models.albef.model import ALBEFModel, ALBEFModelWithSimilarity
 from torchmultimodal.models.albef.multimodal_encoder import ALBEFMultimodalEncoder
-from torchmultimodal.modules.encoders.bert_text_encoder import bert_text_encoder
-from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 from torchmultimodal.modules.losses.albef import (
     CausalLanguageModelingLoss,
     ImageTextContrastiveLoss,
 )
 from torchmultimodal.utils.attention import get_causal_attention_mask
 from torchmultimodal.utils.common import momentum_update, remove_grad
+from torchtext.models.bert.model import bert_text_encoder
+from torchtext.models.bert.text_embedding import BERTTextEmbeddings
 
 
 _ALBEF_PRETRAINED_URLS = {

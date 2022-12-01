@@ -8,7 +8,7 @@ import pytest
 import torch
 
 from tests.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.transforms.bert_text_transform import BertTextTransform
+from torchtext.models.bert.bundler import BertTextTransform
 
 
 class TestBertTextTransform:

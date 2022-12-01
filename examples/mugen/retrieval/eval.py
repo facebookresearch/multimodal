@@ -10,8 +10,8 @@ from examples.mugen.retrieval.model import VideoCLIPLightningModule
 from hydra.utils import instantiate
 from omegaconf import OmegaConf
 from pytorch_lightning import Trainer
-from torchmultimodal.transforms.bert_text_transform import BertTextTransform
 from torchmultimodal.transforms.video_transform import VideoTransform
+from torchtext.models.bert.bundler import BertTextTransform
 
 
 def get_yaml_config():

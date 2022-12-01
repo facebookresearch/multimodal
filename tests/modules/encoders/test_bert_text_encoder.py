@@ -8,7 +8,7 @@ import pytest
 import torch
 from tests.test_utils import assert_expected, set_rng_seed
 from torch import Tensor
-from torchmultimodal.modules.encoders.bert_text_encoder import bert_text_encoder
+from torchtext.models.bert.model import bert_text_encoder
 
 
 @pytest.fixture(autouse=True)

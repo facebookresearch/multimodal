@@ -7,7 +7,7 @@
 import pytest
 import torch
 from tests.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
+from torchtext.models.bert.text_embedding import BERTTextEmbeddings
 
 
 @pytest.fixture(autouse=True)

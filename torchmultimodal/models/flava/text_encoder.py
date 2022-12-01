@@ -9,11 +9,13 @@ from typing import Callable
 
 from torch import nn
 from torchmultimodal.models.flava.transformer import init_transformer_weights
-from torchmultimodal.modules.encoders.bert_text_encoder import BERTTextEncoder
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
-from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 from torchmultimodal.modules.layers.transformer import TransformerEncoder
 from torchmultimodal.modules.losses.flava import Pooler
+
+from torchtext.models.bert.model import BERTTextEncoder
+
+from torchtext.models.bert.text_embedding import BERTTextEmbeddings
 
 
 def flava_text_encoder(
