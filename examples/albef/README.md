@@ -43,7 +43,7 @@ training_args:
 3) Run the fine-tuning script. From examples/albef directory,
 
 Run on CPU:
-
+Set device to "cpu" in configs/retrieval.yaml or your config
 ```
 python finetune_retrieval.py --config configs/retrieval.yaml
 ```
