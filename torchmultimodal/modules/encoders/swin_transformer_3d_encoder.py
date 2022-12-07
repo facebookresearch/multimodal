@@ -12,14 +12,9 @@ from typing import Callable, List, Optional
 
 from torch import nn
 from torchvision.models.video.swin_transformer import (
-    PatchEmbed3d as TVPatchEmbed3d,
-    PatchMerging as TVPatchMerging,
+    PatchMerging,
     SwinTransformer3d as TVSwinTransformer3d,
 )
-
-# We redefine this because they are imported on other script
-PatchMerging = TVPatchMerging
-PatchEmbed3d = TVPatchEmbed3d
 
 
 class SwinTransformer3d(TVSwinTransformer3d):
