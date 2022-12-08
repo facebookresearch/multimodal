@@ -344,6 +344,7 @@ class TransformerEncoder(nn.Module):
         activation: Callable[..., nn.Module] = nn.ReLU,
         layer_norm_eps: float = 1e-12,
         norm_first: bool = False,
+        final_layer_norm_eps: Optional[float] = None,
     ):
         super().__init__()
         self.layer = nn.ModuleList(
@@ -360,6 +361,9 @@ class TransformerEncoder(nn.Module):
                 for _ in range(n_layer)
             ]
         )
+        self.final_layer_norm = None
+        if final_layer_norm_eps:
+            self.final_layer_norm = Fp32LayerNorm(d_model, eps=final_layer_norm_eps)
 
     def forward(
         self,
@@ -391,6 +395,9 @@ class TransformerEncoder(nn.Module):
 
         if return_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
+
+        if self.final_layer_norm is not None:
+            hidden_states = self.final_layer_norm(hidden_states)
 
         return TransformerOutput(
             last_hidden_state=hidden_states,
