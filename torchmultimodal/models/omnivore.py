@@ -11,9 +11,10 @@ import torch
 import torchmultimodal.utils.common as common_utils
 from torch import nn
 from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
-    PatchEmbed3d,
     SwinTransformer3d,
 )
+from torchvision.models.video.swin_transformer import PatchEmbed3d
+
 
 _OMNIVORE_PRETRAINED_URLS = {
     "swin_t_encoder": "https://download.pytorch.org/models/omnivore_swin_t_encoder-b7e39400.pth",
