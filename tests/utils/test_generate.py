@@ -91,9 +91,6 @@ class TestGenerationUtil:
             generator = GenerationUtil(model=model)
 
     def test_sample(self, generation_model):
-        pytest.skip(
-            "temp skip until PT side PR lands: https://github.com/pytorch/pytorch/pull/69967"
-        )
         input_shape = self._model_params["input_shape"]
         latent_shape = self._model_params["latent_shape"]
         latent_seq_len = torch.prod(torch.tensor(latent_shape)).item()
