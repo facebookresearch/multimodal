@@ -1,5 +1,5 @@
 Pillow==9.0.1
-pytorch-lightning==1.6.0
+pytorch-lightning==1.8.6
 datasets==2.6.1
 requests==2.27.1
 DALL-E==0.1
