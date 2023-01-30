@@ -4,11 +4,11 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Callable, Iterable, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 import torch
 from PIL.Image import Image
-from torch import Tensor
+from torch import nn, Tensor
 from torchmultimodal import _PATH_MANAGER
 from torchtext import transforms as text_transforms
 from torchtext.transforms import CLIPTokenizer
@@ -24,9 +24,10 @@ def convert_to_rgb(img: Image) -> Image:
     return img.convert("RGB")
 
 
-class CLIPTextTransform:
+class CLIPTextTransform(nn.Module):
     """CLIP text transform
     CLIP BPE tokenizer transform, adds start and end tokens, then pads/truncates to text_max_length as necessary.
+    This transform is torch scriptable.
     Args:
         text_max_length (int): Maximum length of text token sequences.
         text_start_token (str): Special start token passed to BPE tokenizer.
@@ -37,7 +38,7 @@ class CLIPTextTransform:
             Default: 48894 = 49152 (vocab size) - 256 (# bytes) - 2 (bos/eos tokens)
 
     Inputs:
-        text (Union[Iterable[str],str]): Text or batch of texts upon which to apply
+        text (Union[List[str],str]): Text or batch of texts upon which to apply
             the transform.
     """
 
@@ -51,6 +52,7 @@ class CLIPTextTransform:
         num_merges: Optional[int] = 48894,
     ) -> None:
 
+        super().__init__()
         local_merges_path = _PATH_MANAGER.get_local_path(text_bpe_merges_path)
         tokenizer = CLIPTokenizer(
             local_merges_path, text_encoder_json_path, num_merges=num_merges
@@ -71,14 +73,17 @@ class CLIPTextTransform:
             ]
         )
 
-    def __call__(self, text: Union[Iterable[str], str]) -> Tensor:
+    def forward(self, text: Union[List[str], str]) -> Tensor:
         if isinstance(text, str):
-            text = [text]
-        text_result = self.text_transform(text)
+            text_input = [text]
+        else:
+            text_input = text
+        text_result = self.text_transform(text_input)
+        assert torch.jit.isinstance(text_result, Tensor)
         return text_result
 
 
-class CLIPImageTransform:
+class CLIPImageTransform(nn.Module):
     """CLIP image transform
     random resized crop (train mode) or resize and center crop, followed by RGB conversion, tensor conversion, and normalization.
 
@@ -91,7 +96,7 @@ class CLIPImageTransform:
         is_train (bool): Whether transform is run in train mode.
 
     Inputs:
-        image (Union[Iterable[Image], Image]): Image or batch of images upon which
+        image (Union[List[Image], Image]): Image or batch of images upon which
             to apply the transform.
     """
 
@@ -103,6 +108,7 @@ class CLIPImageTransform:
         image_std: Tuple[float, float, float] = CLIP_DEFAULT_STD,
         is_train: bool = True,
     ) -> None:
+        super().__init__()
         joint_transforms: List[Callable] = [
             convert_to_rgb,
             image_transforms.ToTensor(),
@@ -124,14 +130,14 @@ class CLIPImageTransform:
             base_transform + joint_transforms
         )
 
-    def __call__(self, image: Union[Iterable[Image], Image]) -> Tensor:
+    def forward(self, image: Union[List[Image], Image]) -> Tensor:
         if isinstance(image, Image):
             image = [image]
         image_result = torch.stack([self.image_transform(x) for x in image])
         return image_result
 
 
-class CLIPTransform:
+class CLIPTransform(nn.Module):
     """Image and text transform for CLIP model.
 
     Image transform: either random resized crop (train mode) or resize and center
@@ -156,9 +162,9 @@ class CLIPTransform:
             Default: 48894 = 49152 (vocab size) - 256 (# bytes) - 2 (bos/eos tokens)
 
     Inputs:
-        image (Union[Iterable[Image], Image]): Image or batch of images upon which
+        image (Union[List[Image], Image]): Image or batch of images upon which
             to apply the transform.
-        text (Union[Iterable[str],str]): Text or batch of texts upon which to apply
+        text (Union[List[str],str]): Text or batch of texts upon which to apply
             the transform.
     """
 
@@ -177,6 +183,7 @@ class CLIPTransform:
         num_merges: Optional[int] = 48894,
     ) -> None:
 
+        super().__init__()
         self.image_transform = CLIPImageTransform(
             image_size, image_interpolation, image_mean, image_std, is_train
         )
@@ -189,7 +196,7 @@ class CLIPTransform:
             num_merges,
         )
 
-    def __call__(
-        self, image: Union[Iterable[Image], Image], text: Union[Iterable[str], str]
+    def forward(
+        self, image: Union[List[Image], Image], text: Union[List[str], str]
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         return self.image_transform(image), self.text_transform(text)

@@ -8,7 +8,11 @@ import unittest
 
 import torch
 from tests.test_utils import assert_expected, get_asset_path, set_rng_seed
-from torchmultimodal.transforms.clip_transform import CLIPImageTransform, CLIPTransform
+from torchmultimodal.transforms.clip_transform import (
+    CLIPImageTransform,
+    CLIPTextTransform,
+    CLIPTransform,
+)
 from torchvision.transforms import ToPILImage
 
 
@@ -44,8 +48,8 @@ class TestCLIPTransform(unittest.TestCase):
         self.eos_token = self.text1_tokens[-1]
         self.text1_token_len = len(self.text1_tokens)
         bpe_file = "clip_vocab.bpe"
-        bpe_merges_file = get_asset_path(bpe_file)
-        self.clip_transform = CLIPTransform(text_bpe_merges_path=bpe_merges_file)
+        self.bpe_merges_file = get_asset_path(bpe_file)
+        self.clip_transform = CLIPTransform(text_bpe_merges_path=self.bpe_merges_file)
 
     def test_clip_single_transform(self):
         transformed_image, transformed_text = self.clip_transform(
@@ -110,3 +114,9 @@ class TestCLIPTransform(unittest.TestCase):
         actual_image_size = transformed_image.size
         expected_image_size = (224, 224)
         assert_expected(actual_image_size, expected_image_size)
+
+    # Only text transforms require torchscripting for now based on user needs
+    def test_scripting_text_transform(self):
+        text_transform = CLIPTextTransform(text_bpe_merges_path=self.bpe_merges_file)
+        scripted_text_transform = torch.jit.script(text_transform)
+        assert_expected(text_transform(self.text1), scripted_text_transform(self.text1))
