@@ -13,12 +13,25 @@ from torch import nn
 
 from torchmultimodal.models.clip.image_encoder import CLIPViTEncoder, ResNetForCLIP
 from torchmultimodal.models.clip.text_encoder import CLIPTextEncoder
+from torchmultimodal.utils.common import load_module_from_url
 from torchvision.models.resnet import Bottleneck, ResNet
 
 
 class CLIPOutput(NamedTuple):
     embeddings_a: torch.Tensor
     embeddings_b: torch.Tensor
+
+
+CLIP_MODEL_MAPPING = {
+    "vit_b16": "https://download.pytorch.org/models/multimodal/clip/clip_vit_b16.pt",
+    "vit_b32": "https://download.pytorch.org/models/multimodal/clip/clip_vit_b32.pt",
+    "vit_l14": "https://download.pytorch.org/models/multimodal/clip/clip_vit_l14.pt",
+    "rn50": "https://download.pytorch.org/models/multimodal/clip/clip_rn50.pt",
+    "rn101": "https://download.pytorch.org/models/multimodal/clip/clip_rn101.pt",
+    "rn50x4": "https://download.pytorch.org/models/multimodal/clip/clip_rn50x4.pt",
+    "rn50x16": "https://download.pytorch.org/models/multimodal/clip/clip_rn50x16.pt",
+    "rn50x64": "https://download.pytorch.org/models/multimodal/clip/clip_rn50x64.pt",
+}
 
 
 class CLIP(nn.Module):
@@ -63,23 +76,29 @@ class CLIP(nn.Module):
         return CLIPOutput(embeddings_a=embeddings_a, embeddings_b=embeddings_b)
 
 
-def clip_vit_b16() -> CLIP:
+def clip_vit_b16(pretrained: bool = False) -> CLIP:
     vision_encoder = CLIPViTEncoder(
         image_size=224, patch_size=16, layers=12, heads=12, width=768, embedding_dim=512
     )
     text_encoder = CLIPTextEncoder(embedding_dim=512)
-    return CLIP(vision_encoder, text_encoder)
+    clip = CLIP(vision_encoder, text_encoder)
+    if pretrained:
+        load_module_from_url(clip, CLIP_MODEL_MAPPING["vit_b16"])
+    return clip
 
 
-def clip_vit_b32() -> CLIP:
+def clip_vit_b32(pretrained: bool = False) -> CLIP:
     vision_encoder = CLIPViTEncoder(
         image_size=224, patch_size=32, layers=12, heads=12, width=768, embedding_dim=512
     )
     text_encoder = CLIPTextEncoder(embedding_dim=512)
-    return CLIP(vision_encoder, text_encoder)
+    clip = CLIP(vision_encoder, text_encoder)
+    if pretrained:
+        load_module_from_url(clip, CLIP_MODEL_MAPPING["vit_b32"])
+    return clip
 
 
-def clip_vit_l14() -> CLIP:
+def clip_vit_l14(pretrained: bool = False) -> CLIP:
     vision_encoder = CLIPViTEncoder(
         image_size=224,
         patch_size=14,
@@ -88,67 +107,93 @@ def clip_vit_l14() -> CLIP:
         width=1024,
         embedding_dim=768,
     )
-    text_encoder = CLIPTextEncoder(embedding_dim=768, width=768, heads=12)
-    return CLIP(vision_encoder, text_encoder)
+    text_encoder = CLIPTextEncoder(
+        embedding_dim=768, width=768, dim_feedforward=3072, heads=12
+    )
+    clip = CLIP(vision_encoder, text_encoder)
+    if pretrained:
+        load_module_from_url(clip, CLIP_MODEL_MAPPING["vit_l14"])
+    return clip
 
 
-def clip_rn50() -> CLIP:
+def clip_rn50(pretrained: bool = False) -> CLIP:
     vision_encoder = ResNetForCLIP(
         layers=(3, 4, 6, 3),
         output_dim=1024,
-        heads=1024,
-        width=2048,
+        heads=32,
+        width=64,
     )
     text_encoder = CLIPTextEncoder(embedding_dim=1024)
-    return CLIP(vision_encoder, text_encoder)
+    clip = CLIP(vision_encoder, text_encoder)
+    if pretrained:
+        load_module_from_url(clip, CLIP_MODEL_MAPPING["rn50"])
+    return clip
 
 
-def clip_rn101() -> CLIP:
+def clip_rn101(pretrained: bool = False) -> CLIP:
     vision_encoder = ResNetForCLIP(
         layers=(3, 4, 23, 3),
-        output_dim=1024,
-        heads=1024,
-        width=2048,
+        output_dim=512,
+        heads=32,
+        width=64,
     )
-    text_encoder = CLIPTextEncoder(embedding_dim=1024)
-    return CLIP(vision_encoder, text_encoder)
+    text_encoder = CLIPTextEncoder(embedding_dim=512)
+    clip = CLIP(vision_encoder, text_encoder)
+    if pretrained:
+        load_module_from_url(clip, CLIP_MODEL_MAPPING["rn101"])
+    return clip
 
 
 # Note: these models require larger image sizes
-def clip_rn50x4() -> CLIP:
+def clip_rn50x4(pretrained: bool = False) -> CLIP:
     vision_encoder = ResNetForCLIP(
         layers=(4, 6, 10, 6),
         output_dim=640,
-        heads=1280,
+        heads=40,
         input_resolution=288,
-        width=2560,
+        width=80,
     )
-    text_encoder = CLIPTextEncoder(embedding_dim=1024, width=640, heads=12)
-    return CLIP(vision_encoder, text_encoder)
+    text_encoder = CLIPTextEncoder(
+        embedding_dim=640, width=640, dim_feedforward=2560, heads=10
+    )
+    clip = CLIP(vision_encoder, text_encoder)
+    if pretrained:
+        load_module_from_url(clip, CLIP_MODEL_MAPPING["rn50x4"])
+    return clip
 
 
-def clip_rn50x16() -> CLIP:
+def clip_rn50x16(pretrained: bool = False) -> CLIP:
     vision_encoder = ResNetForCLIP(
         layers=(6, 8, 18, 8),
         output_dim=768,
-        heads=1536,
+        heads=48,
         input_resolution=384,
-        width=3072,
+        width=96,
     )
-    text_encoder = CLIPTextEncoder(embedding_dim=768, width=768, heads=12)
-    return CLIP(vision_encoder, text_encoder)
+    text_encoder = CLIPTextEncoder(
+        embedding_dim=768, width=768, dim_feedforward=3072, heads=12
+    )
+    clip = CLIP(vision_encoder, text_encoder)
+    if pretrained:
+        load_module_from_url(clip, CLIP_MODEL_MAPPING["rn50x16"])
+    return clip
 
 
-def clip_rn50x64() -> CLIP:
+def clip_rn50x64(pretrained: bool = False) -> CLIP:
     vision_encoder = ResNetForCLIP(
         layers=(3, 15, 36, 10),
         output_dim=1024,
-        heads=2048,
+        heads=64,
         input_resolution=448,
-        width=4096,
+        width=128,
     )
-    text_encoder = CLIPTextEncoder(embedding_dim=1024, width=1024, heads=16)
-    return CLIP(vision_encoder, text_encoder)
+    text_encoder = CLIPTextEncoder(
+        embedding_dim=1024, width=1024, dim_feedforward=4096, heads=16
+    )
+    clip = CLIP(vision_encoder, text_encoder)
+    if pretrained:
+        load_module_from_url(clip, CLIP_MODEL_MAPPING["rn50x64"])
+    return clip
 
 
 # Note: these models use torchvision's ResNet

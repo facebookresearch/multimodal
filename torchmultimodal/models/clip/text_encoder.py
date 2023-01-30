@@ -24,6 +24,7 @@ class CLIPTextEncoder(nn.Module):
         context_length (int): Maximum sequence length for Transforer.
         vocab_size (int): Vocab size.
         width (int): Embedding dimension for Transformer encoder.
+        dim_feedforward (int): Dimension of the feedfoward networks.
         heads (int): Number of heads in Transformer encoder.
         layers (int): Number of layers in Transformer encoder.
         use_clip_init (bool): Whether to use CLIP-specific initialization.
@@ -40,6 +41,7 @@ class CLIPTextEncoder(nn.Module):
         context_length: int = 77,
         vocab_size: int = 49408,
         width: int = 512,
+        dim_feedforward: int = 2048,
         heads: int = 8,
         layers: int = 12,
         use_clip_init: bool = True,
@@ -53,6 +55,7 @@ class CLIPTextEncoder(nn.Module):
         )
         encoder_layer = TransformerEncoderLayer(
             d_model=width,
+            dim_feedforward=dim_feedforward,
             nhead=heads,
             dropout=0.0,
             activation=SiLU(),
