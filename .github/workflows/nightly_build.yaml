@@ -19,9 +19,6 @@ jobs:
       matrix:
         include:
          - os: ubuntu-latest
-           python-version: 3.7
-           python-tag: "py37"
-         - os: ubuntu-latest
            python-version: 3.8
            python-tag: "py38"
          - os: ubuntu-latest
