@@ -1,4 +1,4 @@
-Pillow==9.2.0
+Pillow==9.3.0
 pytorch-lightning==1.8.6
 datasets==2.6.1
 requests==2.27.1
