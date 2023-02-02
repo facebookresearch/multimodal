@@ -32,46 +32,8 @@ class TestMDETRLosses:
         return 15
 
     @pytest.fixture()
-    def n_boxes_per_sample(self, batch_size, num_queries):
-        return [random.randint(1, num_queries) for _ in range(batch_size)]
-
-    @pytest.fixture()
-    def total_boxes(self, n_boxes_per_sample):
-        return sum(n_boxes_per_sample)
-
-    @pytest.fixture()
     def pred_logits(self, batch_size, num_queries, num_classes):
         return torch.randn(batch_size, num_queries, num_classes + 1)
-
-    @pytest.fixture()
-    def max_slice_len(self):
-        return 3
-
-    @pytest.fixture()
-    def positive_map(self, max_slice_len, total_boxes, num_classes):
-        positive_map = torch.zeros(total_boxes, num_classes + 1)
-        for i in range(total_boxes):
-            start_idx = random.randint(0, num_classes - max_slice_len)
-            increment = random.randint(2, max_slice_len)
-            positive_map[i, start_idx : start_idx + increment] = 1
-        return positive_map
-
-    @pytest.fixture()
-    def indices(self, num_queries, n_boxes_per_sample):
-        return [
-            tuple(
-                torch.sort(
-                    torch.multinomial(
-                        torch.arange(num_queries, dtype=torch.float), n_boxes
-                    )
-                )
-            )
-            for n_boxes in n_boxes_per_sample
-        ]
-
-    @pytest.fixture()
-    def num_boxes(self, total_boxes):
-        return int(random.uniform(0.5 * total_boxes, 2 * total_boxes))
 
     @pytest.fixture()
     def construct_valid_boxes(self):
@@ -95,13 +57,255 @@ class TestMDETRLosses:
             batch_size, num_queries, -1
         )
 
-    @pytest.fixture()
-    def target_boxes(self, construct_valid_boxes, n_boxes_per_sample):
-        return [construct_valid_boxes(n_boxes) for n_boxes in n_boxes_per_sample]
+    def test_soft_token_prediction_loss(self, pred_logits):
+        indices = [
+            (torch.LongTensor([4, 5, 9]), torch.LongTensor([1, 0, 2])),
+            (
+                torch.LongTensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]),
+                torch.LongTensor([9, 8, 3, 4, 5, 6, 7, 1, 0, 2]),
+            ),
+        ]
+        n_boxes_per_sample = [3, 10]
+        num_boxes = 19
+        positive_map = torch.Tensor(
+            [
+                [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                ],
+                [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                ],
+                [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                ],
+                [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                ],
+                [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                ],
+                [
+                    0.0,
+                    1.0,
+                    1.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                ],
+                [
+                    1.0,
+                    1.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                ],
+                [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                ],
+                [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                ],
+                [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                ],
+                [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                ],
+                [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                ],
+                [
+                    1.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0,
+                ],
+            ]
+        )
 
-    def test_soft_token_prediction_loss(
-        self, pred_logits, n_boxes_per_sample, positive_map, indices, num_boxes
-    ):
         actual = torch.Tensor(
             soft_token_prediction_loss(
                 pred_logits, n_boxes_per_sample, positive_map, indices, num_boxes
@@ -110,7 +314,27 @@ class TestMDETRLosses:
         expected = torch.tensor(5.2867)
         assert_expected(actual, expected, rtol=0, atol=1e-3)
 
-    def test_box_losses(self, pred_boxes, target_boxes, indices, num_boxes):
+    def test_box_losses(self, pred_boxes):
+        indices = [
+            (torch.LongTensor([4, 6, 7, 8, 9]), torch.LongTensor([3, 0, 4, 2, 1])),
+            (torch.LongTensor([1, 8]), torch.LongTensor([1, 0])),
+        ]
+        num_boxes = 8
+        target_boxes = [
+            torch.Tensor(
+                [
+                    [0.9941, 0.6071, 0.0070, 0.6372],
+                    [0.9358, 0.6296, 0.1217, 0.2474],
+                    [0.6058, 0.8187, 0.7384, 0.1234],
+                    [0.5829, 0.6806, 0.6967, 0.0670],
+                    [0.4472, 0.7152, 0.1831, 0.5401],
+                ]
+            ),
+            torch.Tensor(
+                [[0.2642, 0.6090, 0.4897, 0.6948], [0.8163, 0.6436, 0.0900, 0.5304]]
+            ),
+        ]
+
         actual = box_losses(pred_boxes, target_boxes, indices, num_boxes)
         expected_l1_loss = torch.tensor(0.8463)
         expected_giou_loss = torch.tensor(1.2569)
