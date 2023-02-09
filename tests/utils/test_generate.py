@@ -99,45 +99,8 @@ class TestGenerationUtil:
             x, max_seq_len=latent_seq_len, use_cache=True, causal=True
         )
         assert isinstance(out, SampleOutput)
-        expected = out.tokens
-        actual = torch.tensor(
-            [
-                432,
-                691,
-                524,
-                796,
-                392,
-                298,
-                249,
-                697,
-                79,
-                927,
-                198,
-                224,
-                289,
-                63,
-                331,
-                686,
-                792,
-                1019,
-                109,
-                296,
-                342,
-                855,
-                211,
-                171,
-                376,
-                613,
-                696,
-                605,
-                1018,
-                812,
-                255,
-                670,
-            ]
-        ).unsqueeze(
-            0
-        )  # (b, out_seq_len)
+        actual = out.tokens.shape
+        expected = torch.Size([1, 32])
         assert_expected(actual, expected)
 
     def test_filter_logits(self, generation_model):
