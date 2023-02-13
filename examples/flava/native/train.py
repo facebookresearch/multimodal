@@ -148,6 +148,7 @@ class Trainer:
             check_fn = lambda submodule: isinstance(submodule, TransformerEncoderLayer)
             checkpoint_impl = CheckpointImpl.REENTRANT
 
+            # DDP gradient hooks have compatibility issues with REENTRANT autograd
             if strategy == "ddp":
                 checkpoint_impl = CheckpointImpl.NO_REENTRANT
 
