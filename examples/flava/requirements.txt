@@ -1,6 +1,6 @@
 Pillow==9.3.0
 pytorch-lightning==1.8.6
-datasets==2.6.1
+datasets==2.9.0
 requests==2.27.1
 DALL-E==0.1
 omegaconf==2.1.2
