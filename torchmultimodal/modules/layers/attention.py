@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import torch
 from torch import nn, Tensor
@@ -141,8 +141,8 @@ class MultiHeadAttention(nn.Module):
     as described in `"Attention Is All You Need (Vaswani et al. 2017)"<https://arxiv.org/pdf/1706.03762.pdf>`_.
 
     Args:
-        dim_q (int): Dimensionality of query embedding vector.
-        dim_kv (int): Dimensionality of key/value embedding vector.
+        dim_q (int): Dimensionality of query input. Also the embedding dimension of the model.
+        dim_kv (int): Dimensionality of key/value input. Projects to the embedding dimension of the model, ``dim_q``.
         n_head (int): Number of attention heads.
         attn_module (nn.Module): Module of attention mechanism to use. Default is ``SelfAttention``.
             See :class:`~torchmultimodal.modules.layers.attention.SelfAttention` for API details.
@@ -169,13 +169,13 @@ class MultiHeadAttention(nn.Module):
                 "The hidden size of q, k, v must be a multiple of the number of attention heads."
             )
 
-        self.d_qk = dim_q // n_head
-        self.d_v = dim_kv // n_head
+        self.dim_q = dim_q
+        self.dim_kv = dim_kv
         self.n_head = n_head
-        self.query = nn.Linear(dim_q, n_head * self.d_qk, bias=add_bias)  # q
-        self.key = nn.Linear(dim_kv, n_head * self.d_qk, bias=add_bias)  # k
-        self.value = nn.Linear(dim_kv, n_head * self.d_v, bias=add_bias)  # v
-        self.output = nn.Linear(n_head * self.d_v, dim_q, bias=True)  # c
+        self.query = nn.Linear(dim_q, dim_q, bias=add_bias)  # q
+        self.key = nn.Linear(dim_kv, dim_q, bias=add_bias)  # k
+        self.value = nn.Linear(dim_kv, dim_q, bias=add_bias)  # v
+        self.output = nn.Linear(dim_q, dim_q, bias=True)  # c
 
         self.attn = attn_module
 
@@ -185,11 +185,10 @@ class MultiHeadAttention(nn.Module):
         self,
         q: Tensor,
         kv: Optional[Tensor] = None,
-        attention_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
         return_attn_weights: bool = False,
         use_cache: bool = False,
         causal: bool = False,
+        **attn_kwargs: Any,
     ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         """
         Args:
@@ -198,13 +197,6 @@ class MultiHeadAttention(nn.Module):
             kv (Tensor, optional): Key (and value) of shape ``(b, d1', ..., dn', dim_kv)`` or
                 ``(b, seq_len', dim_kv)``. If this argument is specified, cross-attention will be applied.
                 Default is ``None``.
-            attention_mask (Tensor, optional): Tensor of shape ``(b, h, d1, ..., q_dn, k_dn)`` where ``q_dn`` is
-                the dimension of the axis to compute attention on of the query and ``k_dn`` that of the key.
-                If the input tensors are flattened across the entire latent dimensions, ``q_dn = d1 x ... x dn``
-                and ``k_dn = d1' x ... x dn'``. Contains 1s for positions to attend to and 0s
-                for masked positions.
-            head_mask (Tensor, optional): Tensor of shape ``(b, h, d1, ..., q_dn, k_dn)``.
-                Contains 1s for positions to attend to and 0s for masked positions.
             use_cache (bool): If ``True``, caches past ``k`` and ``v`` tensors for faster decoding.
                 If ``False``, recomputes ``k`` and ``v`` for each decoding step. Default is ``False``.
             causal (bool): Whether to use causal attention or not. Default is ``False``.
@@ -246,8 +238,12 @@ class MultiHeadAttention(nn.Module):
                 # override the present k, v with the cache
                 k, v = self.cache["k"], self.cache["v"]
 
-        a, attn_probs = self.attn(q, k, v, attention_mask, head_mask)
-        a = merge_multihead(a)
+        attn_out = self.attn(q, k, v, **attn_kwargs)
+        attn_probs = None
+        # Unpack if attn module also returns attn probs
+        if isinstance(attn_out, tuple):
+            attn_out, attn_probs = attn_out
+        a = merge_multihead(attn_out)
         a = self.output(a)
 
         if return_attn_weights:
