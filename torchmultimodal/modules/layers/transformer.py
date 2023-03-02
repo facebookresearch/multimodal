@@ -7,7 +7,7 @@
 # Code for some of the transformers components in this file are initialized
 # from their counterparts in Hugging Face Transformers library.
 
-from typing import Callable, NamedTuple, Optional, Tuple, Union
+from typing import Callable, List, NamedTuple, Optional, Tuple, Union
 
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.attention import MultiHeadAttention, SelfAttention
@@ -18,8 +18,8 @@ from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 class TransformerOutput(NamedTuple):
     last_hidden_state: Optional[Tensor] = None
     pooler_output: Optional[Tensor] = None
-    hidden_states: Optional[Tuple[Tensor, ...]] = None
-    attentions: Optional[Tuple[Tensor, ...]] = None
+    hidden_states: Optional[List[Tensor]] = None
+    attentions: Optional[List[Tensor]] = None
     image_labels: Optional[Tensor] = None
 
 
@@ -373,12 +373,13 @@ class TransformerEncoder(nn.Module):
         return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> TransformerOutput:
-        all_hidden_states: Tuple[Tensor, ...] = () if return_hidden_states else None
-        all_self_attentions: Tuple[Tensor, ...] = () if return_attn_weights else None
+
+        all_hidden_states = [] if return_hidden_states else None
+        all_self_attentions = [] if return_attn_weights else None
 
         for layer_module in self.layer:
             if return_hidden_states:
-                all_hidden_states = all_hidden_states + (hidden_states,)
+                all_hidden_states.append(hidden_states)
 
             layer_outputs = layer_module(
                 hidden_states,
@@ -389,12 +390,12 @@ class TransformerEncoder(nn.Module):
 
             if return_attn_weights:
                 hidden_states = layer_outputs[0]
-                all_self_attentions = all_self_attentions + (layer_outputs[1],)
+                all_self_attentions.append(layer_outputs[1])
             else:
                 hidden_states = layer_outputs
 
         if return_hidden_states:
-            all_hidden_states = all_hidden_states + (hidden_states,)
+            all_hidden_states.append(hidden_states)
 
         if self.final_layer_norm is not None:
             hidden_states = self.final_layer_norm(hidden_states)
