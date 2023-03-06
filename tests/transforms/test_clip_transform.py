@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import unittest
+import pytest
 
 import torch
 from tests.test_utils import assert_expected, get_asset_path, set_rng_seed
@@ -16,16 +16,34 @@ from torchmultimodal.transforms.clip_transform import (
 from torchvision.transforms import ToPILImage
 
 
-class TestCLIPTransform(unittest.TestCase):
-    def setUp(self):
-        set_rng_seed(1234)
-        self.context_length = 77
-        self.image1 = ToPILImage()(torch.ones(3, 300, 500))
-        self.image2 = ToPILImage()(torch.ones(3, 50, 100))
-        self.text1 = "Taken with my analogue EOS 500N with black & white film."
-        self.text2 = "This is a shorter sentence."
-        self.long_text = (self.text1 + " ") * 20
-        self.text1_tokens = [
+class TestCLIPTransform:
+    @pytest.fixture()
+    def context_length(self):
+        return 77
+
+    @pytest.fixture()
+    def image1(self):
+        return ToPILImage()(torch.ones(3, 300, 500))
+
+    @pytest.fixture()
+    def image2(self):
+        return ToPILImage()(torch.ones(3, 50, 100))
+
+    @pytest.fixture()
+    def text1(self):
+        return "Taken with my analogue EOS 500N with black & white film."
+
+    @pytest.fixture()
+    def text2(self):
+        return "This is a shorter sentence."
+
+    @pytest.fixture()
+    def long_text(self, text1):
+        return (text1 + " ") * 20
+
+    @pytest.fixture()
+    def text1_tokens(self):
+        return [
             49406,
             2807,
             593,
@@ -44,17 +62,40 @@ class TestCLIPTransform(unittest.TestCase):
             269,
             49407,
         ]
-        self.bos_token = self.text1_tokens[0]
-        self.eos_token = self.text1_tokens[-1]
-        self.text1_token_len = len(self.text1_tokens)
-        bpe_file = "clip_vocab.bpe"
-        self.bpe_merges_file = get_asset_path(bpe_file)
-        self.clip_transform = CLIPTransform(text_bpe_merges_path=self.bpe_merges_file)
 
-    def test_clip_single_transform(self):
-        transformed_image, transformed_text = self.clip_transform(
-            image=self.image1, text=self.text1
-        )
+    @pytest.fixture()
+    def bos_token(self, text1_tokens):
+        return text1_tokens[0]
+
+    @pytest.fixture()
+    def eos_token(self, text1_tokens):
+        return text1_tokens[-1]
+
+    @pytest.fixture()
+    def text1_token_len(self, text1_tokens):
+        return len(text1_tokens)
+
+    @pytest.fixture()
+    def bpe_merges_file(self):
+        return get_asset_path("clip_vocab.bpe")
+
+    @pytest.fixture()
+    def clip_transform(self, bpe_merges_file):
+        return CLIPTransform(text_bpe_merges_path=bpe_merges_file)
+
+    def setUp(self):
+        set_rng_seed(1234)
+
+    def test_clip_single_transform(
+        self,
+        context_length,
+        image1,
+        text1,
+        text1_tokens,
+        text1_token_len,
+        clip_transform,
+    ):
+        transformed_image, transformed_text = clip_transform(image=image1, text=text1)
 
         actual_image_size = transformed_image.size()
         expected_image_size = torch.Size([1, 3, 224, 224])
@@ -62,61 +103,70 @@ class TestCLIPTransform(unittest.TestCase):
 
         actual_text = transformed_text[0]
         expected_text = torch.tensor(
-            self.text1_tokens + [0] * (self.context_length - self.text1_token_len),
+            text1_tokens + [0] * (context_length - text1_token_len),
             dtype=torch.long,
         )
         assert_expected(actual_text, expected_text)
 
-    def test_clip_multi_transform(self):
-        images = [self.image1] * 5 + [self.image2] * 2
-        texts = [self.text1] * 5 + [self.text2] + [self.long_text]
-        transformed_images, transformed_texts = self.clip_transform(
-            image=images, text=texts
-        )
+    def test_clip_multi_transform(
+        self,
+        context_length,
+        image1,
+        image2,
+        text1,
+        text2,
+        long_text,
+        text1_tokens,
+        bos_token,
+        eos_token,
+        text1_token_len,
+        clip_transform,
+    ):
+        images = [image1] * 5 + [image2] * 2
+        texts = [text1] * 5 + [text2] + [long_text]
+        transformed_images, transformed_texts = clip_transform(image=images, text=texts)
 
         actual_images_size = transformed_images.size()
         expected_images_size = torch.Size([7, 3, 224, 224])
         assert_expected(actual_images_size, expected_images_size)
 
         actual_texts_size = transformed_texts.size()
-        expected_texts_size = torch.Size([7, self.context_length])
+        expected_texts_size = torch.Size([7, context_length])
         assert_expected(actual_texts_size, expected_texts_size)
 
         # Check encoding of long text
         actual_long_text = transformed_texts[-1]
         expected_long_text = torch.tensor(
-            [self.bos_token]
-            + (self.text1_tokens[1:-1] * 20)[: self.context_length - 2]
-            + [self.eos_token],
+            [bos_token] + (text1_tokens[1:-1] * 20)[: context_length - 2] + [eos_token],
             dtype=torch.long,
         )
         assert_expected(actual_long_text, expected_long_text)
 
         # Check zero padding for short texts
-        actual_zero_pad_val = transformed_texts[:-1, self.text1_token_len :].max()
+        actual_zero_pad_val = transformed_texts[:-1, text1_token_len:].max()
         expected_zero_pad_val = torch.tensor(0)
         assert_expected(actual_zero_pad_val, expected_zero_pad_val)
 
-    def test_clip_image_transform_int_resize(self):
+    def test_clip_image_transform_int_resize(self, image1):
         image_transform = CLIPImageTransform(is_train=False)
         # check the first transform which corresponds to the resize
-        transformed_image = image_transform.image_transform.transforms[0](self.image1)
+        transformed_image = image_transform.image_transform.transforms[0](image1)
 
         actual_image_size = transformed_image.size
         expected_image_size = (373, 224)
         assert_expected(actual_image_size, expected_image_size)
 
-    def test_clip_image_transform_tuple_resize(self):
+    def test_clip_image_transform_tuple_resize(self, image1):
         image_transform = CLIPImageTransform(image_size=(224, 224), is_train=False)
         # check the first transform which corresponds to the resize
-        transformed_image = image_transform.image_transform.transforms[0](self.image1)
+        transformed_image = image_transform.image_transform.transforms[0](image1)
 
         actual_image_size = transformed_image.size
         expected_image_size = (224, 224)
         assert_expected(actual_image_size, expected_image_size)
 
     # Only text transforms require torchscripting for now based on user needs
-    def test_scripting_text_transform(self):
-        text_transform = CLIPTextTransform(text_bpe_merges_path=self.bpe_merges_file)
+    def test_scripting_text_transform(self, text1, bpe_merges_file):
+        text_transform = CLIPTextTransform(text_bpe_merges_path=bpe_merges_file)
         scripted_text_transform = torch.jit.script(text_transform)
-        assert_expected(text_transform(self.text1), scripted_text_transform(self.text1))
+        assert_expected(text_transform(text1), scripted_text_transform(text1))
