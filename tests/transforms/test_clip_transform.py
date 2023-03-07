@@ -64,18 +64,6 @@ class TestCLIPTransform:
         ]
 
     @pytest.fixture()
-    def bos_token(self, text1_tokens):
-        return text1_tokens[0]
-
-    @pytest.fixture()
-    def eos_token(self, text1_tokens):
-        return text1_tokens[-1]
-
-    @pytest.fixture()
-    def text1_token_len(self, text1_tokens):
-        return len(text1_tokens)
-
-    @pytest.fixture()
     def bpe_merges_file(self):
         return get_asset_path("clip_vocab.bpe")
 
@@ -92,7 +80,6 @@ class TestCLIPTransform:
         image1,
         text1,
         text1_tokens,
-        text1_token_len,
         clip_transform,
     ):
         transformed_image, transformed_text = clip_transform(image=image1, text=text1)
@@ -102,6 +89,7 @@ class TestCLIPTransform:
         assert_expected(actual_image_size, expected_image_size)
 
         actual_text = transformed_text[0]
+        text1_token_len = len(text1_tokens)
         expected_text = torch.tensor(
             text1_tokens + [0] * (context_length - text1_token_len),
             dtype=torch.long,
@@ -117,9 +105,6 @@ class TestCLIPTransform:
         text2,
         long_text,
         text1_tokens,
-        bos_token,
-        eos_token,
-        text1_token_len,
         clip_transform,
     ):
         images = [image1] * 5 + [image2] * 2
@@ -136,6 +121,8 @@ class TestCLIPTransform:
 
         # Check encoding of long text
         actual_long_text = transformed_texts[-1]
+        bos_token = text1_tokens[0]
+        eos_token = text1_tokens[-1]
         expected_long_text = torch.tensor(
             [bos_token] + (text1_tokens[1:-1] * 20)[: context_length - 2] + [eos_token],
             dtype=torch.long,
@@ -143,6 +130,7 @@ class TestCLIPTransform:
         assert_expected(actual_long_text, expected_long_text)
 
         # Check zero padding for short texts
+        text1_token_len = len(text1_tokens)
         actual_zero_pad_val = transformed_texts[:-1, text1_token_len:].max()
         expected_zero_pad_val = torch.tensor(0)
         assert_expected(actual_zero_pad_val, expected_zero_pad_val)
