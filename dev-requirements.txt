@@ -3,7 +3,7 @@ black==22.3.0
 flake8-bugbear==22.4.25
 flake8==4.0.1
 iopath
-mypy
+mypy==1.0.1
 pep8-naming==0.12.1
 pre-commit
 pytest
