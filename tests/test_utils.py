@@ -14,7 +14,7 @@ from typing import Any, Dict, NamedTuple, Optional, Tuple, Union
 import pytest
 import torch
 import torch.distributed as dist
-from torch import Tensor
+from torch import nn, Tensor
 
 
 def gpu_test(gpu_count: int = 1):
@@ -186,3 +186,8 @@ def assert_expected_namedtuple(
             raise TypeError(
                 f"Unsupported types for test assertion: actual {type(_actual)}, expected {type(_expected)}"
             )
+
+
+def init_weights_with_constant(model: nn.Module, constant: float = 1.0) -> None:
+    for p in model.parameters():
+        nn.init.constant_(p, constant)
