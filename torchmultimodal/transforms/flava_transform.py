@@ -31,7 +31,7 @@ def map_pixels(x: torch.Tensor) -> torch.Tensor:
 class ImageMaskingGenerator:
     def __init__(
         self,
-        input_size: Union[Tuple, int],
+        input_size: Union[Tuple[int, int], int],
         num_masking_patches: int,
         min_num_patches: int = 4,
         max_num_patches: Optional[int] = None,
