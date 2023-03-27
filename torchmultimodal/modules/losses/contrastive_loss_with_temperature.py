@@ -153,6 +153,9 @@ class ContrastiveLossWithTemperature(nn.Module):
             backprop_in_gather (bool): Whether to backpropagate the gradients from
                 all_gather to all workers (versus just the local worker).
             cross_entropy_kwargs (Optional[Dict[str, Any]]): Any additional inputs to cross entropy loss (ex: label_smoothing)
+            mask (Optional[Tensor], optional): If certain elements of the inputs shouldn't
+                be considered in the loss calculation use this option to pass a boolean
+                mask. Size is (BatchSize,). Defaults to None.
     """
 
     def __init__(
@@ -182,6 +185,7 @@ class ContrastiveLossWithTemperature(nn.Module):
         embeddings_b: Tensor,
         backprop_in_gather: bool = True,
         cross_entropy_kwargs: Optional[Dict[str, Any]] = None,
+        mask: Optional[Tensor] = None,
     ) -> Tensor:
 
         self.logit_scale.data.clamp_(self.logit_scale_min, self.logit_scale_max)
@@ -191,4 +195,5 @@ class ContrastiveLossWithTemperature(nn.Module):
             logit_scale=self.logit_scale,
             backprop_in_gather=backprop_in_gather,
             cross_entropy_kwargs=cross_entropy_kwargs,
+            mask=mask,
         ).loss
