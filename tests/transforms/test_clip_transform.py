@@ -85,10 +85,10 @@ class TestCLIPTransform:
         transformed_image, transformed_text = clip_transform(image=image1, text=text1)
 
         actual_image_size = transformed_image.size()
-        expected_image_size = torch.Size([1, 3, 224, 224])
+        expected_image_size = torch.Size([3, 224, 224])
         assert_expected(actual_image_size, expected_image_size)
 
-        actual_text = transformed_text[0]
+        actual_text = transformed_text
         text1_token_len = len(text1_tokens)
         expected_text = torch.tensor(
             text1_tokens + [0] * (context_length - text1_token_len),

@@ -15,6 +15,7 @@ from torchtext.transforms import CLIPTokenizer
 from torchvision import transforms as image_transforms
 from torchvision.transforms import InterpolationMode
 
+
 CLIP_DEFAULT_MEAN = (0.48145466, 0.4578275, 0.40821073)
 CLIP_DEFAULT_STD = (0.26862954, 0.26130258, 0.27577711)
 CLIP_DEFAULT_VOCAB_BPE_PATH = "http://download.pytorch.org/models/text/clip_merges.bpe"
@@ -74,11 +75,7 @@ class CLIPTextTransform(nn.Module):
         )
 
     def forward(self, text: Union[List[str], str]) -> Tensor:
-        if isinstance(text, str):
-            text_input = [text]
-        else:
-            text_input = text
-        text_result = self.text_transform(text_input)
+        text_result = self.text_transform(text)
         assert torch.jit.isinstance(text_result, Tensor)
         return text_result
 
@@ -132,7 +129,7 @@ class CLIPImageTransform(nn.Module):
 
     def forward(self, image: Union[List[Image], Image]) -> Tensor:
         if isinstance(image, Image):
-            image = [image]
+            return self.image_transform(image)
         image_result = torch.stack([self.image_transform(x) for x in image])
         return image_result
 
