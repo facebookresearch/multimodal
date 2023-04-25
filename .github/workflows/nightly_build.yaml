@@ -49,7 +49,7 @@ jobs:
           python -m pip install -r requirements.txt
       - name: Install other dependencies
         run: |
-          python -m pip uninstall attr \
+          python -m pip uninstall attr
           python -m pip install attrs
       - name: Test installation of dependencies
         run: |
