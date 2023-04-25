@@ -69,6 +69,11 @@ class CLIPTextEncoder(nn.Module):
         self.ln_final = Fp32LayerNorm(width)
         self.projection = nn.Linear(width, embedding_dim, bias=False)
 
+        self.mask = torch.full(
+            (self.context_length, self.context_length),
+            float("-inf"),
+        ).triu(1)
+
         if use_clip_init:
             self.initialize_parameters()
 
@@ -111,9 +116,10 @@ class CLIPTextEncoder(nn.Module):
         embeddings = self.token_embedding(text)
         embeddings = embeddings + self.positional_embedding
         embeddings = embeddings.permute(1, 0, 2)
-        embeddings = self.encoder(
-            embeddings, mask=self.build_attention_mask().to(device=text.device)
-        )
+        # embeddings = self.encoder(
+        #     embeddings, mask=self.build_attention_mask().to(device=text.device)
+        # )
+        embeddings = self.encoder(embeddings, mask=self.mask, is_causal=True)
 
         # [n_ctx, bs, transformer.width] -> [bs, n_ctx, transformer.width]
         embeddings = torch.permute(embeddings, (1, 0, 2))

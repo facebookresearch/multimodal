@@ -16,7 +16,7 @@ from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 
 
 class TransformerOutput(NamedTuple):
-    last_hidden_state: Optional[Tensor] = None
+    last_hidden_state: Tensor
     pooler_output: Optional[Tensor] = None
     hidden_states: Optional[List[Tensor]] = None
     attentions: Optional[List[Tensor]] = None
