@@ -47,10 +47,6 @@ jobs:
           python -m pip install --pre torch torchvision torchtext --extra-index-url \
             https://download.pytorch.org/whl/nightly/cpu
           python -m pip install -r requirements.txt
-      - name: Install other dependencies
-        run: |
-          python -m pip uninstall attr
-          python -m pip install attrs
       - name: Test installation of dependencies
         run: |
           python -c "import torch"
