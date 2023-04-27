@@ -116,9 +116,6 @@ class CLIPTextEncoder(nn.Module):
         embeddings = self.token_embedding(text)
         embeddings = embeddings + self.positional_embedding
         embeddings = embeddings.permute(1, 0, 2)
-        # embeddings = self.encoder(
-        #     embeddings, mask=self.build_attention_mask().to(device=text.device)
-        # )
         embeddings = self.encoder(embeddings, mask=self.mask, is_causal=True)
 
         # [n_ctx, bs, transformer.width] -> [bs, n_ctx, transformer.width]
