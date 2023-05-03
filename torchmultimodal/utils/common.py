@@ -177,7 +177,8 @@ def checkpoint_wrapper(fn: Callable) -> Callable:
 
                 return custom_forward
 
-            return checkpoint(create_custom_forward(fn), *inputs)
+            # TODO: allow user to pass through use_reentrant
+            return checkpoint(create_custom_forward(fn), *inputs, use_reentrant=True)
 
         else:
             return fn(cls, *inputs, **kwargs)
