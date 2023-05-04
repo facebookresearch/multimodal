@@ -42,7 +42,7 @@ class MLP(nn.Module):
         normalization: Optional[Callable[..., nn.Module]] = None,
     ) -> None:
         super().__init__()
-
+        torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
         layers = nn.ModuleList()
 
         if hidden_dims is None:

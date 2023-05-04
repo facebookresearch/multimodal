@@ -165,6 +165,7 @@ class ContrastiveLossWithTemperature(nn.Module):
         logit_scale_max: Optional[float] = math.log(100),
     ):
         super().__init__()
+        torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
 
         if not logit_scale_min and not logit_scale_max:
             raise ValueError(
