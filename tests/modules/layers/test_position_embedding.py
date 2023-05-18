@@ -11,6 +11,7 @@ from tests.test_utils import assert_expected
 from torch import nn
 from torchmultimodal.modules.layers.position_embedding import (
     BroadcastedPositionEmbedding,
+    SinusoidalPositionEmbeddings,
 )
 
 
@@ -96,3 +97,18 @@ class TestBroadcastedPositionEmbedding:
         with pytest.raises(IndexError) as exc_info:
             pos_emb(position_ids=torch.tensor([[0, 6]]))
         assert exc_info.value.args[0] == "Invalid position ids: tensor([6])"
+
+
+class TestSinusoidalPositionEmbeddings:
+    @pytest.fixture
+    def data(self):
+        return torch.Tensor([1, 2, 3])
+
+    @pytest.fixture
+    def emb(self):
+        return SinusoidalPositionEmbeddings(5)
+
+    def test_forward(self, data, emb):
+        actual = emb(data)
+        expected = torch.Size([3, 5])
+        assert_expected(actual.shape, expected)
