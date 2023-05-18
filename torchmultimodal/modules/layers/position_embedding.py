@@ -137,3 +137,35 @@ class BroadcastedPositionEmbedding(nn.Module):
         embeddings = embeddings[indices].transpose(0, 1)  # (batch, pos_ids, emb_dim)
 
         return embeddings
+
+
+class SinusoidalPositionEmbeddings(nn.Module):
+    """Sinusoidal position embeddings for use of encoding timestep
+    in diffusion models. Timestep is mapped onto positions on different
+    frequencies of sinusoidal waveforms. Slightly different than the original
+    Transformer implementation in paper "Attention Is All You Need".
+    Taken from code of original author of DDPM paper, Ho et al. 2020.
+
+    Code ref: https://github.com/hojonathanho/diffusion/blob/1e0dceb3b3495bbe19116a5e1b3596cd0706c543/diffusion_tf/nn.py#L90
+
+    Attributes:
+        embed_dim (int): dimensionality of position embeddings. Default is 128, from original DDPM.
+
+    Args:
+        t (Tensor): Tensor of input timesteps of shape (batch, ).
+    """
+
+    def __init__(self, embed_dim: int = 128):
+        super().__init__()
+        self.embed_dim = embed_dim
+
+    def forward(self, t: Tensor) -> Tensor:
+        # Half of embedding dim is sin, half is cos
+        half_dim = self.embed_dim // 2
+        embeddings = torch.log(torch.tensor(10000)) / (half_dim - 1)
+        embeddings = torch.exp(torch.arange(half_dim, device=t.device) * -embeddings)
+        embeddings = t.unsqueeze(1) * embeddings.unsqueeze(0)
+        embeddings = torch.cat((embeddings.sin(), embeddings.cos()), dim=-1)
+        if self.embed_dim % 2 == 1:
+            embeddings = nn.functional.pad(embeddings, (0, 1))
+        return embeddings
