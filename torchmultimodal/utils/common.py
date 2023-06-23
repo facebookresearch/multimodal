@@ -50,8 +50,7 @@ def shift_dim(
 
     assert 0 <= src_dim < n_dims and 0 <= dest_dim < n_dims
 
-    dims = list(range(n_dims))
-    del dims[src_dim]
+    dims = [i for i in range(n_dims) if i != src_dim]
 
     permutation = []
     ctr = 0
