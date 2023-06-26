@@ -97,7 +97,6 @@ class MultiHeadAttentionWithCache(nn.Module):
         dim_kv: int,
         num_heads: int,
         dropout: float = 0.0,
-        use_cache: bool = False,
     ) -> None:
         super().__init__()
         self.num_heads = num_heads
@@ -106,7 +105,6 @@ class MultiHeadAttentionWithCache(nn.Module):
         self.v_proj = nn.Linear(dim_kv, dim_q)
         self.output_proj = nn.Linear(dim_q, dim_q)
         self.dropout = dropout
-        self.use_cache = use_cache
 
     def forward(
         self,
@@ -116,6 +114,7 @@ class MultiHeadAttentionWithCache(nn.Module):
         attn_mask: Optional[Tensor] = None,
         past_key_value: Optional[Tuple[Tensor, Tensor]] = None,
         is_causal: bool = False,
+        use_cache: bool = False,
     ) -> Union[Tensor, MHAWithCacheOutput]:
         """
         Args:
@@ -130,6 +129,7 @@ class MultiHeadAttentionWithCache(nn.Module):
                 The size of tuple should be 2, where the first entry is for cached key and second entry is for cached value.
             is_causal (bool): If true, does causal attention masking, attn_mask should be set to None if this is set to True
                  is_causal is a hint that the mask is a causal mask, providing incorrect hints can result in incorrect execution.
+            use_cache (bool): whether to use cache for key and value tensors
 
         Returns:
             if use_cache is off, return attn_output tensor of shape bsz x seq_len x embed_dim;
@@ -162,6 +162,6 @@ class MultiHeadAttentionWithCache(nn.Module):
 
         # add dense layer after attention
         attn_output = self.output_proj(attn)
-        if self.use_cache:
+        if use_cache:
             return MHAWithCacheOutput(attn_output, (key, value))
         return attn_output

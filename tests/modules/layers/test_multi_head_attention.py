@@ -94,7 +94,7 @@ class TestMultiHeadAttentionWithCache:
 
     @pytest.fixture
     def multi_head_self_attn_use_cache(self, dim_q):
-        mha = MultiHeadAttentionWithCache(dim_q, dim_q, num_heads=2, use_cache=True)
+        mha = MultiHeadAttentionWithCache(dim_q, dim_q, num_heads=2)
         init_weights_with_constant(mha)
         mha.eval()
         return mha
@@ -114,7 +114,7 @@ class TestMultiHeadAttentionWithCache:
         q,
     ):
         actual = multi_head_self_attn_use_cache(
-            q, q, q, past_key_value=(past_key_value, past_key_value)
+            q, q, q, past_key_value=(past_key_value, past_key_value), use_cache=True
         )
         expected = torch.tensor(
             [
@@ -137,7 +137,7 @@ class TestMultiHeadAttentionWithCache:
         )
 
     def test_multi_head_cross_attention(self, multi_head_cross_attn, q):
-        kv = torch.Tensor(torch.Tensor([[[3, 2], [1, 1]]]))
+        kv = torch.Tensor([[[3, 2], [1, 1]]])
         actual = multi_head_cross_attn(q, kv, kv)
         expected = torch.tensor(
             [
@@ -157,13 +157,13 @@ class TestMultiHeadAttentionWithCache:
     ):
         scripted_model = torch.jit.script(multi_head_self_attn_use_cache)
         assert_expected(
-            scripted_model(q, q, q).attn_output,
-            multi_head_self_attn_use_cache(q, q, q).attn_output,
+            scripted_model(q, q, q, use_cache=True).attn_output,
+            multi_head_self_attn_use_cache(q, q, q, use_cache=True).attn_output,
             rtol=0,
             atol=1e-4,
         )
 
     def test_multi_head_cross_attention_invalid_input(self, multi_head_cross_attn, q):
-        kv = torch.Tensor(torch.Tensor([[[3, 2]], [[1, 1]]]))
+        kv = torch.Tensor([[[3, 2]], [[1, 1]]])
         with pytest.raises(ValueError):
             actual = multi_head_cross_attn(q, kv, kv)
