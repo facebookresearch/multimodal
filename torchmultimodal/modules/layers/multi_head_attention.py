@@ -89,6 +89,8 @@ class MultiHeadAttentionWithCache(nn.Module):
             same as dim_q for SA; equals to encoder dimension for cross-attention
         num_heads (int): number of attention heads
         dropout (float): dropout rate
+        add_bias (bool): if true, adds a learnable bias to query, key, value.
+            Defaults to True.
     """
 
     def __init__(
@@ -97,12 +99,13 @@ class MultiHeadAttentionWithCache(nn.Module):
         dim_kv: int,
         num_heads: int,
         dropout: float = 0.0,
+        add_bias: bool = True,
     ) -> None:
         super().__init__()
         self.num_heads = num_heads
-        self.q_proj = nn.Linear(dim_q, dim_q)
-        self.k_proj = nn.Linear(dim_kv, dim_q)
-        self.v_proj = nn.Linear(dim_kv, dim_q)
+        self.q_proj = nn.Linear(dim_q, dim_q, bias=add_bias)
+        self.k_proj = nn.Linear(dim_kv, dim_q, bias=add_bias)
+        self.v_proj = nn.Linear(dim_kv, dim_q, bias=add_bias)
         self.output_proj = nn.Linear(dim_q, dim_q)
         self.dropout = dropout
 
