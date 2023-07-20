@@ -71,6 +71,10 @@ class TestMultiHeadAttentionWithCache:
         return torch.Tensor([[[1, 2, 3, 1], [4, 3, 2, 1], [1, 1, 1, 1]]])
 
     @pytest.fixture
+    def kv(self):
+        return torch.Tensor([[[3, 2], [1, 1]]])
+
+    @pytest.fixture
     def current_key_value(self):
         return torch.Tensor(
             [
@@ -106,6 +110,13 @@ class TestMultiHeadAttentionWithCache:
         mha.eval()
         return mha
 
+    @pytest.fixture
+    def multi_head_cross_attn_without_bias(self, dim_q, dim_kv):
+        mha = MultiHeadAttentionWithCache(dim_q, dim_kv, num_heads=2, add_bias=False)
+        init_weights_with_constant(mha)
+        mha.eval()
+        return mha
+
     def test_multi_head_self_attention_use_cache(
         self,
         multi_head_self_attn_use_cache,
@@ -136,8 +147,7 @@ class TestMultiHeadAttentionWithCache:
             torch.cat([past_key_value, current_key_value], dim=2),
         )
 
-    def test_multi_head_cross_attention(self, multi_head_cross_attn, q):
-        kv = torch.Tensor([[[3, 2], [1, 1]]])
+    def test_multi_head_cross_attention(self, multi_head_cross_attn, q, kv):
         actual = multi_head_cross_attn(q, kv, kv)
         expected = torch.tensor(
             [
@@ -145,6 +155,21 @@ class TestMultiHeadAttentionWithCache:
                     [25.0, 25.0, 25.0, 25.0],
                     [25.0, 25.0, 25.0, 25.0],
                     [25.0, 25.0, 25.0, 25.0],
+                ],
+            ]
+        )
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+    def test_multi_head_cross_attention_without_bias(
+        self, multi_head_cross_attn_without_bias, q, kv
+    ):
+        actual = multi_head_cross_attn_without_bias(q, kv, kv)
+        expected = torch.tensor(
+            [
+                [
+                    [21.0, 21.0, 21.0, 21.0],
+                    [21.0, 21.0, 21.0, 21.0],
+                    [21.0, 21.0, 21.0, 21.0],
                 ],
             ]
         )
