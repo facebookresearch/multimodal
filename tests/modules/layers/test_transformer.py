@@ -10,7 +10,6 @@ import torch
 from tests.test_utils import assert_expected, set_rng_seed
 from torch import nn
 from torchmultimodal.modules.layers.transformer import (
-    TransformerCrossAttentionLayer,
     TransformerEncoder,
     TransformerEncoderLayer,
 )
@@ -68,57 +67,6 @@ class TestTransformerEncoderLayer:
                         [[-1.0000, 1.0000], [-1.0000, 1.0000]],
                         [[-1.0000, 1.0000], [-1.0000, 1.0000]],
                     ],
-                ]
-            ]
-        )
-        assert_expected(actual, expected, rtol=0, atol=1e-4)
-
-
-class TestTransformerCrossAttentionLayer:
-    @pytest.fixture
-    def get_encoder_layer(self):
-        def create_layer(norm_first):
-            model = TransformerCrossAttentionLayer(2, 1, 2, norm_first=norm_first)
-            model.eval()
-            return model
-
-        return create_layer
-
-    @pytest.fixture
-    def inputs(self):
-        return torch.randn(1, 2, 2, 2, 2)
-
-    @pytest.fixture
-    def cross_inputs(self):
-        return torch.randn(1, 2, 2, 2, 2)
-
-    def test_forward_prenorm(self, inputs, cross_inputs, get_encoder_layer):
-        model = get_encoder_layer(True)
-        actual = model(inputs, cross_inputs)
-        expected = torch.tensor(
-            [
-                [
-                    [
-                        [[-0.5925, 1.1257], [-0.5925, 1.1257]],
-                        [[-0.5925, 1.1257], [-0.5925, 1.1257]],
-                    ],
-                    [
-                        [[-0.5925, 1.1257], [-0.5925, 1.1257]],
-                        [[-0.5925, 1.1257], [-0.5925, 1.1257]],
-                    ],
-                ]
-            ]
-        )
-        assert_expected(actual, expected, rtol=0, atol=1e-4)
-
-    def test_forward_postnorm(self, inputs, cross_inputs, get_encoder_layer):
-        model = get_encoder_layer(False)
-        actual = model(inputs, cross_inputs)
-        expected = torch.tensor(
-            [
-                [
-                    [[[-1.0, 1.0], [-1.0, 1.0]], [[-1.0, 1.0], [-1.0, 1.0]]],
-                    [[[-1.0, 1.0], [-1.0, 1.0]], [[-1.0, 1.0], [-1.0, 1.0]]],
                 ]
             ]
         )
