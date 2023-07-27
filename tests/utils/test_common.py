@@ -13,6 +13,7 @@ from torch import nn
 from torch.utils.checkpoint import checkpoint
 from torchmultimodal.utils.common import (
     checkpoint_wrapper,
+    init_module_parameters_to_zero,
     shift_dim,
     tensor_slice,
     to_tuple_tuple,
@@ -28,6 +29,13 @@ def test_shift_dim():
     actual = shift_dim(test_random_tensor, -3, 3)
     expected = test_random_tensor.permute(0, 1, 3, 2, 4).contiguous()
     assert_expected(actual, expected)
+
+
+def test_init_module_parameters_to_zero():
+    module = nn.Conv2d(10, 10, kernel_size=1)
+    init_module_parameters_to_zero(module)
+    for p in module.parameters():
+        assert_expected(p, torch.zeros_like(p))
 
 
 class TestTensorSlice:
