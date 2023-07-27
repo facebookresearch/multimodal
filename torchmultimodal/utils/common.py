@@ -187,3 +187,12 @@ def checkpoint_wrapper(fn: Callable) -> Callable:
 
 def get_clones(module: nn.Module, n: int) -> nn.ModuleList:
     return nn.ModuleList([deepcopy(module) for i in range(n)])
+
+
+def init_module_parameters_to_zero(module: nn.Module) -> None:
+    """
+    Sets the parameters of a module to zero. This is a commonly used trick
+    from Fixup initialization, to stabilize training of residual networks.
+    """
+    for p in module.parameters():
+        nn.init.zeros_(p)
