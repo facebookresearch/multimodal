@@ -1,7 +1,7 @@
 Pillow==9.3.0
 pytorch-lightning==1.8.6
 datasets==2.9.0
-requests==2.27.1
+requests==2.31.0
 DALL-E==0.1
 omegaconf==2.1.2
 hydra-core==1.1.2
