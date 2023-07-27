@@ -7,7 +7,7 @@
 import torch
 
 from tests.test_utils import assert_expected
-from torchmultimodal.modules.layers.activation import SiLU
+from torchmultimodal.modules.layers.activation import GEGLU, SiLU
 
 
 def test_sigmoid_linear_unit():
@@ -15,3 +15,10 @@ def test_sigmoid_linear_unit():
     actual = silu(torch.ones(3))
     expected = torch.tensor([0.8458, 0.8458, 0.8458])
     assert_expected(actual, expected)
+
+
+def test_geglu():
+    geglu = GEGLU()
+    actual = geglu(torch.ones(10))
+    expected = torch.tensor([0.8413, 0.8413, 0.8413, 0.8413, 0.8413])
+    assert_expected(actual, expected, atol=1e-4, rtol=1e-5)
