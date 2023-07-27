@@ -9,7 +9,7 @@ import pytest
 import torch
 from tests.test_utils import assert_expected, set_rng_seed
 from torch import nn
-from torchmultimodal.modules.layers.transformer import (
+from torchmultimodal.models.flava.transformer import (
     TransformerEncoder,
     TransformerEncoderLayer,
 )
