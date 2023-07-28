@@ -17,13 +17,13 @@ import torch
 from torch import nn, Tensor
 from torchmultimodal.models.flava.image_encoder import flava_image_encoder
 from torchmultimodal.models.flava.text_encoder import flava_text_encoder
-from torchmultimodal.models.flava.transformer import FLAVATransformerWithoutEmbeddings
+from torchmultimodal.models.flava.transformer import (
+    FLAVATransformerWithoutEmbeddings,
+    TransformerEncoder,
+)
 from torchmultimodal.modules.layers.mlp import MLP
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
-from torchmultimodal.modules.layers.transformer import (
-    TransformerEncoder,
-    TransformerOutput,
-)
+from torchmultimodal.modules.layers.transformer import TransformerOutput
 from torchmultimodal.modules.losses.flava import (
     FLAVAPretrainingLoss,
     FLAVAPretrainingLossOutput,

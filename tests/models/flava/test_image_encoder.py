@@ -10,7 +10,7 @@ import torch
 from tests.test_utils import assert_expected, set_rng_seed
 from torch import nn
 from torchmultimodal.models.flava.image_encoder import ImageEmbeddings, ImageTransformer
-from torchmultimodal.modules.layers.transformer import TransformerEncoder
+from torchmultimodal.models.flava.transformer import TransformerEncoder
 
 
 @pytest.fixture(autouse=True)

@@ -8,11 +8,13 @@ from functools import partial
 from typing import Callable
 
 from torch import nn
-from torchmultimodal.models.flava.transformer import init_transformer_weights
+from torchmultimodal.models.flava.transformer import (
+    init_transformer_weights,
+    TransformerEncoder,
+)
 from torchmultimodal.modules.encoders.bert_text_encoder import BERTTextEncoder
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
-from torchmultimodal.modules.layers.transformer import TransformerEncoder
 from torchmultimodal.modules.losses.flava import Pooler
 
 
