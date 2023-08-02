@@ -46,7 +46,9 @@ class MultiHeadSelfAttention(nn.Module):
         """
         Args:
             query (Tensor): input query of shape bsz x seq_len x embed_dim
-            attn_mask (optional Tensor): attention mask of shape bsz x seq_len x seq_len. Two types of masks are supported.
+            attn_mask (optional Tensor): attention mask of shape bsz x num_heads x seq_len x seq_len.
+            Note that the num_heads dimension can equal 1 and the mask will be broadcasted to all heads.
+            Two types of masks are supported.
             A boolean mask where a value of True indicates that the element should take part in attention.
             A float mask of the same type as query that is added to the attention score.
             is_causal (bool): If true, does causal attention masking. attn_mask should be set to None if this is set to True
@@ -124,7 +126,8 @@ class MultiHeadAttentionWithCache(nn.Module):
             query (Tensor): input query of shape bsz x target_seq_len x embed_dim
             key (Tensor): key of shape bsz x source_seq_len x embed_dim
             value (Tensor): value of shape bsz x source_seq_len x embed_dim
-            attn_mask (optional Tensor): Attention mask of shape bsz x target_seq_len x source_seq_len.
+            attn_mask (optional Tensor): Attention mask of shape bsz x num_heads x target_seq_len x source_seq_len.
+                Note that the num_heads dimension can equal 1 and the mask will be broadcasted to all heads.
                 Two types of masks are supported. A boolean mask where a value of True
                 indicates that the element *should* take part in attention.
                 A float mask of the same type as query, key, value that is added to the attention score.
