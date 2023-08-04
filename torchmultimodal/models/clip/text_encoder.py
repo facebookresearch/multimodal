@@ -5,6 +5,8 @@
 # LICENSE file in the root directory of this source tree.
 
 
+from typing import Tuple, Union
+
 import torch
 from torch import nn, Tensor
 
@@ -28,6 +30,8 @@ class CLIPTextEncoder(nn.Module):
         heads (int): Number of heads in Transformer encoder.
         layers (int): Number of layers in Transformer encoder.
         use_clip_init (bool): Whether to use CLIP-specific initialization.
+        return_hidden_state (bool): Whether to return the last hidden state.
+          If True, forward returns a tuple of final embedding and last hidden state.
 
     Inputs: text (Tensor): Tensor containing text features.
     """
@@ -45,6 +49,7 @@ class CLIPTextEncoder(nn.Module):
         heads: int = 8,
         layers: int = 12,
         use_clip_init: bool = True,
+        return_hidden_state: bool = False,
     ):
         super().__init__()
         torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
@@ -77,6 +82,8 @@ class CLIPTextEncoder(nn.Module):
         if use_clip_init:
             self.initialize_parameters()
 
+        self.return_hidden_state = return_hidden_state
+
     def initialize_parameters(self) -> None:
         # Initialize token and positional embeddings
         nn.init.normal_(self.token_embedding.weight, std=self.TOKEN_EMBEDDING_INIT_STD)
@@ -108,7 +115,7 @@ class CLIPTextEncoder(nn.Module):
         ).triu(1)
         return mask
 
-    def forward(self, text: Tensor) -> Tensor:
+    def forward(self, text: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor]]:
         if text.size(1) != self.context_length:
             raise ValueError(
                 f"length of input should be {self.context_length} but found {text.size(1)}"
@@ -120,11 +127,13 @@ class CLIPTextEncoder(nn.Module):
 
         # [n_ctx, bs, transformer.width] -> [bs, n_ctx, transformer.width]
         embeddings = torch.permute(embeddings, (1, 0, 2))
-        embeddings = self.ln_final(embeddings)
+        hidden_state = self.ln_final(embeddings)
         # take features from the eot embedding (the highest number in each sequence)
         embeddings = self.projection(
-            embeddings[torch.arange(embeddings.shape[0]), text.argmax(dim=-1)]
+            hidden_state[torch.arange(hidden_state.shape[0]), text.argmax(dim=-1)]
         )
         # embeddings now has size [bs, embedding_dim]
 
+        if self.return_hidden_state:
+            return embeddings, hidden_state
         return embeddings

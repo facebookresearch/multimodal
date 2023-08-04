@@ -17,7 +17,7 @@ class TestCLIPTextEncoder:
     def start(self):
         set_rng_seed(1234)
         context_length = 77
-        batch_size, embedding_dim, heads = 2, 4, 2
+        batch_size, embedding_dim, heads, width = 2, 4, 2, 512
 
         def build_text(text_length):
             return torch.randint(1, 10, (batch_size, text_length), dtype=torch.long)
@@ -27,12 +27,16 @@ class TestCLIPTextEncoder:
             use_clip_init=True,
             context_length=context_length,
             heads=heads,
+            width=width,
+            return_hidden_state=False,
         ):
             return CLIPTextEncoder(
                 embedding_dim=embedding_dim,
                 use_clip_init=use_clip_init,
                 context_length=context_length,
+                width=width,
                 heads=heads,
+                return_hidden_state=return_hidden_state,
             )
 
         return build_encoder, build_text
@@ -115,6 +119,47 @@ class TestCLIPTextEncoder:
         )
         assert_expected(
             actual=actual_clip_init, expected=expected_clip_init, rtol=0, atol=1e-4
+        )
+
+    def test_forward_return_hidden_state(self, start):
+        build_encoder, build_text = start
+        text = build_text(text_length=3)
+
+        text_encoder = build_encoder(
+            context_length=3, width=4, return_hidden_state=True
+        )
+        assert isinstance(text_encoder, torch.nn.Module)
+
+        actual_clip_init, actual_hidden_state = text_encoder(text)
+        print(actual_hidden_state)
+        expected_clip_init = torch.Tensor(
+            [
+                [-0.366838, -1.596611, -0.330413, -0.593790],
+                [-0.790419, 0.876780, -0.970667, -0.727134],
+            ]
+        )
+        expected_hidden_state = torch.Tensor(
+            [
+                [
+                    [6.348165e-01, -4.137459e-02, -1.604239e00, 1.010798e00],
+                    [6.204837e-01, -3.028658e-02, -1.606570e00, 1.016373e00],
+                    [5.915626e-01, -1.666874e-03, -1.613292e00, 1.023396e00],
+                ],
+                [
+                    [5.910631e-01, -1.515219e-02, -1.607913e00, 1.032002e00],
+                    [1.467783e-01, -1.675803e00, 7.402021e-01, 7.888227e-01],
+                    [6.721084e-01, -2.896671e-01, -1.493379e00, 1.110938e00],
+                ],
+            ]
+        )
+        assert_expected(
+            actual=actual_clip_init, expected=expected_clip_init, rtol=0, atol=1e-4
+        )
+        assert_expected(
+            actual=actual_hidden_state,
+            expected=expected_hidden_state,
+            rtol=0,
+            atol=1e-4,
         )
 
     def test_forward_over_context_length(self, start):
