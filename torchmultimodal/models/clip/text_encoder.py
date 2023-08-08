@@ -16,8 +16,8 @@ from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
 
 
 class CLIPTextEncoderOutput(NamedTuple):
-    projected_embeddings: torch.Tensor
-    hidden_state: torch.Tensor
+    projected_embeddings: Tensor
+    hidden_state: Tensor
 
 
 class CLIPTextEncoder(nn.Module):
