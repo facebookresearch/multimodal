@@ -28,7 +28,6 @@ class TestCLIPTextEncoder:
             context_length=context_length,
             heads=heads,
             width=width,
-            return_hidden_state=False,
         ):
             return CLIPTextEncoder(
                 embedding_dim=embedding_dim,
@@ -36,7 +35,6 @@ class TestCLIPTextEncoder:
                 context_length=context_length,
                 width=width,
                 heads=heads,
-                return_hidden_state=return_hidden_state,
             )
 
         return build_encoder, build_text
@@ -125,35 +123,43 @@ class TestCLIPTextEncoder:
         build_encoder, build_text = start
         text = build_text(text_length=3)
 
-        text_encoder = build_encoder(
-            context_length=3, width=4, return_hidden_state=True
-        )
+        text_encoder = build_encoder(context_length=3, width=4)
         assert isinstance(text_encoder, torch.nn.Module)
 
-        actual_clip_init, actual_hidden_state = text_encoder(text)
-        print(actual_hidden_state)
-        expected_clip_init = torch.Tensor(
+        out = text_encoder(text, return_hidden_state=True)
+        assert (
+            hasattr(out, "projected_embeddings")
+            and hasattr(out, "hidden_state")
+            and len(out) == 2
+        )
+
+        actual_projected_embeddings = out.projected_embeddings
+        actual_hidden_state = out.hidden_state
+        expected_projected_embeddings = torch.Tensor(
             [
-                [-0.366838, -1.596611, -0.330413, -0.593790],
-                [-0.790419, 0.876780, -0.970667, -0.727134],
+                [-0.3668, -1.5966, -0.3304, -0.5938],
+                [-0.7904, 0.8768, -0.9707, -0.7271],
             ]
         )
         expected_hidden_state = torch.Tensor(
             [
                 [
-                    [6.348165e-01, -4.137459e-02, -1.604239e00, 1.010798e00],
-                    [6.204837e-01, -3.028658e-02, -1.606570e00, 1.016373e00],
-                    [5.915626e-01, -1.666874e-03, -1.613292e00, 1.023396e00],
+                    [0.6348, -0.0414, -1.6042, 1.0108],
+                    [0.6205, -0.0303, -1.6066, 1.0164],
+                    [0.5916, -0.0017, -1.6133, 1.0234],
                 ],
                 [
-                    [5.910631e-01, -1.515219e-02, -1.607913e00, 1.032002e00],
-                    [1.467783e-01, -1.675803e00, 7.402021e-01, 7.888227e-01],
-                    [6.721084e-01, -2.896671e-01, -1.493379e00, 1.110938e00],
+                    [0.5911, -0.0152, -1.6079, 1.0320],
+                    [0.1468, -1.6758, 0.7402, 0.7888],
+                    [0.6721, -0.2897, -1.4934, 1.1109],
                 ],
             ]
         )
         assert_expected(
-            actual=actual_clip_init, expected=expected_clip_init, rtol=0, atol=1e-4
+            actual=actual_projected_embeddings,
+            expected=expected_projected_embeddings,
+            rtol=0,
+            atol=1e-4,
         )
         assert_expected(
             actual=actual_hidden_state,

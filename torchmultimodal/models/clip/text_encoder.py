@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 
-from typing import Tuple, Union
+from typing import NamedTuple, Union
 
 import torch
 from torch import nn, Tensor
@@ -13,6 +13,11 @@ from torch import nn, Tensor
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from torchmultimodal.modules.layers.activation import SiLU
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
+
+
+class CLIPTextEncoderOutput(NamedTuple):
+    projected_embeddings: torch.Tensor
+    hidden_state: torch.Tensor
 
 
 class CLIPTextEncoder(nn.Module):
@@ -30,8 +35,6 @@ class CLIPTextEncoder(nn.Module):
         heads (int): Number of heads in Transformer encoder.
         layers (int): Number of layers in Transformer encoder.
         use_clip_init (bool): Whether to use CLIP-specific initialization.
-        return_hidden_state (bool): Whether to return the last hidden state.
-          If True, forward returns a tuple of final embedding and last hidden state.
 
     Inputs: text (Tensor): Tensor containing text features.
     """
@@ -49,7 +52,6 @@ class CLIPTextEncoder(nn.Module):
         heads: int = 8,
         layers: int = 12,
         use_clip_init: bool = True,
-        return_hidden_state: bool = False,
     ):
         super().__init__()
         torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
@@ -82,8 +84,6 @@ class CLIPTextEncoder(nn.Module):
         if use_clip_init:
             self.initialize_parameters()
 
-        self.return_hidden_state = return_hidden_state
-
     def initialize_parameters(self) -> None:
         # Initialize token and positional embeddings
         nn.init.normal_(self.token_embedding.weight, std=self.TOKEN_EMBEDDING_INIT_STD)
@@ -115,7 +115,9 @@ class CLIPTextEncoder(nn.Module):
         ).triu(1)
         return mask
 
-    def forward(self, text: Tensor) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+    def forward(
+        self, text: Tensor, return_hidden_state: bool = False
+    ) -> Union[Tensor, CLIPTextEncoderOutput]:
         if text.size(1) != self.context_length:
             raise ValueError(
                 f"length of input should be {self.context_length} but found {text.size(1)}"
@@ -129,11 +131,13 @@ class CLIPTextEncoder(nn.Module):
         embeddings = torch.permute(embeddings, (1, 0, 2))
         hidden_state = self.ln_final(embeddings)
         # take features from the eot embedding (the highest number in each sequence)
-        embeddings = self.projection(
+        projected_embeddings = self.projection(
             hidden_state[torch.arange(hidden_state.shape[0]), text.argmax(dim=-1)]
         )
         # embeddings now has size [bs, embedding_dim]
 
-        if self.return_hidden_state:
-            return embeddings, hidden_state
-        return embeddings
+        if return_hidden_state:
+            return CLIPTextEncoderOutput(
+                projected_embeddings=projected_embeddings, hidden_state=hidden_state
+            )
+        return projected_embeddings
