@@ -17,7 +17,7 @@ class TestCLIPTextEncoder:
     def start(self):
         set_rng_seed(1234)
         context_length = 77
-        batch_size, embedding_dim, heads = 2, 4, 2
+        batch_size, embedding_dim, heads, width = 2, 4, 2, 512
 
         def build_text(text_length):
             return torch.randint(1, 10, (batch_size, text_length), dtype=torch.long)
@@ -27,11 +27,13 @@ class TestCLIPTextEncoder:
             use_clip_init=True,
             context_length=context_length,
             heads=heads,
+            width=width,
         ):
             return CLIPTextEncoder(
                 embedding_dim=embedding_dim,
                 use_clip_init=use_clip_init,
                 context_length=context_length,
+                width=width,
                 heads=heads,
             )
 
@@ -115,6 +117,50 @@ class TestCLIPTextEncoder:
         )
         assert_expected(
             actual=actual_clip_init, expected=expected_clip_init, rtol=0, atol=1e-4
+        )
+
+    def test_forward_return_hidden_state(self, start):
+        build_encoder, build_text = start
+        text = build_text(text_length=3)
+
+        text_encoder = build_encoder(context_length=3, width=4)
+        assert isinstance(text_encoder, torch.nn.Module)
+
+        out = text_encoder(text, return_hidden_state=True)
+
+        actual_projected_embeddings = out.projected_embeddings
+        actual_hidden_state = out.hidden_state
+        expected_projected_embeddings = torch.Tensor(
+            [
+                [-0.3668, -1.5966, -0.3304, -0.5938],
+                [-0.7904, 0.8768, -0.9707, -0.7271],
+            ]
+        )
+        expected_hidden_state = torch.Tensor(
+            [
+                [
+                    [0.6348, -0.0414, -1.6042, 1.0108],
+                    [0.6205, -0.0303, -1.6066, 1.0164],
+                    [0.5916, -0.0017, -1.6133, 1.0234],
+                ],
+                [
+                    [0.5911, -0.0152, -1.6079, 1.0320],
+                    [0.1468, -1.6758, 0.7402, 0.7888],
+                    [0.6721, -0.2897, -1.4934, 1.1109],
+                ],
+            ]
+        )
+        assert_expected(
+            actual=actual_projected_embeddings,
+            expected=expected_projected_embeddings,
+            rtol=0,
+            atol=1e-4,
+        )
+        assert_expected(
+            actual=actual_hidden_state,
+            expected=expected_hidden_state,
+            rtol=0,
+            atol=1e-4,
         )
 
     def test_forward_over_context_length(self, start):
