@@ -54,9 +54,9 @@ class RMSNorm(nn.Module):
 
     Calcs are done in fp32.
 
-    params:
-    dim = model size
-    eps = epsilon
+    Params:
+        dim = model size
+        eps = epsilon
     """
 
     def __init__(self, dim: int, eps: float = 1e-6):

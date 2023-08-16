@@ -30,17 +30,6 @@ def test_fp32groupnorm():
     assert output.dtype == torch.float16
 
 
-def test_rms_norm_fp32return():
-    """verify type is returned as fp32"""
-    dims = 512
-    x = torch.empty(dims, dtype=torch.float16)
-    norm = RMSNorm(
-        dims,
-    )
-    output = norm(x)
-    assert output.dtype == torch.float32
-
-
 @gpu_test(1)
 def test_rms_norm_core_algo():
     """compare RMSNorm with RMSNorm using F.norm version"""
@@ -66,7 +55,8 @@ def test_rms_norm_core_algo():
         dims,
     ).to("cuda")
 
-    output_base_rms = base_norm(x)
+    output_core_rms = base_norm(x)
     output_backup_rms = backup_norm(x_clone)
 
-    assert torch.allclose(output_base_rms, output_backup_rms)
+    assert torch.allclose(output_core_rms, output_backup_rms)
+    assert output_core_rms.dtype == torch.float32
