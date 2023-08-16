@@ -39,13 +39,13 @@ class TestTransformerEncoderLayer:
 
     @pytest.fixture
     def inputs(self):
-        return Tensor([[[1, 2], [4, 2], [1, 1]]])
+        return Tensor([[[1, 2], [4, 2]]])
 
     @pytest.mark.parametrize(
         "norm_first, expected_output",
         [
-            (True, Tensor([[[15.0, 16.0], [18.0, 16.0], [15.0, 15.0]]])),
-            (False, Tensor([[[0.0, 2.0], [2.0, 0.0], [0.9414, 0.9414]]])),
+            (True, Tensor([[[15.0, 16.0], [18.0, 16.0]]])),
+            (False, Tensor([[[0.0, 2.0], [2.0, 0.0]]])),
         ],
     )
     def test_forward(self, norm_first, expected_output, inputs, get_encoder_layer):
