@@ -5,12 +5,19 @@
 # LICENSE file in the root directory of this source tree.
 
 
+from typing import NamedTuple, Union
+
 import torch
 from torch import nn, Tensor
 
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from torchmultimodal.modules.layers.activation import SiLU
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
+
+
+class CLIPTextEncoderOutput(NamedTuple):
+    projected_embeddings: Tensor
+    hidden_state: Tensor
 
 
 class CLIPTextEncoder(nn.Module):
@@ -108,7 +115,9 @@ class CLIPTextEncoder(nn.Module):
         ).triu(1)
         return mask
 
-    def forward(self, text: Tensor) -> Tensor:
+    def forward(
+        self, text: Tensor, return_hidden_state: bool = False
+    ) -> Union[Tensor, CLIPTextEncoderOutput]:
         if text.size(1) != self.context_length:
             raise ValueError(
                 f"length of input should be {self.context_length} but found {text.size(1)}"
@@ -120,11 +129,15 @@ class CLIPTextEncoder(nn.Module):
 
         # [n_ctx, bs, transformer.width] -> [bs, n_ctx, transformer.width]
         embeddings = torch.permute(embeddings, (1, 0, 2))
-        embeddings = self.ln_final(embeddings)
+        hidden_state = self.ln_final(embeddings)
         # take features from the eot embedding (the highest number in each sequence)
-        embeddings = self.projection(
-            embeddings[torch.arange(embeddings.shape[0]), text.argmax(dim=-1)]
+        projected_embeddings = self.projection(
+            hidden_state[torch.arange(hidden_state.shape[0]), text.argmax(dim=-1)]
         )
         # embeddings now has size [bs, embedding_dim]
 
-        return embeddings
+        if return_hidden_state:
+            return CLIPTextEncoderOutput(
+                projected_embeddings=projected_embeddings, hidden_state=hidden_state
+            )
+        return projected_embeddings
