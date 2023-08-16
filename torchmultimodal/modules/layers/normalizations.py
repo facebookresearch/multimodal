@@ -49,8 +49,10 @@ class Fp32GroupNorm(nn.GroupNorm):
 
 
 class RMSNorm(nn.Module):
-    """Root Mean Square layer normalization
+    """Root Mean Square Layer Normalization
     as proposed in: https://arxiv.org/abs/1910.07467
+
+    Calcs are done in fp32.
 
     params:
     dim = model size
@@ -62,9 +64,9 @@ class RMSNorm(nn.Module):
         self.eps = eps
         self.scale = nn.Parameter(torch.ones(dim))
 
-    def _norm(self, x):
+    def _norm(self, x: Tensor):
         return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
-    def forward(self, x):
+    def forward(self, x: Tensor):
         x_normed = self._norm(x.float()).type_as(x)
         return x_normed * self.scale
