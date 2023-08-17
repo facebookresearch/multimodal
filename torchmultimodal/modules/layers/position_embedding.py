@@ -175,7 +175,7 @@ class RotaryPositionalEmbeddings(nn.Module):
     def __init__(
         self,
         dim: int,
-        max_position_embeddings: int = 2048,
+        max_position_embeddings: Union[int, float] = 2048,
         ratio: int = 10000,
         device: torch.device = None,
     ):
@@ -204,7 +204,7 @@ class RotaryPositionalEmbeddings(nn.Module):
         self.compute_freqs_cis(max_position_embeddings)
 
     def compute_freqs_cis(
-        self, max_position_embeddings: Union[int, torch.LongTensor] = 2048
+        self, max_position_embeddings: Union[int, float] = 2048
     ) -> None:
         t = torch.arange(
             max_position_embeddings, device=self.freqs.device, dtype=self.freqs.dtype
@@ -234,7 +234,7 @@ class RotaryPositionalEmbeddings(nn.Module):
         return cur_freqs.view(*shape, 2)
 
     def forward(
-        self, q: torch.Tensor, k: torch.Tensor, start_pos: Union[int, torch.LongTensor]
+        self, q: torch.Tensor, k: torch.Tensor, start_pos: Union[int, float]
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args
