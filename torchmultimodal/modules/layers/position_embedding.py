@@ -203,7 +203,9 @@ class RotaryPositionalEmbeddings(nn.Module):
         )
         self.compute_freqs_cis(max_position_embeddings)
 
-    def compute_freqs_cis(self, max_position_embeddings: int = 2048):
+    def compute_freqs_cis(
+        self, max_position_embeddings: Union[int, torch.LongTensor] = 2048
+    ) -> None:
         t = torch.arange(
             max_position_embeddings, device=self.freqs.device, dtype=self.freqs.dtype
         )
