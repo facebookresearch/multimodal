@@ -222,7 +222,9 @@ class RotaryPositionalEmbeddings(nn.Module):
             ).view(*freqs.shape, 2, 2),
         )
 
-    def reshape_for_broadcast(self, x: torch.Tensor, cur_freqs):
+    def reshape_for_broadcast(
+        self, x: torch.Tensor, cur_freqs: torch.Tensor
+    ) -> torch.Tensor:
         ndim = x.ndim
         assert 1 < ndim
         assert cur_freqs.shape[:2] == (x.shape[2], x.shape[-2])
