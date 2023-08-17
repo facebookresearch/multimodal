@@ -177,7 +177,7 @@ class RotaryPositionalEmbeddings(nn.Module):
         dim: int,
         max_position_embeddings: int = 2048,
         ratio: int = 10000,
-        device=None,
+        device: torch.device = None,
     ):
         """
         Implements Rotary Positional Embeddings (RoPE)
