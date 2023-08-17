@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import itertools
-from typing import Tuple
+from typing import Tuple, Union
 
 import torch
 from torch import nn, Tensor
@@ -171,7 +171,7 @@ class SinusoidalPositionEmbeddings(nn.Module):
         return embeddings
 
 
-class RotaryEmbedding(nn.Module):
+class RotaryPositionalEmbeddings(nn.Module):
     def __init__(
         self,
         dim: int,
@@ -192,7 +192,7 @@ class RotaryEmbedding(nn.Module):
         ratio: int
             The ratio for the geometric progression to compute the rotation angles
         """
-        super(RotaryEmbedding, self).__init__()
+        super().__init__()
         self.register_buffer(
             "freqs",
             1.0
