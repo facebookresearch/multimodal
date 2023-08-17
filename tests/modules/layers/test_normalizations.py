@@ -5,9 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import torch
-import torch.nn.functional as F
-
-from tests.test_utils import gpu_test
+from tests.test_utils import assert_expected
 
 from torchmultimodal.modules.layers.normalizations import (
     Fp32GroupNorm,
@@ -30,33 +28,36 @@ def test_fp32groupnorm():
     assert output.dtype == torch.float16
 
 
-@gpu_test(1)
 def test_rms_norm_core_algo():
     """compare RMSNorm with RMSNorm using F.norm version"""
+    dims = 10
+    rms_norm = RMSNorm(dims)
 
-    dims = 1024
-    x = torch.empty(dims, dtype=torch.float16, device="cuda")
-    x_clone = x.clone().detach()
+    input_ones = torch.ones(dims, dtype=torch.float)
 
-    class RMSNormFunctional(torch.nn.Module):
-        def __init__(self, dim, eps=1e-6):
-            super().__init__()
-            self.scale = dim**0.5
-            self.weights = torch.nn.Parameter(torch.ones(dim))
-            self.eps = eps
+    input_fixed = torch.tensor(
+        [0.999, 1.1111, 2.222, 3.333, 4.444, 5.555, 6.678, 7.987, 8.123, 9.101010],
+        dtype=torch.float16,
+    )
+    fixed_expected = torch.tensor(
+        [
+            0.1749,
+            0.1946,
+            0.3892,
+            0.5835,
+            0.7783,
+            0.9727,
+            1.1699,
+            1.3984,
+            1.4229,
+            1.5938,
+        ],
+        dtype=torch.float,
+    )
 
-        def forward(self, x):
-            return F.normalize(x, p=2, dim=-1, eps=self.eps) * self.scale * self.weights
+    output_fixed = rms_norm(input_fixed)
+    output_ones = rms_norm(input_ones)
 
-    base_norm = RMSNorm(
-        dims,
-    ).to("cuda")
-    backup_norm = RMSNormFunctional(
-        dims,
-    ).to("cuda")
-
-    output_core_rms = base_norm(x)
-    output_backup_rms = backup_norm(x_clone)
-
-    assert torch.allclose(output_core_rms, output_backup_rms)
-    assert output_core_rms.dtype == torch.float32
+    assert_expected(output_ones, input_ones)
+    assert_expected(output_fixed, fixed_expected, atol=1e-04, rtol=1e-05)
+    assert output_fixed.dtype == torch.float32

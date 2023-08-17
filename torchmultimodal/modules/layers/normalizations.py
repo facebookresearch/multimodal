@@ -54,9 +54,11 @@ class RMSNorm(nn.Module):
 
     Calcs are done in fp32.
 
-    Params:
-        dim = model size
-        eps = epsilon
+    original impl: https://github.com/facebookresearch/llama/blob/main/llama/model.py
+
+    Args:
+        dim(int) = model size
+        eps(float) = epsilon
     """
 
     def __init__(self, dim: int, eps: float = 1e-6):
@@ -64,9 +66,9 @@ class RMSNorm(nn.Module):
         self.eps = eps
         self.scale = nn.Parameter(torch.ones(dim))
 
-    def _norm(self, x: Tensor):
+    def _norm(self, x: Tensor) -> Tensor:
         return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
 
-    def forward(self, x: Tensor):
+    def forward(self, x: Tensor) -> Tensor:
         x_normed = self._norm(x.float()).type_as(x)
         return x_normed * self.scale
