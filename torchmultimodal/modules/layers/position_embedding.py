@@ -234,7 +234,10 @@ class RotaryPositionalEmbeddings(nn.Module):
         return cur_freqs.view(*shape, 2)
 
     def forward(
-        self, q: torch.Tensor, k: torch.Tensor, start_pos: Union[int, float]
+        self,
+        q: torch.Tensor,
+        k: torch.Tensor,
+        start_pos: Union[int, float, torch.LongTensor],
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Args
