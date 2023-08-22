@@ -534,7 +534,8 @@ class TestTransformerDecoder:
     ):
         model = get_decoder(d_model=2, norm_first=norm_first, use_cross_attention=False)
         actual_output = model(inputs, return_hidden_states=return_hidden_states)
-        for actual, expected in zip(actual_output, expected_output, strict=True):
+        # strict keyword breaks in python 3.8/3.9 so breaks CI tests, hence the noqa
+        for actual, expected in zip(actual_output, expected_output):  # noqa
             assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     @pytest.mark.parametrize(

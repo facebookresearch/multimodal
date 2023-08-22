@@ -126,16 +126,7 @@ class TestCLIPTextEncoder:
         text_encoder = build_encoder(context_length=3, width=4)
         assert isinstance(text_encoder, torch.nn.Module)
 
-        out = text_encoder(text, return_hidden_state=True)
-
-        actual_projected_embeddings = out.projected_embeddings
-        actual_hidden_state = out.hidden_state
-        expected_projected_embeddings = torch.Tensor(
-            [
-                [-0.3668, -1.5966, -0.3304, -0.5938],
-                [-0.7904, 0.8768, -0.9707, -0.7271],
-            ]
-        )
+        actual_hidden_state = text_encoder(text, return_hidden_state=True)
         expected_hidden_state = torch.Tensor(
             [
                 [
@@ -149,12 +140,6 @@ class TestCLIPTextEncoder:
                     [0.6721, -0.2897, -1.4934, 1.1109],
                 ],
             ]
-        )
-        assert_expected(
-            actual=actual_projected_embeddings,
-            expected=expected_projected_embeddings,
-            rtol=0,
-            atol=1e-4,
         )
         assert_expected(
             actual=actual_hidden_state,
