@@ -5,19 +5,12 @@
 # LICENSE file in the root directory of this source tree.
 
 
-from typing import NamedTuple, Union
-
 import torch
 from torch import nn, Tensor
 
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from torchmultimodal.modules.layers.activation import SiLU
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
-
-
-class CLIPTextEncoderOutput(NamedTuple):
-    projected_embeddings: Tensor
-    hidden_state: Tensor
 
 
 class CLIPTextEncoder(nn.Module):
@@ -36,7 +29,10 @@ class CLIPTextEncoder(nn.Module):
         layers (int): Number of layers in Transformer encoder.
         use_clip_init (bool): Whether to use CLIP-specific initialization.
 
-    Inputs: text (Tensor): Tensor containing text features.
+    Inputs:
+        text (Tensor): Tensor containing text features.
+        return_hidden_state (bool): If ``True``, returns the last hidden state
+            instead of the final projected embeddings. Defaults to ``False``.
     """
 
     TOKEN_EMBEDDING_INIT_STD = 0.02
@@ -115,9 +111,7 @@ class CLIPTextEncoder(nn.Module):
         ).triu(1)
         return mask
 
-    def forward(
-        self, text: Tensor, return_hidden_state: bool = False
-    ) -> Union[Tensor, CLIPTextEncoderOutput]:
+    def forward(self, text: Tensor, return_hidden_state: bool = False) -> Tensor:
         if text.size(1) != self.context_length:
             raise ValueError(
                 f"length of input should be {self.context_length} but found {text.size(1)}"
@@ -130,14 +124,12 @@ class CLIPTextEncoder(nn.Module):
         # [n_ctx, bs, transformer.width] -> [bs, n_ctx, transformer.width]
         embeddings = torch.permute(embeddings, (1, 0, 2))
         hidden_state = self.ln_final(embeddings)
+        if return_hidden_state:
+            return hidden_state
+
         # take features from the eot embedding (the highest number in each sequence)
         projected_embeddings = self.projection(
             hidden_state[torch.arange(hidden_state.shape[0]), text.argmax(dim=-1)]
         )
         # embeddings now has size [bs, embedding_dim]
-
-        if return_hidden_state:
-            return CLIPTextEncoderOutput(
-                projected_embeddings=projected_embeddings, hidden_state=hidden_state
-            )
         return projected_embeddings
