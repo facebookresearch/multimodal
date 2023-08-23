@@ -132,8 +132,8 @@ class ImageEmbeddings(nn.Module):
             if isinstance(self.patch_drop_rate, Iterable):
                 embeddings = random_masking_2d(
                     embeddings,
-                    mask_ratio_h=self.patch_drop_rate[0],
-                    mask_ratio_w=self.patch_drop_rate[1],
+                    mask_ratio_h=self.patch_drop_rate[0],  # type: ignore
+                    mask_ratio_w=self.patch_drop_rate[1],  # type: ignore
                     num_patches_h=self.num_patches_h,
                     num_patches_w=self.num_patches_w,
                 )
