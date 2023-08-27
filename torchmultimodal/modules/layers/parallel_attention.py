@@ -10,9 +10,9 @@ from typing import Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from normalizations import RMSNorm
 from packaging import version
+
+from torchmultimodal.modules.layers.normalizations import RMSNorm
 
 # from position_embedding import RotaryEmbedding
 
@@ -67,7 +67,7 @@ class ParallelAttentionBlock(nn.Module):
         use_in_projection_bias: bool = True,
         use_out_projection_bias: bool = True,
         use_weight_init: bool = True,
-        num_layers: int = 1,
+        num_layers: int = 0,
         use_rms_norm: bool = True,
         use_rotary_embeddings: bool = False,
         max_expected_seq_len: int = 2048,  # needed only if using rotary
@@ -113,7 +113,7 @@ class ParallelAttentionBlock(nn.Module):
         self.use_weight_init = use_weight_init
         if self.use_weight_init:
             assert (
-                self.num_layers > 1
+                self.num_layers > 0
             ), f"Need to pass in global num layers for weight init, {self.num_layers=}"
 
         self.weight_init_standard_dev = 0.02 / math.sqrt(2 * self.num_layers)
@@ -189,7 +189,7 @@ class ParallelAttentionBlock(nn.Module):
             rel_pos_bias is not None and self.rotary_emb is not None
         ), "Rotary and additive biases are exclusive"
         assert not (
-            (rel_pos_bias is not None or attn_mask is not None) and has_causal_mask
+            (rel_pos_bias is not None or mask is not None) and has_causal_mask
         ), "Causal mask optimization only valid without attn_mask or rel_pos_bias"
 
         batch_size, seq_len, channels = x.shape
