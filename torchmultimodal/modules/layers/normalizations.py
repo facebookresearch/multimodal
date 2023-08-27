@@ -6,6 +6,7 @@
 
 from typing import Any
 
+import torch
 from torch import nn, Tensor
 
 
@@ -45,3 +46,29 @@ class Fp32GroupNorm(nn.GroupNorm):
             self.eps,
         )
         return output.type_as(x)
+
+
+class RMSNorm(nn.Module):
+    """Root Mean Square Layer Normalization
+    as proposed in: https://arxiv.org/abs/1910.07467
+
+    Calcs are done in fp32.
+
+    original impl: https://github.com/facebookresearch/llama/blob/main/llama/model.py
+
+    Args:
+        dim(int) = model size
+        eps(float) = epsilon
+    """
+
+    def __init__(self, dim: int, eps: float = 1e-6):
+        super().__init__()
+        self.eps = eps
+        self.scale = nn.Parameter(torch.ones(dim))
+
+    def _norm(self, x: Tensor) -> Tensor:
+        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
+
+    def forward(self, x: Tensor) -> Tensor:
+        x_normed = self._norm(x.float()).type_as(x)
+        return x_normed * self.scale
