@@ -36,7 +36,6 @@ class TestParallelAttentionBlocks:
 
     @pytest.fixture
     def mha_parallel_attention(self, embedding_dim, num_heads, total_layers):
-        print(f"{embedding_dim=}, {num_heads=}, {total_layers=}")
         pab_mha = ParallelAttentionBlock(
             emb_dimension=embedding_dim,
             num_heads=num_heads,
@@ -51,7 +50,6 @@ class TestParallelAttentionBlocks:
     def gqa_parallel_attention(
         self, embedding_dim, num_heads, total_layers, gqa_num_heads
     ):
-        print(f"{embedding_dim=}, {num_heads=}, {total_layers=}")
         pab_gqa = ParallelAttentionBlock(
             emb_dimension=embedding_dim,
             num_heads=num_heads,
@@ -67,7 +65,6 @@ class TestParallelAttentionBlocks:
     def mqa_parallel_attention(
         self, embedding_dim, num_heads, total_layers, mqa_num_heads
     ):
-        print(f"{embedding_dim=}, {num_heads=}, {total_layers=}")
         pab_mqa = ParallelAttentionBlock(
             emb_dimension=embedding_dim,
             num_heads=num_heads,
@@ -82,6 +79,8 @@ class TestParallelAttentionBlocks:
     def test_mha_parallel_attention(self, mha_parallel_attention, num_heads):
         # confirm all K and V keys match Q (i.e. MHA)
         assert_expected(num_heads, mha_parallel_attention.num_kv)
+        # confirm num Q matches num_heads
+        assert_expected(num_heads, mha_parallel_attention.num_heads)
 
     def test_mqa_parallel_attention(
         self, mqa_parallel_attention, num_heads, mqa_num_heads
@@ -90,6 +89,8 @@ class TestParallelAttentionBlocks:
 
         # confirm all K and V keys match MQA num heads (i.e. MQA == 1)
         assert_expected(mqa_num_heads, mqa_parallel_attention.num_kv)
+        # confirm num Q matches num_heads
+        assert_expected(num_heads, mqa_parallel_attention.num_heads)
 
     def test_gqa_parallel_attention(
         self, gqa_parallel_attention, num_heads, gqa_num_heads
@@ -98,3 +99,5 @@ class TestParallelAttentionBlocks:
 
         # confirm all K and V keys match GQA num heads (i.e. GQA >= 2)
         assert_expected(gqa_num_heads, gqa_parallel_attention.num_kv)
+        # confirm num Q matches num_heads
+        assert_expected(num_heads, gqa_parallel_attention.num_heads)
