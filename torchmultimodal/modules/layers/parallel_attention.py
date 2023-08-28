@@ -71,7 +71,7 @@ class ParallelAttentionBlock(nn.Module):
         use_rms_norm: bool = True,
         use_rotary_embeddings: bool = False,
         max_expected_seq_len: int = 2048,  # needed only if using rotary
-    ):
+    ) -> None:
         super().__init__()
 
         version_check = not version.parse(torch.__version__) < version.parse("2.0.0")
@@ -161,7 +161,7 @@ class ParallelAttentionBlock(nn.Module):
         if use_weight_init:
             self.apply(self._init_weights)
 
-    def _init_weights(self, module: nn.Module):
+    def _init_weights(self, module: nn.Module) -> None:
         """init weights using trunc + llama style depth scaling"""
         if isinstance(module, nn.Linear):
             torch.nn.init.trunc_normal_(
@@ -182,7 +182,7 @@ class ParallelAttentionBlock(nn.Module):
         cross_mask: Optional[torch.Tensor] = None,
         rel_pos_bias: Optional[torch.Tensor] = None,
         has_causal_mask: bool = False,
-    ):
+    ) -> torch.Tensor:
         """TODO:   No KV cache support yet"""
 
         assert not (
