@@ -55,9 +55,9 @@ class ParallelAttentionBlock(nn.Module):
 
     def __init__(
         self,
-        emb_dimension,
-        num_heads,
-        head_dimension=None,
+        emb_dimension: int,
+        num_heads: int,
+        head_dimension: int = None,
         mlp_expansion_ratio: float = 2.6875,  # 8/3 is param matching
         qk_normalization: bool = True,
         projection_dropout: float = 0.0,
@@ -209,7 +209,7 @@ class ParallelAttentionBlock(nn.Module):
             q, k = self.rotary_emb(q, k, start_pos)
 
         # group query expansion
-        def kv_expansion(head):
+        def kv_expansion(head: torch.Tensor) -> torch.Tensor:
             head = head.view(
                 batch_size, seq_len, self.num_kv, self.head_dim
             )  # b n hnum dimh
