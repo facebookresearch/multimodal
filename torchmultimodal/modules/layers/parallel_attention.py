@@ -84,7 +84,7 @@ class ParallelAttentionBlock(nn.Module):
         self.head_dim = head_dimension if head_dimension else emb_dimension // num_heads
         assert (
             self.emb_dim % self.num_heads == 0
-        ), f"dimensions {self.emb_dim.shape} must be evenly divisible by num_heads {num_heads=}"
+        ), f"dimensions {self.emb_dim} must be evenly divisible by num_heads {num_heads=}"
 
         # group query attn
         if use_group_query_attention:
