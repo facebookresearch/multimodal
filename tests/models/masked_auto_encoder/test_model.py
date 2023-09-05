@@ -58,52 +58,52 @@ class TestImageMaskedAutoEncoder:
         labels = actual.label_patches
         assert_expected(labels, torch.ones(2, 196, 16 * 16 * 3))
 
-        def test_image_mae_train_masking(self, inputs):
-            model = image_mae(encoder_layers=1, decoder_layers=1, masking_ratio=0.5)
-            init_weights_with_constant(model)
-            actual = model(inputs)
+    def test_image_mae_train_masking(self, inputs):
+        model = image_mae(encoder_layers=1, decoder_layers=1, masking_ratio=0.5)
+        init_weights_with_constant(model)
+        actual = model(inputs)
 
-            encoder_out = actual.encoder_output.last_hidden_state
-            assert_expected(encoder_out.size(), (2, 99, 768))
-            assert_expected(encoder_out.mean().item(), 1.0)
+        encoder_out = actual.encoder_output.last_hidden_state
+        assert_expected(encoder_out.size(), (2, 99, 768))
+        assert_expected(encoder_out.mean().item(), 1.0)
 
-            assert_expected(actual.mask.size(), (2, 196))
-            assert_expected(actual.mask.sum(dim=-1), torch.Tensor([98, 98]))
+        assert_expected(actual.mask.size(), (2, 196))
+        assert_expected(actual.mask.sum(dim=-1), torch.Tensor([98, 98]))
 
-            pred = actual.decoder_pred
-            assert_expected(pred.size(), (2, 196, 768))
-            assert_expected(pred.mean().item(), 513.0)
+        pred = actual.decoder_pred
+        assert_expected(pred.size(), (2, 196, 768))
+        assert_expected(pred.mean().item(), 513.0)
 
-            labels = actual.label_patches
-            assert_expected(labels, torch.ones(2, 196, 16 * 16 * 3))
+        labels = actual.label_patches
+        assert_expected(labels, torch.ones(2, 196, 16 * 16 * 3))
 
-        def test_label_patchification(self):
-            model = image_mae(
-                encoder_layers=1, decoder_layers=1, image_size=4, patch_size=2
-            )
-            inputs = torch.Tensor(
+    def test_label_patchification(self):
+        model = image_mae(
+            encoder_layers=1, decoder_layers=1, image_size=4, patch_size=2
+        )
+        inputs = torch.Tensor(
+            [
+                [
+                    [[1, 2, 3, 4], [5, 6, 7, 8], [8, 7, 6, 5], [4, 3, 2, 1]],
+                    [[2, 4, 6, 8], [1, 3, 5, 7], [8, 6, 4, 2], [7, 5, 1, 3]],
+                    [[1, 2, 1, 2], [3, 2, 1, 2], [1, 2, 1, 2], [1, 2, 1, 2]],
+                ]
+            ]
+        )
+        actual = model._patchify_input(inputs)
+        assert_expected(
+            actual,
+            torch.Tensor(
                 [
                     [
-                        [[1, 2, 3, 4], [5, 6, 7, 8], [8, 7, 6, 5], [4, 3, 2, 1]],
-                        [[2, 4, 6, 8], [1, 3, 5, 7], [8, 6, 4, 2], [7, 5, 1, 3]],
-                        [[1, 2, 1, 2], [3, 2, 1, 2], [1, 2, 1, 2], [1, 2, 1, 2]],
+                        [1, 2, 1, 2, 4, 2, 5, 1, 3, 6, 3, 2],
+                        [3, 6, 1, 4, 8, 2, 7, 5, 1, 8, 7, 2],
+                        [8, 8, 1, 7, 6, 2, 4, 7, 1, 3, 5, 2],
+                        [6, 4, 1, 5, 2, 2, 2, 1, 1, 1, 3, 2],
                     ]
                 ]
-            )
-            actual = model._patchify_input(inputs)
-            assert_expected(
-                actual,
-                torch.Tensor(
-                    [
-                        [
-                            [1, 2, 1, 2, 4, 2, 5, 1, 3, 6, 3, 2],
-                            [3, 6, 1, 4, 8, 2, 7, 5, 1, 8, 7, 2],
-                            [8, 8, 1, 7, 6, 2, 4, 7, 1, 3, 5, 2],
-                            [6, 4, 1, 5, 2, 2, 2, 1, 1, 1, 3, 2],
-                        ]
-                    ]
-                ),
-            )
+            ),
+        )
 
     def test_image_mae_init(self):
         model = image_mae(
