@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import math
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from torch import nn
 
@@ -28,12 +28,19 @@ class CosineDecay(LRScheduler):
         last_epoch (int): the index of last epoch. Default to -1
     """
 
-    def __init__(self, optimizer, t_max, eta_min=0, last_epoch=-1, verbose=False):
+    def __init__(
+        self,
+        optimizer: Optimizer,
+        t_max: int,
+        eta_min: float = 0,
+        last_epoch: int = -1,
+        verbose: bool = False,
+    ) -> None:
         self.t_max = t_max
         self.eta_min = eta_min
         super().__init__(optimizer, last_epoch, verbose)
 
-    def get_lr(self):
+    def get_lr(self) -> List[Any]:  # type: ignore
         return [
             self.eta_min
             + (base_lr - self.eta_min)
@@ -65,7 +72,7 @@ class CosineWithWarmupAndLRScaling(SequentialLR):
         min_lr: float = 0,
         last_epoch: int = -1,
     ) -> None:
-        def lr_lambda(current_step):
+        def lr_lambda(current_step: int) -> float:
             return current_step / warmup_iters
 
         multiplicative_lr = LambdaLR(
@@ -80,11 +87,11 @@ class CosineWithWarmupAndLRScaling(SequentialLR):
             optimizer, [multiplicative_lr, cosine_lr], [warmup_iters], last_epoch
         )
 
-    def step(self):
+    def step(self, epoch: Optional[int] = None) -> None:
         super().step()
         for idx, param_group in enumerate(self.optimizer.param_groups):
             param_group["lr"] = param_group.get("lr_scale", 1) * param_group["lr"]
-            self._last_lr[idx] = param_group["lr"]
+            self._last_lr[idx] = param_group["lr"]  # type: ignore
 
 
 def get_layer_id(param_name: str, num_layers: int) -> int:
@@ -123,7 +130,7 @@ def get_param_groups_with_layer_decay(
         "embeddings.position_embeddings",
     ),
 ) -> Dict[str, Dict[str, Any]]:
-    param_groups = {}
+    param_groups: Dict[str, Any] = {}
     # account for embedding by doing +1
     num_layers = len(model.encoder.layer) + 1
     # accound for final ln and head by doing +1
@@ -134,7 +141,7 @@ def get_param_groups_with_layer_decay(
             continue
         # ndim check for ln and bias params
         if p.ndim == 1 or n in no_weight_decay_params:
-            decay = 0
+            decay = 0.0
             prefix = "no_decay"
         else:
             decay = weight_decay

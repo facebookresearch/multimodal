@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import torch
 
@@ -191,7 +191,7 @@ class SwinTransformerBlock(nn.Module):
         self.attn = WindowMultiHeadAttention(
             input_dim=input_dim,
             num_heads=num_heads,
-            window_size=self.window_size,
+            window_size=self.window_size,  # type: ignore
             attn_dropout=attn_dropout,
             proj_dropout=mlp_dropout,
         )
@@ -214,9 +214,11 @@ class SwinTransformerBlock(nn.Module):
 
         self._make_attention_mask()
 
-    def _get_effective_window_shift(self, target_window_size, target_shift_size):
+    def _get_effective_window_shift(
+        self, target_window_size: Tuple[int, int], target_shift_size: Tuple[int, int]
+    ) -> Tuple[Tuple[int, ...], Tuple[Any, ...]]:
         # if input is smaller than window, effective window size is the input size
-        window_size = [
+        window_size: List[int] = [
             f if f <= w else w for f, w in zip(self.input_size, target_window_size)
         ]
 

@@ -88,7 +88,7 @@ class MaskedAutoEncoder(nn.Module):
         input_size: Union[int, Tuple[int, int]],
         encoder_embed_dim: int,
         decoder_embed_dim: int,
-    ):
+    ) -> None:
         if isinstance(input_size, int):
             input_h = input_w = input_size
         else:
@@ -120,7 +120,7 @@ class MaskedAutoEncoder(nn.Module):
             nn.init.constant_(module.bias, 0)
             nn.init.constant_(module.weight, 1.0)
 
-    def _patchify_input(self, x):
+    def _patchify_input(self, x: Tensor) -> Tensor:
         # patchify the input tensor with the output shape = bsz x num_patch x (patch_area * channels)
         bsz, channels, height, width = x.shape
         num_patches_h = height // self.patch_size
@@ -252,7 +252,7 @@ def image_mae(
     decoder_layer_norm_eps: float = 1e-6,
     decoder_activation: Callable = nn.GELU,
     decoder_final_layer_norm_eps: float = 1e-6,
-):
+) -> MaskedAutoEncoder:
     """
     Helper function to build the image mae model instantiation as described in the paper
     with the encoder and decoder transformer similar to vision transformer.
@@ -308,7 +308,7 @@ def image_mae(
     )
 
 
-def vit_l_16_image_mae():
+def vit_l_16_image_mae() -> MaskedAutoEncoder:
     return image_mae(
         image_size=224,
         patch_size=16,
@@ -347,7 +347,7 @@ def audio_mae(
     decoder_layer_norm_eps: float = 1e-6,
     decoder_activation: Callable = nn.GELU,
     decoder_final_layer_norm_eps: float = 1e-6,
-):
+) -> MaskedAutoEncoder:
     """
     Helper function to build the standard audio mae model with the encoder similar to vision transformer\
     and decoder transformer similar to swin transformer.
@@ -403,7 +403,7 @@ def audio_mae(
     )
 
 
-def vit_s_16_audio_mae():
+def vit_s_16_audio_mae() -> MaskedAutoEncoder:
     return audio_mae(
         input_size=(1024, 128),
         patch_size=16,
@@ -419,7 +419,7 @@ def vit_s_16_audio_mae():
     )
 
 
-def vit_b_16_audio_mae():
+def vit_b_16_audio_mae() -> MaskedAutoEncoder:
     return audio_mae(
         input_size=(1024, 128),
         patch_size=16,
@@ -435,7 +435,7 @@ def vit_b_16_audio_mae():
     )
 
 
-def vit_l_16_audio_mae():
+def vit_l_16_audio_mae() -> MaskedAutoEncoder:
     return audio_mae(
         input_size=(1024, 128),
         patch_size=16,

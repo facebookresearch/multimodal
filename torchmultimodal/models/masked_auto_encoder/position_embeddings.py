@@ -12,7 +12,7 @@ from torch import Tensor
 
 def get_3d_sin_cos_embeddings(
     embed_dim: int, temporal_size: int, spatial_size: Tuple[int, int]
-):
+) -> Tensor:
     """
     3d position sin cos embeddings. This implementation has been adapted from internal
     FAIR implementation: https://fburl.com/code/9dojefjm.
@@ -65,7 +65,7 @@ def get_3d_sin_cos_embeddings(
     return embed
 
 
-def get_2d_sin_cos_embeddings(embed_dim: int, input_size: Tuple[int, int]):
+def get_2d_sin_cos_embeddings(embed_dim: int, input_size: Tuple[int, int]) -> Tensor:
     """
     2d position sin cos embeddings.
     Args:
@@ -90,7 +90,7 @@ def get_2d_sin_cos_embeddings(embed_dim: int, input_size: Tuple[int, int]):
     return embed
 
 
-def get_1d_sin_cos_embeddings(embed_dim: int, positions: Tensor):
+def get_1d_sin_cos_embeddings(embed_dim: int, positions: Tensor) -> Tensor:
     """
     1d position sin cos embeddings.
     Args:
