@@ -191,3 +191,34 @@ def assert_expected_namedtuple(
 def init_weights_with_constant(model: nn.Module, constant: float = 1.0) -> None:
     for p in model.parameters():
         nn.init.constant_(p, constant)
+
+
+def tensor_hash(x: torch.tensor, scaling=0.05, buckets=1000) -> torch.tensor:
+    """hashes a multi-dim tensor for unit test verification
+
+    usage: hash a forward tensor to serve as correct answer
+    compare unit test result hashes with hashed answer using allclose
+
+    example:
+    t1 = torch.randn(1,16,32)  # answer tensor
+    t2 = t1.clone()
+    t2[0][0][0] += .01  # clone but modified with a single .01 change
+
+    t1_hash = tensor_hash(t1)
+    t2_hash = tensor_hash(t2)
+
+    torch.allclose(t1_hash, t2_hash) # << -- False... + .01 difference detected
+
+    # t1_hash ...
+     tensor([[**175**,  46, 151, 958,  38, 905, 187,  93,  76, 966, 950, 966, 965, 985,
+            12, 133]])
+    # t2_hash ...
+      tensor([[**176**,  46, 151, 958,  38, 905, 187,  93,  76, 966, 950, 966, 965, 985,
+            12, 133]])
+
+    """
+
+    quant_tensor = torch.quantize_per_tensor(x, scaling, 0, torch.qint32)
+    hashed_tensor = quant_tensor.int_repr().sum(-1) % buckets
+
+    return hashed_tensor
