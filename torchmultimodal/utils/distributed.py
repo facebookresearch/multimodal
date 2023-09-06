@@ -39,3 +39,10 @@ def gather_tensor(tensor: Tensor, backprop_in_gather: bool = True) -> List[Tenso
         all_gather_no_backprop(tensor_all_gpus, tensor)
         tensor_all_gpus[torch.distributed.get_rank()] = tensor
         return tensor_all_gpus
+
+
+def get_rank() -> int:
+    """get rank util for distributed training"""
+    if torch.distributed.is_available() and torch.distributed.is_initialized():
+        return torch.distributed.get_rank()
+    return 0
