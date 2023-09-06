@@ -133,10 +133,6 @@ class TestAlibiPositionEmbedding:
     def num_heads(self):
         return 8
 
-    @pytest.fixture
-    def data(self, max_seq_len, embedding_dim):
-        return torch.randn(1, max_seq_len, embedding_dim)  # bs, seq_len, emb_dim
-
     def test_alibi_mask(
         self,
         data,
