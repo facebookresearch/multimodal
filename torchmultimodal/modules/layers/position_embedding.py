@@ -6,7 +6,7 @@
 
 import itertools
 import math
-from typing import Tuple
+from typing import List, Tuple
 
 import torch
 from torch import nn, Tensor
@@ -221,7 +221,7 @@ class AlibiPositionEmbeddings(nn.Module):
         self.decoder_mask = self.causal_mask + self.alibi_mask_base
         self.register_buffer("alibi_mask", self.decoder_mask, persistent=False)
 
-    def get_attention_mask(self, curr_seq_len: int) -> torch.tensor:
+    def get_attention_mask(self, curr_seq_len: int) -> torch.Tensor:
         """returns the alibi mask, clipped to the current batch seq len"""
         return self.alibi_mask[:, :curr_seq_len, :curr_seq_len]
 
@@ -239,7 +239,7 @@ class AlibiPositionEmbeddings(nn.Module):
         alibi_mask = distance_matrix * slope_per_head
         return alibi_mask
 
-    def get_slopes(self, num_heads: int) -> torch.Tensor:
+    def get_slopes(self, num_heads: int) -> List[float]:
         """for n heads, a range from (0,1) and is the geometric sequence
         that starts at 2^(-8/n) and uses this same value as its ratio
 
