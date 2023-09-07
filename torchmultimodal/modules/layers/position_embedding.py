@@ -194,7 +194,7 @@ class AlibiPositionEmbeddings(nn.Module):
         num_heads: int,
     ) -> None:
         """recommended usage:  create alibi mask before transformer block loop and integrate
-        Alibi should be applied before the sqrt scaling of the attention values
+        Alibi should be applied after the sqrt scaling of the attention values
 
         Example:
         before Transformer block loop:
@@ -205,8 +205,8 @@ class AlibiPositionEmbeddings(nn.Module):
             alibi_mask = self.alibi.get_attention_mask(N) # N = seq length of this batch
             ...
             attn = q @ k.transpose( -2, -1)
-            attn += alibi_mask
-            attn *= 1.0 / math.sqrt(k.size(-1))
+            att *= 1.0 / math.sqrt(k.size(-1))
+            att += alibi_mask
 
         """
         super().__init__()
