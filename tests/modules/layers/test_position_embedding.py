@@ -150,27 +150,27 @@ class TestAlibiPositionEmbedding:
         # verify alibi mask components
         expected_last_head_row = torch.tensor(
             [
-                0.9414,
-                0.9453,
-                0.9492,
-                0.9531,
-                0.9570,
-                0.9609,
-                0.9648,
-                0.9688,
-                0.9727,
-                0.9766,
-                0.9805,
-                0.9844,
-                0.9883,
-                0.9922,
-                0.9961,
-                1.0000,
+                -0.0586,
+                -0.0547,
+                -0.0508,
+                -0.0469,
+                -0.0430,
+                -0.0391,
+                -0.0352,
+                -0.0312,
+                -0.0273,
+                -0.0234,
+                -0.0195,
+                -0.0156,
+                -0.0117,
+                -0.0078,
+                -0.0039,
+                0.0000,
             ]
         )
 
         expected_first_head_first_row_first_entry = torch.tensor(
-            1.0000,
+            0.0000,
         )
 
         assert_expected(
