@@ -264,12 +264,14 @@ class AlibiPositionEmbeddings(nn.Module):
 
         # paper authors note that they only trained models that have 2^a heads for some a.
         # This has beneficial properties related to input being power of 2.
+
         # Closest power of 2 below is workaround for when num of heads is not power of 2
+        # Slopes are returned in ordered sequence to keep symmetry.
 
         closest_power_of_2 = 2 ** math.floor(math.log2(num_heads))
-        return (
-            get_slopes_power_of_2(closest_power_of_2)
-            + get_slopes_power_of_2(2 * closest_power_of_2)[0::2][
-                : num_heads - closest_power_of_2
-            ]
-        )
+
+        a = get_slopes_power_of_2(closest_power_of_2)
+        b = get_slopes_power_of_2(2 * closest_power_of_2)[0::2][
+            : num_heads - closest_power_of_2
+        ]
+        return [x for pair in zip(b, a) for x in pair] + a[len(b) :]
