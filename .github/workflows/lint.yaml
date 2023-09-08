@@ -47,7 +47,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install dependencies
         run: |
-          conda install pytorch torchvision torchtext cpuonly -c pytorch-nightly
+          conda install pytorch torchvision torchtext torchaudio cpuonly -c pytorch-nightly
           pip install -e ".[dev]"
       - name: Type check all files
         run: python -m mypy --install-types --non-interactive --config-file mypy.ini

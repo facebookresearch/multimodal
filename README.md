@@ -25,10 +25,10 @@ The following assumes conda is installed.
     ```
     # Use the current CUDA version as seen [here](https://pytorch.org/get-started/locally/)
     # Select the nightly Pytorch build, Linux as the OS, and conda. Pick the most recent CUDA version.
-    conda install pytorch torchvision torchtext pytorch-cuda=\<cuda_version\> -c pytorch-nightly -c nvidia
+    conda install pytorch torchvision torchtext torchaudio pytorch-cuda=\<cuda_version\> -c pytorch-nightly -c nvidia
 
     # For CPU-only install
-    conda install pytorch torchvision torchtext cpuonly -c pytorch-nightly
+    conda install pytorch torchvision torchtext torchaudio cpuonly -c pytorch-nightly
     ```
 
 ### Install from binaries
