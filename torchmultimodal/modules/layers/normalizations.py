@@ -85,7 +85,7 @@ class SimpleRMSNorm(nn.Module):
 
     """
 
-    def __init__(self, dim: int, eps=1e-12):
+    def __init__(self, dim: int, eps: float = 1e-12):
         super().__init__()
         self.scaling = dim**0.5
         self.eps = eps
