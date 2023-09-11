@@ -222,3 +222,20 @@ def tensor_hash(x: torch.tensor, scaling=0.05, buckets=1000) -> torch.tensor:
     hashed_tensor = quant_tensor.int_repr().sum(-1) % buckets
 
     return hashed_tensor
+
+
+def split_tensor_for_distributed_test(
+    x: Tensor,
+    local_batch_size: int,
+    device_id: int,
+    dim: int = 0,
+    move_to_device: bool = True,
+) -> Tensor:
+    """
+    Utility for distributed testing. Splits a tensor into chunks along a given dim,
+    takes the kth chunk, and optionally moves to the specified device.
+    """
+    x = torch.split(x, local_batch_size, dim)[device_id]
+    if move_to_device:
+        x = x.to(device=device_id)
+    return x
