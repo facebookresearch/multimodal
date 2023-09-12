@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional, OrderedDict, Tuple, Union
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
-from torchmultimodal.utils.distributed import gather_tensor
+from torchmultimodal.utils.distributed import BackpropType, gather_tensor
 
 
 @dataclass
@@ -26,14 +26,14 @@ class ContrastiveLossOutput(OrderedDict):
 def _gather_embeddings_and_labels(
     embeddings_a: Tensor,
     embeddings_b: Tensor,
-    backprop_in_gather: bool = True,
+    backprop_type: BackpropType = BackpropType.GLOBAL,
 ) -> Tuple[Tensor, Tensor, Tensor]:
     if not torch.distributed.is_available() or not torch.distributed.is_initialized():
         labels = torch.arange(embeddings_a.size(0), device=embeddings_a.device)
         return embeddings_a, embeddings_b, labels
 
-    embeddings_a_all_gpus = gather_tensor(embeddings_a, backprop_in_gather)
-    embeddings_b_all_gpus = gather_tensor(embeddings_b, backprop_in_gather)
+    embeddings_a_all_gpus = gather_tensor(embeddings_a, backprop_type)
+    embeddings_b_all_gpus = gather_tensor(embeddings_b, backprop_type)
     # embeddings_a has shape [local_batch_size, embedding_dim]
     local_batch_size = embeddings_a.size(0)
     labels = local_batch_size * torch.distributed.get_rank() + torch.arange(
@@ -52,7 +52,7 @@ def contrastive_loss_with_temperature(
     embeddings_b: Tensor,
     logit_scale: nn.Parameter,
     mask: Optional[Tensor] = None,
-    backprop_in_gather: bool = True,
+    backprop_type: BackpropType = BackpropType.GLOBAL,
     cross_entropy_kwargs: Optional[Dict[str, Any]] = None,
 ) -> ContrastiveLossOutput:
     """Functional component for the ContrastiveLossWithTemperature. Please
@@ -67,8 +67,9 @@ def contrastive_loss_with_temperature(
         mask (Optional[Tensor], optional): If certain elements of the inputs shouldn't
             be considered in the loss calculation use this option to pass a boolean
             mask. Size is (BatchSize,). Defaults to None.
-        backprop_in_gather (bool): Whether to backpropagate the gradients from
-            all_gather to all workers (versus just the local worker).
+        backprop_type (BackpropType): whether to backpropagate gradients to all
+            workers (GLOBAL), just the local worker (LOCAL), or not at all (NONE).
+            Default: BackpropType.GLOBAL
         cross_entropy_kwargs (Optional[Dict[str, Any]]): Any additional inputs to cross entropy loss (ex: label_smoothing)
 
     Returns:
@@ -83,7 +84,7 @@ def contrastive_loss_with_temperature(
         embeddings_a_all_gpus,
         embeddings_b_all_gpus,
         labels,
-    ) = _gather_embeddings_and_labels(embeddings_a, embeddings_b, backprop_in_gather)
+    ) = _gather_embeddings_and_labels(embeddings_a, embeddings_b, backprop_type)
 
     # logits_per_image has shape [local_batch_size, global_batch_size]
     logits_per_input_a = (
@@ -150,8 +151,9 @@ class ContrastiveLossWithTemperature(nn.Module):
                 (In the CLIP model, these are the outputs of the image encoder.)
             embeddings_b (Tensor): Tensor containing features from the second input or modality.
                 (In the CLIP model, these are the outputs of the text encoder.)
-            backprop_in_gather (bool): Whether to backpropagate the gradients from
-                all_gather to all workers (versus just the local worker).
+            backprop_type (BackpropType): whether to backpropagate gradients to all
+                workers (GLOBAL), just the local worker (LOCAL), or not at all (NONE).
+                Default: BackpropType.GLOBAL
             cross_entropy_kwargs (Optional[Dict[str, Any]]): Any additional inputs to cross entropy loss (ex: label_smoothing)
             mask (Optional[Tensor], optional): If certain elements of the inputs shouldn't
                 be considered in the loss calculation use this option to pass a boolean
@@ -184,7 +186,7 @@ class ContrastiveLossWithTemperature(nn.Module):
         self,
         embeddings_a: Tensor,
         embeddings_b: Tensor,
-        backprop_in_gather: bool = True,
+        backprop_type: BackpropType = BackpropType.GLOBAL,
         cross_entropy_kwargs: Optional[Dict[str, Any]] = None,
         mask: Optional[Tensor] = None,
     ) -> Tensor:
@@ -194,7 +196,7 @@ class ContrastiveLossWithTemperature(nn.Module):
             embeddings_a=embeddings_a,
             embeddings_b=embeddings_b,
             logit_scale=self.logit_scale,
-            backprop_in_gather=backprop_in_gather,
+            backprop_type=backprop_type,
             cross_entropy_kwargs=cross_entropy_kwargs,
             mask=mask,
         ).loss

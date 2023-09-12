@@ -4,6 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+from enum import Enum
 from typing import List
 
 import torch
@@ -12,19 +13,29 @@ from torch.distributed import all_gather as all_gather_no_backprop
 from torch.distributed.nn.functional import all_gather as all_gather_with_backprop
 
 
+class BackpropType(Enum):
+    """
+    How to backpropagate gradients during all-gather op. GLOBAL will backpropagate
+    to all workers, LOCAL to only the current worker, and NONE will not backpropagate
+    at all.
+    """
+
+    GLOBAL = 0
+    LOCAL = 1
+    NONE = 2
+
+
 def gather_tensor(
-    tensor: Tensor, backprop_in_gather: bool = True, enable_local_backprop: bool = True
+    tensor: Tensor,
+    backprop_type: BackpropType = BackpropType.GLOBAL,
 ) -> List[Tensor]:
     """Gathers a tensor across all GPUs.
 
     Args:
         tensor (Tensor): Tensors that need to be gathered.
-        backprop_in_gather (bool): Whether to backpropagate the gradients from
-            all_gather to all workers (versus just the local worker). Defaults
-            to {\\double back-quote}True{\\double quote}.
-        enable_local_backprop (bool): Whether to backpropagate the local gradients when backprop_in_gather
-            is turned off. Defaults to True. It's used for cases where backpropagate should be turned off completely,
-            such as metrics computation and gather constant tensor.
+        backprop_type (BackpropType): whether to backpropagate gradients to all
+            workers (GLOBAL), just the local worker (LOCAL), or not at all (NONE).
+            Default: BackpropType.GLOBAL
 
     Returns:
         List[Tensor]: List of gathered tensors across all GPUs.
@@ -33,7 +44,7 @@ def gather_tensor(
 
     # This uses the all_gather from torch.distributed.nn.functional,
     # which backpropagates gradients to all workers
-    if backprop_in_gather:
+    if backprop_type == BackpropType.GLOBAL:
         return all_gather_with_backprop(tensor)
 
     else:
@@ -42,26 +53,23 @@ def gather_tensor(
         # just backprop to the current worker
         # This means that the image gradients on a given worker will only
         # consider the text samples from the same worker
-        if enable_local_backprop:
+        if backprop_type == BackpropType.LOCAL:
             tensor_all_gpus[get_rank()] = tensor
         return tensor_all_gpus
 
 
 def concat_gather_all_gpu(
     tensor: Tensor,
-    backprop_in_gather: bool = True,
-    enable_local_backprop: bool = False,
+    backprop_type: BackpropType = BackpropType.GLOBAL,
     dim: int = 0,
 ) -> Tensor:
     """Gathers a tensor across all GPUs.
 
     Inputs:
         tensor (Tensor): Tensors that need to be gathered.
-        backprop_in_gather (bool): Whether to backpropagate the gradients from
-            all_gather to all workers (versus just the local worker). Defaults
-            to True.
-        enable_local_backprop (bool): Whether to backpropagate the local gradients
-            when backprop_in_gather is turned off.
+        backprop_type (BackpropType): whether to backpropagate gradients to all
+            workers (GLOBAL), just the local worker (LOCAL), or not at all (NONE).
+            Default: BackpropType.GLOBAL
         dim: the dimension over which the tensors are concatenated, default to 0.
 
     Returns:
@@ -70,7 +78,7 @@ def concat_gather_all_gpu(
     if not torch.distributed.is_available() or not torch.distributed.is_initialized():
         return tensor
 
-    tensors_all_gpus = gather_tensor(tensor, backprop_in_gather, enable_local_backprop)
+    tensors_all_gpus = gather_tensor(tensor, backprop_type)
 
     return torch.cat(tensors_all_gpus, dim=dim)
 
