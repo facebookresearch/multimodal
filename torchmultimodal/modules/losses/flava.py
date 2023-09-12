@@ -16,6 +16,7 @@ from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
     contrastive_loss_with_temperature,
 )
 from torchmultimodal.utils.common import ModelOutput
+from torchmultimodal.utils.distributed import BackpropType
 
 
 def assert_labels_are_present(
@@ -278,7 +279,7 @@ class FLAVAGlobalContrastiveLoss(nn.Module):
             logit_scale=self.logit_scale,
             mask=mask,
             # Always true for FLAVA global contrastive loss
-            backprop_in_gather=True,
+            backprop_type=BackpropType.GLOBAL,
         )
 
         return FLAVAGlobalContrastiveLossOutput(
