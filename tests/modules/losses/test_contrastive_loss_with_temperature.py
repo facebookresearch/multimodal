@@ -26,6 +26,7 @@ from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
     ContrastiveLossWithTemperature,
 )
 from torchmultimodal.utils.common import get_current_device
+from torchmultimodal.utils.distributed import BackpropType
 
 
 class TestContrastiveLossWithTemperature:
@@ -162,7 +163,9 @@ class TestContrastiveLossWithTemperature:
         local_image_embeddings = image_encoder(local_images)
         local_text_embeddings = text_encoder(local_texts)
         loss = loss_fn(
-            local_image_embeddings, local_text_embeddings, backprop_in_gather=True
+            local_image_embeddings,
+            local_text_embeddings,
+            backprop_type=BackpropType.GLOBAL,
         )
 
         # Compute gradients

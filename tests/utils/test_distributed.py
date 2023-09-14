@@ -15,7 +15,7 @@ from tests.test_utils import (
     with_temp_files,
 )
 from torch import Tensor
-from torchmultimodal.utils.distributed import gather_tensor
+from torchmultimodal.utils.distributed import BackpropType, gather_tensor
 
 BATCH_SIZE = 4
 EMBEDDING_DIM = 8
@@ -23,7 +23,7 @@ EMBEDDING_DIM = 8
 
 class TestGatherTensor:
     """
-    Test gather_tensor method with backprop_in_gather param
+    Test gather_tensor method with backprop_type param
     """
 
     @pytest.fixture(autouse=True)
@@ -40,25 +40,29 @@ class TestGatherTensor:
         world_size: int,
         sync_file: str,
         input_tensor: Tensor,
-        backprop_in_gather: bool,
+        backprop_type: BackpropType,
     ):
         init_distributed_on_file(
             world_size=world_size, gpu_id=gpu_id, sync_file=sync_file
         )
         gpu_tensor = input_tensor.clone().requires_grad_().to(gpu_id) + gpu_id
         expected_output = [input_tensor + i for i in range(world_size)]
-        gathered_output = gather_tensor(gpu_tensor, backprop_in_gather)
+        gathered_output = gather_tensor(gpu_tensor, backprop_type)
         assert_expected(len(expected_output), len(gathered_output))
         for i, tensor in enumerate(gathered_output):
             assert_expected(tensor, expected_output[i], check_device=False)
-            if i == gpu_id or backprop_in_gather:
+            if (
+                backprop_type == BackpropType.LOCAL and i == gpu_id
+            ) or backprop_type == BackpropType.GLOBAL:
                 assert tensor.grad_fn is not None
             else:
                 assert tensor.grad_fn is None
 
     @gpu_test(gpu_count=1)
-    @pytest.mark.parametrize("backprop_in_gather", [True, False])
-    def test_single_gpu_gather(self, input_tensor: Tensor, backprop_in_gather: bool):
+    @pytest.mark.parametrize(
+        "backprop_type", [BackpropType.GLOBAL, BackpropType.LOCAL, BackpropType.NONE]
+    )
+    def test_single_gpu_gather(self, input_tensor: Tensor, backprop_type: BackpropType):
         world_size = 1
         with with_temp_files(count=1) as sync_file:
             mp.spawn(
@@ -67,14 +71,16 @@ class TestGatherTensor:
                     world_size,
                     sync_file,
                     input_tensor,
-                    backprop_in_gather,
+                    backprop_type,
                 ),
                 nprocs=world_size,
             )
 
     @gpu_test(gpu_count=2)
-    @pytest.mark.parametrize("backprop_in_gather", [True, False])
-    def test_multi_gpu_gather(self, input_tensor: Tensor, backprop_in_gather: bool):
+    @pytest.mark.parametrize(
+        "backprop_type", [BackpropType.GLOBAL, BackpropType.LOCAL, BackpropType.NONE]
+    )
+    def test_multi_gpu_gather(self, input_tensor: Tensor, backprop_type: BackpropType):
         world_size = 2
         with with_temp_files(count=1) as sync_file:
             mp.spawn(
@@ -83,7 +89,7 @@ class TestGatherTensor:
                     world_size,
                     sync_file,
                     input_tensor,
-                    backprop_in_gather,
+                    backprop_type,
                 ),
                 nprocs=world_size,
             )
