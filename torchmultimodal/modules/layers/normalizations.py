@@ -77,12 +77,13 @@ class RMSNorm(nn.Module):
 class SimpleRMSNorm(nn.Module):
     """Simple RMSNorm
 
-    SRMSNorm(x) = x / ∥x∥2/√d
+    SRMSNorm(x) = (x / ∥x∥2)/√d
 
     as proposed in:
     Scaling TransNormer to 175 Billion Parameters
     https://arxiv.org/abs/2307.14995
 
+    Usage: drop in replacement for RMSNorm, but faster. 
     """
 
     def __init__(self, dim: int, eps: float = 1e-12):
