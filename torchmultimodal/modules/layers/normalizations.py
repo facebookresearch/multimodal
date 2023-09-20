@@ -83,7 +83,9 @@ class SimpleRMSNorm(nn.Module):
     Scaling TransNormer to 175 Billion Parameters
     https://arxiv.org/abs/2307.14995
 
-    Usage: drop in replacement for RMSNorm, but faster. 
+    Usage: designed to be a replacement for RMSNorm. 
+    Not numerically equivalent, but faster and appears to yield
+    same end results in training. 
     """
 
     def __init__(self, dim: int, eps: float = 1e-12):
