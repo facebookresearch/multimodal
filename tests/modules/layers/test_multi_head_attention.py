@@ -11,6 +11,7 @@ from torch import nn
 from torchmultimodal.modules.layers.multi_head_attention import (
     MultiHeadAttentionWithCache,
     MultiHeadSelfAttention,
+    MultiHeadSelfAttentionWithCache,
 )
 
 
@@ -104,6 +105,13 @@ class TestMultiHeadAttentionWithCache:
         return mha
 
     @pytest.fixture
+    def multi_head_self_attn_module_with_cache(self, dim_q):
+        mha = MultiHeadSelfAttentionWithCache(dim_q, num_heads=2)
+        init_weights_with_constant(mha)
+        mha.eval()
+        return mha
+
+    @pytest.fixture
     def multi_head_cross_attn(self, dim_q, dim_kv):
         mha = MultiHeadAttentionWithCache(dim_q, dim_kv, num_heads=2)
         init_weights_with_constant(mha)
@@ -117,16 +125,7 @@ class TestMultiHeadAttentionWithCache:
         mha.eval()
         return mha
 
-    def test_multi_head_self_attention_use_cache(
-        self,
-        multi_head_self_attn_use_cache,
-        current_key_value,
-        past_key_value,
-        q,
-    ):
-        actual = multi_head_self_attn_use_cache(
-            q, q, q, past_key_value=(past_key_value, past_key_value), use_cache=True
-        )
+    def _assert_mha_self_attn_equal(self, actual, past_key_value, current_key_value):
         expected = torch.tensor(
             [
                 [
@@ -138,6 +137,7 @@ class TestMultiHeadAttentionWithCache:
         )
         assert_expected(actual.attn_output, expected, rtol=0, atol=1e-4)
         # Check that the cache is properly updated
+        torch.cat([past_key_value, current_key_value], dim=2)
         assert_expected(
             actual.past_key_value[0],
             torch.cat([past_key_value, current_key_value], dim=2),
@@ -145,6 +145,59 @@ class TestMultiHeadAttentionWithCache:
         assert_expected(
             actual.past_key_value[1],
             torch.cat([past_key_value, current_key_value], dim=2),
+        )
+
+    def test_multi_head_self_attention_use_cache(
+        self,
+        multi_head_self_attn_use_cache,
+        current_key_value,
+        past_key_value,
+        q,
+    ):
+        actual = multi_head_self_attn_use_cache(
+            q, q, q, past_key_value=(past_key_value, past_key_value), use_cache=True
+        )
+        self._assert_mha_self_attn_equal(actual, past_key_value, current_key_value)
+
+    def test_multi_head_self_attn_module_with_cache(
+        self,
+        multi_head_self_attn_module_with_cache,
+        current_key_value,
+        past_key_value,
+        q,
+    ):
+        actual = multi_head_self_attn_module_with_cache(
+            q, past_key_value=(past_key_value, past_key_value), use_cache=True
+        )
+        self._assert_mha_self_attn_equal(actual, past_key_value, current_key_value)
+
+    def test_multi_head_attention_with_cache_modules_equal(
+        self,
+        multi_head_self_attn_use_cache,
+        multi_head_self_attn_module_with_cache,
+        current_key_value,
+        past_key_value,
+        q,
+    ):
+        mha_with_cache_cls_output = multi_head_self_attn_use_cache(
+            q, q, q, past_key_value=(past_key_value, past_key_value), use_cache=True
+        )
+        sa_with_cache_cls_output = multi_head_self_attn_module_with_cache(
+            q, past_key_value=(past_key_value, past_key_value), use_cache=True
+        )
+        assert_expected(
+            mha_with_cache_cls_output.attn_output,
+            sa_with_cache_cls_output.attn_output,
+            rtol=0,
+            atol=1e-4,
+        )
+        assert_expected(
+            mha_with_cache_cls_output.past_key_value[0],
+            sa_with_cache_cls_output.past_key_value[0],
+        )
+        assert_expected(
+            mha_with_cache_cls_output.past_key_value[1],
+            sa_with_cache_cls_output.past_key_value[1],
         )
 
     def test_multi_head_cross_attention(self, multi_head_cross_attn, q, kv):
