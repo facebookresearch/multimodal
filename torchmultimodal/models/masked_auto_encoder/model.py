@@ -13,7 +13,7 @@ from torchmultimodal.models.masked_auto_encoder.position_embeddings import (
     get_2d_sin_cos_embeddings,
 )
 from torchmultimodal.models.masked_auto_encoder.swin_decoder import SwinTransformer
-from torchmultimodal.modules.layers.image_embedding import ImageEmbeddings
+from torchmultimodal.modules.layers.patch_embedding import PatchEmbeddings
 from torchmultimodal.modules.layers.transformer import (
     TransformerEncoder,
     TransformerOutput,
@@ -59,7 +59,7 @@ class MaskedAutoEncoder(nn.Module):
     ):
         super().__init__()
         self.patch_size = patch_size
-        self.patch_embed = ImageEmbeddings(
+        self.patch_embed = PatchEmbeddings(
             image_size=input_size,
             patch_size=patch_size,
             num_channels=num_channels,

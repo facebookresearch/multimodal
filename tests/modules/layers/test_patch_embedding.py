@@ -9,7 +9,7 @@ import pytest
 import torch
 from tests.test_utils import assert_expected, set_rng_seed
 from torch import nn
-from torchmultimodal.modules.layers.image_embedding import ImageEmbeddings
+from torchmultimodal.modules.layers.patch_embedding import PatchEmbeddings
 
 
 @pytest.fixture(autouse=True)
@@ -27,7 +27,7 @@ def mask():
     return torch.tensor([[1, 1, 0, 1], [0, 1, 1, 0]])
 
 
-class TestImageEmbeddings:
+class TestPatchEmbeddings:
     def _init_conv_proj(self, model):
         model.conv_projection.weight = nn.Parameter(
             torch.tensor([[[[0.0]], [[1.0]], [[2.0]]], [[[3.0]], [[4.0]], [[5.0]]]])
@@ -35,7 +35,7 @@ class TestImageEmbeddings:
 
     @pytest.fixture
     def embedding(self):
-        model = ImageEmbeddings(
+        model = PatchEmbeddings(
             image_size=2,
             patch_size=1,
             hidden_size=2,
@@ -48,7 +48,7 @@ class TestImageEmbeddings:
 
     @pytest.fixture
     def embedding_patches_dropped(self):
-        model = ImageEmbeddings(
+        model = PatchEmbeddings(
             image_size=2,
             patch_size=1,
             hidden_size=2,
@@ -89,7 +89,7 @@ class TestImageEmbeddings:
         assert_expected(actual, expected, atol=1e-4, rtol=0)
 
     def test_forward_rectangle_input(self):
-        model = ImageEmbeddings(
+        model = PatchEmbeddings(
             image_size=(4, 6),
             patch_size=2,
             hidden_size=2,
@@ -117,7 +117,7 @@ class TestImageEmbeddings:
         assert_expected(actual, expected, atol=1e-4, rtol=0)
 
     def test_forward_no_cls(self, inputs, mask):
-        embedding = ImageEmbeddings(
+        embedding = PatchEmbeddings(
             image_size=2,
             patch_size=1,
             hidden_size=2,
