@@ -9,7 +9,7 @@ from typing import Any, Callable, Optional, Tuple, Union
 import torch
 
 from torch import nn, Tensor
-from torchmultimodal.modules.layers.image_embedding import ImageEmbeddings
+from torchmultimodal.modules.layers.patch_embedding import PatchEmbeddings
 from torchmultimodal.modules.layers.transformer import (
     TransformerEncoder,
     TransformerOutput,
@@ -23,7 +23,7 @@ class VisionTransformer(nn.Module):
 
     Attributes:
         embeddings (nn.Module): Module that projects image pixels into embeddings.
-            See :py:class: ImageEmbeddings for interface.
+            See :py:class: PatchEmbeddings for interface.
         encoder (nn.Module): Module for transformer encoder. See :py:class: TransformerEncoder for interface.
         pooler (nn.Module, optional): Module for pooler to be applied after layernorm. Defaults to ``None``.
         weight_init_fn (Callable, optional): function for custom weight initialization of both the transformer
@@ -174,7 +174,7 @@ def vision_transformer(
         pooler (nn.Module, optional): Pooling function to be applied to the last hidden state from the transformer like avg pooling.
         Defaults to None
     """
-    image_embedding = ImageEmbeddings(
+    image_embedding = PatchEmbeddings(
         image_size=image_size,
         patch_size=patch_size,
         hidden_size=hidden_dim,

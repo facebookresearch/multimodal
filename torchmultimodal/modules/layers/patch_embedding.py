@@ -17,13 +17,13 @@ from torchmultimodal.modules.masking.random_masking import (
 )
 
 
-class ImageEmbeddingsOutput(NamedTuple):
+class PatchEmbeddingsOutput(NamedTuple):
     embeddings: Tensor
     random_mask: Optional[Tensor] = None
     ids_restore: Optional[Tensor] = None
 
 
-class ImageEmbeddings(nn.Module):
+class PatchEmbeddings(nn.Module):
     """
     Construct the CLS token, position and patch embeddings for vision transformer
     Args:
@@ -97,7 +97,7 @@ class ImageEmbeddings(nn.Module):
         self,
         pixel_values: Tensor,
         image_patches_mask: Optional[Tensor] = None,
-    ) -> ImageEmbeddingsOutput:
+    ) -> PatchEmbeddingsOutput:
         batch_size, num_channels, height, width = pixel_values.shape
         if height != self.image_size[0] or width != self.image_size[1]:
             raise ValueError(
@@ -151,7 +151,7 @@ class ImageEmbeddings(nn.Module):
 
         embeddings = self.dropout(embeddings)
 
-        return ImageEmbeddingsOutput(
+        return PatchEmbeddingsOutput(
             embeddings=embeddings,
             random_mask=random_mask,
             ids_restore=ids_restore,
