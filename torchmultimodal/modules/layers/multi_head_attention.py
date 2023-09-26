@@ -68,8 +68,12 @@ class MultiHeadSelfAttention(nn.Module):
         key = key.view(bsz, -1, self.num_heads, head_dim).transpose(1, 2)
         value = value.view(bsz, -1, self.num_heads, head_dim).transpose(1, 2)
 
+        # F.scaled_dot_product_attention is stateless,
+        # we need explicitly turn off dropout under eval mode
+        dropout = self.dropout if self.training else 0.0
+
         attn = F.scaled_dot_product_attention(
-            query, key, value, attn_mask, self.dropout, is_causal
+            query, key, value, attn_mask, dropout, is_causal
         )
         attn = attn.transpose(1, 2).reshape(bsz, -1, embed_dim)
 
@@ -160,9 +164,13 @@ class MultiHeadAttentionWithCache(nn.Module):
             key = torch.cat([past_key_value[0], key], dim=2)
             value = torch.cat([past_key_value[1], value], dim=2)
 
+        # F.scaled_dot_product_attention is stateless,
+        # we need explicitly turn off dropout under eval mode
+        dropout = self.dropout if self.training else 0.0
+
         # turn off causal attention inside scaled_dot_product_attention, we handle it separately with attn_mask.
         attn = F.scaled_dot_product_attention(
-            query, key, value, attn_mask, self.dropout, is_causal
+            query, key, value, attn_mask, dropout, is_causal
         )
         attn = attn.transpose(1, 2).reshape(bsz, -1, embed_dim)
 

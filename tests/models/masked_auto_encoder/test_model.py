@@ -115,12 +115,12 @@ class TestImageMaskedAutoEncoder:
             image_size=(2, 2),
             patch_size=1,
         )
-        for p in model.patch_embed.position_embeddings:
+        for p in model.embeddings.position_embeddings:
             assert p.requires_grad is False
         for p in model.decoder_embed.position_embeddings:
             assert p.requires_grad is False
         assert_expected(
-            model.patch_embed.position_embeddings,
+            model.embeddings.position_embeddings,
             torch.Tensor(
                 [
                     [
@@ -307,12 +307,12 @@ class TestAudioMaskedAutoEncoder:
             input_size=(2, 3),
             patch_size=1,
         )
-        for p in model.patch_embed.position_embeddings:
+        for p in model.embeddings.position_embeddings:
             assert p.requires_grad is False
         for p in model.decoder_embed.position_embeddings:
             assert p.requires_grad is False
         assert_expected(
-            model.patch_embed.position_embeddings,
+            model.embeddings.position_embeddings,
             torch.Tensor(
                 [
                     [

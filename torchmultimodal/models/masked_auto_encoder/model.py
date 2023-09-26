@@ -13,7 +13,7 @@ from torchmultimodal.models.masked_auto_encoder.position_embeddings import (
     get_2d_sin_cos_embeddings,
 )
 from torchmultimodal.models.masked_auto_encoder.swin_decoder import SwinTransformer
-from torchmultimodal.modules.layers.image_embedding import ImageEmbeddings
+from torchmultimodal.modules.layers.patch_embedding import PatchEmbeddings
 from torchmultimodal.modules.layers.transformer import (
     TransformerEncoder,
     TransformerOutput,
@@ -59,16 +59,16 @@ class MaskedAutoEncoder(nn.Module):
     ):
         super().__init__()
         self.patch_size = patch_size
-        self.patch_embed = ImageEmbeddings(
+        self.embeddings = PatchEmbeddings(
             image_size=input_size,
             patch_size=patch_size,
             num_channels=num_channels,
             hidden_size=embed_dim,
             patch_drop_rate=masking_ratio,
         )
-        self.patch_embed.position_embeddings.requires_grad = False
+        self.embeddings.position_embeddings.requires_grad = False
 
-        self.encoder_transformer = encoder_transformer
+        self.encoder = encoder_transformer
 
         self.decoder_embed = DecoderEmbeddings(
             encoder_embed_dim=embed_dim,
@@ -95,18 +95,18 @@ class MaskedAutoEncoder(nn.Module):
             input_h, input_w = input_size
         num_patches_h = input_h // self.patch_size
         num_patches_w = input_w // self.patch_size
-        self.patch_embed.position_embeddings.data = get_2d_sin_cos_embeddings(
+        self.embeddings.position_embeddings.data = get_2d_sin_cos_embeddings(
             encoder_embed_dim, (num_patches_w, num_patches_h)
         )
         self.decoder_embed.position_embeddings.data = get_2d_sin_cos_embeddings(
             decoder_embed_dim, (num_patches_w, num_patches_h)
         )
 
-        # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
-        w = self.patch_embed.conv_projection.weight.data
+        # initialize embeddings like nn.Linear (instead of nn.Conv2d)
+        w = self.embeddings.conv_projection.weight.data
         torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
 
-        torch.nn.init.normal_(self.patch_embed.cls_token, std=0.02)
+        torch.nn.init.normal_(self.embeddings.cls_token, std=0.02)
         torch.nn.init.normal_(self.decoder_embed.mask_token, std=0.02)
 
         self.apply(self._init_weights)
@@ -150,8 +150,8 @@ class MaskedAutoEncoder(nn.Module):
             label_patches indicates the patchified ground truth pixels
 
         """
-        embedding_out = self.patch_embed(x)
-        encoder_out = self.encoder_transformer(embedding_out.embeddings)
+        embedding_out = self.embeddings(x)
+        encoder_out = self.encoder(embedding_out.embeddings)
         if not self.training:
             # TODO: check if error should be raised is masking ratio != 0 here
             return MAEOutput(encoder_out)

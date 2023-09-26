@@ -117,6 +117,13 @@ class TestMultiHeadAttentionWithCache:
         mha.eval()
         return mha
 
+    @pytest.fixture
+    def mha_with_dropout(self, dim_q):
+        mha = MultiHeadAttentionWithCache(dim_q, dim_q, num_heads=2, dropout=0.5)
+        init_weights_with_constant(mha)
+        mha.eval()
+        return mha
+
     def test_multi_head_self_attention_use_cache(
         self,
         multi_head_self_attn_use_cache,
@@ -125,6 +132,36 @@ class TestMultiHeadAttentionWithCache:
         q,
     ):
         actual = multi_head_self_attn_use_cache(
+            q, q, q, past_key_value=(past_key_value, past_key_value), use_cache=True
+        )
+        expected = torch.tensor(
+            [
+                [
+                    [45.0, 45.0, 45.0, 45.0],
+                    [45.0, 45.0, 45.0, 45.0],
+                    [45.0, 45.0, 45.0, 45.0],
+                ]
+            ]
+        )
+        assert_expected(actual.attn_output, expected, rtol=0, atol=1e-4)
+        # Check that the cache is properly updated
+        assert_expected(
+            actual.past_key_value[0],
+            torch.cat([past_key_value, current_key_value], dim=2),
+        )
+        assert_expected(
+            actual.past_key_value[1],
+            torch.cat([past_key_value, current_key_value], dim=2),
+        )
+
+    def test_mha_with_dropout(
+        self,
+        mha_with_dropout,
+        current_key_value,
+        past_key_value,
+        q,
+    ):
+        actual = mha_with_dropout(
             q, q, q, past_key_value=(past_key_value, past_key_value), use_cache=True
         )
         expected = torch.tensor(
