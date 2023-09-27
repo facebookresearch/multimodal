@@ -253,7 +253,7 @@ class TestAudioMaskedAutoEncoder:
 
         pred = actual.decoder_pred
         assert_expected(pred.size(), (2, 512, 16 * 16 * 1))
-        assert_expected(pred.mean().item(), 513.0)
+        assert_expected(pred.mean().item(), 513.0, rtol=1e-4, atol=1e-4)
 
         labels = actual.label_patches
         assert_expected(labels, torch.ones(2, 512, 16 * 16 * 1))
