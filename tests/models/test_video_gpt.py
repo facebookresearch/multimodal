@@ -10,7 +10,7 @@ import torch
 
 from tests.test_utils import assert_expected, set_rng_seed
 
-from torchmultimodal.models.video_gpt import video_gpt, video_vqvae
+from torchmultimodal.models.video_gpt.model import video_gpt, video_vqvae
 
 
 @pytest.fixture(autouse=True)
