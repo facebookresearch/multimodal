@@ -67,70 +67,6 @@ class SelfAttention(nn.Module):
         return out.unflatten(2, shape), attn_probs
 
 
-class AxialAttention(nn.Module):
-    """Computes attention over a single axis of the input. Other dims are flattened into the batch dimension.
-
-    Args:
-        axial_dim (int): Dimension to compute attention on, indexed by input dimensions
-            (i.e., ``0`` for first input dimension, ``1`` for second).
-        attn_dropout (float): Probability of dropout after softmax. Default is ``0.0``.
-    """
-
-    def __init__(self, axial_dim: int, attn_dropout: float = 0.0) -> None:
-        super().__init__()
-        self.axial_dim = axial_dim + 2  # account for batch, head
-        self.attn_dropout = attn_dropout
-
-    def forward(
-        self,
-        q: Tensor,
-        k: Tensor,
-        v: Tensor,
-        attention_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
-    ) -> Tuple[Tensor, Tensor]:
-        """
-        Args:
-            q (Tensor): Query input of shape ``(b, h, d1, ..., dn, dim_q)`` where ``h`` is the number of
-                attention heads, ``(d1, ..., dn)`` are the query latent dimensions and ``dim_q`` is the dimension
-                of the query embeddings.
-            k, v (Tensor): Key/value input of shape ``(b, h, d1', ..., dn', dim_kv)`` where ``h`` is the number
-                of attention heads, ``(d1', ..., dn')`` are the key/value latent dimensions and ``dim_kv`` is
-                the dimension of the key/value embeddings.
-            attention_mask (Tensor, optional): Tensor of shape ``(b, h, d1, ..., q_dn, k_dn)`` where ``q_dn`` is
-                the dimension of the axis to compute attention on of the query and ``k_dn`` that of the key.
-                Contains 1s for positions to attend to and 0s for masked positions.
-            head_mask (Tensor, optional): Tensor of shape ``(b, h, d1, ..., q_dn, k_dn)``.
-                Contains 1s for positions to attend to and 0s for masked positions.
-
-        Returns:
-            A tuple of output tensor and attention probabilities.
-        """
-        # Ensure axial dim is within right dimensions, should be between head dim and embedding dim
-        if self.axial_dim >= len(q.shape) - 1:
-            raise ValueError("axial dim does not match input shape")
-
-        # flatten all dims into batch dimension except chosen axial dim and channel dim
-        # b, h, d1, ..., dn, dim_q/dim_kv -> (b, h, d1, ..., dn-1), axial_dim, dim_q/dim_kv
-        q = shift_dim(q, self.axial_dim, -2).flatten(end_dim=-3)
-        k = shift_dim(k, self.axial_dim, -2).flatten(end_dim=-3)
-        v = shift_dim(v, self.axial_dim, -2)
-        old_shape = list(v.shape)
-        v = v.flatten(end_dim=-3)
-
-        out, attn_probs = scaled_dot_product_attention(
-            q,
-            k,
-            v,
-            attention_mask=attention_mask,
-            head_mask=head_mask,
-            attn_dropout=self.attn_dropout if self.training else 0.0,
-        )
-        out = out.view(*old_shape)
-        out = shift_dim(out, -2, self.axial_dim)
-        return out, attn_probs
-
-
 class MultiHeadAttention(nn.Module):
     """Computes multihead attention with flexible attention mechanism and caching for fast decoding.
 
@@ -204,13 +140,7 @@ class MultiHeadAttention(nn.Module):
         Returns:
             * If ``return_attn_weights`` is ``True``: A tuple of output tensor and attention probabilities.
             * If ``return_attn_weights`` is ``False``: A single output tensor.
-
-        Raises:
-            TypeError: An error occurred when ``causal`` is ``True`` and ``attn_module`` is ``AxialAttention``.
         """
-        if isinstance(self.attn, AxialAttention) and causal:
-            raise TypeError("Causal axial attention is not supported.")
-
         # If kv is specified use those inputs for cross-attention, otherwise use q
         k = v = q if kv is None else kv
         # compute q
@@ -250,62 +180,6 @@ class MultiHeadAttention(nn.Module):
             return a, attn_probs
         else:
             return a
-
-
-class AxialAttentionBlock(nn.Module):
-    """Computes multihead axial attention across all dims of the input.
-
-    Axial attention is an alternative to standard full attention, where instead
-    of computing attention across the entire flattened input, you compute it for
-    each dimension. To capture the global context that full attention does, stacking
-    multiple axial attention layers will allow information to propagate among the
-    multiple dimensions of the input. This enables attention calculations on high
-    dimensional inputs (images, videos) where full attention would be computationally
-    expensive and unfeasible. For more details, see `"Axial Attention in
-    Multidimensional Transformers (Ho et al. 2019)"<https://arxiv.org/pdf/1912.12180.pdf>`_
-    and `"CCNet: Criss-Cross Attention for Semantic Segmentation (Huang et al. 2019)
-    "<https://arxiv.org/pdf/1811.11721.pdf>`_.
-
-    Follows implementation by VideoGPT:
-        https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/vqvae.py
-
-    Args:
-        n_dims (int): Dimensionality of input data, not including batch or embedding dims.
-        qkv_dim (int): Dimensionality of query/key/value embedding vectors.
-        n_head (int): Number of heads in multihead attention. Must divide into ``qkv_dim``
-            evenly.
-    """
-
-    def __init__(self, n_dims: int, qkv_dim: int, n_head: int) -> None:
-        super().__init__()
-        self.qkv_dim = qkv_dim
-        self.mha_attns = nn.ModuleList(
-            [
-                MultiHeadAttention(
-                    dim_q=qkv_dim,
-                    dim_kv=qkv_dim,
-                    n_head=n_head,
-                    attn_module=AxialAttention(d),
-                    add_bias=False,
-                )
-                for d in range(n_dims)
-            ]
-        )
-
-    def forward(self, x: Tensor) -> Tensor:
-        n_channel = x.shape[1]
-        if n_channel != self.qkv_dim:
-            raise ValueError(
-                f"Input channel dimension is {n_channel}, expected {self.qkv_dim}"
-            )
-
-        h = shift_dim(x, 1, -1)  # (b, c, d1, ..., dn) -> (b, d1, ..., dn, c)
-        attn_out = torch.zeros_like(h)
-        for mha_attn in self.mha_attns:
-            attn_out += mha_attn(h)
-        h = attn_out
-        h = shift_dim(h, -1, 1)  # (b, d1, ..., dn, c) -> (b, c, d1, ..., dn)
-        return h
 
 
 def scaled_dot_product_attention(

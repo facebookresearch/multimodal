@@ -12,7 +12,7 @@ from examples.mugen.generation.video_vqvae import video_vqvae_mugen
 
 from torch import nn, Tensor
 
-from torchmultimodal.models.gpt import (
+from torchmultimodal.models.video_gpt.gpt import (
     MultimodalGPT,
     MultimodalTransformerDecoder,
     RightShift,
@@ -69,7 +69,7 @@ def text_video_gpt(
             new frame will be of shape ``(8, 8, 8)`` with each dim divided by the rate of downsample. Defaults to
             ``(4, 32, 32)``.
         d_model (int): Dimension of the underlying transformer decoder.
-            See :py:class:`torchmultimodal.models.gpt.TransformerDecoderLayer`. Defaults to ``768``.
+            See :py:class:`torchmultimodal.models.video_gpt.gpt.TransformerDecoderLayer`. Defaults to ``768``.
         n_head (int): Number of attention heads used by the transformer decoder. Defaults to ``8``.
         dropout (float): Dropout probability used by the projection layer of the transformer decoder.
             Defaults to ``0.2``.
@@ -93,7 +93,7 @@ def text_video_gpt(
             Defaults to ``None``.
 
     Returns:
-        An instance of :py:class:`torchmultimodal.models.gpt.MultimodalGPT`.
+        An instance of :py:class:`torchmultimodal.models.video_gpt.gpt.MultimodalGPT`.
     """
 
     # builds text tokenizer from pre-trained
@@ -195,7 +195,7 @@ class TextTokenizer(nn.Module):
     """Converts between text and tokens / embedings
 
     Wrapper around the tokenizer to be consistent with the API required by
-    :py:class:`torchmultimodal.models.gpt.MultimodalGPT`. It also contains the
+    :py:class:`torchmultimodal.models.video_gpt.gpt.MultimodalGPT`. It also contains the
     embedding layer to enable lookup by token ids.
     """
 
