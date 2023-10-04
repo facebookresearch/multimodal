@@ -20,6 +20,13 @@ from torchmultimodal.modules.layers.transformer import (
 )
 
 
+MAE_MODEL_MAPPING = {
+    "vit_b16_image": "https://download.pytorch.org/models/multimodal/mae/mae_pretrained_vit_base.pth",
+    "vit_l16_image": "https://download.pytorch.org/models/multimodal/mae/mae_pretrained_vit_large.pth",
+    "vit_b16_audio": "https://download.pytorch.org/models/multimodal/audio_mae/audio_mae_pretrained_vit_base.pth",
+}
+
+
 class MAEOutput(NamedTuple):
     encoder_output: Union[TransformerOutput, Tensor]
     decoder_pred: Optional[Tensor] = None

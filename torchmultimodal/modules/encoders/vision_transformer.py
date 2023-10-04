@@ -14,6 +14,7 @@ from torchmultimodal.modules.layers.transformer import (
     TransformerEncoder,
     TransformerOutput,
 )
+from torchmultimodal.utils.common import load_module_from_url
 
 
 class VisionTransformer(nn.Module):
@@ -148,6 +149,7 @@ def vision_transformer(
     drop_path_rate: Optional[float] = None,
     patch_drop_rate: Optional[Union[float, Tuple[float, float]]] = None,
     pooler: Optional[nn.Module] = None,
+    ckpt_path: str = None,
 ) -> VisionTransformer:
     """
     Args:
@@ -198,6 +200,8 @@ def vision_transformer(
     vit = VisionTransformer(
         embeddings=image_embedding, encoder=transformer_encoder, pooler=pooler
     )
+    if ckpt_path:
+        load_module_from_url(vit, ckpt_path)
     return vit
 
 
