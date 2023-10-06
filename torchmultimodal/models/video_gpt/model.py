@@ -7,14 +7,14 @@
 from typing import Tuple
 
 from torch import nn
-from torchmultimodal.models.gpt import (
+from torchmultimodal.models.video_gpt.gpt import (
     MultimodalGPT,
     MultimodalTransformerDecoder,
     RightShift,
     TransformerDecoder,
     TransformerDecoderLayer,
 )
-from torchmultimodal.models.video_vqvae import VideoDecoder, VideoEncoder
+from torchmultimodal.models.video_gpt.video_vqvae import VideoDecoder, VideoEncoder
 from torchmultimodal.models.vqvae import VQVAE
 
 from torchmultimodal.modules.layers.attention import SelfAttention
@@ -46,14 +46,14 @@ def video_gpt(
             Defaults to ``(16, 64, 64)``.
         latent_shape (Tuple[int, int, int]): Shape of the encoded video data. This should be consistent with
             the actual latent shape inferred by the video encoder.
-            See :class:`~torchmultimodal.models.video_vqvae.VideoEncoder`.
+            See :class:`~torchmultimodal.models.video_gpt.video_vqvae.VideoEncoder`.
             Defaults to ``(8, 32, 32)``.
         d_model (int): Dimension of the underlying transformer decoder.
             Value taken from: https://github.com/wilson1yan/VideoGPT/blob/master/videogpt/gpt.py#L177
             Note that this is different from the paper due to
             :class:`~torchmultimodal.modules.layers.position_embedding.BroadcastedPositionEmbedding`
             requires that ``d_model`` is a multiple of ``len(latent_shape)``.
-            See :py:class:`torchmultimodal.models.gpt.TransformerDecoderLayer`. Defaults to ``576``.
+            See :py:class:`torchmultimodal.models.video_gpt.gpt.TransformerDecoderLayer`. Defaults to ``576``.
         n_head (int): Number of attention heads used by the transformer decoder. Defaults to ``4``.
         dropout (float): Dropout probability used by the projection layer of the transformer decoder.
             Defaults to ``0.2``.
@@ -61,10 +61,10 @@ def video_gpt(
             Defaults to ``0.3``.
         num_decoder_layers (int): Number of transformer decoder layers. Defaults to ``16``.
         use_gpt_init (bool): Whether to use weight initialization of GPT model.
-            See :class:`~torchmultimodal.models.gpt.MultimodalGPT`. Defaults to ``True``.
+            See :class:`~torchmultimodal.models.video_gpt.gpt.MultimodalGPT`. Defaults to ``True``.
 
     Returns:
-        An instance of :class:`~torchmultimodal.models.gpt.MultimodalGPT`.
+        An instance of :class:`~torchmultimodal.models.video_gpt.gpt.MultimodalGPT`.
     """
     # constructs in and out tokenizers
     in_tokenizer = video_vqvae()
@@ -138,7 +138,7 @@ def video_vqvae(
             Dimension-wise strides of the last conv layer of the encoder. Defaults to ``(1, 1, 1)``.
         in_channel_dim (int, optional): Size of channel dim in input. Defaults to ``3``.
         encoder_hidden_dim (int, optional): Size of channel dims in encoder conv layers. Defaults to ``240``.
-        n_res_layers (int, optional): Number of :class:`~torchmultimodal.models.video_vqvae.AttentionResidualBlocks`
+        n_res_layers (int, optional): Number of :class:`~torchmultimodal.models.video_gpt.video_vqvae.AttentionResidualBlocks`
             to include in encoder and decoder. Defaults to ``4``.
         attn_hidden_dim (int, optional): Size of hidden dim of ``AttentionResidualBlocks``. Defaults to ``240``.
         num_embeddings (int, optional): Number of embedding vectors used in ``Codebook``. Defaults to ``1024``.
@@ -156,8 +156,8 @@ def video_vqvae(
 
     Returns:
         An instance of :class:`~torchmultimodal.models.vqvae.VQVAE` constructed with:
-            * :class:`~torchmultimodal.model.video_vqvae.VideoEncoder`
-            * :class:`~torchmultimodal.model.video_vqvae.VideoDecoder`
+            * :class:`~torchmultimodal.model.video_gpt.video_vqvae.VideoEncoder`
+            * :class:`~torchmultimodal.model.video_gpt.video_vqvae.VideoDecoder`
     """
     encoder_kernel_sizes = conv_filter_sizes + (encoder_filter_size,)
     encoder_strides = conv_filter_strides + (encoder_filter_stride,)

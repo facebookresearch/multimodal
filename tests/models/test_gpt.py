@@ -11,7 +11,7 @@ import torch
 from tests.test_utils import assert_expected, assert_expected_namedtuple, set_rng_seed
 from torch import nn
 from torch.nn import functional as F
-from torchmultimodal.models.gpt import (
+from torchmultimodal.models.video_gpt.gpt import (
     MultimodalGPT,
     MultimodalGPTOutput,
     MultimodalTransformerDecoder,
@@ -257,7 +257,7 @@ class TestMultimodalGPT:
         # Testing mean and std of the initialized weights data requires a large
         # amount samples to be statistically stable. Here we just test whether
         # the method in question has been called to avoid test flakiness.
-        mock_init = mocker.patch("torchmultimodal.models.gpt.Tensor.normal_")
+        mock_init = mocker.patch("torchmultimodal.models.video_gpt.gpt.Tensor.normal_")
         gpt = gpt(use_gpt_init=True)
         mock_init.assert_called()
 

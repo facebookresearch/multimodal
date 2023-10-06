@@ -4,12 +4,16 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+from itertools import repeat
+
 import pytest
 import torch
 from tests.test_utils import assert_expected, assert_expected_namedtuple, set_rng_seed
 
-from torchmultimodal.models.video_vqvae import (
+from torchmultimodal.models.video_gpt.video_vqvae import (
     AttentionResidualBlock,
+    AxialAttention,
+    AxialAttentionBlock,
     preprocess_int_conv_params,
     video_vqvae,
     VideoDecoder,
@@ -34,6 +38,89 @@ def params():
 @pytest.fixture(scope="module")
 def input_tensor():
     return torch.ones(1, 2, 2, 2, 2)
+
+
+class TestAxialBlock:
+    @pytest.fixture
+    def hidden_dim(self):
+        return 3
+
+    @pytest.fixture
+    def n_dim(self):
+        return 3
+
+    @pytest.fixture
+    def input_shape(self, n_dim):
+        return tuple(repeat(2, n_dim))
+
+    @pytest.fixture
+    def axial_block(self, input_shape, hidden_dim):
+        return AxialAttentionBlock(len(input_shape), hidden_dim, 1)
+
+    @pytest.fixture
+    def q(self, input_shape, hidden_dim):
+        n_heads = 1
+        return torch.randn(1, n_heads, *input_shape, hidden_dim // n_heads)
+
+    @pytest.fixture
+    def kv(self, input_shape, hidden_dim):
+        n_heads = 1
+        return torch.randn(1, n_heads, *input_shape, hidden_dim // n_heads)
+
+    @pytest.fixture
+    def axial_attn(self):
+        return AxialAttention(1)  # only on second axis of input
+
+    def test_axial_attention(self, axial_attn, q, kv):
+        k = v = kv
+        actual, _ = axial_attn(q, k, v)
+        expected = torch.tensor(
+            [
+                [
+                    [
+                        [
+                            [[-0.5869, 1.8958, 0.8688], [0.0299, 0.2098, 1.2741]],
+                            [[-0.6662, 1.9747, 0.8980], [0.1002, 0.2094, 1.5472]],
+                        ],
+                        [
+                            [[0.5902, -0.3275, -0.8727], [-1.0557, 1.0791, 0.3916]],
+                            [[0.6623, -0.3223, -0.8948], [-1.0755, 1.0763, 0.3708]],
+                        ],
+                    ]
+                ]
+            ]
+        )
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+    def test_axial_block_forward(self, axial_block, hidden_dim, input_shape):
+        """Test AxialAttentionBlock with sub-components"""
+        x = 2 * torch.ones(1, hidden_dim, *input_shape)
+        actual = axial_block(x)
+        expected = torch.tensor(
+            [
+                [
+                    [
+                        [[0.822055, 0.822055], [0.822055, 0.822055]],
+                        [[0.822055, 0.822055], [0.822055, 0.822055]],
+                    ],
+                    [
+                        [[-0.767143, -0.767143], [-0.767143, -0.767143]],
+                        [[-0.767143, -0.767143], [-0.767143, -0.767143]],
+                    ],
+                    [
+                        [[-0.916860, -0.916860], [-0.916860, -0.916860]],
+                        [[-0.916860, -0.916860], [-0.916860, -0.916860]],
+                    ],
+                ]
+            ]
+        )
+        assert_expected(actual, expected, rtol=0, atol=1e-4)
+
+    def test_axial_block_channel_dim(self, axial_block, hidden_dim, input_shape):
+        """Test dim check in forward of AxialAttentionBlock"""
+        x = torch.zeros(1, hidden_dim + 1, *input_shape)
+        with pytest.raises(ValueError):
+            _ = axial_block(x)
 
 
 class TestAttentionResidualBlock:

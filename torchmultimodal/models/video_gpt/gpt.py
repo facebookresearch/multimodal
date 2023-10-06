@@ -17,7 +17,7 @@ from torchmultimodal.utils.common import checkpoint_wrapper, get_clones
 
 
 class TransformerDecoderOutput(NamedTuple):
-    """Outputs from :class:`~torchmultimodal.models.gpt.TransformerDecoder`.
+    """Outputs from :class:`~torchmultimodal.models.video_gpt.gpt.TransformerDecoder`.
 
     Attributes:
         last_hidden_states (Tensor): Output from the last layer of the transformer.
@@ -36,7 +36,7 @@ class TransformerDecoderOutput(NamedTuple):
 
 
 class TransformerLayerOutput(NamedTuple):
-    """Outputs from :class:`~torchmultimodal.models.gpt.TransformerDecoderLayer`.
+    """Outputs from :class:`~torchmultimodal.models.video_gpt.gpt.TransformerDecoderLayer`.
 
     Attributes:
         hidden_states (Tensor): Output from the current layer.
@@ -52,7 +52,7 @@ class TransformerLayerOutput(NamedTuple):
 
 
 class MultimodalGPTOutput(NamedTuple):
-    """Outputs from :meth:`~torchmultimodal.models.gpt.MultimodalGPT.forward`.
+    """Outputs from :meth:`~torchmultimodal.models.video_gpt.gpt.MultimodalGPT.forward`.
 
     Attributes:
         decoder_output (TransformerDeocoderOutput): Contains output from the multimodal transformer decoder.
@@ -200,7 +200,7 @@ class MultimodalGPT(nn.Module):
                 Defaults to ``False``.
 
         Returns:
-            An instance of :class:`~torchmultimodal.models.gpt.MultimodalGPTOutput`.
+            An instance of :class:`~torchmultimodal.models.video_gpt.gpt.MultimodalGPTOutput`.
         """
         decoder_output = self.fwd(
             in_tokens=in_tokens,
@@ -462,7 +462,7 @@ class MultimodalTransformerDecoder(nn.Module):
                 Defaults to ``False``.
 
         Returns:
-            An instace of :class:`~torchmultimodal.models.gpt.TransformerDecoderOutput`.
+            An instace of :class:`~torchmultimodal.models.video_gpt.gpt.TransformerDecoderOutput`.
         """
         if (in_modality is None) and (out_modality is None):
             raise ValueError(
@@ -562,7 +562,7 @@ class TransformerDecoder(nn.Module):
                 Defaults to ``False``.
 
         Returns:
-            An instance of :class:`~torchmultimodal.models.gpt.TransformerDecoderOutput`.
+            An instance of :class:`~torchmultimodal.models.video_gpt.gpt.TransformerDecoderOutput`.
         """
         if attn_mask is not None and attn_mask.dim() == 2:
             attn_mask = attn_mask[
@@ -680,7 +680,7 @@ class TransformerDecoderLayer(nn.Module):
                 Defaults to ``False``.
 
         Returns:
-            An instance of :class:`~torchmultimodal.models.gpt.TransformerLayerOutput`.
+            An instance of :class:`~torchmultimodal.models.video_gpt.gpt.TransformerLayerOutput`.
         """
         attn_probs = None
         past_key_values = None
