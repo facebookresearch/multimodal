@@ -71,7 +71,7 @@ class TestAnyPrecisionOptimizer:
 
         self._test_adam_equivalence(model, model_clone)
 
-    @gpu_test
+    @gpu_test()
     def test_bfloat16_states(
         self,
     ):
