@@ -23,8 +23,9 @@ def gpu_test(gpu_count: int = 1):
     required amount of GPU is not available
     """
     message = f"Not enough GPUs to run the test: requires {gpu_count}"
-    local_gpu_count = torch.cuda.device_count()
-    return pytest.mark.skipif(local_gpu_count < gpu_count, reason=message)
+    return pytest.mark.skipif(
+        int(torch.cuda.device_count()) < gpu_count, reason=message
+    )
 
 
 def init_distributed_on_file(world_size: int, gpu_id: int, sync_file: str):
