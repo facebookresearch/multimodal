@@ -12,23 +12,28 @@
 # the weight updates. This allows full training in BFloat16 (equal or
 # better than FP32 results in many cases) due to high precision weight upates.
 
+from typing import Any, Dict, Iterable, Tuple, Union
+
 import torch
 from torch.optim.optimizer import Optimizer
+from typing_extensions import TypeAlias
+
+params_t: TypeAlias = Union[Iterable[torch.Tensor], Iterable[Dict[str, Any]]]
 
 
 class AnyPrecisionAdamW(Optimizer):
     def __init__(
         self,
-        params,
-        lr=1e-3,
-        betas=(0.9, 0.999),
-        eps=1e-8,
-        weight_decay=0.0,
-        use_kahan_summation=False,
-        momentum_dtype=torch.float32,
-        variance_dtype=torch.bfloat16,
-        compensation_buffer_dtype=torch.bfloat16,
-    ):
+        params: params_t,
+        lr: float = 1e-3,
+        betas: Tuple[float, float] = (0.9, 0.999),
+        eps: float = 1e-8,
+        weight_decay: float = 0.0,
+        use_kahan_summation: bool = False,
+        momentum_dtype: torch.dtype = torch.float32,
+        variance_dtype: torch.dtype = torch.bfloat16,
+        compensation_buffer_dtype: torch.dtype = torch.bfloat16,
+    ) -> None:
         """
         Args:
             params (iterable): iterable of parameters to optimize or dicts defining
@@ -73,7 +78,7 @@ class AnyPrecisionAdamW(Optimizer):
         super().__init__(params, defaults)
 
     @torch.no_grad()
-    def step(self, closure=None):
+    def step(self, closure: Any = None) -> None:
         """Performs a single optimization step.
         Args:
             closure (callable, optional): A closure that reevaluates the model
@@ -86,7 +91,6 @@ class AnyPrecisionAdamW(Optimizer):
                 closure()
 
         for group in self.param_groups:
-
             beta1, beta2 = group["betas"]
             lr = group["lr"]
             weight_decay = group["weight_decay"]
@@ -110,7 +114,6 @@ class AnyPrecisionAdamW(Optimizer):
 
                 # State initialization
                 if len(state) == 0:
-
                     state["step"] = torch.tensor(0.0)
 
                     # momentum - EMA of gradient values
