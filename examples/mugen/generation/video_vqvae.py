@@ -6,7 +6,7 @@
 
 from typing import Optional
 
-from torchmultimodal.models.video_vqvae import (
+from torchmultimodal.models.video_gpt.video_vqvae import (
     preprocess_int_conv_params,
     VideoDecoder,
     VideoEncoder,
@@ -50,7 +50,7 @@ def video_vqvae_mugen(
         n_res_layers (int, optional): Number of ``AttentionResidualBlocks`` to include in encoder and decoder.
             Defaults to ``4``.
         attn_hidden_dim (int, optional): Size of hidden dim of
-            :class:`~torchmultimodal.models.video_vqvae.AttentionResidualBlocks`. Defaults to ``240``.
+            :class:`~torchmultimodal.models.video_gpt.video_vqvae.AttentionResidualBlocks`. Defaults to ``240``.
         num_embeddings (int, optional): Number of embedding vectors used in
             :class:`~torchmultimodal.modules.layers.codebook.Codebook`. Defaults to ``2048``.
         embedding_dim (int, optional): Dimensionality of embedding vectors in
@@ -63,8 +63,8 @@ def video_vqvae_mugen(
 
     Returns:
         An instance of :class:`~torchmultimodal.models.vqvae.VQVAE` constructed with:
-            * :class:`~torchmultimodal.model.video_vqvae.VideoEncoder`
-            * :class:`~torchmultimodal.model.video_vqvae.VideoDecoder`
+            * :class:`~torchmultimodal.model.video_gpt.video_vqvae.VideoEncoder`
+            * :class:`~torchmultimodal.model.video_gpt.video_vqvae.VideoDecoder`
     """
     encoder_strides = ((2, 2, 2), (2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2), (1, 1, 1))
     decoder_strides = ((2, 2, 2), (2, 2, 2), (1, 2, 2), (1, 2, 2), (1, 2, 2))
