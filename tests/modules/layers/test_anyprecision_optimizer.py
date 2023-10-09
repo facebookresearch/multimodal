@@ -11,8 +11,13 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from tests.test_utils import assert_expected, gpu_test
+from tests.test_utils import assert_expected, gpu_test, set_rng_seed
 from torchmultimodal.modules.optimizers.anyprecision import AnyPrecisionAdamW
+
+
+@pytest.fixture(autouse=True)
+def random():
+    set_rng_seed(2020)
 
 
 class TestAnyPrecisionOptimizer:
@@ -72,12 +77,10 @@ class TestAnyPrecisionOptimizer:
         self._test_adam_equivalence(model, model_clone)
 
     @gpu_test()
-    def test_bfloat16_states(
-        self,
-    ):
+    def test_bfloat16_states(self, device="cuda"):
         """verify that AnyPrecision is running using bfloat16 for states when specified (momentum, variance)"""
         simple_model = nn.Sequential(nn.Linear(5, 10), nn.GELU(), nn.Linear(10, 2))
-        simple_model.to("cuda")
+        simple_model.to(device)
 
         anyprecision_adam = AnyPrecisionAdamW(
             simple_model.parameters(),
@@ -96,3 +99,53 @@ class TestAnyPrecisionOptimizer:
                 state = anyprecision_adam.state[p]
                 assert state["exp_avg"].dtype == torch.bfloat16
                 assert state["exp_avg_sq"].dtype == torch.bfloat16
+
+    @gpu_test()
+    def test_kahan_summation(self, device="cuda"):
+        """verify that AnyPrecision is properly using Kahan summation when specified (momentum, variance)"""
+        simple_model = nn.Sequential(nn.Linear(5, 10), nn.GELU(), nn.Linear(10, 2))
+        simple_model.to(device)
+
+        anyprecision_adam = AnyPrecisionAdamW(
+            simple_model.parameters(),
+            variance_dtype=torch.bfloat16,
+            momentum_dtype=torch.bfloat16,
+            use_kahan_summation=True,
+            compensation_buffer_dtype=torch.bfloat16,
+        )
+
+        for i in range(1):
+            anyprecision_adam.zero_grad()
+            inp = torch.randn(5, 5, device=next(simple_model.parameters()).device)
+            simple_model(inp).sum().backward()
+            anyprecision_adam.step()
+
+            for group in anyprecision_adam.param_groups:
+                for index, p in enumerate(group["params"]):
+                    state = anyprecision_adam.state[p]
+                    pcomp = state["compensation"]
+                    assert pcomp.dtype == torch.bfloat16
+                    if index == 0:
+                        # main buffer - will contain 3 items with comp buffer values to check on first iter...rest are 0.
+                        assert_expected(
+                            torch.tensor(
+                                -2.3283e-10, dtype=torch.bfloat16, device=device
+                            ),
+                            pcomp[2][3],
+                        )
+                        assert_expected(
+                            torch.tensor(
+                                9.3132e-10, dtype=torch.bfloat16, device=device
+                            ),
+                            pcomp[4][1],
+                        )
+                        assert_expected(
+                            torch.tensor(
+                                9.3132e-10, dtype=torch.bfloat16, device=device
+                            ),
+                            pcomp[5][4],
+                        )
+                        assert_expected(
+                            torch.tensor(0.00, dtype=torch.bfloat16, device=device),
+                            pcomp[0][0],
+                        )
