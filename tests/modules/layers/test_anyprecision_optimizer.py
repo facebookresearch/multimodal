@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from tests.test_utils import assert_expected, gpu_test, set_rng_seed
+from tests.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.modules.optimizers.anyprecision import AnyPrecisionAdamW
 
 
@@ -76,10 +76,14 @@ class TestAnyPrecisionOptimizer:
 
         self._test_adam_equivalence(model, model_clone)
 
-    @gpu_test()
-    def test_bfloat16_states(self, device="cuda"):
+    def test_bfloat16_states(self, device="cpu"):
         """verify that AnyPrecision is running using bfloat16 for states when specified (momentum, variance)"""
-        simple_model = nn.Sequential(nn.Linear(5, 10), nn.GELU(), nn.Linear(10, 2))
+        simple_model = nn.Sequential(
+            nn.Linear(5, 10, dtype=torch.bfloat16),
+            nn.GELU(),
+            nn.Linear(10, 2, dtype=torch.bfloat16),
+        )
+        simple_model.to(torch.bfloat16)
         simple_model.to(device)
 
         anyprecision_adam = AnyPrecisionAdamW(
@@ -90,7 +94,12 @@ class TestAnyPrecisionOptimizer:
 
         for i in range(6):
             anyprecision_adam.zero_grad()
-            inp = torch.randn(5, 5, device=next(simple_model.parameters()).device)
+            inp = torch.randn(
+                5,
+                5,
+                dtype=torch.bfloat16,
+                device=next(simple_model.parameters()).device,
+            )
             simple_model(inp).sum().backward()
             anyprecision_adam.step()
 
@@ -100,10 +109,10 @@ class TestAnyPrecisionOptimizer:
                 assert state["exp_avg"].dtype == torch.bfloat16
                 assert state["exp_avg_sq"].dtype == torch.bfloat16
 
-    @gpu_test()
-    def test_kahan_summation(self, device="cuda"):
+    def test_kahan_summation(self, device="cpu"):
         """verify that AnyPrecision is properly using Kahan summation when specified (momentum, variance)"""
         simple_model = nn.Sequential(nn.Linear(5, 10), nn.GELU(), nn.Linear(10, 2))
+        simple_model.to(torch.bfloat16)
         simple_model.to(device)
 
         anyprecision_adam = AnyPrecisionAdamW(
@@ -114,9 +123,31 @@ class TestAnyPrecisionOptimizer:
             compensation_buffer_dtype=torch.bfloat16,
         )
 
+        expected_kahan_buffer = torch.tensor(
+            [
+                [2.2888e-05, 9.5367e-04, -2.2888e-05, -9.5367e-04, 7.6294e-06],
+                [-2.2888e-05, 2.2888e-05, 9.5367e-04, -2.2888e-05, 2.2888e-05],
+                [3.0518e-05, 9.5367e-04, 3.0518e-05, 7.6294e-06, 9.5367e-04],
+                [-2.2888e-05, 2.2888e-05, -9.5367e-04, 9.5367e-04, 9.5367e-04],
+                [-9.5367e-04, 3.0518e-05, -9.5367e-04, 2.2888e-05, 0.0000e00],
+                [-3.0518e-05, -9.5367e-04, -2.2888e-05, -2.2888e-05, 2.2888e-05],
+                [2.2888e-05, 9.5367e-04, 3.0518e-05, -9.4604e-04, -2.2888e-05],
+                [-9.5367e-04, -9.5367e-04, 2.2888e-05, -9.5367e-04, -3.0518e-05],
+                [9.5367e-04, -9.5367e-04, -9.4604e-04, 9.5367e-04, 2.2888e-05],
+                [9.4604e-04, -2.2888e-05, 9.4604e-04, 9.5367e-04, 2.2888e-05],
+            ],
+            dtype=torch.bfloat16,
+            device=device,
+        )
+
         for i in range(1):
             anyprecision_adam.zero_grad()
-            inp = torch.randn(5, 5, device=next(simple_model.parameters()).device)
+            inp = torch.randn(
+                5,
+                5,
+                dtype=torch.bfloat16,
+                device=next(simple_model.parameters()).device,
+            )
             simple_model(inp).sum().backward()
             anyprecision_adam.step()
 
@@ -126,26 +157,9 @@ class TestAnyPrecisionOptimizer:
                     pcomp = state["compensation"]
                     assert pcomp.dtype == torch.bfloat16
                     if index == 0:
-                        # main buffer - will contain 3 items with comp buffer values to check on first iter...rest are 0.
                         assert_expected(
-                            torch.tensor(
-                                -2.3283e-10, dtype=torch.bfloat16, device=device
-                            ),
-                            pcomp[2][3],
-                        )
-                        assert_expected(
-                            torch.tensor(
-                                9.3132e-10, dtype=torch.bfloat16, device=device
-                            ),
-                            pcomp[4][1],
-                        )
-                        assert_expected(
-                            torch.tensor(
-                                9.3132e-10, dtype=torch.bfloat16, device=device
-                            ),
-                            pcomp[5][4],
-                        )
-                        assert_expected(
-                            torch.tensor(0.00, dtype=torch.bfloat16, device=device),
-                            pcomp[0][0],
+                            pcomp,
+                            expected_kahan_buffer,
+                            atol=1e-4,
+                            rtol=1e-4,
                         )
