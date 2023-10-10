@@ -4,13 +4,6 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-# AnyPrecisionAdamW: a flexible precision AdamW optimizer
-# with optional Kahan summation for high precision weight updates.
-# Allows direct control over momentum, variance and auxiliary compensation
-# buffer dtypes.
-# Optional Kahan summation is used to offset precision reduction for
-# the weight updates. This allows full training in BFloat16 (equal or
-# better than FP32 results in many cases) due to high precision weight upates.
 
 from typing import Any, Dict, Iterable, Tuple, Union
 
@@ -35,6 +28,14 @@ class AnyPrecisionAdamW(Optimizer):
         compensation_buffer_dtype: torch.dtype = torch.bfloat16,
     ) -> None:
         """
+        AnyPrecisionAdamW: a flexible precision AdamW optimizer
+        with optional Kahan summation for high precision weight updates.
+        Allows direct control over momentum, variance and auxiliary compensation
+        buffer dtypes.
+        Optional Kahan summation is used to offset precision reduction for
+        the weight updates. This allows full training in BFloat16 (can be equal or
+        better than FP32 results in many cases) due to high precision weight upates.
+
         Args:
             params (iterable): iterable of parameters to optimize or dicts defining
                 parameter groups
@@ -164,9 +165,7 @@ class AnyPrecisionAdamW(Optimizer):
                 # adjust using bias2
                 denom_correction = (1 - beta2**step) ** 0.5  # avoids math import
 
-                centered_variance = (exp_avg_sq.sqrt() / denom_correction).add_(
-                    eps, alpha=1
-                )
+                centered_variance = (exp_avg_sq.sqrt() / denom_correction).add_(eps)
 
                 # lr update to compensation
                 if use_kahan_summation:
