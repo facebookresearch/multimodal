@@ -36,6 +36,21 @@ class AnyPrecisionAdamW(Optimizer):
         the weight updates. This allows full training in BFloat16 (can be equal or
         better than FP32 results in many cases) due to high precision weight upates.
 
+        This optimizer is the same AnyPrecision that was previously residing
+        in Torch.DistX, now moved to TorchMM for easier install:
+        https://github.com/pytorch/torchdistx/blob/main/src/python
+        /torchdistx/optimizers/anyprecision_optimizer.py
+
+        Kahan summation overview:
+        https://en.wikipedia.org/wiki/Kahan_summation_algorithm
+
+        "In numerical analysis, the Kahan summation algorithm, also known as compensated
+        summation, significantly reduces the numerical error in the total obtained by
+        adding a sequence of finite-precision floating-point numbers, compared to the
+        obvious approach. This is done by keeping a separate running compensation
+        (a variable to accumulate small errors), in effect extending the precision of
+        the sum by the precision of the compensation variable."
+
         Args:
             params (iterable): iterable of parameters to optimize or dicts defining
                 parameter groups
