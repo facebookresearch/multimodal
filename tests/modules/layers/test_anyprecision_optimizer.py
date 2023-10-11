@@ -125,6 +125,7 @@ class TestAnyPrecisionOptimizer:
         )
 
         # pre-computed kahan buffer tensors for comparing results.
+        # values determined by comparison to reference implementation.
         expected_kahan_buffer_param0 = torch.tensor(
             [
                 [-1.5259e-05, 8.2397e-04, 1.7166e-04, 5.1880e-04, 1.1444e-05],
