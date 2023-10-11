@@ -110,7 +110,8 @@ class TestAnyPrecisionOptimizer:
                 assert state["exp_avg_sq"].dtype == torch.bfloat16
 
     def test_kahan_summation(self, device="cpu"):
-        """verify that AnyPrecision is properly using Kahan summation when specified (momentum, variance)"""
+        """verify that AnyPrecision is properly using Kahan summation when specified (momentum, variance).
+        uses precomputed result tensors as comparison for the compensation buffers."""
         simple_model = nn.Sequential(nn.Linear(5, 10), nn.GELU(), nn.Linear(10, 2))
         simple_model.to(torch.bfloat16)
         simple_model.to(device)
@@ -123,24 +124,81 @@ class TestAnyPrecisionOptimizer:
             compensation_buffer_dtype=torch.bfloat16,
         )
 
-        expected_kahan_buffer = torch.tensor(
+        # pre-computed kahan buffer tensors for comparing results.
+        expected_kahan_buffer_param0 = torch.tensor(
             [
-                [2.2888e-05, 9.5367e-04, -2.2888e-05, -9.5367e-04, 7.6294e-06],
-                [-2.2888e-05, 2.2888e-05, 9.5367e-04, -2.2888e-05, 2.2888e-05],
-                [3.0518e-05, 9.5367e-04, 3.0518e-05, 7.6294e-06, 9.5367e-04],
-                [-2.2888e-05, 2.2888e-05, -9.5367e-04, 9.5367e-04, 9.5367e-04],
-                [-9.5367e-04, 3.0518e-05, -9.5367e-04, 2.2888e-05, 0.0000e00],
-                [-3.0518e-05, -9.5367e-04, -2.2888e-05, -2.2888e-05, 2.2888e-05],
-                [2.2888e-05, 9.5367e-04, 3.0518e-05, -9.4604e-04, -2.2888e-05],
-                [-9.5367e-04, -9.5367e-04, 2.2888e-05, -9.5367e-04, -3.0518e-05],
-                [9.5367e-04, -9.5367e-04, -9.4604e-04, 9.5367e-04, 2.2888e-05],
-                [9.4604e-04, -2.2888e-05, 9.4604e-04, 9.5367e-04, 2.2888e-05],
+                [-1.5259e-05, 8.2397e-04, 1.7166e-04, 5.1880e-04, 1.1444e-05],
+                [-4.5776e-05, -1.1826e-04, 9.1553e-04, 3.0518e-04, -4.3869e-05],
+                [4.5776e-05, -2.8229e-04, 5.6028e-05, 2.8610e-06, -8.0872e-04],
+                [2.6703e-05, -2.6703e-04, 5.0068e-05, -2.9755e-04, 1.0014e-04],
+                [2.8610e-05, -4.1962e-05, -6.7139e-04, -9.9659e-05, 3.8147e-06],
+                [-3.0518e-05, -2.1839e-04, 6.0320e-05, 2.8992e-04, -7.6294e-06],
+                [0.0000e00, -3.4332e-04, 1.7166e-04, 4.8828e-04, 3.3951e-04],
+                [-2.8849e-05, -1.2457e-05, -1.1444e-05, -6.3324e-04, -4.9591e-05],
+                [-3.5286e-05, 3.4332e-04, -4.9353e-05, 9.4223e-04, -3.7956e-04],
+                [5.4932e-04, -7.6294e-06, 3.4523e-04, 3.3760e-04, 4.5586e-04],
             ],
             dtype=torch.bfloat16,
-            device=device,
         )
 
-        for i in range(1):
+        expected_kahan_buffer_param1 = torch.tensor(
+            [
+                4.4823e-05,
+                -4.7445e-05,
+                4.5776e-05,
+                4.5538e-05,
+                4.5776e-05,
+                3.8624e-05,
+                2.8849e-05,
+                1.5259e-05,
+                -5.5313e-05,
+                1.4114e-04,
+            ],
+            dtype=torch.bfloat16,
+        )
+
+        expected_kahan_buffer_param2 = torch.tensor(
+            [
+                [
+                    -5.3406e-05,
+                    -1.2815e-05,
+                    0.0000e00,
+                    -4.2725e-04,
+                    -3.4332e-05,
+                    2.2888e-05,
+                    1.2589e-04,
+                    -3.1281e-04,
+                    0.0000e00,
+                    -4.4632e-04,
+                ],
+                [
+                    -5.3406e-05,
+                    -1.5259e-05,
+                    0.0000e00,
+                    -4.2725e-04,
+                    4.5586e-04,
+                    2.2888e-05,
+                    3.8147e-06,
+                    -7.6294e-06,
+                    0.0000e00,
+                    4.1962e-05,
+                ],
+            ],
+            dtype=torch.bfloat16,
+        )
+
+        expected_kahan_buffer_param3 = torch.tensor(
+            [-4.5776e-05, -1.5259e-05], dtype=torch.bfloat16
+        )
+
+        expected_kahan_buffers = [
+            expected_kahan_buffer_param0,
+            expected_kahan_buffer_param1,
+            expected_kahan_buffer_param2,
+            expected_kahan_buffer_param3,
+        ]
+
+        for i in range(2):
             anyprecision_adam.zero_grad()
             inp = torch.randn(
                 5,
@@ -151,15 +209,15 @@ class TestAnyPrecisionOptimizer:
             simple_model(inp).sum().backward()
             anyprecision_adam.step()
 
-            for group in anyprecision_adam.param_groups:
-                for index, p in enumerate(group["params"]):
-                    state = anyprecision_adam.state[p]
-                    pcomp = state["compensation"]
-                    assert pcomp.dtype == torch.bfloat16
-                    if index == 0:
-                        assert_expected(
-                            pcomp,
-                            expected_kahan_buffer,
-                            atol=1e-4,
-                            rtol=1e-4,
-                        )
+        for group in anyprecision_adam.param_groups:
+            for index, p in enumerate(group["params"]):
+                state = anyprecision_adam.state[p]
+                pcomp = state["compensation"]
+                assert pcomp.dtype == torch.bfloat16
+
+                assert_expected(
+                    pcomp,
+                    expected_kahan_buffers[index],
+                    atol=1e-4,
+                    rtol=1e-4,
+                )
