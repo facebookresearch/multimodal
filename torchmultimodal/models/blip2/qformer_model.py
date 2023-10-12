@@ -49,8 +49,8 @@ class QformerModel(nn.Module):
         activation: Callable[..., nn.Module] = nn.ReLU,
         attn_dropout: float = 0.0,
         dropout: float = 0.0,
-        cross_attention_freq=2,
-    ):
+        cross_attention_freq: int = 2,
+    ) -> None:
         super().__init__()
         self.query_length = query_length
         self.embeddings = QformerEmbedding(
@@ -220,7 +220,7 @@ class QformerForCLM(nn.Module):
         activation: Callable[..., nn.Module] = nn.GELU,
         attn_dropout: float = 0.0,
         dropout: float = 0.0,
-        cross_attention_freq=2,
+        cross_attention_freq: int= 2,
     ) -> None:
         super().__init__()
         self.pad_token_id = pad_token_id
