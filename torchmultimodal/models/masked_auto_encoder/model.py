@@ -13,11 +13,23 @@ from torchmultimodal.models.masked_auto_encoder.position_embeddings import (
     get_2d_sin_cos_embeddings,
 )
 from torchmultimodal.models.masked_auto_encoder.swin_decoder import SwinTransformer
+from torchmultimodal.modules.encoders.vision_transformer import (
+    VisionTransformer,
+    vit_b_16,
+    vit_l_16,
+)
 from torchmultimodal.modules.layers.patch_embedding import PatchEmbeddings
 from torchmultimodal.modules.layers.transformer import (
     TransformerEncoder,
     TransformerOutput,
 )
+
+
+MAE_MODEL_MAPPING = {
+    "vit_b16_image": "https://download.pytorch.org/models/multimodal/mae/mae_pretrained_vit_base.pth",
+    "vit_l16_image": "https://download.pytorch.org/models/multimodal/mae/mae_pretrained_vit_large.pth",
+    "vit_b16_audio": "https://download.pytorch.org/models/multimodal/audio_mae/audio_mae_pretrained_vit_base.pth",
+}
 
 
 class MAEOutput(NamedTuple):
@@ -324,6 +336,16 @@ def vit_l_16_image_mae() -> MaskedAutoEncoder:
     )
 
 
+def vit_b_16_image_mae_encoder(pretrained: bool = False) -> VisionTransformer:
+    ckpt_path = MAE_MODEL_MAPPING["vit_b16_image"] if pretrained else None
+    return vit_b_16(final_layer_norm_eps=None, ckpt_path=ckpt_path)
+
+
+def vit_l_16_image_mae_encoder(pretrained: bool = False) -> VisionTransformer:
+    ckpt_path = MAE_MODEL_MAPPING["vit_l16_image"] if pretrained else None
+    return vit_l_16(final_layer_norm_eps=None, ckpt_path=ckpt_path)
+
+
 def audio_mae(
     *,
     # patch embedding
@@ -448,4 +470,14 @@ def vit_l_16_audio_mae() -> MaskedAutoEncoder:
         decoder_hidden_dim=512,
         decoder_heads=16,
         decoder_dim_feedforward=2048,
+    )
+
+
+def vit_b_16_audio_mae_encoder(pretrained: bool = False) -> VisionTransformer:
+    ckpt_path = MAE_MODEL_MAPPING["vit_b16_audio"] if pretrained else None
+    return vit_b_16(
+        final_layer_norm_eps=None,
+        num_channels=1,
+        image_size=(1024, 128),
+        ckpt_path=ckpt_path,
     )

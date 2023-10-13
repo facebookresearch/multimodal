@@ -11,8 +11,6 @@ import pytest
 import torch
 from tests.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.modules.layers.attention import (
-    AxialAttention,
-    AxialAttentionBlock,
     merge_multihead,
     MultiHeadAttention,
     scaled_dot_product_attention,
@@ -56,11 +54,6 @@ def kv(input_shape, hidden_dim):
 @pytest.fixture
 def self_attn():
     return SelfAttention(attn_dropout=0.0)
-
-
-@pytest.fixture
-def axial_attn():
-    return AxialAttention(1)  # only on second axis of input
 
 
 class TestMultiheadAttention:
@@ -395,28 +388,6 @@ def test_self_attention(self_attn, q, kv):
     assert_expected(actual, expected, rtol=0, atol=1e-4)
 
 
-def test_axial_attention(axial_attn, q, kv):
-    k = v = kv
-    actual, _ = axial_attn(q, k, v)
-    expected = torch.tensor(
-        [
-            [
-                [
-                    [
-                        [[-0.5869, 1.8958, 0.8688], [0.0299, 0.2098, 1.2741]],
-                        [[-0.6662, 1.9747, 0.8980], [0.1002, 0.2094, 1.5472]],
-                    ],
-                    [
-                        [[0.5902, -0.3275, -0.8727], [-1.0557, 1.0791, 0.3916]],
-                        [[0.6623, -0.3223, -0.8948], [-1.0755, 1.0763, 0.3708]],
-                    ],
-                ]
-            ]
-        ]
-    )
-    assert_expected(actual, expected, rtol=0, atol=1e-4)
-
-
 def test_split_multihead(input_shape):
     x = torch.randn(1, *input_shape, 6)  # (b, d1, ..., dn, c)
     out = split_multihead(x, 2)
@@ -430,39 +401,3 @@ def test_merge_multihead(input_shape, hidden_dim, q):
     actual = torch.tensor(out.shape)
     expected = torch.tensor((1, *input_shape, hidden_dim))
     assert_expected(actual, expected)
-
-
-class TestAxialBlock:
-    @pytest.fixture
-    def axial_block(self, input_shape, hidden_dim):
-        return AxialAttentionBlock(len(input_shape), hidden_dim, 1)
-
-    def test_axial_block_forward(self, axial_block, hidden_dim, input_shape):
-        """Test AxialAttentionBlock with sub-components"""
-        x = 2 * torch.ones(1, hidden_dim, *input_shape)
-        actual = axial_block(x)
-        expected = torch.tensor(
-            [
-                [
-                    [
-                        [[0.822055, 0.822055], [0.822055, 0.822055]],
-                        [[0.822055, 0.822055], [0.822055, 0.822055]],
-                    ],
-                    [
-                        [[-0.767143, -0.767143], [-0.767143, -0.767143]],
-                        [[-0.767143, -0.767143], [-0.767143, -0.767143]],
-                    ],
-                    [
-                        [[-0.916860, -0.916860], [-0.916860, -0.916860]],
-                        [[-0.916860, -0.916860], [-0.916860, -0.916860]],
-                    ],
-                ]
-            ]
-        )
-        assert_expected(actual, expected, rtol=0, atol=1e-4)
-
-    def test_axial_block_channel_dim(self, axial_block, hidden_dim, input_shape):
-        """Test dim check in forward of AxialAttentionBlock"""
-        x = torch.zeros(1, hidden_dim + 1, *input_shape)
-        with pytest.raises(ValueError):
-            _ = axial_block(x)
