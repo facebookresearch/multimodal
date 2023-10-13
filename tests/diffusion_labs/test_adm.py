@@ -220,10 +220,13 @@ class TestADMStack:
     def model(self, params):
         in_dim, _, time_dim = params
         stack = ADMStack()
-        stack.append(ADMResBlock(in_dim, in_dim, time_dim, norm_groups=in_dim))
-        stack.append(ADMAttentionBlock(in_dim, time_dim, norm_groups=in_dim))
-        # To use the else statement in ADMStack
-        stack.append(nn.Identity())
+        stack.append_residual_block(
+            ADMResBlock(in_dim, in_dim, time_dim, norm_groups=in_dim)
+        )
+        stack.append_attention_block(
+            ADMAttentionBlock(in_dim, time_dim, norm_groups=in_dim)
+        )
+        stack.append_simple_block(nn.Identity())
         return stack
 
     def test_forward(self, model, x, t, c):

@@ -39,6 +39,7 @@ class ADMResBlock(nn.Module):
             Defaults to True.
         pre_outconv_dropout (float): dropout probability before the second conv. Defaults to 0.1.
         norm_groups (int): number of groups used in GroupNorm layer. Defaults to 32.
+        norm_eps (float): Epsilon used in the GroupNorm layer. Defaults to 1e-5.
 
     Args:
         x (Tensor): input Tensor of shape [b, c, h, w]
@@ -62,6 +63,7 @@ class ADMResBlock(nn.Module):
         scale_shift_conditional: bool = True,
         pre_outconv_dropout: float = 0.1,
         norm_groups: int = 32,
+        norm_eps: float = 1e-5,
     ):
         super().__init__()
 
@@ -93,13 +95,15 @@ class ADMResBlock(nn.Module):
             nn.Linear(dim_cond, cond_channels),
         )
         self.in_block = nn.Sequential(
-            Fp32GroupNorm(norm_groups, in_channels),  # groups = 32 from code ref
+            Fp32GroupNorm(
+                norm_groups, in_channels, eps=norm_eps
+            ),  # groups = 32 from code ref
             activation,
             hidden_updownsample_layer,
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1),
         )
+        self.out_group_norm = Fp32GroupNorm(norm_groups, out_channels, eps=norm_eps)
         self.out_block = nn.Sequential(
-            Fp32GroupNorm(norm_groups, out_channels),
             activation,
             nn.Dropout(pre_outconv_dropout),
             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
@@ -126,12 +130,12 @@ class ADMResBlock(nn.Module):
         # Use half to multiply with hidden state and half to add.
         # This is typically done after normalization.
         if self.scale_shift_conditional:
-            h = self.out_block[0](h)
+            h = self.out_group_norm(h)
             scale, shift = torch.chunk(t, 2, dim=1)
             h = h * (1 + scale) + shift
-            h = self.out_block[1:](h)
+            h = self.out_block(h)
         else:
-            h = self.out_block(h + t)
+            h = self.out_block(self.out_group_norm(h + t))
         if self.rescale_skip_connection:
             h = (skip + h) / 1.414
         else:

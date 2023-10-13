@@ -4,19 +4,18 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Callable, Dict, List, Optional, Tuple
+from enum import Enum
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import torch
 from torch import nn, Tensor
 from torchmultimodal.diffusion_labs.models.adm_unet.attention_block import (
     adm_attn_block,
-    ADMAttentionBlock,
 )
 from torchmultimodal.diffusion_labs.models.adm_unet.res_block import (
     adm_res_block,
     adm_res_downsample_block,
     adm_res_upsample_block,
-    ADMResBlock,
 )
 from torchmultimodal.diffusion_labs.utils.common import DiffusionOutput
 from torchmultimodal.modules.layers.normalizations import Fp32GroupNorm
@@ -117,6 +116,7 @@ class ADMUNet(nn.Module):
         variance_value_transform: Optional[Callable] = None,
     ):
         super().__init__()
+        torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
         if timestep_encoder is None:
             assert (
                 time_embed_dim is not None
@@ -192,20 +192,19 @@ class ADMUNet(nn.Module):
             }
         )
 
-    def _create_downsampling_encoder(self) -> Tuple[nn.ModuleList, List]:
+    def _create_downsampling_encoder(self) -> Tuple[nn.Module, List]:
         # Keep track of output channels of every block for thru connections to decoder
         down_channels = []
         # Use ADMStack for conv layer so we can pass in conditional inputs and ignore them
-        init_conv: nn.ModuleList = ADMStack(
-            [
-                nn.Conv2d(
-                    self.in_channels,
-                    self.channels_per_layer[0],
-                    kernel_size=3,
-                    stride=1,
-                    padding=1,
-                )
-            ]
+        init_conv = ADMStack()
+        init_conv.append_simple_block(
+            nn.Conv2d(
+                self.in_channels,
+                self.channels_per_layer[0],
+                kernel_size=3,
+                stride=1,
+                padding=1,
+            )
         )
         down_channels.append(self.channels_per_layer[0])
 
@@ -249,7 +248,7 @@ class ADMUNet(nn.Module):
         net = nn.ModuleList([init_conv] + stacks)
         return net, down_channels
 
-    def _create_bottleneck(self, num_channels: int) -> nn.ModuleList:
+    def _create_bottleneck(self, num_channels: int) -> nn.Module:
         in_resblock = adm_res_block(
             in_channels=num_channels,
             out_channels=num_channels,
@@ -263,9 +262,13 @@ class ADMUNet(nn.Module):
             out_channels=num_channels,
             dim_cond=self.dim_res_cond,
         )
-        return ADMStack([in_resblock, mid_attention, out_resblock])
+        adm_stack = ADMStack()
+        adm_stack.append_residual_block(in_resblock)
+        adm_stack.append_attention_block(mid_attention)
+        adm_stack.append_residual_block(out_resblock)
+        return adm_stack
 
-    def _create_upsampling_decoder(self, down_channels: List[int]) -> nn.ModuleList:
+    def _create_upsampling_decoder(self, down_channels: List[int]) -> nn.Module:
         # reverse so it's easier to iterate when going up the decoder
         up_channels_per_layer = list(reversed(self.channels_per_layer))
         up_attention_for_layer = list(reversed(self.use_attention_for_layer))
@@ -301,15 +304,16 @@ class ADMUNet(nn.Module):
                 layer_in_channels = layer_out_channels
             # Now create the down/upsampling res block
             if layer_num < self.num_resize:
-                stacks[-1].append(
+                stacks[-1].append_residual_block(
                     adm_res_upsample_block(
                         num_channels=layer_out_channels,
                         dim_cond=self.dim_res_cond,
                     )
                 )
 
-        out_conv = ADMStack(
-            [
+        out_conv = ADMStack()
+        out_conv.append_simple_block(
+            nn.Sequential(
                 Fp32GroupNorm(32, up_channels_per_layer[-1]),
                 nn.SiLU(),
                 nn.Conv2d(
@@ -319,7 +323,7 @@ class ADMUNet(nn.Module):
                     stride=1,
                     padding=1,
                 ),
-            ]
+            )
         )
 
         net = nn.ModuleList(stacks + [out_conv])
@@ -407,38 +411,70 @@ class ADMUNet(nn.Module):
         return res_cond, attn_cond
 
 
-class ADMStack(nn.ModuleList):
-    """A container that acts as a ModuleList of ADM blocks and handles passing conditional inputs
-    correctly to the children ADMResBlocks and ADMAttentionBlocks.
+class ADMStackModuleType(Enum):
+    ResidualBlock = 0
+    AttentionBlock = 1
+    SimpleBlock = 2
+
+
+class ADMStack(nn.Module):
+    """A container that acts like a ModuleList of ADM blocks and handles passing timestep and
+    context embeddings correctly to its children. Usually, blocks such as residual blocks consume
+    timestep embeddings, while attention blocks consume optional contextual embeddings in addition
+    to the input x. This container allows us to wrap the modules so that they can be stacked in a
+    `nn.Sequential`, in order to simplify the code for the `forward` method.
+
+    We have to implement the stack in this way rather than inherting from `nn.ModuleList` to
+    avoid FSDP/Activation Checkpointing/PT2 incompatibility issues.
+
+    Code ref: https://github.com/openai/improved-diffusion/blob/main/improved_diffusion/unet.py#L35
     """
+
+    def __init__(self):
+        super().__init__()
+        torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
+        self._module_list = nn.ModuleList()
+        self._module_types = []
+
+    def append_attention_block(self, module: nn.Module):
+        self._module_list.append(module)
+        self._module_types.append(ADMStackModuleType.AttentionBlock)
+
+    def append_residual_block(self, module: nn.Module):
+        self._module_list.append(module)
+        self._module_types.append(ADMStackModuleType.ResidualBlock)
+
+    def append_simple_block(self, module: nn.Module):
+        self._module_list.append(module)
+        self._module_types.append(ADMStackModuleType.SimpleBlock)
 
     def forward(
         self,
         x: Tensor,
-        res_conditional_embedding: Tensor,
-        attn_conditional_embedding: Tensor,
-    ) -> Tensor:
+        residual_conditional_embedding: Tensor,
+        attention_conditional_embedding: Optional[Union[Tensor, Sequence[Tensor]]],
+    ):
         h = x
-        for block in self:
-            if isinstance(block, ADMResBlock):
-                h = block(h, res_conditional_embedding)
-            elif isinstance(block, ADMAttentionBlock):
-                h = block(h, attn_conditional_embedding)
+        for name, block in zip(self._module_types, self._module_list):  # noqa: B905
+            if name == ADMStackModuleType.ResidualBlock:
+                h = block(h, residual_conditional_embedding)
+            elif name == ADMStackModuleType.AttentionBlock:
+                h = block(h, attention_conditional_embedding)
             else:
                 h = block(h)
         return h
 
 
-def adm_stack_res(in_channels: int, out_channels: int, dim_cond: int) -> nn.ModuleList:
-    return ADMStack(
-        [
-            adm_res_block(
-                in_channels=in_channels,
-                out_channels=out_channels,
-                dim_cond=dim_cond,
-            )
-        ]
+def adm_stack_res(in_channels: int, out_channels: int, dim_cond: int) -> nn.Module:
+    adm_stack = ADMStack()
+    adm_stack.append_residual_block(
+        adm_res_block(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            dim_cond=dim_cond,
+        )
     )
+    return adm_stack
 
 
 def adm_stack_res_attn(
@@ -446,31 +482,33 @@ def adm_stack_res_attn(
     out_channels: int,
     dim_res_cond: int,
     dim_attn_cond: Optional[int] = None,
-) -> nn.ModuleList:
-    return ADMStack(
-        [
-            adm_res_block(
-                in_channels=in_channels,
-                out_channels=out_channels,
-                dim_cond=dim_res_cond,
-            ),
-            adm_attn_block(
-                num_channels=out_channels,
-                dim_cond=dim_attn_cond,
-            ),
-        ]
+) -> nn.Module:
+    adm_stack = ADMStack()
+    adm_stack.append_residual_block(
+        adm_res_block(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            dim_cond=dim_res_cond,
+        )
     )
+    adm_stack.append_attention_block(
+        adm_attn_block(
+            num_channels=out_channels,
+            dim_cond=dim_attn_cond,
+        )
+    )
+    return adm_stack
 
 
-def adm_stack_res_down(num_channels: int, dim_cond: int) -> nn.ModuleList:
-    return ADMStack(
-        [
-            adm_res_downsample_block(
-                num_channels=num_channels,
-                dim_cond=dim_cond,
-            )
-        ]
+def adm_stack_res_down(num_channels: int, dim_cond: int) -> nn.Module:
+    adm_stack = ADMStack()
+    adm_stack.append_residual_block(
+        adm_res_downsample_block(
+            num_channels=num_channels,
+            dim_cond=dim_cond,
+        )
     )
+    return adm_stack
 
 
 def adm_unet(
