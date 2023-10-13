@@ -8,7 +8,7 @@ import pytest
 
 import torch
 from tests.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.diffusion_labs.models.adm_unet.attention_block import (
+from torchmultimodal.diffusion_labs.modules.layers.attention_block import (
     adm_attention,
     ADMCrossAttention,
 )

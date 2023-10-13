@@ -11,10 +11,10 @@ import torch
 from tests.test_utils import assert_expected, set_rng_seed
 from torch import nn
 from torchmultimodal.diffusion_labs.models.adm_unet.adm import ADMStack, ADMUNet
-from torchmultimodal.diffusion_labs.models.adm_unet.attention_block import (
+from torchmultimodal.diffusion_labs.modules.layers.attention_block import (
     ADMAttentionBlock,
 )
-from torchmultimodal.diffusion_labs.models.adm_unet.res_block import ADMResBlock
+from torchmultimodal.diffusion_labs.modules.layers.res_block import ADMResBlock
 
 
 @pytest.fixture(autouse=True)

@@ -10,10 +10,10 @@ import pytest
 
 import torch
 from tests.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.diffusion_labs.models.adm_unet.attention_block import (
+from torchmultimodal.diffusion_labs.modules.layers.attention_block import (
     ADMAttentionBlock,
 )
-from torchmultimodal.diffusion_labs.models.adm_unet.res_block import (
+from torchmultimodal.diffusion_labs.modules.layers.res_block import (
     adm_res_block,
     adm_res_downsample_block,
     adm_res_upsample_block,
