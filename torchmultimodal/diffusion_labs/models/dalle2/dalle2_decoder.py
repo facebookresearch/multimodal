@@ -76,8 +76,8 @@ def dalle2_decoder(
     diffusion_model = adm_unet(
         time_embed_dim=time_embed_dim,
         cond_embed_dim=cond_embed_dim,
-        clip_embed_dim=clip_embed_dim,
-        clip_embed_name=clip_embed_name,
+        embed_dim=clip_embed_dim,
+        embed_name=clip_embed_name,
         predict_variance_value=predict_variance_value,
         image_channels=image_channels,
         depth=depth,
