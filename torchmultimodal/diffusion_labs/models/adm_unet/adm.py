@@ -93,7 +93,7 @@ class ADMUNet(nn.Module):
             Expected shape of tensors are [b, c], where c is the embedding dim of the Tensor.
     """
 
-    DEFAULT_EMBED_NAME = "clip_image"
+    DEFAULT_EMBED_NAME = "context"
 
     def __init__(
         self,
