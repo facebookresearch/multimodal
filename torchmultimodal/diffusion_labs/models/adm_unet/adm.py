@@ -93,8 +93,6 @@ class ADMUNet(nn.Module):
             Expected shape of tensors are [b, c], where c is the embedding dim of the Tensor.
     """
 
-    DEFAULT_EMBED_NAME = "context"
-
     def __init__(
         self,
         *,
@@ -105,7 +103,7 @@ class ADMUNet(nn.Module):
         dim_res_cond: int,
         dim_attn_cond: Optional[int] = None,
         embed_dim: Optional[int] = None,
-        embed_name: str = DEFAULT_EMBED_NAME,
+        embed_name: str = "context",
         in_channels: int = 3,
         out_channels: int = 3,
         time_embed_dim: Optional[int] = None,
@@ -525,7 +523,7 @@ def adm_unet(
     time_embed_dim: int = 512,
     cond_embed_dim: int = 2048,
     embed_dim: int = 768,
-    embed_name: str = "clip_image",
+    embed_name: str = "context",
     predict_variance_value: bool = True,
     # ADMUNet args
     image_channels: int = 4,
@@ -543,8 +541,8 @@ def adm_unet(
     Args:
         time_embed_dim (int): desired dimensionality of timestep embedding
         cond_embed_dim (int): desired dimensionality of conditional input embeddings
-        embed_dim (int): expected dimensionality of CLIP image embeddings
-        embed_name (str): name of CLIP embedding conditional input
+        embed_dim (int): expected dimensionality of conditional image embeddings
+        embed_name (str): name of conditional image embeddings
         predict_variance_value (bool): if True, will double UNet's output channel dim to predict variance values of
             diffusion process
         image_channels (int): channel dim of input images
