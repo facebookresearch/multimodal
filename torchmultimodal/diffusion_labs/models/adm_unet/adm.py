@@ -573,6 +573,7 @@ def adm_unet(
         dim_res_cond=cond_embed_dim,
         dim_attn_cond=cond_embed_dim,
         embed_dim=embed_dim,
+        embed_name=embed_name,
         in_channels=in_channels,
         out_channels=out_channels,
         time_embed_dim=time_embed_dim,
