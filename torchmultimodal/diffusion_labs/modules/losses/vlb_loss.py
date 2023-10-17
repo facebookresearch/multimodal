@@ -40,6 +40,7 @@ class VLBLoss(nn.Module):
 
     def __init__(self, schedule: DiscreteGaussianSchedule):
         super().__init__()
+        torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
         self.schedule = schedule
 
     def approx_standard_normal_cdf(self, x: Tensor) -> Tensor:

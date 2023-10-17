@@ -43,7 +43,7 @@ def test_dalle2_image_transform():
     img_size = 5
     transform = Dalle2ImageTransform(image_size=img_size, image_min=-1, image_max=1)
     image = Image.new("RGB", size=(20, 20), color=(128, 0, 0))
-    actual = transform(image).sum()
+    actual = transform({"x": image})["x"].sum()
     normalized128 = 128 / 255 * 2 - 1
     normalized0 = -1
     expected = torch.tensor(
