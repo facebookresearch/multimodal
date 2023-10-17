@@ -25,7 +25,7 @@ from torchmultimodal.modules.layers.position_embedding import (
 )
 
 
-class ADM(nn.Module):
+class ADMUNet(nn.Module):
     """Ablated Diffusion Model as described in "Diffusion Models Beat GANs on Image Synthesis" (https://arxiv.org/abs/2105.05233)
 
     ADM consists of three major components:
@@ -33,16 +33,44 @@ class ADM(nn.Module):
         2) the conditional projections, which project any conditional inputs such as class embeddings, CLIP image/text embeddings
         3) the UNet, which processes the above and a noised input, x, to generate an unnoised image.
 
-    The UNet can be swapped with any module. The UNet used in the paper is constructed in the ADMUNet class.
+    The UNet composes all the blocks for the downsampling encoder, bottleneck, and upsampling encoder in the ADM UNet.
+    Constructs the network by adding residual blocks, attention blocks, and up/downsampling blocks for every layer
+    based on user specifications.
+
+    The UNet follows the architecture described in "Diffusion Models Beat GANs on Image Synthesis"
+    (https://arxiv.org/abs/2105.05233).
+
+    UNet code ref:
+    https://github.com/openai/guided-diffusion/blob/22e0df8183507e13a7813f8d38d51b072ca1e67c/guided_diffusion/unet.py#L396
+
+    Structure for the encoder and decoder:
+    x -> ((ResBlock + MHA) * num_res -> ResDown/UpBlock) * num_layers -> h
+
+    Overall UNet structure:
+    x -> encoder -> bottleneck -> decoder -> out
 
     Code ref:
         https://github.com/lucidrains/DALLE2-pytorch/blob/c6c3882dc165914413ca97176b3a0103af1d7048/dalle2_pytorch/dalle2_pytorch.py#L1856
 
     Attributes:
-        unet (nn.Module): model that will process three inputs: the input noised image, embedded timestep, and
-            projected conditional embeddings to produce an output.
-        timestep_encoder (nn.Module): module that will embed an integer timestep. Expected output shape is [b, c]
-            where c is the embedding dim.
+        channels_per_layer (List[int]): list of channels for each layer. Total number of layers is determined by
+            length of this list. Each item must be divisible by number of groups used in GroupNorm layers. ADMResBlock
+            and ADMAttentionBlock use 32 as a default.
+        num_resize (int): number of layers that will include downsampling or upsampling
+        num_res_per_layer (int): number of residual blocks per layer
+        use_attention_for_layer (List[bool]): list indicating whether to include attention after res block for each layer.
+            Must match the length of channels_per_layer.
+        dim_res_cond (int): dimensionality of conditional projection layer in each res block
+        dim_attn_cond (Optional[int]): dimensionality of cross attention inputs used in attention blocks. If None, do not
+            use conditional inputs in attention blocks
+        embed_dim (Optional[int]): input dimension of conditional embeddings. Can be used to
+            construct default res_cond_proj and attn_cond_proj if they are not passed. Defaults to None
+        in_channels (int): number of channels in input image. Defaults to 3.
+        out_channels (int): number of channels in output image. Defaults to 3.
+        time_embed_dim (Optional[int]): dimensionality of timestep embedding. Used to construct
+            default timestep encoder if timestep_encoder is None. Defaults to None
+        timestep_encoder (Optional[nn.Module]): module that will embed an integer timestep. Expected output shape is [b, c]
+            where c is the embedding dim. Defaults to None
         res_cond_proj (Optional[nn.ModuleDict]): optional dict that maps user-defined keys to modules to project
             conditional_inputs before passed into the UNet. Keys should align with the dict passed into conditional_inputs.
             Output of projections are SUMMED with the embedded timestep and passed into the residual blocks of the unet,
@@ -70,142 +98,50 @@ class ADM(nn.Module):
 
     def __init__(
         self,
-        unet: nn.Module,
-        timestep_encoder: nn.Module,
-        res_cond_proj: Optional[nn.ModuleDict] = None,
-        attn_cond_proj: Optional[nn.ModuleDict] = None,
-        predict_variance_value: bool = True,
-        variance_value_transform: Optional[Callable] = None,
-    ):
-        super().__init__()
-        self.unet = unet
-        self.timestep_encoder = timestep_encoder
-        self.res_cond_proj = res_cond_proj
-        self.attn_cond_proj = attn_cond_proj
-        self.predict_variance_value = predict_variance_value
-        self.variance_value_transform = variance_value_transform or nn.Identity()
-
-    def forward(
-        self,
-        x: Tensor,
-        timestep: Tensor,
-        conditional_inputs: Optional[Dict[str, Tensor]] = None,
-    ) -> DiffusionOutput:
-        (
-            res_conditional_embedding,
-            attn_conditional_embedding,
-        ) = self._get_conditional_projections(timestep, conditional_inputs)
-        h = self.unet(x, res_conditional_embedding, attn_conditional_embedding)
-        # If model is predicting variance, then it should be configured to output double the channels as input
-        if self.predict_variance_value:
-            if h.shape[1] != x.shape[1] * 2:
-                raise ValueError(
-                    f"unet is not configured to predict variance values. "
-                    f"Expected output channel dim to be {x.shape[1] * 2}, got {h.shape[1]}"
-                )
-            # Split in half in channel dim
-            prediction, variance_value = torch.chunk(h, 2, dim=1)
-            variance_value = self.variance_value_transform(variance_value)
-            return DiffusionOutput(
-                prediction=prediction,
-                variance_value=variance_value,
-            )
-        else:
-            return DiffusionOutput(
-                prediction=h,
-            )
-
-    def _get_conditional_projections(
-        self,
-        timestep: Tensor,
-        conditional_inputs: Optional[Dict[str, Tensor]] = None,
-    ) -> Tuple[Tensor, Optional[Tensor]]:
-        res_cond = []
-        attn_cond = []
-        # Prevent for loop from running if conditional_inputs is None
-        conditional_inputs = (
-            conditional_inputs if conditional_inputs is not None else {}
-        )
-
-        t_embed = self.timestep_encoder(timestep)
-        t_embed_dim = t_embed.shape[-1]
-        res_cond.append(t_embed)
-
-        for key in conditional_inputs:
-            additional_input = conditional_inputs[key]
-
-            if self.res_cond_proj is not None and key in self.res_cond_proj:
-                cond_proj = self.res_cond_proj[key](additional_input)
-                if cond_proj.shape[-1] != t_embed_dim:
-                    raise ValueError(
-                        f"Embedding dim of res_cond_proj for {key} incompatible with timestep_encoder: "
-                        f"expected {t_embed_dim}, got {cond_proj.shape[-1]}"
-                    )
-                res_cond.append(cond_proj)
-
-            if self.attn_cond_proj is not None and key in self.attn_cond_proj:
-                cond_proj = self.attn_cond_proj[key](additional_input)
-                # Append as [b, c] -> [b, t, c]
-                if len(cond_proj.shape) < 3:
-                    cond_proj = cond_proj.unsqueeze(1)
-                attn_cond.append(cond_proj)
-
-        res_cond = torch.stack(res_cond).sum(dim=0)
-        # Concat on sequence dimension
-        attn_cond = torch.concat(attn_cond, dim=1) if attn_cond else None
-        return res_cond, attn_cond
-
-
-class ADMUNet(nn.Module):
-    """Composes all the blocks for the downsampling encoder, bottleneck, and upsampling encoder in the ADM UNet.
-    Constructs the network by adding residual blocks, attention blocks, and up/downsampling blocks for every layer
-    based on user specifications.
-
-    Follows the architecture described in "Diffusion Models Beat GANs on Image Synthesis"
-    (https://arxiv.org/abs/2105.05233).
-
-    Code ref:
-    https://github.com/openai/guided-diffusion/blob/22e0df8183507e13a7813f8d38d51b072ca1e67c/guided_diffusion/unet.py#L396
-
-    Structure for the encoder and decoder:
-    x -> ((ResBlock + MHA) * num_res -> ResDown/UpBlock) * num_layers -> h
-
-    Overall structure:
-    x -> encoder -> bottleneck -> decoder -> out
-
-    Attributes:
-        channels_per_layer (List[int]): list of channels for each layer. Total number of layers is determined by
-            length of this list. Each item must be divisible by number of groups used in GroupNorm layers. ADMResBlock
-            and ADMAttentionBlock use 32 as a default.
-        num_resize (int): number of layers that will include downsampling or upsampling
-        num_res_per_layer (int): number of residual blocks per layer
-        use_attention_for_layer (List[bool]): list indicating whether to include attention after res block for each layer.
-            Must match the length of channels_per_layer.
-        dim_res_cond (int): dimensionality of conditional projection layer in each res block
-        dim_attn_cond (Optional[int]): dimensionality of cross attention inputs used in attention blocks. If None, do not
-            use conditional inputs in attention blocks
-        in_channels (int): number of channels in input image. Defaults to 3.
-        out_channels (int): number of channels in output image. Defaults to 3.
-
-    Args:
-        x (Tensor): input Tensor of shape [b, in_channels, h, w]
-        res_conditional_embedding (Tensor): conditioning embedding vector of shape [b, dim_res_cond].
-        attn_conditional_embedding (Tensor): inputs to be used in cross attention of shape [b, n, dim_attn_cond] where n is the
-            number of tokens.
-    """
-
-    def __init__(
-        self,
+        *,
         channels_per_layer: List[int],
         num_resize: int,
         num_res_per_layer: int,
         use_attention_for_layer: List[bool],
         dim_res_cond: int,
         dim_attn_cond: Optional[int] = None,
+        embed_dim: Optional[int] = None,
+        embed_name: str = "context",
         in_channels: int = 3,
         out_channels: int = 3,
+        time_embed_dim: Optional[int] = None,
+        timestep_encoder: Optional[nn.Module] = None,
+        res_cond_proj: Optional[nn.ModuleDict] = None,
+        attn_cond_proj: Optional[nn.ModuleDict] = None,
+        predict_variance_value: bool = True,
+        variance_value_transform: Optional[Callable] = None,
     ):
         super().__init__()
+        if timestep_encoder is None:
+            assert (
+                time_embed_dim is not None
+            ), "Must pass either timestep_encoder or time_embed_dim"
+            self.timestep_encoder = self._create_timestep_encoder(
+                time_embed_dim, dim_res_cond
+            )
+        else:
+            self.timestep_encoder = timestep_encoder
+        self.embed_name = embed_name
+        if res_cond_proj is None and embed_dim is not None and dim_res_cond is not None:
+            res_cond_proj = self._create_res_cond_proj(embed_dim, dim_res_cond)
+        else:
+            self.res_cond_proj = res_cond_proj
+        if (
+            attn_cond_proj is None
+            and embed_dim is not None
+            and dim_attn_cond is not None
+        ):
+            attn_cond_proj = self._create_attn_cond_proj(embed_dim, dim_attn_cond)
+        else:
+            self.attn_cond_proj = attn_cond_proj
+
+        self.predict_variance_value = predict_variance_value
+        self.variance_value_transform = variance_value_transform or nn.Identity()
 
         if len(channels_per_layer) != len(use_attention_for_layer):
             raise ValueError(
@@ -228,6 +164,35 @@ class ADMUNet(nn.Module):
         self.down, down_channels = self._create_downsampling_encoder()
         self.bottleneck = self._create_bottleneck(down_channels[-1])
         self.up = self._create_upsampling_decoder(down_channels)
+
+    def _create_timestep_encoder(
+        self, time_embed_dim: int, cond_embed_dim: int
+    ) -> nn.Module:
+        return nn.Sequential(
+            SinusoidalPositionEmbeddings(embed_dim=time_embed_dim),
+            nn.Linear(time_embed_dim, cond_embed_dim),
+            nn.SiLU(),
+            nn.Linear(cond_embed_dim, cond_embed_dim),
+        )
+
+    def _create_res_cond_proj(
+        self, embed_dim: int, cond_embed_dim: int
+    ) -> nn.ModuleDict:
+        return nn.ModuleDict({self.embed_name: nn.Linear(embed_dim, cond_embed_dim)})
+
+    def _create_attn_cond_proj(
+        self, embed_dim: int, cond_embed_dim: int
+    ) -> nn.ModuleDict:
+        return nn.ModuleDict(
+            {
+                self.embed_name: nn.Sequential(
+                    nn.Linear(
+                        embed_dim, cond_embed_dim * 4
+                    ),  # four tokens of context as per paper ref
+                    nn.Unflatten(-1, (4, cond_embed_dim)),
+                )
+            }
+        )
 
     def _create_downsampling_encoder(self) -> Tuple[nn.ModuleList, List]:
         # Keep track of output channels of every block for thru connections to decoder
@@ -362,12 +327,75 @@ class ADMUNet(nn.Module):
         net = nn.ModuleList(stacks + [out_conv])
         return net
 
+    def _get_conditional_projections(
+        self,
+        timestep: Tensor,
+        conditional_inputs: Optional[Dict[str, Tensor]] = None,
+    ) -> Tuple[Tensor, Optional[Tensor]]:
+        res_cond = []
+        attn_cond = []
+        # Prevent for loop from running if conditional_inputs is None
+        conditional_inputs = (
+            conditional_inputs if conditional_inputs is not None else {}
+        )
+
+        t_embed = self.timestep_encoder(timestep)
+        t_embed_dim = t_embed.shape[-1]
+        res_cond.append(t_embed)
+
+        for key in conditional_inputs:
+            additional_input = conditional_inputs[key]
+
+            if self.res_cond_proj is not None and key in self.res_cond_proj:
+                cond_proj = self.res_cond_proj[key](additional_input)
+                if cond_proj.shape[-1] != t_embed_dim:
+                    raise ValueError(
+                        f"Embedding dim of res_cond_proj for {key} incompatible with timestep_encoder: "
+                        f"expected {t_embed_dim}, got {cond_proj.shape[-1]}"
+                    )
+                res_cond.append(cond_proj)
+
+            if self.attn_cond_proj is not None and key in self.attn_cond_proj:
+                cond_proj = self.attn_cond_proj[key](additional_input)
+                # Append as [b, c] -> [b, t, c]
+                if len(cond_proj.shape) < 3:
+                    cond_proj = cond_proj.unsqueeze(1)
+                attn_cond.append(cond_proj)
+
+        res_cond = torch.stack(res_cond).sum(dim=0)
+        # Concat on sequence dimension
+        attn_cond = torch.concat(attn_cond, dim=1) if attn_cond else None
+        return res_cond, attn_cond
+
+    def _get_variance_value(
+        self, x: Tensor, h: Tensor
+    ) -> Tuple[Tensor, Optional[Tensor]]:
+        # If model is predicting variance, then it should be configured to output double the channels as input
+        if self.predict_variance_value:
+            if h.shape[1] != x.shape[1] * 2:
+                raise ValueError(
+                    f"unet is not configured to predict variance values. "
+                    f"Expected output channel dim to be {x.shape[1] * 2}, got {h.shape[1]}"
+                )
+            # Split in half in channel dim
+            prediction, variance_value = torch.chunk(h, 2, dim=1)
+            variance_value = self.variance_value_transform(variance_value)
+        else:
+            prediction = h
+            variance_value = None
+        return prediction, variance_value
+
     def forward(
         self,
         x: Tensor,
-        res_conditional_embedding: Tensor,
-        attn_conditional_embedding: Tensor,
-    ) -> Tensor:
+        timestep: Tensor,
+        conditional_inputs: Optional[Dict[str, Tensor]] = None,
+    ) -> DiffusionOutput:
+        (
+            res_conditional_embedding,
+            attn_conditional_embedding,
+        ) = self._get_conditional_projections(timestep, conditional_inputs)
+
         hidden_states = []
         h = x
         for block in self.down:
@@ -378,7 +406,13 @@ class ADMUNet(nn.Module):
             if hidden_states:
                 h = torch.cat([h, hidden_states.pop()], dim=1)
             h = block(h, res_conditional_embedding, attn_conditional_embedding)
-        return h
+
+        prediction, variance_value = self._get_variance_value(x, h)
+
+        return DiffusionOutput(
+            prediction=prediction,
+            variance_value=variance_value,
+        )
 
 
 class ADMStack(nn.ModuleList):
@@ -452,8 +486,8 @@ def adm_unet(
     # ADM args
     time_embed_dim: int = 512,
     cond_embed_dim: int = 2048,
-    clip_embed_dim: int = 768,
-    clip_embed_name: str = "clip_image",
+    embed_dim: int = 768,
+    embed_name: str = "context",
     predict_variance_value: bool = True,
     # ADMUNet args
     image_channels: int = 4,
@@ -461,7 +495,7 @@ def adm_unet(
     num_resize: int = 3,
     num_res_per_layer: int = 3,
 ) -> nn.Module:
-    """Constructs the DALLE-2 base conditional UNet
+    """Constructs a conditional ADM U-Net
 
     Consists of an ADM UNet diffusion model conditioned on CLIP image embeddings.
 
@@ -471,8 +505,8 @@ def adm_unet(
     Args:
         time_embed_dim (int): desired dimensionality of timestep embedding
         cond_embed_dim (int): desired dimensionality of conditional input embeddings
-        clip_embed_dim (int): expected dimensionality of CLIP image embeddings
-        clip_embed_name (str): name of CLIP embedding conditional input
+        embed_dim (int): expected dimensionality of conditional image embeddings
+        embed_name (str): name of conditional image embeddings
         predict_variance_value (bool): if True, will double UNet's output channel dim to predict variance values of
             diffusion process
         image_channels (int): channel dim of input images
@@ -492,44 +526,18 @@ def adm_unet(
     channels_per_layer = [depth * (i + 1) for i in range(num_resize + 1)]
     # Assuming image size is 64x64, use attention at resolutions 32x32, 16x16, 8x8
     use_attention_per_layer = [False] + [True] * num_resize
-    unet = ADMUNet(
+
+    return ADMUNet(
         channels_per_layer=channels_per_layer,
         num_resize=num_resize,
         num_res_per_layer=num_res_per_layer,
         use_attention_for_layer=use_attention_per_layer,
         dim_res_cond=cond_embed_dim,
         dim_attn_cond=cond_embed_dim,
+        embed_dim=embed_dim,
         in_channels=in_channels,
         out_channels=out_channels,
-    )
-
-    # Construct ADM (UNet + timestep/conditional projections)
-    time_embed = nn.Sequential(
-        SinusoidalPositionEmbeddings(embed_dim=time_embed_dim),
-        nn.Linear(time_embed_dim, cond_embed_dim),
-        nn.SiLU(),
-        nn.Linear(cond_embed_dim, cond_embed_dim),
-    )
-
-    # Project clip embeddings to residual and attention blocks
-    res_clip_proj = nn.ModuleDict(
-        {clip_embed_name: nn.Linear(clip_embed_dim, cond_embed_dim)}
-    )
-    attn_clip_proj = nn.ModuleDict(
-        {
-            clip_embed_name: nn.Sequential(
-                nn.Linear(
-                    clip_embed_dim, cond_embed_dim * 4
-                ),  # four tokens of context as per paper ref
-                nn.Unflatten(-1, (4, cond_embed_dim)),
-            )
-        }
-    )
-    return ADM(
-        unet=unet,
-        timestep_encoder=time_embed,
-        res_cond_proj=res_clip_proj,
-        attn_cond_proj=attn_clip_proj,
+        time_embed_dim=time_embed_dim,
         predict_variance_value=predict_variance_value,
         variance_value_transform=lambda x: (x + 1) / 2,
     )

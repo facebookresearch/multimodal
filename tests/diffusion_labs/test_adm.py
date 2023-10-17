@@ -10,7 +10,7 @@ import pytest
 import torch
 from tests.test_utils import assert_expected, set_rng_seed
 from torch import nn
-from torchmultimodal.diffusion_labs.models.adm_unet.adm import ADM, ADMStack, ADMUNet
+from torchmultimodal.diffusion_labs.models.adm_unet.adm import ADMStack, ADMUNet
 from torchmultimodal.diffusion_labs.models.adm_unet.attention_block import (
     ADMAttentionBlock,
 )
@@ -49,6 +49,9 @@ def c(params):
     return torch.randn((1, in_ch, embed_dim), dtype=torch.float32)
 
 
+# All expected values come after first testing the ADMUNet has the exact output
+# as the corresponding UNet class in d2go, then simply forward passing
+# ADMUNet with params, random seed, and initialization order in this file.
 class TestADM:
     @pytest.fixture
     def cond(self, params):
@@ -72,59 +75,28 @@ class TestADM:
         return DummyTime()
 
     @pytest.fixture
-    def unet(self):
-        class DummyUNet(nn.Module):
+    def dummy_identity(self):
+        class IdentityMultipleArgs(nn.Module):
             def forward(self, x, t, c):
-                return x + t + c
+                return x
 
-        return DummyUNet()
+        return IdentityMultipleArgs()
 
     @pytest.fixture
-    def model(self, unet, time_encoder):
-        cond_proj = {"test": nn.Identity()}
-        return partial(ADM, unet, time_encoder, cond_proj, cond_proj)
+    def dummy_up(self):
+        class DummyUp(nn.Module):
+            def forward(self, x, t, c):
+                embed_dim = x.shape[1]
+                return x[:, : embed_dim // 2] + t + c
 
-    def test_get_conditional_projections(self, model, params, timestep, cond):
-        embed_dim = params[-1]
-        adm = model(predict_variance_value=False)
-        actual_res, actual_attn = adm._get_conditional_projections(timestep, cond)
-        expected_res = 2 * torch.ones(1, embed_dim)
-        expected_attn = torch.ones(1, 1, embed_dim)
-        assert_expected(actual_res, expected_res)
-        assert_expected(actual_attn, expected_attn)
+        return DummyUp()
 
-    def test_forward(self, model, params, timestep, cond):
-        embed_dim = params[-1]
-        x = torch.ones(1, embed_dim)
-        adm = model(predict_variance_value=False)
-        actual = adm(x, timestep, cond)
-        expected = 4 * torch.ones(1, embed_dim)
-        assert_expected(actual.prediction, expected.unsqueeze(1))
-
-    def test_cond_proj_incorrect_embed_dim(self, model, timestep, cond):
-        cond["test"] = cond["test"][:, :-1]
-        adm = model(predict_variance_value=False)
-        with pytest.raises(ValueError):
-            _ = adm._get_conditional_projections(timestep, cond)
-
-    def test_predict_variance_value_incorrect_channel_dim_error(
-        self, model, params, timestep, cond
-    ):
-        embed_dim = params[-1]
-        x = torch.ones(1, embed_dim)
-        adm = model(predict_variance_value=True)
-        with pytest.raises(ValueError):
-            _ = adm(x, timestep, cond)
-
-
-# All expected values come after first testing the ADMUNet has the exact output
-# as the corresponding author UNet implementation, then simply forward passing
-# ADMUNet with params, random seed, and initialization order in this file.
-class TestADMUNet:
     @pytest.fixture
-    def model(self, params):
+    def model(self, time_encoder, params):
         in_dim, _, time_dim = params
-        net = ADMUNet(
+        cond_proj = {"test": nn.Identity()}
+        return partial(
+            ADMUNet,
             channels_per_layer=[32, 32],
             num_resize=1,
             num_res_per_layer=2,
@@ -132,16 +104,85 @@ class TestADMUNet:
             dim_res_cond=time_dim,
             dim_attn_cond=time_dim,
             in_channels=in_dim,
-            out_channels=in_dim,
+            timestep_encoder=time_encoder,
+            res_cond_proj=cond_proj,
+            attn_cond_proj=cond_proj,
         )
-        net.eval()
-        return net
 
-    def test_forward(self, model, x, t, c):
-        actual = model(x, t, c)
-        expected = torch.tensor(2.3899)
-        assert_expected(actual.sum(), expected, rtol=0, atol=1e-4)
-        assert_expected(actual.shape, x.shape)
+    def test_get_conditional_projections(self, model, params, timestep, cond):
+        in_dim = params[0]
+        embed_dim = params[-1]
+        adm = model(predict_variance_value=False, out_channels=in_dim)
+        actual_res, actual_attn = adm._get_conditional_projections(timestep, cond)
+        expected_res = 2 * torch.ones(1, embed_dim)
+        expected_attn = torch.ones(1, 1, embed_dim)
+        assert_expected(actual_res, expected_res)
+        assert_expected(actual_attn, expected_attn)
+
+    def test_forward(
+        self, model, params, timestep, cond, dummy_identity, dummy_up, mocker
+    ):
+        in_dim = params[0]
+        embed_dim = params[-1]
+        x = torch.ones(1, embed_dim)
+        adm = model(predict_variance_value=False, out_channels=in_dim)
+
+        adm.down = nn.Sequential(
+            dummy_identity,
+        )
+        adm.bottleneck = dummy_identity
+        adm.up = nn.Sequential(
+            dummy_up,
+        )
+
+        actual = adm(x, timestep, cond)
+        expected = 4 * torch.ones(1, embed_dim)
+        assert_expected(actual.prediction, expected.unsqueeze(1))
+
+    def test_cond_proj_incorrect_embed_dim(self, params, model, timestep, cond):
+        in_dim = params[0]
+        cond["test"] = cond["test"][:, :-1]
+        adm = model(predict_variance_value=False, out_channels=in_dim)
+        with pytest.raises(ValueError):
+            _ = adm._get_conditional_projections(timestep, cond)
+
+    def test_predict_variance_value_incorrect_channel_dim_error(
+        self, model, params, timestep, cond, dummy_identity, dummy_up, mocker
+    ):
+        in_dim = params[0]
+        embed_dim = params[-1]
+        x = torch.ones(1, embed_dim)
+        adm = model(predict_variance_value=True, out_channels=in_dim)
+
+        adm.down = nn.Sequential(
+            dummy_identity,
+        )
+        adm.bottleneck = dummy_identity
+        adm.up = nn.Sequential(
+            dummy_up,
+        )
+
+        with pytest.raises(ValueError):
+            _ = adm(x, timestep, cond)
+
+    def test_unet_forward(self, params, model, x, t, c, mocker):
+        mocker.patch(
+            "torchmultimodal.diffusion_labs.models.adm_unet.adm.ADMUNet._get_conditional_projections",
+            return_value=(t, c),
+        )
+        in_dim = params[0]
+        adm = model(predict_variance_value=False, out_channels=in_dim)
+        adm.eval()
+
+        actual = adm(x, t, c)
+        expected = torch.tensor(1.0438)
+        assert_expected(
+            actual.prediction.sum(),
+            expected,
+            rtol=0,
+            atol=1e-4,
+        )
+        assert_expected(actual.prediction.shape, x.shape)
 
     def test_less_channels_attention_error(self, params):
         in_dim, _, time_dim = params
@@ -155,6 +196,7 @@ class TestADMUNet:
                 dim_attn_cond=time_dim,
                 in_channels=in_dim,
                 out_channels=in_dim,
+                time_embed_dim=time_dim,
             )
 
     def test_less_channels_resize_error(self, params):
@@ -169,6 +211,7 @@ class TestADMUNet:
                 dim_attn_cond=time_dim,
                 in_channels=in_dim,
                 out_channels=in_dim,
+                time_embed_dim=time_dim,
             )
 
 
