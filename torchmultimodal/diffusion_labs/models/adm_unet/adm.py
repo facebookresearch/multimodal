@@ -128,7 +128,7 @@ class ADMUNet(nn.Module):
             self.timestep_encoder = timestep_encoder
         self.embed_name = embed_name
         if res_cond_proj is None and embed_dim is not None and dim_res_cond is not None:
-            res_cond_proj = self._create_res_cond_proj(embed_dim, dim_res_cond)
+            self.res_cond_proj = self._create_res_cond_proj(embed_dim, dim_res_cond)
         else:
             self.res_cond_proj = res_cond_proj
         if (
@@ -136,7 +136,7 @@ class ADMUNet(nn.Module):
             and embed_dim is not None
             and dim_attn_cond is not None
         ):
-            attn_cond_proj = self._create_attn_cond_proj(embed_dim, dim_attn_cond)
+            self.attn_cond_proj = self._create_attn_cond_proj(embed_dim, dim_attn_cond)
         else:
             self.attn_cond_proj = attn_cond_proj
 
@@ -573,6 +573,7 @@ def adm_unet(
         dim_res_cond=cond_embed_dim,
         dim_attn_cond=cond_embed_dim,
         embed_dim=embed_dim,
+        embed_name=embed_name,
         in_channels=in_channels,
         out_channels=out_channels,
         time_embed_dim=time_embed_dim,
