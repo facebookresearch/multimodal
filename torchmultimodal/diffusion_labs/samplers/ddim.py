@@ -63,6 +63,7 @@ class DDIModule(nn.Module, Sampler):
         eta: float = 1.0,
     ):
         super().__init__()
+        torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
 
         self.model = model
         self.schedule = schedule

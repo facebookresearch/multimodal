@@ -13,9 +13,13 @@ from torchmultimodal.diffusion_labs.schedules.discrete_gaussian_schedule import 
 )
 
 
-class NoisePredictor(Predictor):
-    """Given a model that's trained to predict diffusion noise and corresponding schedule,
-        this class computes the predicted noise and x0 at step t.
+class VPredictor(Predictor):
+    """Given a model that's trained to predict v and corresponding schedule,
+    this class computes the predicted noise and x0 at step t. V is an interpolation
+    between x0 and noise designed to keep the prediciton target stable as Signal
+    to Noise (SNR) ratio varies through the diffusion process. V is first proposed
+    in "Progressive Distillation for Fast Sampling of Diffusion Models" by Salimans
+    and Ho (https://arxiv.org/abs/2202.00512).
 
     Attributes:
         schedule (DiffusionSchedule): defines diffusion of noise through time
@@ -30,12 +34,17 @@ class NoisePredictor(Predictor):
 
     def predict_x0(self, prediction: Tensor, xt: Tensor, t: Tensor) -> Tensor:
         shape, dtype = xt.shape, xt.dtype
-        x_coef = self.schedule("sqrt_recip_alphas_cumprod", t, shape)
-        e_coef = self.schedule("sqrt_recip_alphas_cumprod_minus_one", t, shape)
-        x0 = x_coef * xt - e_coef * prediction
+        x_coef = self.schedule("sqrt_alphas_cumprod", t, shape)
+        v_coef = self.schedule("sqrt_compliment_alphas_cumprod", t, shape)
+        x0 = x_coef * xt - v_coef * prediction
         if self.clamp_func is not None:
             x0 = self.clamp_func(x0)
         return x0.to(dtype)
 
     def predict_noise(self, prediction: Tensor, xt: Tensor, t: Tensor) -> Tensor:
-        return prediction
+        shape, dtype = xt.shape, xt.dtype
+        x_coef = self.schedule("sqrt_recip_alphas_cumprod", t, shape)
+        e_coef = self.schedule("sqrt_recip_alphas_cumprod_minus_one", t, shape)
+        x0 = self.predict_x0(prediction, xt, t)
+        e = (x_coef * xt - x0) / e_coef
+        return e.to(dtype)

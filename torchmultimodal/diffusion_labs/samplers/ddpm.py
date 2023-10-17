@@ -41,6 +41,7 @@ class DDPModule(nn.Module, Sampler):
         schedule (DiscreteGaussianSchedule): defines diffusion of noise through time
         predictor (Predictor): predictor class to handle predictions depending on the model input
         eval_steps (Tensor): subset of steps to sample at inference
+        progress_bar (bool): whether to show a progress bar
 
     Args:
         x (Tensor): corrupted data at time t (when t = schedule.steps, x is equivalent to noise)
@@ -58,6 +59,7 @@ class DDPModule(nn.Module, Sampler):
         progress_bar: bool = True,
     ):
         super().__init__()
+        torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
 
         self.model = model
         self.schedule = schedule

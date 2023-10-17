@@ -23,8 +23,7 @@ class DiffusionOutput:
 
 def cascaded_resize(pil_image: Image, resolution: int) -> Image:
     """Cascaded resizing
-    Based on D2Go: https://fburl.com/nxlme9rj, resize by powers of 2 to nearest power of 2
-    for improved BICUBIC performance.
+    Resize by powers of 2 to nearest power of 2 for improved BICUBIC performance.
 
     Args:
         image (Image): PIL image
@@ -43,13 +42,14 @@ def cascaded_resize(pil_image: Image, resolution: int) -> Image:
     return pil_image
 
 
-def normalize(x: Tensor, image_min: int, image_max: int) -> Tensor:
-    # Normalize image values between min and max
-    return (image_max - image_min) * x + image_min
-
-
 def denormalize_to_0_1(images: Tensor) -> Tensor:
     """Denormalize tensors from range [-1, 1] to [0, 1]"""
     denormed_images = torch.clamp((images + 1) / 2, 0, 1)
-
     return denormed_images
+
+
+def normalize(images: Tensor, image_min: int, image_max: int) -> Tensor:
+    """Normalize image values between min and max. Assumes that passed images
+    are already scaled in the range [0, 1]
+    """
+    return (image_max - image_min) * images + image_min

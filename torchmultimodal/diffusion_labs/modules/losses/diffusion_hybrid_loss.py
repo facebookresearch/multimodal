@@ -4,6 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import torch
 from torch import nn, Tensor
 from torchmultimodal.diffusion_labs.modules.losses.vlb_loss import VLBLoss
 from torchmultimodal.diffusion_labs.schedules.discrete_gaussian_schedule import (
@@ -41,6 +42,7 @@ class DiffusionHybridLoss(nn.Module):
         lmbda: float = 0.001,
     ):
         super().__init__()
+        torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
         self.simple_loss = simple_loss
         self.vlb_loss = VLBLoss(schedule)
         self.lmbda = lmbda

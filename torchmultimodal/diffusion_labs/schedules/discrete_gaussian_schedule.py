@@ -59,6 +59,10 @@ class DiscreteGaussianSchedule(DiffusionSchedule):
         self.add_property(
             "sqrt_compliment_alphas_cumprod", _sqrt_compliment_alphas_cumprod
         )
+        self.add_property("sqrt_recip_alphas_cumprod", _sqrt_recip_alphas_cumprod)
+        self.add_property(
+            "sqrt_recip_alphas_cumprod_minus_one", _sqrt_recip_alphas_cumprod_minus_one
+        )
 
         # Lower and upper bound for forward process variances based on reverse process
         self.add_property("lower_posterior_log_variance", _lower_posterior_log_variance)
@@ -173,8 +177,20 @@ class DiscreteGaussianSchedule(DiffusionSchedule):
         if tensor.device != t.device:
             tensor = tensor.to(t.device)
             setattr(self, var_name, tensor)
+
+        # If the timestep is not an int, then we interpolate between the nearest full steps
+        t_floor = t.floor()
+        if (t != t_floor).any():
+            # Calculate the ceiling, weight, start and end values for interpolation
+            t_ceil = t.ceil()
+            t_weight = t - t_floor
+            out_floor = tensor.gather(-1, t_floor.long())
+            out_ceil = tensor.gather(-1, t_ceil.long())
+            out = linear_interpolate(out_floor, out_ceil, t_weight)
+        else:
+            out = tensor.gather(-1, t.long())
+
         b = t.numel()
-        out = tensor.gather(-1, t.long())
         return out.reshape(b, *((1,) * (len(shape) - 1)))
 
     def __getattr__(self, name: str) -> Any:
@@ -212,6 +228,16 @@ def _sqrt_alphas_cumprod(schedule: DiscreteGaussianSchedule) -> Tensor:
 def _sqrt_compliment_alphas_cumprod(schedule: DiscreteGaussianSchedule) -> Tensor:
     # pyre-ignore
     return (1.0 - schedule.alphas_cumprod).sqrt()
+
+
+def _sqrt_recip_alphas_cumprod(schedule: DiscreteGaussianSchedule) -> Tensor:
+    # pyre-ignore
+    return (1.0 / schedule.alphas_cumprod).sqrt()
+
+
+def _sqrt_recip_alphas_cumprod_minus_one(schedule: DiscreteGaussianSchedule) -> Tensor:
+    # pyre-ignore
+    return (1.0 / schedule.alphas_cumprod - 1).sqrt()
 
 
 def _lower_posterior_log_variance(schedule: DiscreteGaussianSchedule) -> Tensor:
@@ -294,3 +320,21 @@ def sigmoid_beta_schedule(
     # the range [-6, 6] constitutes a majority of the sigmoid curve
     betas = torch.linspace(-6, 6, timesteps, dtype=torch.float64)
     return torch.sigmoid(betas) * (beta_end - beta_start) + beta_start
+
+
+# **************************************** Util functions ****************************************
+def linear_interpolate(
+    start_value: Tensor, end_value: Tensor, weight: Tensor
+) -> Tensor:
+    """
+    Linear interpolation using two values and a weight.
+
+    Args:
+        start_value (Tensor): start tensor
+        end_value (Tensor): end tensor
+        weight (Tensor): weight tensor between 0 and 1
+    """
+    assert ((weight >= 0) & (weight <= 1)).all(), "weight must be in range [0, 1]"
+
+    interpolated_value = (1.0 - weight) * start_value + weight * end_value
+    return interpolated_value
