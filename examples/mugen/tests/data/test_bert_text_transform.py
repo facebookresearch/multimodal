@@ -6,9 +6,9 @@
 
 import pytest
 import torch
+from examples.mugen.data.bert_text_transform import BertTextTransform
 
 from tests.test_utils import assert_expected, set_rng_seed
-from torchmultimodal.transforms.bert_text_transform import BertTextTransform
 
 
 class TestBertTextTransform:
