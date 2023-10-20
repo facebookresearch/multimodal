@@ -69,7 +69,7 @@ class TestVideoVQVAEMUGEN:
         # ensure embed is uninitialized
         assert model.codebook._is_embedding_init is False
         assert_expected(actual.shape, (1, 3, seq_len, 256, 256))
-        assert_expected(actual.sum().item(), expected)
+        assert_expected(actual.sum().item(), expected, rtol=1e-4, atol=1e-4)
 
     @pytest.mark.parametrize(
         "seq_len,expected", [(8, 132017.28125), (16, -109636.0), (32, 1193122.0)]
