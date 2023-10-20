@@ -4,6 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+from examples.mugen.data.bert_text_transform import BertTextTransform
 from examples.mugen.data.mugen_datamodules import MUGENDataModule
 from examples.mugen.data.mugen_dataset import MUGENDatasetArgs
 from examples.mugen.retrieval.model import VideoCLIPLightningModule
@@ -11,7 +12,6 @@ from hydra.utils import instantiate
 from omegaconf import OmegaConf
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
-from torchmultimodal.transforms.bert_text_transform import BertTextTransform
 from torchmultimodal.transforms.video_transform import VideoTransform
 
 
