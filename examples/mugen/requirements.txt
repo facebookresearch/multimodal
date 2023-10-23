@@ -2,3 +2,4 @@ transformers==4.30.0
 av==8.0.3
 omegaconf==2.1.2
 hydra-core==1.1.2
+torchtext
