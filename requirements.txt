@@ -1,3 +1,5 @@
 DALL-E==0.1
 iopath
 attrs==23.1.0
+ftfy
+regex
