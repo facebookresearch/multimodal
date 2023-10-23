@@ -3,4 +3,3 @@ pytorch-lightning==1.6.0
 Pillow==9.3.0
 ruamel_yaml==0.17.21
 transformers==4.30.0
-torchtext
