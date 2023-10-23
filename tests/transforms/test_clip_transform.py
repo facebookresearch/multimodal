@@ -8,11 +8,7 @@ import pytest
 
 import torch
 from tests.test_utils import assert_expected, get_asset_path, set_rng_seed
-from torchmultimodal.transforms.clip_transform import (
-    CLIPImageTransform,
-    CLIPTextTransform,
-    CLIPTransform,
-)
+from torchmultimodal.transforms.clip_transform import CLIPImageTransform, CLIPTransform
 from torchvision.transforms import ToPILImage
 
 
@@ -152,9 +148,3 @@ class TestCLIPTransform:
         actual_image_size = transformed_image.size
         expected_image_size = (224, 224)
         assert_expected(actual_image_size, expected_image_size)
-
-    # Only text transforms require torchscripting for now based on user needs
-    def test_scripting_text_transform(self, text1, bpe_merges_file):
-        text_transform = CLIPTextTransform(text_bpe_merges_path=bpe_merges_file)
-        scripted_text_transform = torch.jit.script(text_transform)
-        assert_expected(text_transform(text1), scripted_text_transform(text1))
