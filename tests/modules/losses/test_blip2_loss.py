@@ -77,10 +77,6 @@ def vit():
 
 class TestBLIP2Stage1Loss:
     @pytest.fixture
-    def images(self):
-        return torch.ones(4, 3, 2, 2)
-
-    @pytest.fixture
     def input_ids(self):
         return torch.ones(4, 4).long()
 
@@ -138,6 +134,10 @@ class TestBLIP2Stage1Loss:
         init_weights_with_constant(blip2)
         blip2.eval()
         return blip2
+
+    @pytest.fixture
+    def attn_mask(self):
+        return torch.Tensor([[1.0, 0.0, 1.0, 1.0], [0.0, 1.0, 1.0, 1.0]])
 
     def test_local_loss(self, all_attn_mask, blip2_output, blip2, dim_q, input_ids):
         blip2_loss = Blip2Phase1Loss(dim_q=dim_q)
@@ -201,7 +201,6 @@ class TestBLIP2Stage1Loss:
         sync_file: str,
         world_size: int,
         global_batch_size: int,
-        all_images: torch.Tensor,
         all_input_ids: torch.Tensor,
         all_attn_mask: torch.Tensor,
         blip2_output: Blip2Output,
@@ -216,7 +215,6 @@ class TestBLIP2Stage1Loss:
         all_attn_mask = torch.ones([4, 4])
 
         # Split inputs across GPUs
-        local_images = torch.split(all_images, local_batch_size)[gpu_id].cuda(gpu_id)
         local_input_ids = torch.split(all_input_ids, local_batch_size)[gpu_id].cuda(
             gpu_id
         )
@@ -256,7 +254,6 @@ class TestBLIP2Stage1Loss:
         loss = loss_fn(
             model_output=local_blip2_output,
             blip2=blip2,
-            images=local_images,
             input_ids=local_input_ids,
             attention_mask=local_attn_mask,
         ).total_loss
