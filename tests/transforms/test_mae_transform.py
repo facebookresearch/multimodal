@@ -10,7 +10,12 @@ import numpy as np
 import pytest
 import torch
 from PIL import Image
-from tests.test_utils import assert_expected, get_asset_path, set_rng_seed
+from tests.test_utils import (
+    assert_expected,
+    get_asset_path,
+    set_rng_seed,
+    skip_if_no_ffmpeg,
+)
 from torchmultimodal.transforms.mae_transform import (
     AudioEvalTransform,
     AudioFineTuneTransform,
@@ -275,11 +280,13 @@ class TestAudioEvalTransform:
     def transform(self):
         return AudioEvalTransform()
 
+    @skip_if_no_ffmpeg()
     def test_transform(self, transform, wav):
         actual = transform(wav)
         assert_expected(actual.size(), (1, 1024, 128))
         assert_expected(actual.sum().item(), 52000.8828, atol=0.0001, rtol=0.0)
 
+    @skip_if_no_ffmpeg()
     def test_transform_list(self, transform, wav):
         actual = transform([wav])
         assert_expected(actual.size(), (1, 1, 1024, 128))
@@ -295,11 +302,13 @@ class TestAudioPretrainTransform:
     def transform(self):
         return AudioPretrainTransform()
 
+    @skip_if_no_ffmpeg()
     def test_transform(self, transform, wav):
         actual = transform(wav)
         assert_expected(actual.size(), (1, 1024, 128))
         assert_expected(actual.sum().item(), 52072.4531, atol=0.0001, rtol=0.0001)
 
+    @skip_if_no_ffmpeg()
     def test_transform_list(self, transform, wav):
         actual = transform([wav])
         assert_expected(actual.size(), (1, 1, 1024, 128))
@@ -316,16 +325,19 @@ class TestAudioFinetuneTransform:
     def transform(self):
         return AudioFineTuneTransform()
 
+    @skip_if_no_ffmpeg()
     def test_transform(self, transform, wav):
         actual = transform(wav)
         assert_expected(actual.size(), (1, 1024, 128))
         assert_expected(actual.sum().item(), 53656.75, atol=0.0001, rtol=0.0001)
 
+    @skip_if_no_ffmpeg()
     def test_transform_list(self, transform, wav):
         actual = transform([wav])
         assert_expected(actual.size(), (1, 1, 1024, 128))
         assert_expected(actual.sum().item(), 53656.75, atol=0.0001, rtol=0.0001)
 
+    @skip_if_no_ffmpeg()
     def test_transform_with_mixup(self, transform, wav):
         with open(get_asset_path("sinewave.wav"), "rb") as f:
             bfr = f.read()

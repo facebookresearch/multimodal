@@ -286,3 +286,10 @@ def fixed_init_model(
                 dtype=param.dtype,
             )
         )
+
+
+def skip_if_no_ffmpeg(message="Requires ffmpeg"):
+    import importlib
+
+    ffmpeg_spec = importlib.util.find_spec("ffmpeg")
+    return pytest.mark.skipif(ffmpeg_spec is None, reason=message)
