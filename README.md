@@ -20,15 +20,15 @@ The following assumes conda is installed.
     conda activate torch-multimodal
     ```
 
-2. Install pytorch, torchvision, and torchtext. See [PyTorch documentation](https://pytorch.org/get-started/locally/).
+2. Install pytorch, torchvision, and torchaudio. See [PyTorch documentation](https://pytorch.org/get-started/locally/).
 
     ```
     # Use the current CUDA version as seen [here](https://pytorch.org/get-started/locally/)
     # Select the nightly Pytorch build, Linux as the OS, and conda. Pick the most recent CUDA version.
-    conda install pytorch torchvision torchtext torchaudio pytorch-cuda=\<cuda_version\> -c pytorch-nightly -c nvidia
+    conda install pytorch torchvision torchaudio pytorch-cuda=\<cuda_version\> -c pytorch-nightly -c nvidia
 
     # For CPU-only install
-    conda install pytorch torchvision torchtext torchaudio cpuonly -c pytorch-nightly
+    conda install pytorch torchvision torchaudio cpuonly -c pytorch-nightly
     ```
 
 ### Install from binaries
