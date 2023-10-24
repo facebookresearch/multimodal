@@ -6,7 +6,11 @@
 
 Prior to running any of the MDETR tasks, you should
 1) Follow the TorchMultimodal installation instructions in the [README](https://github.com/facebookresearch/multimodal/blob/main/README.md).
-2) Install ALBEF requirements via `pip install -r examples/albef/requirements.txt`.
+2) Install ALBEF requirements via
+```
+conda install -c pytorch torchtext
+pip install -r examples/albef/requirements.txt.
+```
 
 ## Retrieval
 

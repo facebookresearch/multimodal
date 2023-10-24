@@ -10,6 +10,7 @@ This folder contains the examples following [MUGEN](https://arxiv.org/abs/2204.0
 ## Prerequisites
 Follow the dev setup instructions in [CONTRIBUTING.md](https://github.com/facebookresearch/multimodal/blob/main/CONTRIBUTING.md). Then additionally install MUGEN-specific dependencies:
 ```
+conda install -c pytorch torchtext
 pip install -r examples/mugen/requirements.txt
 ```
 MUGEN dataset is required for most of the scripts/demos in this folder. Follow the instructions to download the MUGEN dataset in the [dataset README.md](https://github.com/facebookresearch/multimodal/blob/main/examples/mugen/data/README.md).
