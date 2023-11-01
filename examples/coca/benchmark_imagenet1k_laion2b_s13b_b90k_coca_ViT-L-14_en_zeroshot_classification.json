@@ -1,0 +1,1 @@
+{"dataset": "wds/imagenet1k", "model": "coca_ViT-L-14", "pretrained": "laion2b_s13b_b90k", "task": "zeroshot_classification", "metrics": {"acc1": 0.7564, "acc5": 0.94286, "mean_per_class_recall": 0.75652}, "language": "en"}

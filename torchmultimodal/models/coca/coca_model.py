@@ -63,6 +63,30 @@ class CoCaModel(nn.Module):
         self.vision_pooler = vision_pooler
         self.vision_proj = vision_proj
 
+    def _encode_image(self, images, normalize=True):
+        image_out = self.vision_encoder(images).last_hidden_state
+        image_out = self.vision_pooler(image_out)
+        image_first_token = image_out[:, 0]
+        image_out = self.vision_proj(image_first_token)
+        image_out = F.normalize(image_out, dim=-1) if normalize else image_out
+        return image_out
+
+    def _encode_text(self, text, normalize=True, embed_cls=True):
+        text = text[:, :-1] if embed_cls else text  # make space for CLS token
+        text_latent, token_emb = self.text_decoder(text)
+        text_latent = F.normalize(text_latent, dim=-1) if normalize else text_latent
+        return text_latent, token_emb
+
+    def encode_image(self, images, normalize=True):
+        image_latent = self._encode_image(images, normalize=normalize)
+        return image_latent
+
+    def encode_text(self, text, normalize=True, embed_cls=True):
+        text_latent, _ = self._encode_text(
+            text, normalize=normalize, embed_cls=embed_cls
+        )
+        return text_latent
+
     def forward(
         self, images: Tensor, texts: Tensor, text_padding_mask: Optional[Tensor] = None
     ) -> CoCaModelOutput:
@@ -159,6 +183,8 @@ def coca_vit(
     vision_include_cls_embed: bool = False,  # This is different from ViT default
     vision_drop_path_rate: Optional[float] = None,
     vision_patch_drop_rate: Optional[Union[float, Tuple[float, float]]] = None,
+    vision_patch_embedding_has_bias: Optional[bool] = True,
+    vision_transformer_ln_pre: Optional[bool] = False,
     # Optional text args
     pad_idx: Optional[int] = 0,
     text_embed_cls: bool = True,
@@ -173,6 +199,8 @@ def coca_vit(
     fusion_layer_norm_eps: float = 1e-5,
     fusion_norm_first: bool = True,
     fusion_final_layer_norm_eps: Optional[float] = 1e-5,
+    fusion_use_extra_mlp: Optional[bool] = False,
+    fusion_kv_norm: Optional[bool] = False,
     # Optional attention pooler args
     cascaded_pooler: bool = True,
     pooler_n_queries: int = 256,
@@ -289,6 +317,8 @@ def coca_vit(
         include_cls_embed=vision_include_cls_embed,
         drop_path_rate=vision_drop_path_rate,
         patch_drop_rate=vision_patch_drop_rate,
+        patch_embedding_has_bias=vision_patch_embedding_has_bias,
+        transformer_ln_pre=vision_transformer_ln_pre,
     )
 
     text_decoder = CoCaTextDecoder(
@@ -322,6 +352,8 @@ def coca_vit(
         layer_norm_eps=fusion_layer_norm_eps,
         norm_first=fusion_norm_first,
         final_layer_norm_eps=fusion_final_layer_norm_eps,
+        use_extra_mlp=fusion_use_extra_mlp,
+        kv_norm=fusion_kv_norm,
     )
 
     return CoCaModel(
@@ -380,6 +412,39 @@ def coca_vit_b_32_open_clip():
         pooler_output_embed_dim=512,
         pooler_n_head=8,
         cascaded_pooler=False,
+        vision_patch_embedding_has_bias=False,
+        vision_transformer_ln_pre=True,
+        fusion_use_extra_mlp=True,
+        fusion_kv_norm=True,
+    )
+
+
+def coca_vit_l_14_open_clip():
+    return coca_vit(
+        vision_patch_size=14,
+        vision_n_layer=24,
+        vision_n_head=16,
+        vision_dim_feedforward=4096,
+        vision_include_cls_embed=True,
+        vocab_size=49408,
+        num_text_positions=77,
+        text_hidden_dim=768,
+        text_n_layer=12,
+        text_n_head=12,
+        text_dim_feedforward=3072,
+        text_output_dim=768,
+        fusion_n_layer=12,
+        fusion_n_head=12,
+        fusion_dim_feedforward=3072,
+        fusion_output_dim=49408,
+        pooler_input_embed_dim=1024,
+        pooler_output_embed_dim=768,
+        pooler_n_head=8,
+        cascaded_pooler=False,
+        vision_patch_embedding_has_bias=False,
+        vision_transformer_ln_pre=True,
+        fusion_use_extra_mlp=True,
+        fusion_kv_norm=True,
     )
 
 

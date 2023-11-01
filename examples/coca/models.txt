@@ -1,0 +1,1 @@
+coca_ViT-L-14,laion2b_s13b_b90k
