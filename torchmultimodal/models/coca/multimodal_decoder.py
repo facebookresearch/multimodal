@@ -46,7 +46,7 @@ class CoCaMultimodalDecoder(nn.Module):
         n_layer: int,
         n_head: int,
         dim_feedforward: int,
-        output_dim: int,
+        output_dim: Optional[int] = None,
         dropout: float = 0.0,
         activation: Callable[..., nn.Module] = nn.GELU,
         layer_norm_eps: float = 1e-5,
@@ -72,7 +72,13 @@ class CoCaMultimodalDecoder(nn.Module):
             use_extra_mlp=use_extra_mlp,
             kv_norm=kv_norm,
         )
-        self.output_projection = nn.Linear(text_embedding_dim, output_dim, bias=False)
+        if output_dim is not None:
+            self.output_projection = nn.Linear(
+                text_embedding_dim, output_dim, bias=False
+            )
+        else:
+            self.output_projection = nn.Identity()
+
         self.register_buffer(
             "causal_mask",
             get_causal_attention_mask(input_seq_len).to(dtype=torch.bool),

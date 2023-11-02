@@ -157,8 +157,8 @@ def accuracy(output, target, topk=(1,)):
 
 def run_open_clip_zero_shot():
     baseline_command = """\
-    clip_benchmark eval --pretrained_model \"/data/users/ebs/models.txt\" \
-    --dataset \"/data/users/ebs/webdatasets.txt\" \
+    clip_benchmark eval --pretrained_model \"models.txt\" \
+    --dataset \"webdatasets.txt\" \
     --dataset_root \"https://huggingface.co/datasets/clip-benchmark/wds_{dataset_cleaned}/tree/main\" \
     --output "benchmark_{dataset}_{pretrained}_{model}_{language}_{task}.json" \
     """

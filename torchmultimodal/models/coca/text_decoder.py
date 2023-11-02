@@ -222,9 +222,10 @@ class CoCaTextDecoder(nn.Module):
             if padding_mask is not None and padding_mask.shape[1] == self.num_positions:
                 padding_mask = padding_mask[:, :-1]
 
-        assert input_ids.shape[1] == (
-            self.num_positions - 1 if self.embed_cls else self.num_positions
-        )
+        target_shape = self.num_positions - 1 if self.embed_cls else self.num_positions
+        assert (
+            input_ids.shape[1] == target_shape
+        ), f"{input_ids.shape} doesn't match ({target_shape},*)"
 
         embeddings = self.embeddings(input_ids)
         mask = self.build_mask(input_ids, padding_mask)
