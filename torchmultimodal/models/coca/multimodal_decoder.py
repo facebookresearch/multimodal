@@ -72,12 +72,7 @@ class CoCaMultimodalDecoder(nn.Module):
             use_extra_mlp=use_extra_mlp,
             kv_norm=kv_norm,
         )
-        if output_dim is not None:
-            self.output_projection = nn.Linear(
-                text_embedding_dim, output_dim, bias=False
-            )
-        else:
-            self.output_projection = nn.Identity()
+        self.output_projection = nn.Linear(text_embedding_dim, output_dim, bias=False)
 
         self.register_buffer(
             "causal_mask",
@@ -103,5 +98,8 @@ class CoCaMultimodalDecoder(nn.Module):
         )
         hidden_states = decoder_outputs.last_hidden_state
         assert hidden_states is not None, "hidden states must not be None"
-        out = self.output_projection(hidden_states)
+        if self.output_projection is not None:
+            out = self.output_projection(hidden_states)
+        else:
+            out = hidden_states
         return out

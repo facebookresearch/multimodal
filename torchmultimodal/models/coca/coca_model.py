@@ -6,7 +6,7 @@
 
 import math
 from functools import partial
-from typing import Callable, Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
@@ -211,7 +211,7 @@ def coca_vit(
     cascaded_pooler: bool = True,
     pooler_n_queries: int = 256,
     pooler_layer_norm_eps: float = 1e-5,
-):
+) -> CoCaModel:
     """
     Args:
         vision_patch_size (Union[int, Tuple[int, int]]): ViT patch size
@@ -276,6 +276,7 @@ def coca_vit(
         pooler_n_queries (int): Number of queries in attention pooler. Default: 256
         pooler_layer_norm_eps (float): LN epsilon in attention pooler. Default: 1e-5
     """
+    attention_pooler: nn.Module
     if cascaded_pooler:
         captioning_pooler = AttentionPooler(
             input_embed_dim=pooler_input_embed_dim,
@@ -373,7 +374,7 @@ def coca_vit(
     )
 
 
-def coca_vit_b_32():
+def coca_vit_b_32() -> CoCaModel:
     return coca_vit(
         vision_patch_size=32,
         vision_n_layer=12,
@@ -398,7 +399,7 @@ def coca_vit_b_32():
     )
 
 
-def coca_vit_l_14():
+def coca_vit_l_14() -> CoCaModel:
     return coca_vit(
         vision_patch_size=14,
         vision_n_layer=24,
@@ -508,7 +509,7 @@ class CoCaForPretraining(nn.Module):
         return {"contrastive": contrastive_loss, "captioning": captioning_loss}
 
 
-def coca_for_pretraining(pad_idx: int = 0, **kwargs):
+def coca_for_pretraining(pad_idx: int = 0, **kwargs: Any) -> CoCaForPretraining:
     model = coca_vit(**kwargs)
     return CoCaForPretraining(model, pad_idx=pad_idx)
 
