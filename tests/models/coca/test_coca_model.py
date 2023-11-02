@@ -67,7 +67,7 @@ class TestCoCaModel:
             fusion_n_layer=2,
             fusion_n_head=2,
             fusion_dim_feedforward=32,
-            fusion_output_dim=vocab_size,
+            multimodal_output_projection_dim=vocab_size,
             pooler_input_embed_dim=6,
             pooler_output_embed_dim=attention_pooler_output_dim,
             image_size=image_size,
