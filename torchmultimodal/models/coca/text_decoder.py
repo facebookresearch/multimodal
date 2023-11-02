@@ -49,7 +49,7 @@ class CoCaTextEmbeddings(nn.Module):
         )
         self.init_parameters()
 
-    def init_parameters(self):
+    def init_parameters(self) -> None:
         nn.init.normal_(self.token_embeddings.weight, std=0.02)
         nn.init.normal_(self.position_embeddings, std=0.01)
         if self.cls_embedding is not None:
