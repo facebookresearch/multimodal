@@ -4,6 +4,8 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+import math
+from functools import partial
 from typing import Callable, Dict, List, NamedTuple, Optional, Tuple, Union
 
 import torch
@@ -83,6 +85,10 @@ class CoCaModel(nn.Module):
         # Extract image embeddings
         if isinstance(vision_encoder_outs, TransformerOutput):
             image_embeddings = vision_encoder_outs.last_hidden_state
+        elif isinstance(vision_encoder_outs, tuple):
+            vision_encoder_outs = vision_encoder_outs[0]
+            assert isinstance(vision_encoder_outs, Tensor)
+            image_embeddings = vision_encoder_outs
         else:
             assert isinstance(vision_encoder_outs, Tensor)
             image_embeddings = vision_encoder_outs
@@ -142,7 +148,6 @@ def coca_vit(
     fusion_n_layer: int,
     fusion_n_head: int,
     fusion_dim_feedforward: int,
-    fusion_output_dim: int,
     # Required attention pooler args
     pooler_input_embed_dim: int,
     pooler_output_embed_dim: int,
@@ -173,6 +178,7 @@ def coca_vit(
     fusion_layer_norm_eps: float = 1e-5,
     fusion_norm_first: bool = True,
     fusion_final_layer_norm_eps: Optional[float] = 1e-5,
+    multimodal_output_projection_dim: Optional[int] = None,
     # Optional attention pooler args
     cascaded_pooler: bool = True,
     pooler_n_queries: int = 256,
@@ -194,7 +200,6 @@ def coca_vit(
         fusion_n_layer (int): Number of layers in multimodal transformer.
         fusion_n_head (int): Number of heads in multimodal transformer.
         fusion_dim_feedforward (int): Dimension of FFN for multimodal transformer.
-        fusion_output_dim (int): Output dimension of multimodal embeddings
         pooler_input_embed_dim (int): Input dimension for attention pooler.
         pooler_output_embed_dim (int): Output dimension for attention pooler.
         pooler_n_head (int): Number of heads in attention pooler.
@@ -235,6 +240,9 @@ def coca_vit(
             Default: True
         fusion_final_layer_norm_eps (float): Final LN epsilon for multimodal decoder.
             Default: 0.0 (no final LN)
+        multimodal_output_projection_dim (Optional[int]): Output dimension of
+            multimodal projection. If None, no projection will be applied to
+            multimodal embeddings. Default: None
         cascaded_pooler (bool): Whether to cascade (stack) contrastive and captioning
             attention poolers or parallelize them. Default: True
         pooler_n_queries (int): Number of queries in attention pooler. Default: 256
@@ -316,7 +324,7 @@ def coca_vit(
         n_layer=fusion_n_layer,
         n_head=fusion_n_head,
         dim_feedforward=fusion_dim_feedforward,
-        output_dim=fusion_output_dim,
+        output_dim=multimodal_output_projection_dim,
         dropout=fusion_dropout,
         activation=fusion_activation,
         layer_norm_eps=fusion_layer_norm_eps,
@@ -350,7 +358,7 @@ def coca_vit_b_32():
         fusion_n_layer=12,
         fusion_n_head=8,
         fusion_dim_feedforward=2048,
-        fusion_output_dim=49408,
+        multimodal_output_projection_dim=49408,
         pooler_input_embed_dim=768,
         pooler_output_embed_dim=512,
         pooler_n_head=8,
@@ -358,53 +366,28 @@ def coca_vit_b_32():
     )
 
 
-def coca_vit_b_32_open_clip():
+def coca_vit_l_14():
     return coca_vit(
-        vision_patch_size=32,
-        vision_n_layer=12,
-        vision_n_head=12,
-        vision_dim_feedforward=3072,
-        vision_include_cls_embed=True,
+        vision_patch_size=14,
+        vision_n_layer=24,
+        vision_n_head=16,
+        vision_dim_feedforward=4096,
+        vision_include_cls_embed=False,
         vocab_size=49408,
         num_text_positions=77,
-        text_hidden_dim=512,
+        text_hidden_dim=768,
         text_n_layer=12,
-        text_n_head=8,
-        text_dim_feedforward=2048,
-        text_output_dim=512,
+        text_n_head=12,
+        text_dim_feedforward=3072,
+        text_output_dim=768,
         fusion_n_layer=12,
-        fusion_n_head=8,
-        fusion_dim_feedforward=2048,
-        fusion_output_dim=49408,
-        pooler_input_embed_dim=768,
-        pooler_output_embed_dim=512,
+        fusion_n_head=12,
+        fusion_dim_feedforward=3072,
+        multimodal_output_projection_dim=49408,
+        pooler_input_embed_dim=1024,
+        pooler_output_embed_dim=768,
         pooler_n_head=8,
-        cascaded_pooler=False,
-    )
-
-
-def coca_vit_roberta_l():
-    return coca_vit(
-        vision_patch_size=32,
-        vision_n_layer=12,
-        vision_n_head=12,
-        vision_dim_feedforward=3072,
-        vision_include_cls_embed=True,
-        vocab_size=250008,
-        num_text_positions=514,
-        text_hidden_dim=1024,
-        text_n_layer=12,
-        text_n_head=16,
-        text_dim_feedforward=4096,
-        text_output_dim=1024,
-        fusion_n_layer=12,
-        fusion_n_head=16,
-        fusion_dim_feedforward=4096,
-        fusion_output_dim=250008,
-        pooler_input_embed_dim=768,
-        pooler_output_embed_dim=1024,
-        pooler_n_head=8,
-        cascaded_pooler=False,
+        cascaded_pooler=True,
     )
 
 
@@ -416,17 +399,24 @@ class CoCaForPretraining(nn.Module):
         model (CoCaModel): Instantiated CoCa model.
         pad_idx (int): Index of padding tokens (used to filter captioning
         loss indices). Default: 0
+        contrastive_logit_scale_min (Optional[float]): Min clamp value for contrastive
+            temperature. Default: 0.0
+        contrastive_logit_scale_max (Optional[float]): Max clamp value for contrastive
+            temperature. Default: log(100)
     """
 
     def __init__(
         self,
         model: CoCaModel,
         pad_idx: int = 0,
+        contrastive_logit_scale_min: Optional[float] = math.log(1.0),
+        contrastive_logit_scale_max: Optional[float] = math.log(100.0),
     ):
         super().__init__()
         self.model = model
-        # TODO: consider support for passing contrastive loss args
-        self.contrastive_loss = ContrastiveLossWithTemperature()
+        self.contrastive_loss = ContrastiveLossWithTemperature(
+            logit_scale_min=logit_scale_min, logit_scale_max=logit_scale_max
+        )
         self.caption_loss = nn.CrossEntropyLoss(ignore_index=pad_idx)
 
     def forward(
@@ -461,7 +451,10 @@ def coca_for_pretraining(pad_idx: int = 0, **kwargs):
     return CoCaForPretraining(model, pad_idx=pad_idx)
 
 
-class CoCaWithHeads(nn.Module):
+default_coca_cls_pooler = partial(torch.select, dim=1, index=-1)
+
+
+class CoCaModelWithHeads(nn.Module):
     """
     CoCa model with heads.
     Args:
@@ -470,6 +463,11 @@ class CoCaWithHeads(nn.Module):
             multimodal embeddings as inputs
         pad_idx (int): Index of padding tokens (used to filter captioning
         loss indices). Default: 0
+        pooler (Callable): how to extract the the multimodal embeddings. some examples
+            [default] partial(torch.select, dim=1, index=-1)
+            partial(torch.mean, dim=1)
+            partial(torch.max, dim=1)
+            torchmultimodal.fb.modules.layers.attention_pooler.AttentionPooler
     """
 
     def __init__(
@@ -477,10 +475,12 @@ class CoCaWithHeads(nn.Module):
         model: CoCaModel,
         heads: nn.ModuleDict,
         pad_idx: int = 0,
+        pooler: Callable = default_coca_cls_pooler,
     ):
         super().__init__()
         self.model = model
         self.heads = heads
+        self.pooler = pooler
 
     def forward(
         self, images: Tensor, texts: Tensor, text_padding_mask: Optional[Tensor] = None
@@ -489,12 +489,13 @@ class CoCaWithHeads(nn.Module):
         model_out = self.model(images, texts, text_padding_mask)
         mm_out = model_out.multimodal_embeddings
 
-        # get the cls embedding, which is at the last index
-        cls_emb = mm_out[:, -1, :]
+        bsz = mm_out.shape[0]
+        # reshape in the case of attention pooler
+        pooled_output = self.pooler(mm_out).view((bsz, -1))
 
         # run the heads
         head_outputs = {}
         for k, head in self.heads.items():
-            head_outputs[k] = head(cls_emb)
+            head_outputs[k] = head(pooled_output)
 
         return head_outputs
