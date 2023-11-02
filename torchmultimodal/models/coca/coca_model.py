@@ -415,7 +415,8 @@ class CoCaForPretraining(nn.Module):
         super().__init__()
         self.model = model
         self.contrastive_loss = ContrastiveLossWithTemperature(
-            logit_scale_min=logit_scale_min, logit_scale_max=logit_scale_max
+            logit_scale_min=contrastive_logit_scale_min,
+            logit_scale_max=contrastive_logit_scale_max,
         )
         self.caption_loss = nn.CrossEntropyLoss(ignore_index=pad_idx)
 
