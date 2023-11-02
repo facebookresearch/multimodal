@@ -4,6 +4,8 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
+from typing import Tuple, Union
+
 from torch import nn as nn, Tensor
 from torch.nn import functional as F
 
@@ -52,6 +54,7 @@ class Downsample2D(nn.Module):
         asymmetric_padding: bool = True,
     ):
         super().__init__()
+        padding: Union[int, Tuple[int, int, int, int]]
         if asymmetric_padding:
             padding = (0, 1, 0, 1)
         else:

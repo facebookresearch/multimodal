@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Optional
+from typing import Optional, Union
 
 import torch
 from torch import nn, Tensor
@@ -83,15 +83,18 @@ class ResBlock(nn.Module):
 
         if use_downsample and use_upsample:
             raise ValueError("Cannot use both upsample and downsample in res block")
-        elif use_downsample:
-            hidden_updownsample_layer = nn.AvgPool2d(kernel_size=2, stride=2)
-            skip_updownsample_layer = nn.AvgPool2d(kernel_size=2, stride=2)
-        elif use_upsample:
-            hidden_updownsample_layer = nn.Upsample(scale_factor=2, mode="nearest")
-            skip_updownsample_layer = nn.Upsample(scale_factor=2, mode="nearest")
         else:
-            hidden_updownsample_layer = nn.Identity()
-            skip_updownsample_layer = nn.Identity()
+            hidden_updownsample_layer: Union[nn.AvgPool2d, nn.Upsample, nn.Identity]
+            skip_updownsample_layer: Union[nn.AvgPool2d, nn.Upsample, nn.Identity]
+            if use_downsample:
+                hidden_updownsample_layer = nn.AvgPool2d(kernel_size=2, stride=2)
+                skip_updownsample_layer = nn.AvgPool2d(kernel_size=2, stride=2)
+            if use_upsample:
+                hidden_updownsample_layer = nn.Upsample(scale_factor=2, mode="nearest")
+                skip_updownsample_layer = nn.Upsample(scale_factor=2, mode="nearest")
+            else:
+                hidden_updownsample_layer = nn.Identity()
+                skip_updownsample_layer = nn.Identity()
 
         self.cond_proj = cond_proj
         self.in_block = nn.Sequential(
