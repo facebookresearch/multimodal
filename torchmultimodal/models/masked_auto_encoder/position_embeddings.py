@@ -11,7 +11,10 @@ from torch import Tensor
 
 
 def get_3d_sin_cos_embeddings(
-    embed_dim: int, temporal_size: int, spatial_size: Tuple[int, int]
+    embed_dim: int,
+    temporal_size: int,
+    spatial_size: Tuple[int, int],
+    include_cls_embed: bool = True,
 ) -> Tensor:
     """
     3d position sin cos embeddings. This implementation has been adapted from internal
@@ -60,12 +63,15 @@ def get_3d_sin_cos_embeddings(
     embed = embed.reshape([-1, embed_dim])  # [T*H*W, D]
 
     # Add pos embed for cls token
-    embed = torch.cat([torch.zeros(1, embed_dim), embed], dim=0)
+    if include_cls_embed:
+        embed = torch.cat([torch.zeros(1, embed_dim), embed], dim=0)
     embed = embed.unsqueeze(0)
     return embed
 
 
-def get_2d_sin_cos_embeddings(embed_dim: int, input_size: Tuple[int, int]) -> Tensor:
+def get_2d_sin_cos_embeddings(
+    embed_dim: int, input_size: Tuple[int, int], include_cls_embed: bool = True
+) -> Tensor:
     """
     2d position sin cos embeddings.
     Args:
@@ -85,7 +91,8 @@ def get_2d_sin_cos_embeddings(embed_dim: int, input_size: Tuple[int, int]) -> Te
     # h*w x embed_dim
     embed = torch.cat([embed_w, embed_h], dim=1)
     # Add pos embed for cls token
-    embed = torch.cat([torch.zeros(1, embed_dim), embed], dim=0)
+    if include_cls_embed:
+        embed = torch.cat([torch.zeros(1, embed_dim), embed], dim=0)
     embed = embed.unsqueeze(0)
     return embed
 
