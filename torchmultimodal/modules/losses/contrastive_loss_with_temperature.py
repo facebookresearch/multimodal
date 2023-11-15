@@ -115,7 +115,7 @@ def contrastive_loss_with_temperature(
     )
 
 
-DEFAULT_LOGIT_SCALE = nn.Parameter(math.log(1 / 0.07) * torch.ones([]))
+DEFAULT_LOGIT_SCALE = math.log(1 / 0.07)
 
 
 class ContrastiveLossWithTemperature(nn.Module):
