@@ -55,6 +55,8 @@ class CoCaMultimodalDecoder(nn.Module):
         norm_first: bool = True,
         final_layer_norm_eps: Optional[float] = 1e-5,
         visual_embedding_dim: Optional[int] = None,
+        use_extra_mlp: Optional[bool] = False,
+        kv_norm: Optional[bool] = False,
     ):
         super().__init__()
         self.transformer_decoder = TransformerDecoder(
@@ -69,6 +71,8 @@ class CoCaMultimodalDecoder(nn.Module):
             use_cross_attention=True,
             final_layer_norm_eps=final_layer_norm_eps,
             dim_kv=visual_embedding_dim,
+            use_extra_mlp=use_extra_mlp,
+            kv_norm=kv_norm,
         )
         if output_dim is not None:
             self.output_projection = nn.Linear(
