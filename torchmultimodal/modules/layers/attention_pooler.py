@@ -16,7 +16,8 @@ from torchmultimodal.modules.layers.multi_head_attention import (
 class AttentionPooler(nn.Module):
     """
     Attention pooling layer: pools inputs to sequence length n_queries by performing
-        cross-attention with learned query embeddings. Based on the CoCa implementation
+        cross-attention with learned query embeddings. Originally proposed in
+        https://arxiv.org/abs/1810.00825. This implementation is based on the one
         in open_clip repo: https://tinyurl.com/4yj492sc.
     Args:
         input_embed_dim (int): Embedding dimension of inputs.
