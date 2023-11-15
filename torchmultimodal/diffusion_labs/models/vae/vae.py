@@ -78,7 +78,7 @@ def ldm_variational_autoencoder(
     embedding_channels: int,
     in_channels: int,
     out_channels: int,
-    z_channels,
+    z_channels: int,
     channels: int,
     num_res_blocks: int,
     channel_multipliers: Sequence[int] = (1, 2, 4, 8),
@@ -86,7 +86,7 @@ def ldm_variational_autoencoder(
     norm_groups: int = 32,
     norm_eps: float = 1e-6,
     output_alpha_channel: bool = False,
-):
+) -> VariationalAutoencoder:
     encoder = nn.Sequential(
         # pyre-ignore
         OrderedDict(

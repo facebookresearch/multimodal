@@ -14,7 +14,9 @@ from torchmultimodal.utils.attention import get_causal_attention_mask
 
 class CoCaMultimodalDecoder(nn.Module):
     """
-    Multimodal decoder with cross-attention for CoCa model.
+    Multimodal decoder for CoCa model.
+    Uses a transformer decoder with causal mask for text embeddings
+    that cross-attends to image embeddings, followed by output projection.
     Based on the implementation in open_clip: https://tinyurl.com/mn35vdmd
 
     Args:
@@ -72,7 +74,12 @@ class CoCaMultimodalDecoder(nn.Module):
             use_extra_mlp=use_extra_mlp,
             kv_norm=kv_norm,
         )
-        self.output_projection = nn.Linear(text_embedding_dim, output_dim, bias=False)
+        if output_dim is not None:
+            self.output_projection = nn.Linear(
+                text_embedding_dim, output_dim, bias=False
+            )
+        else:
+            self.output_projection = None
 
         self.register_buffer(
             "causal_mask",
