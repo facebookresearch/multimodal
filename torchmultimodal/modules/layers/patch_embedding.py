@@ -49,6 +49,7 @@ class PatchEmbeddings(nn.Module):
         use_image_masking: bool = False,
         patch_drop_rate: Optional[Union[float, Tuple[float, float]]] = None,
         include_cls_embed: bool = True,
+        conv_proj_has_bias: bool = True,
     ) -> None:
         super().__init__()
         if isinstance(image_size, int):
@@ -65,7 +66,11 @@ class PatchEmbeddings(nn.Module):
             self.cls_token = nn.Parameter(torch.zeros(1, 1, hidden_size))
             num_patches = num_patches + 1
         self.conv_projection = nn.Conv2d(
-            num_channels, hidden_size, kernel_size=patch_size, stride=patch_size
+            num_channels,
+            hidden_size,
+            kernel_size=patch_size,
+            stride=patch_size,
+            bias=conv_proj_has_bias,
         )
         self._init_conv_weights()
 
@@ -90,8 +95,8 @@ class PatchEmbeddings(nn.Module):
             * self.conv_projection.kernel_size[1]
         )
         nn.init.trunc_normal_(self.conv_projection.weight, std=math.sqrt(1 / fan_in))
-        assert self.conv_projection.bias is not None
-        nn.init.zeros_(self.conv_projection.bias)
+        if self.conv_projection.bias is not None:
+            nn.init.zeros_(self.conv_projection.bias)
 
     def forward(
         self,

@@ -146,7 +146,9 @@ def vision_transformer(
     final_layer_norm_eps: Optional[float] = 1e-6,
     norm_first: bool = True,
     include_cls_embed: bool = True,
+    patch_embedding_has_bias: bool = True,
     drop_path_rate: Optional[float] = None,
+    transformer_ln_pre: bool = False,
     patch_drop_rate: Optional[Union[float, Tuple[float, float]]] = None,
     pooler: Optional[nn.Module] = None,
     ckpt_path: str = None,
@@ -184,6 +186,7 @@ def vision_transformer(
         patch_drop_rate=patch_drop_rate,
         num_channels=num_channels,
         include_cls_embed=include_cls_embed,
+        conv_proj_has_bias=patch_embedding_has_bias,
     )
     transformer_encoder = TransformerEncoder(
         n_layer=n_layer,
@@ -196,6 +199,7 @@ def vision_transformer(
         norm_first=norm_first,
         final_layer_norm_eps=final_layer_norm_eps,
         drop_path_rate=drop_path_rate,
+        ln_pre=transformer_ln_pre,
     )
     vit = VisionTransformer(
         embeddings=image_embedding, encoder=transformer_encoder, pooler=pooler

@@ -186,8 +186,14 @@ class TransformerEncoder(nn.Module):
         norm_first: bool = False,
         final_layer_norm_eps: Optional[float] = None,
         drop_path_rate: Optional[float] = None,
+        ln_pre: bool = False,
     ):
         super().__init__()
+        self.ln_pre = ln_pre
+        if self.ln_pre:
+            self.pre_layer_norm = nn.LayerNorm(d_model)
+        else:
+            self.pre_layer_norm = nn.Identity()
         if drop_path_rate is not None:
             drop_rate = [x.item() for x in torch.linspace(0, drop_path_rate, n_layer)]
         else:
@@ -231,6 +237,9 @@ class TransformerEncoder(nn.Module):
             If return_hidden_states is set to True, the hidden_states field contains list of n_layer + 1 layer outputs.
             The last entry in the list is the output from last encoder block before final ln has been applied.
         """
+
+        if self.ln_pre:
+            hidden_states = self.pre_layer_norm(hidden_states)
 
         all_hidden_states = []
 
@@ -291,6 +300,8 @@ class TransformerDecoderLayer(nn.Module):
         norm_first: bool = False,
         use_cross_attention: bool = True,
         dim_kv: Optional[int] = None,
+        use_extra_mlp: Optional[bool] = False,
+        kv_norm: Optional[bool] = False,
     ) -> None:
         super().__init__()
         if dim_kv is not None:
@@ -319,6 +330,25 @@ class TransformerDecoderLayer(nn.Module):
             )
             self.cross_attention_layernorm = Fp32LayerNorm(d_model, eps=layer_norm_eps)
             self.cross_attention_dropout = nn.Dropout(dropout)
+        self.use_extra_mlp = use_extra_mlp
+        self.kv_norm = kv_norm
+        if self.use_extra_mlp:
+            self.extra_mlp_layernorm = Fp32LayerNorm(d_model, eps=layer_norm_eps)
+            self.extra_mlp = MLP(
+                d_model,
+                d_model,
+                dim_feedforward,
+                dropout=dropout,
+                activation=activation,
+            )
+            self.extra_mlp_dropout = nn.Dropout(dropout)
+
+        if use_cross_attention:
+            self.ln_1_kv = (
+                Fp32LayerNorm(dim_kv, eps=layer_norm_eps)
+                if self.kv_norm
+                else nn.Identity()
+            )
 
         # Feedforward
         self.feedforward = MLP(
@@ -392,6 +422,11 @@ class TransformerDecoderLayer(nn.Module):
         h = self.feedforward_dropout(h)
         return h
 
+    def _extra_mlp_block(self, hidden_states: Tensor) -> Tensor:
+        h = self.extra_mlp(hidden_states)
+        h = self.extra_mlp_dropout(h)
+        return h
+
     def _forward_prenorm(
         self,
         hidden_states: Tensor,
@@ -410,7 +445,13 @@ class TransformerDecoderLayer(nn.Module):
             past_key_value=past_key_value,
             use_cache=use_cache,
         )
-        self_attn_output = attn_output + hidden_states
+
+        if self.use_extra_mlp:
+            # Feedforward
+            ff_input = self.extra_mlp_layernorm(attn_output)
+            self_attn_output = attn_output + self._extra_mlp_block(ff_input)
+        else:
+            self_attn_output = attn_output + hidden_states
 
         # Optional cross-attention
         if self.use_cross_attention:
@@ -421,6 +462,9 @@ class TransformerDecoderLayer(nn.Module):
                 self, "cross_attention_layernorm"
             ), "Cross-attention layernorm not initialized"
             cross_attn_input = self.cross_attention_layernorm(self_attn_output)
+            # KV norm only used as pre-norm
+            if self.kv_norm:
+                encoder_hidden_states = self.ln_1_kv(encoder_hidden_states)
             cross_attn_output = self._cross_attention_block(
                 cross_attn_input,
                 encoder_hidden_states,
@@ -455,6 +499,13 @@ class TransformerDecoderLayer(nn.Module):
         )
         attn_residual = attn_output + hidden_states
         self_attn_output = self.attention_layernorm(attn_residual)
+
+        if self.use_extra_mlp:
+            # Feedforward
+            resid_output = attn_output + self._extra_mlp_block(attn_output)
+            self_attn_output = self.extra_mlp_layernorm(resid_output)
+        else:
+            self_attn_output = attn_output + hidden_states
 
         # Optional cross-attention
         if self.use_cross_attention:
@@ -569,6 +620,8 @@ class TransformerDecoder(nn.Module):
         use_cross_attention: bool = True,
         dim_kv: Optional[int] = None,
         final_layer_norm_eps: Optional[float] = None,
+        use_extra_mlp: Optional[bool] = False,
+        kv_norm: Optional[bool] = False,
     ):
         super().__init__()
         self.layer = nn.ModuleList(
@@ -583,6 +636,8 @@ class TransformerDecoder(nn.Module):
                     norm_first,
                     use_cross_attention,
                     dim_kv,
+                    use_extra_mlp,
+                    kv_norm,
                 )
                 for i in range(n_layer)
             ]
