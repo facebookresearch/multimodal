@@ -3,9 +3,36 @@
 ## Introduction
 TorchMultimodal is a PyTorch library for training state-of-the-art multimodal multi-task models at scale. It provides:
 - A repository of modular and composable building blocks (models, fusion layers, loss functions, datasets and utilities).
-- A repository of examples that show how to combine these building blocks with components and common infrastructure from across the PyTorch Ecosystem to replicate state-of-the-art models published in the literature. These examples should serve as baselines for ongoing research in the field, as well as a starting point for future work.
+- A set of examples that show how to combine these building blocks with components and common infrastructure from across the PyTorch Ecosystem to replicate state-of-the-art models published in the literature. These examples should serve as baselines for ongoing research in the field, as well as a starting point for future work.
+- [diffusion_labs](https://github.com/facebookresearch/multimodal/tree/main/torchmultimodal/diffusion_labs), a library of components with examples for training popular diffusion models.
 
-As a first open source example, researchers will be able to train and extend FLAVA using TorchMultimodal.
+
+## Models
+
+TorchMultimodal contains a number of models, including
+
+- ALBEF: [model class](https://github.com/facebookresearch/multimodal/blob/main/torchmultimodal/models/albef/model.py#L55), [paper](https://arxiv.org/abs/2107.07651)
+- BLIP-2: [model class](https://github.com/facebookresearch/multimodal/blob/main/torchmultimodal/models/blip2/blip2.py#L39), [paper]()
+- CLIP: [model class](https://github.com/facebookresearch/multimodal/blob/main/torchmultimodal/models/clip/model.py#L37), [paper](https://arxiv.org/abs/2301.12597)
+- CoCa: [model class](https://github.com/facebookresearch/multimodal/blob/main/torchmultimodal/models/coca/coca_model.py#L33), [paper](https://arxiv.org/abs/2205.01917)
+- DALL-E 2: [model](https://github.com/facebookresearch/multimodal/blob/main/torchmultimodal/diffusion_labs/models/dalle2/dalle2_decoder.py#L19), [paper](https://arxiv.org/abs/2204.06125)
+- FLAVA: [model class](https://github.com/facebookresearch/multimodal/blob/main/torchmultimodal/models/flava/model.py#L106), [paper](https://arxiv.org/abs/2112.04482)
+- MAE/Audio MAE: [model class](https://github.com/facebookresearch/multimodal/blob/main/torchmultimodal/models/masked_auto_encoder/model.py#L42), [MAE paper](https://arxiv.org/abs/2111.06377), [Audio MAE paper](https://arxiv.org/abs/2207.06405)
+- MDETR: [model class](https://github.com/facebookresearch/multimodal/blob/main/torchmultimodal/models/mdetr/model.py#L37), [paper](https://arxiv.org/abs/2104.12763)
+
+## Example scripts
+
+In addition to the above models, we provide example scripts for training, fine-tuning, and evaluation of models on popular multimodal tasks. Examples can be found under [examples/](https://github.com/facebookresearch/multimodal/tree/main/examples) and include
+
+|                  Model                   |     Supported Tasks     |
+| :--------------------------------------: | :----------------------: |
+|         ALBEF          |      [Retrieval](https://github.com/facebookresearch/multimodal/blob/main/examples/albef/README.md#retrieval) <br/> [Visual Question Answering](https://github.com/facebookresearch/multimodal/blob/main/examples/albef/README.md#visual-question-answering)         |
+|         DDPM           |      [Training and Inference](https://github.com/facebookresearch/multimodal/blob/main/torchmultimodal/diffusion_labs/mnist_training.ipynb) (notebook)
+|           FLAVA           |    [Pretraining](https://github.com/facebookresearch/multimodal/tree/main/examples/flava#launching-and-test-pretraining) <br/> [Fine-tuning](https://github.com/facebookresearch/multimodal/tree/main/examples/flava#finetuning) <br/> [Zero-shot](https://github.com/facebookresearch/multimodal/tree/main/examples/flava#coco-zero-shot)|
+|        MDETR         |       [Phrase grounding](https://github.com/facebookresearch/multimodal/tree/main/examples/mdetr#phrase-grounding) <br/> [Visual Question Answering](https://github.com/facebookresearch/multimodal/blob/main/examples/mdetr/vqa_finetune.py#L154)        |
+|             MUGEN             |     [Text-to-video retrieval](https://github.com/facebookresearch/multimodal/tree/main/examples/mugen/retrieval#mugen-retrieval) <br/> [Text-to-video generation](https://github.com/facebookresearch/multimodal/tree/main/examples/mugen/generation#text-to-video-generation-with-mugen)                |
+|           Omnivore           |           [Pre-training](https://github.com/facebookresearch/multimodal/tree/main/examples/omnivore#training) <br/> [Evaluation](https://github.com/facebookresearch/multimodal/tree/main/examples/omnivore#evaluating-pretrained-weight)           |
+
 
 ## Installation
 
@@ -52,17 +79,10 @@ pip install -e .
 ```
 For developers please follow the [development installation](https://github.com/facebookresearch/multimodal/blob/main/CONTRIBUTING.md#development-installation).
 
-## Documentation
-
-The library builds on the following concepts:
-- **Architectures**: These are general and composable classes that capture the core logic associated with a family of models. In most cases these take modules as inputs instead of flat arguments (see Models below). Examples include the `LateFusion`, `FLAVA` and `CLIP`. Users should either reuse an existing architecture or a contribute a new one. We avoid inheritance as much as possible.
-
-- **Models**: These are specific instantiations of a given architecture implemented using builder functions. The builder functions take as input all of the parameters for constructing the modules needed to instantiate the architecture. See [cnn_lstm.py](https://github.com/facebookresearch/multimodal/blob/main/examples/cnn_lstm/cnn_lstm.py) for an example.
-
-- **Modules**: These are self-contained components that can be stitched up in various ways to build an architecture. See [lstm_encoder.py](https://github.com/facebookresearch/multimodal/blob/main/examples/cnn_lstm/lstm_encoder.py) as an example.
 
 ## Contributing
-See the [CONTRIBUTING](CONTRIBUTING.md) file for how to help out.
+
+We welcome any feature requests, bug reports, or pull requests from the community. See the [CONTRIBUTING](CONTRIBUTING.md) file for how to help out.
 
 ## License
 
