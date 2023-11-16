@@ -118,12 +118,12 @@ class TransformerEncoderLayer(nn.Module):
         hidden_states: Tensor,
         attention_mask: Optional[Tensor] = None,
     ) -> Tensor:
-        x = hidden_states  # (b, seq_len, d_model)
+        x = hidden_states  # (b, d_model, seq_len)
         attn_output = self._attention_block(
             x,
             attention_mask=attention_mask,
         )
-        attn_residual = attn_output + x  # (b, seq_len, d_model)
+        attn_residual = attn_output + x  # (b, d_model, seq_len)
         attn_residual = self.attention_layernorm(attn_residual)
         ff_residual = attn_residual + self._feedforward_block(attn_residual)
         outputs = self.feedforward_layernorm(ff_residual)
