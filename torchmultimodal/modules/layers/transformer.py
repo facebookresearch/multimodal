@@ -118,7 +118,7 @@ class TransformerEncoderLayer(nn.Module):
         hidden_states: Tensor,
         attention_mask: Optional[Tensor] = None,
     ) -> Tensor:
-        x = hidden_states  # (b, seq_len, d_model)
+        x = hidden_states  # (b, d_model, seq_len)
         attn_output = self._attention_block(
             x,
             attention_mask=attention_mask,
