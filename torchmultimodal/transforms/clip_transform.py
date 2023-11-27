@@ -248,6 +248,7 @@ class CLIPTextTransform(nn.Module):
         text_max_length (int): Maximum length of text token sequences.
         text_start_token (str): Special start token passed to BPE tokenizer.
         text_end_token (str): Special end token passed to BPE tokenizer.
+        text_pad_token (str): Special pad token to insert pad the sequence to text_max_length.
         text_bpe_merges_path (str): Location of BPE merges file for text transform.
         num_merges (int, optional): Number of merges to use from BPE merges file.
             Default: 48894 = 49152 (vocab size) - 256 (# bytes) - 2 (bos/eos tokens)
@@ -262,6 +263,7 @@ class CLIPTextTransform(nn.Module):
         text_max_length: int = 77,
         text_start_token: str = "<|startoftext|>",
         text_end_token: str = "<|endoftext|>",
+        text_pad_token: str = None,
         text_bpe_merges_path: str = CLIP_DEFAULT_VOCAB_BPE_PATH,
         num_merges: Optional[int] = 48894,
     ) -> None:
@@ -273,6 +275,10 @@ class CLIPTextTransform(nn.Module):
         )
         text_start_token = tokenizer([text_start_token])[0][0]
         text_end_token = tokenizer([text_end_token])[0][0]
+        text_pad_token_id = 0
+        if text_pad_token is not None:
+            text_pad_token_id = tokenizer([text_pad_token])[0][0]
+
         text_max_length = text_max_length
 
         self.text_transform = nn.Sequential(
@@ -282,7 +288,9 @@ class CLIPTextTransform(nn.Module):
                 text_transforms.AddToken(text_start_token, begin=True),
                 text_transforms.AddToken(text_end_token, begin=False),
                 text_transforms.ToTensor(padding_value=0),
-                text_transforms.PadTransform(max_length=text_max_length, pad_value=0),
+                text_transforms.PadTransform(
+                    max_length=text_max_length, pad_value=text_pad_token_id
+                ),
             ]
         )
 
@@ -365,6 +373,7 @@ class CLIPTransform(nn.Module):
         is_train (bool): Whether transform is run in train mode.
         text_start_token (str): Special start token passed to BPE tokenizer.
         text_end_token (str): Special end token passed to BPE tokenizer.
+        text_pad_token (str): Special pad token to insert pad the sequence to text_max_length.
         text_bpe_merges_path (str): Location of BPE merges file for text transform.
         num_merges (int, optional): Number of merges to use from BPE merges file.
             Default: 48894 = 49152 (vocab size) - 256 (# bytes) - 2 (bos/eos tokens)
@@ -386,6 +395,7 @@ class CLIPTransform(nn.Module):
         is_train: bool = True,
         text_start_token: str = "<|startoftext|>",
         text_end_token: str = "<|endoftext|>",
+        text_pad_token: str = None,
         text_bpe_merges_path: str = CLIP_DEFAULT_VOCAB_BPE_PATH,
         num_merges: Optional[int] = 48894,
     ) -> None:
@@ -398,6 +408,7 @@ class CLIPTransform(nn.Module):
             text_max_length,
             text_start_token,
             text_end_token,
+            text_pad_token,
             text_bpe_merges_path,
             num_merges,
         )
