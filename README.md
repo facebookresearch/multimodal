@@ -8,7 +8,8 @@
 
 ## Introduction
 **TorchMultimodal** is a PyTorch library for training state-of-the-art multimodal multi-task models at scale, including both content understanding and generative models. TorchMultimodal contains:
-- A repository of modular and composable building blocks (models, fusion layers, loss functions, datasets and utilities).
+- A repository of modular and composable building blocks (fusion layers, loss functions, datasets and utilities).
+- A collection of common multimodal model classes built up from said building blocks with pretrained weights for canonical configurations.
 - A set of examples that show how to combine these building blocks with components and common infrastructure from across the PyTorch Ecosystem to replicate state-of-the-art models published in the literature. These examples should serve as baselines for ongoing research in the field, as well as a starting point for future work.
 
 ## Models
@@ -121,7 +122,7 @@ for batch in dataloader:
 ## Code overview
 
 ### [torchmultimodal/diffusion_labs](https://github.com/facebookresearch/multimodal/tree/main/torchmultimodal/diffusion_labs)
-diffusion_labs contains components for building diffusion models and end-to-end training of those models. For more details on these components, see [diffusion_labs/README.md](https://github.com/facebookresearch/multimodal/blob/main/torchmultimodal/diffusion_labs/README.md).
+diffusion_labs contains components for building diffusion models. For more details on these components, see [diffusion_labs/README.md](https://github.com/facebookresearch/multimodal/blob/main/torchmultimodal/diffusion_labs/README.md).
 
 ### [torchmultimodal/models](https://github.com/facebookresearch/multimodal/tree/main/torchmultimodal/models)
 Look here for model classes as well as any other modeling code specific to a given architecture. E.g. the directory [torchmultimodal/models/blip2](https://github.com/facebookresearch/multimodal/tree/main/torchmultimodal/models/blip2) contains modeling components specific to BLIP-2.
