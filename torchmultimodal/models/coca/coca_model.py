@@ -245,7 +245,12 @@ def coca_vit(
             multimodal embeddings. Default: None
         cascaded_pooler (bool): Whether to cascade (stack) contrastive and captioning
             attention poolers or parallelize them. Default: True
-        pooler_n_queries (int): Number of queries in attention pooler. Default: 256
+        pooler_n_queries (int): Number of queries in captioning attention pooler.
+            Contrastive attention pooler always has one query. For parallel pooling,
+            the attention pooler will have a single pooler using n_queries+1 queries
+            with the first position for contrastive embeddings. For cascaded pooling,
+            the first pooler is the captioning pooler with pooler_n_queries queries
+            and the second is the contrastive pooler with one query. Default: 256
         pooler_layer_norm_eps (float): LN epsilon in attention pooler. Default: 1e-5
     """
     attention_pooler: nn.Module
@@ -258,10 +263,10 @@ def coca_vit(
             layer_norm_eps=pooler_layer_norm_eps,
         )
         contrastive_pooler = AttentionPooler(
-            input_embed_dim=pooler_input_embed_dim,
+            input_embed_dim=pooler_output_embed_dim,
             output_embed_dim=pooler_output_embed_dim,
             n_head=pooler_n_head,
-            n_queries=pooler_n_queries,
+            n_queries=1,
             layer_norm_eps=pooler_layer_norm_eps,
         )
         attention_pooler = CascadedAttentionPooler(
@@ -272,7 +277,7 @@ def coca_vit(
             input_embed_dim=pooler_input_embed_dim,
             output_embed_dim=pooler_output_embed_dim,
             n_head=pooler_n_head,
-            n_queries=pooler_n_queries,
+            n_queries=pooler_n_queries + 1,
             layer_norm_eps=pooler_layer_norm_eps,
         )
 
