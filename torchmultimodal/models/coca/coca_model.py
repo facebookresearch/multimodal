@@ -24,10 +24,11 @@ from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
 )
 
 
-class CoCaModelOutput(NamedTuple):
+class MultimodalOutput(NamedTuple):
     image_pooled_output: Tensor
     text_pooled_output: Tensor
     multimodal_embeddings: Tensor
+    multimodal_pooled_embeddings: Optional[Tensor] = None
 
 
 class CoCaModel(nn.Module):
@@ -67,7 +68,7 @@ class CoCaModel(nn.Module):
 
     def forward(
         self, images: Tensor, texts: Tensor, text_padding_mask: Optional[Tensor] = None
-    ) -> CoCaModelOutput:
+    ) -> MultimodalOutput:
         """
         Args:
             images (Tensor): Tensor of size (bsz, c, h, w) containing image pixels.
@@ -75,7 +76,7 @@ class CoCaModel(nn.Module):
             text_padding_mask (Optional[Tensor]): Boolean mask indicating padded tokens.
                 True for unpadded tokens, False for padded tokens. Default: None
         Returns:
-            CoCaModelOutput containing pooled image embeddings, text embeddings,
+            MultimodalOutput containing pooled image embeddings, text embeddings,
                 and multimodal embeddings.
         """
 
@@ -122,7 +123,7 @@ class CoCaModel(nn.Module):
             text_tokens, captioning_image_embeddings
         )
 
-        return CoCaModelOutput(
+        return MultimodalOutput(
             contrastive_image_embeddings,
             contrastive_text_embeddings,
             multimodal_embeddings,

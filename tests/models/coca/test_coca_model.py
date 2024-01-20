@@ -10,7 +10,7 @@ from tests.test_utils import assert_expected, init_weights_with_constant, set_rn
 from torchmultimodal.models.coca.coca_model import (
     coca_vit,
     CoCaForPretraining,
-    CoCaModelOutput,
+    MultimodalOutput,
 )
 
 
@@ -105,7 +105,7 @@ class TestCoCaModel:
     ):
         pooled_val = 0.3536
         logit_val = 8.0
-        return CoCaModelOutput(
+        return MultimodalOutput(
             image_pooled_output=pooled_val
             * torch.ones(batch_size, attention_pooler_output_dim),
             text_pooled_output=pooled_val * torch.ones(batch_size, text_output_dim),
