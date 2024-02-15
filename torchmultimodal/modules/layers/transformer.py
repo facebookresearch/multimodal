@@ -381,9 +381,8 @@ class TransformerDecoderLayer(nn.Module):
             # TODO: figure out caching for cross-attention
             use_cache=False,
         )
-        assert torch.jit.isinstance(
-            output, Tensor
-        ), "cross-attention output must be Tensor."
+        assert isinstance(output, Tensor), "cross-attention output must be Tensor."
+
         attention_output = self.cross_attention_dropout(output)
         return attention_output
 
