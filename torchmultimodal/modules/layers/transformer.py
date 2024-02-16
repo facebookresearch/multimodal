@@ -412,10 +412,7 @@ class TransformerDecoderLayer(nn.Module):
         self_attn_output = attn_output + hidden_states
 
         # Optional cross-attention
-        if self.use_cross_attention:
-            assert (
-                encoder_hidden_states is not None
-            ), "encoder_hidden_states must be provided for cross attention"
+        if self.use_cross_attention and encoder_hidden_states is not None:
             assert hasattr(
                 self, "cross_attention_layernorm"
             ), "Cross-attention layernorm not initialized"
