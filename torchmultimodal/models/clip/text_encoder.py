@@ -21,7 +21,7 @@ class CLIPTextEncoder(nn.Module):
 
     Args:
         embedding_dim (int): Embedding dimension for text and image encoders projections.
-        context_length (int): Maximum sequence length for Transforer.
+        context_length (int): Maximum sequence length for Transformer.
         vocab_size (int): Vocab size.
         width (int): Embedding dimension for Transformer encoder.
         dim_feedforward (int): Dimension of the feedfoward networks.

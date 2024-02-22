@@ -235,7 +235,8 @@ class ResNetForCLIP(nn.Module):
     - The final pooling layer is a QKV attention instead of an average pool.
 
     Args:
-        layers (Tuple[int]):
+        layers (Tuple[int]): number of residual blocks in each stage.
+            of the ResNet architecture
         output_dim (int): dimension of output tensor
         heads (int): number of heads in the attention pooling layer
         input_resolution (int): resolution of image input to encoder
