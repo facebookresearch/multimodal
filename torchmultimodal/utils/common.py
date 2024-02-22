@@ -121,7 +121,7 @@ def momentum_update(model: nn.Module, model_m: nn.Module, momentum: float) -> No
 
 class ModelOutput(OrderedDict):
     def keys(self) -> Any:
-        for field in fields(self):
+        for field in fields(self):  # type: ignore
             yield field.name
 
     def __getitem__(self, key: Any) -> Any:
@@ -131,11 +131,11 @@ class ModelOutput(OrderedDict):
         yield from self.keys()
 
     def values(self) -> Any:
-        for field in fields(self):
+        for field in fields(self):  # type: ignore
             yield getattr(self, field.name)
 
     def items(self) -> Any:
-        for field in fields(self):
+        for field in fields(self):  # type: ignore
             yield field.name, getattr(self, field.name)
 
 
