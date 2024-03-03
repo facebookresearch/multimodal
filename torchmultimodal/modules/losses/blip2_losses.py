@@ -309,7 +309,10 @@ class Blip2Phase1Loss(nn.Module):
 
         # calculate similarities
         assert model_output.text_features is not None
-        (sim_i2t, sim_t2i,) = compute_image_text_similarity(
+        (
+            sim_i2t,
+            sim_t2i,
+        ) = compute_image_text_similarity(
             model_output.image_features,
             model_output.text_features,
             temp=self.temp,

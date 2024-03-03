@@ -94,9 +94,9 @@ class TestFlickrPostProcessor:
         batched_pos_map = torch.zeros((n_boxes, n_classes + 1), dtype=torch.bool)
         cur_count = 0
         for sample in pos_map:
-            batched_pos_map[
-                cur_count : cur_count + len(sample), : sample.shape[1]
-            ] = sample
+            batched_pos_map[cur_count : cur_count + len(sample), : sample.shape[1]] = (
+                sample
+            )
             cur_count += len(sample)
         assert cur_count == len(batched_pos_map)
 

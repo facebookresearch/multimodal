@@ -110,7 +110,7 @@ def construct_positive_map(
     for i, ((idx_src, idx_tgt), tgt) in enumerate(zip(indices, target_tokens)):
         cur_tokens = [tgt[j] for j in idx_tgt]
         for j, tok_list in enumerate(cur_tokens):
-            for (beg, end) in tok_list:
+            for beg, end in tok_list:
                 beg_pos = char_to_token(tokenized, i, beg)
                 end_pos = char_to_token(tokenized, i, end - 1)
 

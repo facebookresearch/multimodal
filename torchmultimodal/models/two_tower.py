@@ -55,9 +55,9 @@ class TwoTower(nn.Module):
                 raise ValueError(
                     "Towers should be shared if channel mapping is passed in"
                 )
-        self.shared_tower_id_to_channel_mapping: Optional[
-            Dict[str, Dict[str, str]]
-        ] = shared_tower_id_to_channel_mapping
+        self.shared_tower_id_to_channel_mapping: Optional[Dict[str, Dict[str, str]]] = (
+            shared_tower_id_to_channel_mapping
+        )
 
     def forward(self, channel_to_input: Dict[str, Tensor]) -> TwoTowerOutput:
         tower_embeddings = OrderedDict()

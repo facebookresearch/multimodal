@@ -46,7 +46,5 @@ def test_dalle2_image_transform():
     actual = transform({"x": image})["x"].sum()
     normalized128 = 128 / 255 * 2 - 1
     normalized0 = -1
-    expected = torch.tensor(
-        normalized128 * img_size**2 + 2 * normalized0 * img_size**2
-    )
+    expected = torch.tensor(normalized128 * img_size**2 + 2 * normalized0 * img_size**2)
     assert_expected(actual, expected, rtol=0, atol=1e-4)

@@ -217,7 +217,6 @@ class TransformerEncoder(nn.Module):
         attention_mask: Optional[Tensor] = None,
         return_hidden_states: bool = False,
     ) -> TransformerOutput:
-
         """
         Args:
             hidden_states (Tensor): input to the transformer encoder of shape bsz x seq_len x d_model

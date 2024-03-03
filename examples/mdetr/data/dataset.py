@@ -101,9 +101,11 @@ class GQADataset(CocoDetection):
             self.type_to_id[coco_img["question_type"]], dtype=torch.long
         )
         target["answer_type_mask"] = {
-            f"answer_{k}": torch.BoolTensor([True])
-            if coco_img["question_type"] == k
-            else torch.BoolTensor([False])
+            f"answer_{k}": (
+                torch.BoolTensor([True])
+                if coco_img["question_type"] == k
+                else torch.BoolTensor([False])
+            )
             for k in self.type_to_id.keys()
         }
         target["answer_type_mask"]["answer_type"] = torch.BoolTensor([True])
@@ -113,9 +115,11 @@ class GQADataset(CocoDetection):
         else:
             answer = coco_img["answer"]
         target["answer_attr"] = torch.as_tensor(
-            self.answer2id_by_type["answer_attr"][answer]
-            if coco_img["question_type"] == "attr"
-            else -100,
+            (
+                self.answer2id_by_type["answer_attr"][answer]
+                if coco_img["question_type"] == "attr"
+                else -100
+            ),
             dtype=torch.long,
         )
 
@@ -124,9 +128,11 @@ class GQADataset(CocoDetection):
         else:
             answer = coco_img["answer"]
         target["answer_global"] = torch.as_tensor(
-            self.answer2id_by_type["answer_global"][answer]
-            if coco_img["question_type"] == "global"
-            else -100,
+            (
+                self.answer2id_by_type["answer_global"][answer]
+                if coco_img["question_type"] == "global"
+                else -100
+            ),
             dtype=torch.long,
         )
 
@@ -135,9 +141,11 @@ class GQADataset(CocoDetection):
         else:
             answer = coco_img["answer"]
         target["answer_rel"] = torch.as_tensor(
-            self.answer2id_by_type["answer_rel"][answer]
-            if coco_img["question_type"] == "rel"
-            else -100,
+            (
+                self.answer2id_by_type["answer_rel"][answer]
+                if coco_img["question_type"] == "rel"
+                else -100
+            ),
             dtype=torch.long,
         )
 
@@ -146,9 +154,11 @@ class GQADataset(CocoDetection):
         else:
             answer = coco_img["answer"]
         target["answer_cat"] = torch.as_tensor(
-            self.answer2id_by_type["answer_cat"][answer]
-            if coco_img["question_type"] == "cat"
-            else -100,
+            (
+                self.answer2id_by_type["answer_cat"][answer]
+                if coco_img["question_type"] == "cat"
+                else -100
+            ),
             dtype=torch.long,
         )
 
@@ -157,9 +167,11 @@ class GQADataset(CocoDetection):
         else:
             answer = coco_img["answer"]
         target["answer_obj"] = torch.as_tensor(
-            self.answer2id_by_type["answer_obj"][answer]
-            if coco_img["question_type"] == "obj"
-            else -100,
+            (
+                self.answer2id_by_type["answer_obj"][answer]
+                if coco_img["question_type"] == "obj"
+                else -100
+            ),
             dtype=torch.long,
         )
         return img, target

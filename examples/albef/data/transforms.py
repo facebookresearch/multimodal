@@ -69,9 +69,11 @@ class ALBEFTextTransform:
         self.transform = Sequential(
             Truncate(max_seq_len=max_seq_len) if truncate else torch.nn.Identity(),
             ToTensor(padding_value=self.pad_token_id),
-            PadTransform(max_length=max_seq_len, pad_value=self.pad_token_id)
-            if pad_to_max_seq_len
-            else torch.nn.Identity(),
+            (
+                PadTransform(max_length=max_seq_len, pad_value=self.pad_token_id)
+                if pad_to_max_seq_len
+                else torch.nn.Identity()
+            ),
         )
 
     def pre_process(self, text: str) -> str:

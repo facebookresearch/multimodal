@@ -85,9 +85,9 @@ class ResNetEncoder(nn.Module):
                     block_out,
                     num_res_blocks,
                     dropout,
-                    needs_downsample=True
-                    if level_idx != num_resolutions - 1
-                    else False,
+                    needs_downsample=(
+                        True if level_idx != num_resolutions - 1 else False
+                    ),
                     norm_groups=norm_groups,
                     norm_eps=norm_eps,
                 )

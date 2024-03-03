@@ -195,20 +195,28 @@ class FLAVAModel(nn.Module):
             if not skip_unmasked_mm_encoder:
                 # Unmasked multimodal embedding is not currently used by any of the FLAVA losses.
                 multimodal_outputs = self.encode_mm(
-                    image_outputs.hidden_states[-1]  # type: ignore
-                    if image_outputs.hidden_states  # type: ignore
-                    else None,
-                    text_outputs.hidden_states[-1]  # type: ignore
-                    if text_outputs.hidden_states  # type: ignore
-                    else None,
+                    (
+                        image_outputs.hidden_states[-1]  # type: ignore
+                        if image_outputs.hidden_states  # type: ignore
+                        else None
+                    ),
+                    (
+                        text_outputs.hidden_states[-1]  # type: ignore
+                        if text_outputs.hidden_states  # type: ignore
+                        else None
+                    ),
                 )
             multimodal_masked_outputs = self.encode_mm(
-                image_masked_outputs.hidden_states[-1]
-                if image_masked_outputs.hidden_states
-                else None,
-                text_masked_outputs.hidden_states[-1]
-                if text_masked_outputs.hidden_states
-                else None,
+                (
+                    image_masked_outputs.hidden_states[-1]
+                    if image_masked_outputs.hidden_states
+                    else None
+                ),
+                (
+                    text_masked_outputs.hidden_states[-1]
+                    if text_masked_outputs.hidden_states
+                    else None
+                ),
             )
 
         return FLAVAOutput(
@@ -266,9 +274,9 @@ class FLAVAModel(nn.Module):
             Union[Tuple[TransformerOutput, Tensor], Optional[TransformerOutput]],
         ],
     ) -> Union[Tuple[TransformerOutput, Tensor], Optional[TransformerOutput]]:
-        output: Union[
-            Tuple[TransformerOutput, Tensor], TransformerOutput
-        ] = TransformerOutput()
+        output: Union[Tuple[TransformerOutput, Tensor], TransformerOutput] = (
+            TransformerOutput()
+        )
 
         if data is not None and selected_head_encoder in encoder_options:
             output = encode_callable(data)
@@ -355,9 +363,11 @@ class FLAVAForPreTraining(nn.Module):
             text_sequence=flava_output.text.last_hidden_state,
             image_masked_sequence=flava_output.image_masked.last_hidden_state,
             text_masked_sequence=flava_output.text_masked.last_hidden_state,
-            multimodal_sequence=flava_output.multimodal.last_hidden_state
-            if not skip_unmasked_mm_encoder
-            else None,
+            multimodal_sequence=(
+                flava_output.multimodal.last_hidden_state
+                if not skip_unmasked_mm_encoder
+                else None
+            ),
             multimodal_masked_sequence=flava_output.multimodal_masked.last_hidden_state,
             itm_labels=itm_labels,
             mim_labels=image_labels,
