@@ -4,13 +4,16 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-import pytest
+import math
 
+import pytest
 import torch
 from tests.test_utils import assert_expected
 from torch import nn
+
 from torchmultimodal.modules.layers.position_embedding import (
     BroadcastedPositionEmbedding,
+    RotaryPositionalEmbeddings,
     SinusoidalPositionEmbeddings,
 )
 
@@ -112,3 +115,38 @@ class TestSinusoidalPositionEmbeddings:
         actual = emb(data)
         expected = torch.Size([3, 5])
         assert_expected(actual.shape, expected)
+
+
+def test_rotary_embeddings_math():
+    q = (
+        torch.tensor([[1, 0], [1, 0]], dtype=torch.float).unsqueeze(0).unsqueeze(0)
+    )  # b h s e
+
+    k = 2 * torch.tensor([[1, 0], [1, 0]], dtype=torch.float).unsqueeze(0).unsqueeze(
+        0
+    )  # b h s e
+
+    rotary_embeddings = RotaryPositionalEmbeddings(2, 2, 1)
+    qr, kr = rotary_embeddings(q, k, 0)
+    rot0 = torch.tensor([[math.cos(0), -math.sin(0)], [math.sin(0), math.cos(0)]])
+    rot1 = torch.tensor([[math.cos(1), -math.sin(1)], [math.sin(1), math.cos(1)]])
+
+    assert_expected(torch.matmul(rot0, q[..., 0, :].squeeze()), qr[..., 0, :].squeeze())
+    assert_expected(torch.matmul(rot1, q[..., 1, :].squeeze()), qr[..., 1, :].squeeze())
+    assert_expected(torch.matmul(rot0, k[..., 0, :].squeeze()), kr[..., 0, :].squeeze())
+    assert_expected(torch.matmul(rot1, k[..., 1, :].squeeze()), kr[..., 1, :].squeeze())
+
+
+def test_rotary_embeddings_left_padding():
+    q = torch.ones(2, 1, 4, 16, dtype=torch.float)  # b h s e
+    k = 2 * torch.ones(2, 1, 4, 16, dtype=torch.float)  # b h s e
+    rotary_embeddings = RotaryPositionalEmbeddings(16, 32)
+
+    qr, kr = rotary_embeddings(q, k, 0)
+    qr2, kr2 = rotary_embeddings(q, k, torch.tensor([0, 1]))
+
+    assert_expected(qr[0], qr2[0])
+    assert_expected(qr[0, :, 1], qr2[1, :, 0])
+
+    assert_expected(kr[0], kr2[0])
+    assert_expected(kr[0, :, 1], kr2[1, :, 0])
