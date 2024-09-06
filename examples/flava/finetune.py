@@ -32,7 +32,7 @@ def main():
         datamodule = TorchVisionDataModule(
             **build_datamodule_kwargs(config.datasets.image, config.training)
         )
-    elif "text":
+    elif "text" in config.datasets.selected:
         datamodule = TextDataModule(
             **build_datamodule_kwargs(config.datasets.text, config.training)
         )
