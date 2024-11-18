@@ -38,10 +38,10 @@ def _chunk_forward_backward(
     args,
     scaler=None,
 ):
-
-    chunk_image, chunk_target = image[chunk_start:chunk_end, ...].to(device), target[
-        chunk_start:chunk_end, ...
-    ].to(device)
+    chunk_image, chunk_target = (
+        image[chunk_start:chunk_end, ...].to(device),
+        target[chunk_start:chunk_end, ...].to(device),
+    )
 
     with torch.cuda.amp.autocast(enabled=scaler is not None):
         chunk_output = model(chunk_image, input_type)

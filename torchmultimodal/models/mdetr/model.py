@@ -123,7 +123,6 @@ class MDETR(nn.Module):
         return padded_text, mask
 
     def forward(self, images: List[Tensor], text: List[Tensor]) -> MDETRModelOutput:
-
         images, image_mask = self._pad_images(images)
         text, text_attention_mask = self._pad_text(text)
         encoded_text = self.text_encoder(text, text_attention_mask)
@@ -392,7 +391,6 @@ class MDETRForPhraseGrounding(nn.Module):
         images: List[Tensor],
         text: List[Tensor],
     ) -> MDETRPhraseGroundingOutput:
-
         model_output = self.model(images, text)
         final_hidden_state = model_output.transformer_output.decoder_hidden_states[-1]
 

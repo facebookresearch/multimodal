@@ -32,7 +32,6 @@ def evaluate(
     device,
     weight_dict,
 ):
-
     model.eval()
     metric_logger = MetricLogger(delimiter="  ")
     header = "Test:"

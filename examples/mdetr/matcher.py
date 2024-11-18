@@ -73,7 +73,6 @@ class HungarianMatcher(nn.Module):
         target_boxes_per_sample: List[Tensor],
         positive_map: Tensor,
     ) -> List[Tuple[Tensor, Tensor]]:
-
         bs, num_queries = pred_logits.shape[:2]
         target_boxes = torch.cat(target_boxes_per_sample)
         # We flatten to compute the cost matrices in a batch

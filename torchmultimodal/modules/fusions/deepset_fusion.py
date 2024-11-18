@@ -84,7 +84,6 @@ class DeepsetFusionModule(nn.Module):
         self.mlp = mlp
 
     def forward(self, embeddings: Dict[str, Tensor]) -> Tensor:
-
         projections = {}
         for channel, projection in self.projections.items():
             projections[channel] = projection(embeddings[channel])

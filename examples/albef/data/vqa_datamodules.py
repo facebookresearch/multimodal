@@ -157,7 +157,7 @@ class VQADataModule(LightningDataModule):
 
 
 def vqa_train_collate_fn(
-    batch: List[Tuple[Tensor, Tensor, List[Tensor], List[float]]]
+    batch: List[Tuple[Tensor, Tensor, List[Tensor], List[float]]],
 ) -> Tuple[Tensor, Tensor, Tensor, Tensor, Tensor, Tensor, List[int]]:
     image_list = []
     question_list = []
@@ -188,7 +188,7 @@ def vqa_train_collate_fn(
 
 
 def vqa_test_collate_fn(
-    batch: List[Tuple[Tensor, Tensor, int]]
+    batch: List[Tuple[Tensor, Tensor, int]],
 ) -> Tuple[Tensor, Tensor, Tensor, List[int]]:
     image_list, question_list, question_ids = [], [], []
     for image, question, question_id in batch:

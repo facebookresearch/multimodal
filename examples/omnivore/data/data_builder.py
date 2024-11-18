@@ -76,9 +76,7 @@ def construct_data_loader(dataset, sampler, num_workers, mode, args, drop_last=F
             mixupcutmix = torchvision.transforms.RandomChoice(mixup_transforms)
             # Since not all dataset return tuple of same length, we take the
             # first two elements for mixupcutmix during training
-            collate_fn = lambda batch: mixupcutmix(
-                *(default_collate(batch)[:2])
-            )  # noqa: E731
+            collate_fn = lambda batch: mixupcutmix(*(default_collate(batch)[:2]))  # noqa: E731
 
     data_loader = torch.utils.data.DataLoader(
         dataset,

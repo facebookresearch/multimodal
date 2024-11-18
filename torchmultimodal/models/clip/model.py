@@ -68,7 +68,6 @@ class CLIP(nn.Module):
         features_a: torch.Tensor,
         features_b: torch.Tensor,
     ) -> CLIPOutput:
-
         embeddings_a = self.encoder_a(features_a)
         embeddings_b = self.encoder_b(features_b)
         embeddings_a = F.normalize(embeddings_a)

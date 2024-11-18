@@ -35,7 +35,6 @@ def flava_text_encoder(
     # TextEncoder params
     initializer_range: float = 0.02,
 ) -> BERTTextEncoder:
-
     embeddings = BERTTextEmbeddings(
         hidden_size=hidden_size,
         vocab_size=vocab_size,

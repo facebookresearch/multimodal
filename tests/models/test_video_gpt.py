@@ -47,7 +47,6 @@ _model_params = {
 
 
 class TestVideoGPT:
-
     _model_name = "video_gpt"
 
     @pytest.fixture

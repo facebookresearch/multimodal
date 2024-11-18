@@ -58,7 +58,6 @@ class ImageNetClassificationPresetEval:
         std=(0.229, 0.224, 0.225),
         interpolation=InterpolationMode.BICUBIC,
     ):
-
         self.transforms = T.Compose(
             [
                 T.Resize(resize_size, interpolation=interpolation),
@@ -187,7 +186,6 @@ class DepthClassificationPresetEval:
         std=(0.229, 0.224, 0.225, 0.0295),
         interpolation=InterpolationMode.BILINEAR,
     ):
-
         self.transforms = T.Compose(
             [
                 CT.DepthNorm(max_depth=max_depth, clamp_max_before_scale=True),

@@ -166,7 +166,6 @@ class TransformerEncoder(nn.Module):
         src_key_padding_mask: Optional[Tensor] = None,
         pos: Optional[Tensor] = None,
     ) -> Tensor:
-
         output = src
 
         for layer in self.layers:

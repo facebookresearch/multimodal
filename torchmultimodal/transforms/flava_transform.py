@@ -116,7 +116,6 @@ class TwoWayResize(transforms.Resize):
         second_interpolation: transforms.InterpolationMode = transforms.InterpolationMode.LANCZOS,
         **kwargs: Any,
     ) -> None:
-
         if not isinstance(size, (list, tuple)):
             size = (size, size)
 

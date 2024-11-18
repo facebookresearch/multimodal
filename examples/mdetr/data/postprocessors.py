@@ -49,7 +49,6 @@ class PostProcessFlickr:
         positive_map: Tensor,
         phrases_per_sample: List[int],
     ) -> List[List[List[float]]]:
-
         assert output_logits.size(0) == target_sizes.size(
             0
         ), "Logits and target sizes should both have first dim = batch_size"

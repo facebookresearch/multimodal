@@ -81,7 +81,6 @@ class TestLateFusion:
         }
 
     def test_forward(self, late_fusion, modalities_1):
-
         actual = late_fusion(modalities_1)
         expected = torch.Tensor(
             [[1, 0, 0.25, 0.75, 3, 1, 0.8, 0.9], [0, 1, 0.6, 0.4, 0.7, 2, 0.6, 0]]
@@ -90,7 +89,6 @@ class TestLateFusion:
         assert_expected(actual, expected)
 
     def test_script(self, late_fusion, modalities_2):
-
         scripted_late_fusion = torch.jit.script(late_fusion)
         actual = scripted_late_fusion(modalities_2)
         expected = torch.Tensor([[7, 0, 0.65, 8, 9, 0.8], [88, 5, 0.3, 0.74, 2, 0]])

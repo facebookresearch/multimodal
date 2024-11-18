@@ -38,9 +38,7 @@ class MUGENDatasetArgs:
         True  # render smap for mugen (and shield) as bounding boxes
     )
     bbox_smap_for_monsters: bool = True  # render smap for monsters as bounding boxes
-    use_manual_annotation: bool = (
-        False  # if True will only use videos with manual annotation and skip those without
-    )
+    use_manual_annotation: bool = False  # if True will only use videos with manual annotation and skip those without
     use_auto_annotation: bool = (
         True  # if True will only use videos with auto annotation and skip those without
     )

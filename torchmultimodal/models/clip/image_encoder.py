@@ -80,7 +80,6 @@ class CLIPViTEncoder(nn.Module):
         self.projection = nn.Parameter(scale * torch.randn(width, embedding_dim))
 
     def forward(self, x: Tensor) -> Tensor:
-
         if x.size(2) != self.image_size or x.size(3) != self.image_size:
             raise ValueError(
                 f"Expected input with width and height as {self.image_size}, found {x.size(2)} by {x.size(3)} "

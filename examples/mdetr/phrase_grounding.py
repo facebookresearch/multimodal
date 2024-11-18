@@ -31,7 +31,6 @@ def evaluate(
     evaluator,
     device,
 ):
-
     model.eval()
 
     metric_logger = MetricLogger(delimiter="  ")

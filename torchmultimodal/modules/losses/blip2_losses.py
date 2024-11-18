@@ -21,6 +21,7 @@ from torchmultimodal.utils.distributed import (
 @dataclass
 class Blip2Stage1Losses(OrderedDict):
     "Blip-2 stage 1 losses"
+
     image_text_contrastive_loss: torch.Tensor
     image_text_matching_loss: torch.Tensor
     image_captioning_loss: torch.Tensor

@@ -366,9 +366,7 @@ class TransformerDecoderLayer(nn.Module):
         encoder_hidden_states: Tensor,
         cross_attention_mask: Optional[Tensor] = None,
     ) -> Tensor:
-        assert (
-            self.cross_attention is not None
-        ), """
+        assert self.cross_attention is not None, """
             Cannot use cross-attention unless self.cross_attention and
             self.cross_attention_dropout are defined.
         """
@@ -399,7 +397,6 @@ class TransformerDecoderLayer(nn.Module):
         past_key_value: Optional[Tuple[Tensor, Tensor]] = None,
         use_cache: bool = False,
     ) -> Tuple[Tensor, Optional[Tuple[Tensor, Tensor]]]:
-
         # Self-attention
         self_attn_input = self.attention_layernorm(hidden_states)
         attn_output, present_key_value = self._self_attention_block(
@@ -440,7 +437,6 @@ class TransformerDecoderLayer(nn.Module):
         past_key_value: Optional[Tuple[Tensor, Tensor]] = None,
         use_cache: bool = False,
     ) -> Tuple[Tensor, Optional[Tuple[Tensor, Tensor]]]:
-
         # Self-attention
         attn_output, present_key_value = self._self_attention_block(
             hidden_states,

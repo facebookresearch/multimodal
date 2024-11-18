@@ -13,7 +13,7 @@ from torchvision.ops.boxes import box_convert, generalized_box_iou
 
 
 def _get_src_permutation_idx(
-    indices: List[Tuple[Tensor, Tensor]]
+    indices: List[Tuple[Tensor, Tensor]],
 ) -> Tuple[Tensor, Tensor]:
     """
     Given a list of matched (src, tgt) indices, concatenate the src indices and

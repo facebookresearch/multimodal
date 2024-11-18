@@ -81,9 +81,7 @@ class EvaluationArgs:
     datamodule_args: DataModuleArgs = DataModuleArgs()
     lightningmodule_args: LightningModuleArgs = LightningModuleArgs()
     videoclip_args: VideoCLIPArgs = VideoCLIPArgs()
-    checkpoint_path: str = (
-        "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/videoclip_lightning_mugen.pt"
-    )
+    checkpoint_path: str = "https://pytorch.s3.amazonaws.com/models/multimodal/mugen/videoclip_lightning_mugen.pt"
     accelerator: str = "auto"
 
 

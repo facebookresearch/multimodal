@@ -60,7 +60,6 @@ class VisionTransformer(nn.Module):
         image_patches_mask: Optional[Tensor] = None,
         attention_mask: Optional[Tensor] = None,
     ) -> TransformerOutput:
-
         embedding_output = self.embeddings(
             images, image_patches_mask=image_patches_mask
         ).embeddings

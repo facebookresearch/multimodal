@@ -8,7 +8,6 @@ import argparse
 
 
 def get_args_parser():
-
     parser = argparse.ArgumentParser("MDETR", add_help=False)
     parser.add_argument("--dataset_config", default=None, required=True)
     # Transformer

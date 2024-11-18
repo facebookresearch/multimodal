@@ -5,6 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 """Collections of utilities related to optimization."""
+
 from bisect import bisect_right
 
 import torch
