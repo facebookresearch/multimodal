@@ -161,7 +161,7 @@ class RetrievalDataModule(LightningDataModule):
 
 
 def retrieval_train_collate_fn(
-    batch: List[Tuple[Tensor, Tensor, int]]
+    batch: List[Tuple[Tensor, Tensor, int]],
 ) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
     image_list = []
     text_list = []

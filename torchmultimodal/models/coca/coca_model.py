@@ -493,7 +493,6 @@ class CoCaModelWithHeads(nn.Module):
     def forward(
         self, images: Tensor, texts: Tensor, text_padding_mask: Optional[Tensor] = None
     ) -> Dict[str, Tensor]:
-
         model_out = self.model(images, texts, text_padding_mask)
         mm_out = model_out.multimodal_embeddings
 

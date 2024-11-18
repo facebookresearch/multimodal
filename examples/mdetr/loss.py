@@ -67,7 +67,7 @@ def contrastive_alignment_loss(
     neg_term = negative_logits.logsumexp(2)
     nb_pos = positive_map.sum(2) + 1e-6
     box_to_token_loss = (
-        ((pos_term / nb_pos + neg_term)).masked_fill(~boxes_with_pos, 0).sum()
+        (pos_term / nb_pos + neg_term).masked_fill(~boxes_with_pos, 0).sum()
     )
 
     # Calculate the contrastive loss for all tokens
@@ -76,7 +76,7 @@ def contrastive_alignment_loss(
     neg_term = negative_logits.logsumexp(1)
     nb_pos = positive_map.sum(1) + 1e-6
     tokens_to_boxes_loss = (
-        ((pos_term / nb_pos + neg_term)).masked_fill(~tokens_with_pos, 0).sum()
+        (pos_term / nb_pos + neg_term).masked_fill(~tokens_with_pos, 0).sum()
     )
 
     tot_loss = (box_to_token_loss + tokens_to_boxes_loss) / 2
@@ -227,7 +227,6 @@ class MDETRLoss(nn.Module):
         vqa_masks: Optional[Dict[str, Tensor]] = None,
         weight_dict: Optional[Dict[str, float]] = None,
     ) -> Dict[str, Tensor]:
-
         target_boxes = [t["boxes"] for t in targets]
         target_tokens = [t["tokens_positive"] for t in targets]
         n_target_boxes = [len(t) for t in target_boxes]
@@ -292,7 +291,6 @@ def build_mdetr_loss(
     no_object_weight: float = 0.1,
     temperature: Optional[float] = None,
 ) -> MDETRLoss:
-
     soft_token_loss = partial(
         soft_token_prediction_loss, no_object_weight=no_object_weight
     )

@@ -240,7 +240,6 @@ def collate_fn(tokenizer, batch):
 
 
 def build_flickr(image_set, tokenizer, transform, args):
-
     img_dir = Path(args.flickr_img_path) / f"{image_set}"
 
     if args.GT_type == "merged":

@@ -4,7 +4,8 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-""" Evaluator for Flickr30k """
+"""Evaluator for Flickr30k"""
+
 import xml.etree.ElementTree as Et
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Union
@@ -184,7 +185,6 @@ class Flickr30kEntitiesRecallEvaluator:
         iou_thresh: float = 0.5,
         merge_boxes: bool = False,
     ):
-
         assert subset in ["train", "test", "val"], f"Wrong flickr subset {subset}"
 
         self.topk = topk

@@ -555,7 +555,6 @@ def flava_model_for_classification(
     pretrained: bool = True,
     **flava_model_kwargs: Any,
 ) -> FLAVAForClassification:
-
     classifier = MLP(
         in_dim=classifier_in_dim,
         out_dim=num_classes,

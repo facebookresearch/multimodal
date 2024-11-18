@@ -247,7 +247,6 @@ def flava_image_encoder(
     patch_size: int = 16,
     num_channels: int = 3,
 ) -> ImageTransformer:
-
     embeddings = ImageEmbeddings(
         image_size=image_size,
         patch_size=patch_size,

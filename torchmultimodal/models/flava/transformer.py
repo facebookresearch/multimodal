@@ -261,7 +261,6 @@ class TransformerEncoder(nn.Module):
         return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> TransformerOutput:
-
         all_hidden_states = [] if return_hidden_states else None
         all_self_attentions = [] if return_attn_weights else None
 

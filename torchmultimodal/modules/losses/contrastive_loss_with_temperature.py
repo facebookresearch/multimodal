@@ -190,7 +190,6 @@ class ContrastiveLossWithTemperature(nn.Module):
         cross_entropy_kwargs: Optional[Dict[str, Any]] = None,
         mask: Optional[Tensor] = None,
     ) -> Tensor:
-
         self.logit_scale.data.clamp_(self.logit_scale_min, self.logit_scale_max)
         return contrastive_loss_with_temperature(
             embeddings_a=embeddings_a,

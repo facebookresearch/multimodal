@@ -267,7 +267,6 @@ class CLIPTextTransform(nn.Module):
         text_bpe_merges_path: str = CLIP_DEFAULT_VOCAB_BPE_PATH,
         num_merges: Optional[int] = 48894,
     ) -> None:
-
         super().__init__()
         local_merges_path = _PATH_MANAGER.get_local_path(text_bpe_merges_path)
         tokenizer = CLIPBPETransform(
@@ -399,7 +398,6 @@ class CLIPTransform(nn.Module):
         text_bpe_merges_path: str = CLIP_DEFAULT_VOCAB_BPE_PATH,
         num_merges: Optional[int] = 48894,
     ) -> None:
-
         super().__init__()
         self.image_transform = CLIPImageTransform(
             image_size, image_interpolation, image_mean, image_std, is_train
