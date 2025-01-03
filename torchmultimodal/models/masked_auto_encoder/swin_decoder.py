@@ -81,8 +81,8 @@ class WindowMultiHeadAttention(nn.Module):
             relative_coordinates.permute(1, 2, 0).reshape(-1, 2).float()
         )
 
-        relative_coordinates_log = torch.sign(relative_coordinates) * torch.log(
-            1.0 + relative_coordinates.abs()
+        relative_coordinates_log = torch.sign(relative_coordinates) * torch.log1p(
+            relative_coordinates.abs()
         )
         self.register_buffer(
             "relative_coordinates_log", relative_coordinates_log, persistent=False
