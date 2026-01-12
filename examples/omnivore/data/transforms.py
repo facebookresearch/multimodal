@@ -10,7 +10,6 @@ import math
 from typing import Tuple
 
 import numpy as np
-
 import torch
 import torchvision.transforms as T
 from torch import Tensor
@@ -285,9 +284,9 @@ class DropChannels(torch.nn.Module):
         else:
             raise ValueError(f"Unexpected number of dims {x.ndim}. Expected 3 or 4.")
 
-        assert num_channels == len(
-            self.channel_probs
-        ), f"channel_probs is {len(self.channel_probs)} but got {num_channels} channels"
+        assert num_channels == len(self.channel_probs), (
+            f"channel_probs is {len(self.channel_probs)} but got {num_channels} channels"
+        )
 
         to_drop = [
             np.random.random() < self.channel_probs[c] for c in range(num_channels)

@@ -572,15 +572,15 @@ class ALBEFModelForRetrieval(nn.Module):
             return self._encode_image(image)
 
         elif input_type == "text":
-            assert (
-                text is not None and text_atts is not None
-            ), "text and text attention mask cannot be None"
+            assert text is not None and text_atts is not None, (
+                "text and text attention mask cannot be None"
+            )
             return self._encode_text(text, text_atts)
 
         elif input_type == "multimodal":
-            assert (
-                image is not None and text is not None and text_atts is not None
-            ), "image embeddings, text embeddings, and text attention mask cannot be None"
+            assert image is not None and text is not None and text_atts is not None, (
+                "image embeddings, text embeddings, and text attention mask cannot be None"
+            )
             return self._image_text_matching_score(image, text, text_atts)
 
         else:

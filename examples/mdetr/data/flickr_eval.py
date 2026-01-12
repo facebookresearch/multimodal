@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 import numpy as np
-
 import torch
 import utils.dist as dist
 from prettytable import PrettyTable

@@ -10,7 +10,6 @@ from typing import Callable, Dict, List, Optional, Set, Tuple, Union
 
 import ftfy
 import regex as re
-
 import torch
 from PIL.Image import Image
 from torch import nn, Tensor

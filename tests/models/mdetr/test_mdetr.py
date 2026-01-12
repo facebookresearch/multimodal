@@ -6,7 +6,6 @@
 
 import pytest
 import torch
-
 from tests.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.models.mdetr.model import (
     mdetr_for_phrase_grounding,

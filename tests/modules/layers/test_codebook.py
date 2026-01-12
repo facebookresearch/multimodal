@@ -8,7 +8,6 @@ import warnings
 from collections import OrderedDict
 
 import pytest
-
 import torch
 from tests.test_utils import assert_expected, assert_expected_namedtuple, set_rng_seed
 from torch import nn, tensor
@@ -149,9 +148,9 @@ class TestCodebook:
         assert_expected(actual_quantized_shape, expected_quantized_shape)
 
     def test_init_embedding(self, codebook, encoded, num_embeddings):
-        assert (
-            not codebook._is_embedding_init
-        ), "embedding init flag not False initially"
+        assert not codebook._is_embedding_init, (
+            "embedding init flag not False initially"
+        )
 
         encoded_flat, _ = codebook._preprocess(encoded)
         codebook._init_embedding(encoded_flat)
@@ -221,9 +220,9 @@ class TestCodebook:
             assert not codebook.code_usage.grad, msg_has_grad
             assert not codebook.embedding.grad, msg_has_grad
 
-        assert not list(
-            codebook.parameters()
-        ), "buffer variables incorrectly assigned as params"
+        assert not list(codebook.parameters()), (
+            "buffer variables incorrectly assigned as params"
+        )
 
     def test_init_embedding_smaller_encoded(self, codebook, encoded):
         encoded_small = encoded[:1, :, :2]

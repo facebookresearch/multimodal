@@ -9,7 +9,6 @@ from typing import Dict, Optional
 import torch
 import torch.nn.functional as F
 from torch import nn, Tensor
-
 from torchmultimodal.diffusion_labs.modules.adapters.adapter import Adapter
 from torchmultimodal.diffusion_labs.utils.common import DiffusionOutput
 

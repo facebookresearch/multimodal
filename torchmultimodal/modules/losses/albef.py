@@ -121,9 +121,9 @@ class CausalLanguageModelingLoss(nn.Module):
         mlm_loss = mlm_loss.view(batch_size, -1).sum(1)
 
         if alpha != 0:
-            assert (
-                prediction_scores_m is not None
-            ), "prediction_scores_m cannot be None for non-zero alpha"
+            assert prediction_scores_m is not None, (
+                "prediction_scores_m cannot be None for non-zero alpha"
+            )
 
             with torch.no_grad():
                 prediction_scores_m = prediction_scores_m[:, :-1, :].contiguous()

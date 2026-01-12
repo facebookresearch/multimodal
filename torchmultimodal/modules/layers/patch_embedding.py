@@ -10,7 +10,6 @@ from typing import Iterable, NamedTuple, Optional, Tuple, Union
 
 import torch
 from torch import nn, Tensor
-
 from torchmultimodal.modules.masking.random_masking import (
     random_masking,
     random_masking_2d,
@@ -142,9 +141,9 @@ class PatchEmbeddings(nn.Module):
 
         # add the [CLS] token to the embedded patch tokens and its positional embedding
         if self.include_cls_embed:
-            assert hasattr(
-                self, "cls_token"
-            ), "CLS token must be defined to include CLS embedding"
+            assert hasattr(self, "cls_token"), (
+                "CLS token must be defined to include CLS embedding"
+            )
             cls_token = self.cls_token + self.position_embeddings[:, :1, :]
             cls_tokens = cls_token.expand(batch_size, -1, -1)
             embeddings = torch.cat((cls_tokens, embeddings), dim=1)

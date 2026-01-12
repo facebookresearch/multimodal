@@ -38,8 +38,8 @@ def build_config():
     cli_conf.pop("config")
     config: FLAVAArguments = OmegaConf.merge(conf, cli_conf)
 
-    assert (
-        "max_steps" in config.training.lightning
-    ), "lightning config must specify 'max_steps'"
+    assert "max_steps" in config.training.lightning, (
+        "lightning config must specify 'max_steps'"
+    )
 
     return config

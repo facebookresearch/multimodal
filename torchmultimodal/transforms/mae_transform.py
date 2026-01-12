@@ -9,7 +9,6 @@ from io import BytesIO
 from typing import Callable, List, Optional, Tuple, Union
 
 import numpy as np
-
 import torch
 import torchaudio
 from PIL import Image

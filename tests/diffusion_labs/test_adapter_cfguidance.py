@@ -7,7 +7,6 @@
 from typing import Dict, Sequence, Tuple, Union
 
 import pytest
-
 import torch
 from tests.test_utils import assert_expected, set_rng_seed
 from torch import nn, Tensor

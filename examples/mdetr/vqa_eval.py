@@ -12,7 +12,6 @@ from pathlib import Path
 
 import numpy as np
 import torch
-
 import utils.dist as dist
 from data.datamodule import GQADataModule
 from loss import build_mdetr_loss, build_weight_dict

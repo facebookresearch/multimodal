@@ -7,7 +7,6 @@
 from typing import Tuple
 
 import torch
-
 from torch import Tensor
 from torchmultimodal.utils.attention import get_causal_attention_mask
 

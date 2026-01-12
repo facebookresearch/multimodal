@@ -9,7 +9,6 @@ from itertools import repeat
 import pytest
 import torch
 from tests.test_utils import assert_expected, assert_expected_namedtuple, set_rng_seed
-
 from torchmultimodal.models.video_gpt.video_vqvae import (
     AttentionResidualBlock,
     AxialAttention,

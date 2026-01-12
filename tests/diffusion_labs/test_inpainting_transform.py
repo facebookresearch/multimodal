@@ -8,7 +8,6 @@
 import unittest
 
 import numpy as np
-
 import torch
 from PIL import Image
 from tests.test_utils import assert_expected, set_rng_seed

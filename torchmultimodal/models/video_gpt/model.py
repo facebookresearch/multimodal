@@ -16,7 +16,6 @@ from torchmultimodal.models.video_gpt.gpt import (
 )
 from torchmultimodal.models.video_gpt.video_vqvae import VideoDecoder, VideoEncoder
 from torchmultimodal.models.vqvae import VQVAE
-
 from torchmultimodal.modules.layers.attention import SelfAttention
 from torchmultimodal.modules.layers.position_embedding import (
     BroadcastedPositionEmbedding,

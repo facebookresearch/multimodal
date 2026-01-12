@@ -118,9 +118,9 @@ class ADMUNet(nn.Module):
         super().__init__()
         torch._C._log_api_usage_once(f"torchmultimodal.{self.__class__.__name__}")
         if timestep_encoder is None:
-            assert (
-                time_embed_dim is not None
-            ), "Must pass either timestep_encoder or time_embed_dim"
+            assert time_embed_dim is not None, (
+                "Must pass either timestep_encoder or time_embed_dim"
+            )
             self.timestep_encoder = self._create_timestep_encoder(
                 time_embed_dim, dim_res_cond
             )

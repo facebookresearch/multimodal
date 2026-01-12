@@ -7,7 +7,6 @@
 from typing import Any, Callable, Optional, Tuple, Union
 
 import torch
-
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.patch_embedding import PatchEmbeddings
 from torchmultimodal.modules.layers.transformer import (
@@ -72,9 +71,9 @@ class VisionTransformer(nn.Module):
         last_hidden_state = encoder_output.last_hidden_state
 
         if self.pooler is not None:
-            assert (
-                last_hidden_state is not None
-            ), "For pooler, last hidden state cannot be None."
+            assert last_hidden_state is not None, (
+                "For pooler, last hidden state cannot be None."
+            )
             pooled_output = self.pooler(last_hidden_state)
         else:
             pooled_output = None

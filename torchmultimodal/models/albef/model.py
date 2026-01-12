@@ -237,9 +237,9 @@ class ALBEFModelWithSimilarity(nn.Module):
         batch_size = image_feats.shape[0]
         ptr = int(self.queue_ptr)
 
-        assert (
-            self.queue_size % batch_size == 0
-        ), "queue_size should be divisible by batch_size"
+        assert self.queue_size % batch_size == 0, (
+            "queue_size should be divisible by batch_size"
+        )
 
         # replace the keys at ptr (dequeue and enqueue)
         self.image_queue[:, ptr : ptr + batch_size] = image_feats.T

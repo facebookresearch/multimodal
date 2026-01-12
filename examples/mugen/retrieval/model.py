@@ -8,11 +8,9 @@ import warnings
 from typing import Any, Tuple
 
 import torch
-
 from examples.mugen.retrieval.video_clip import videoclip
 from pytorch_lightning import LightningModule
 from torchmetrics import Recall
-
 from torchmultimodal.modules.losses.contrastive_loss_with_temperature import (
     ContrastiveLossWithTemperature,
 )

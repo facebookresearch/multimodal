@@ -8,7 +8,6 @@
 from typing import Callable, List, NamedTuple, Optional, Tuple
 
 import torch
-
 from torch import nn, Tensor
 from torchmultimodal.modules.layers.mlp import MLP
 from torchmultimodal.modules.layers.multi_head_attention import (
@@ -409,9 +408,9 @@ class TransformerDecoderLayer(nn.Module):
 
         # Optional cross-attention
         if self.use_cross_attention and encoder_hidden_states is not None:
-            assert hasattr(
-                self, "cross_attention_layernorm"
-            ), "Cross-attention layernorm not initialized"
+            assert hasattr(self, "cross_attention_layernorm"), (
+                "Cross-attention layernorm not initialized"
+            )
             cross_attn_input = self.cross_attention_layernorm(self_attn_output)
             cross_attn_output = self._cross_attention_block(
                 cross_attn_input,
@@ -453,9 +452,9 @@ class TransformerDecoderLayer(nn.Module):
                 raise ValueError(
                     "encoder_hidden_states must be provided for cross attention"
                 )
-            assert hasattr(
-                self, "cross_attention_layernorm"
-            ), "Cross-attention layernorm not initialized"
+            assert hasattr(self, "cross_attention_layernorm"), (
+                "Cross-attention layernorm not initialized"
+            )
             cross_attn_output = self._cross_attention_block(
                 self_attn_output, encoder_hidden_states, cross_attention_mask
             )

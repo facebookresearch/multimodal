@@ -5,7 +5,6 @@
 # LICENSE file in the root directory of this source tree.
 
 import torch
-
 from tests.test_utils import assert_expected
 from torchmultimodal.modules.layers.activation import GEGLU, SiLU
 

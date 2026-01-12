@@ -12,7 +12,6 @@ from torch import nn, Tensor
 from torchmultimodal.modules.layers.attention import MultiHeadAttention, SelfAttention
 from torchmultimodal.modules.layers.mlp import MLP
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm
-
 from torchmultimodal.modules.layers.transformer import TransformerOutput
 
 

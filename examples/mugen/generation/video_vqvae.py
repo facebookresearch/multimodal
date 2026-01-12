@@ -11,7 +11,6 @@ from torchmultimodal.models.video_gpt.video_vqvae import (
     VideoDecoder,
     VideoEncoder,
 )
-
 from torchmultimodal.models.vqvae import VQVAE
 from torchmultimodal.utils.common import load_module_from_url, remove_grad
 

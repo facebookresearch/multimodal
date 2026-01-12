@@ -7,9 +7,7 @@
 from typing import Callable, List, Optional, Tuple
 
 import torch
-
 from torch import nn, Tensor
-
 from torchmultimodal.modules.layers.mlp import MLP
 from torchmultimodal.modules.layers.multi_head_attention import (
     MHAWithCacheOutput,

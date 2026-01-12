@@ -8,7 +8,6 @@ from abc import abstractmethod
 from typing import Dict, Optional, Protocol, runtime_checkable
 
 from torch import Tensor
-
 from torchmultimodal.diffusion_labs.utils.common import DiffusionOutput
 
 

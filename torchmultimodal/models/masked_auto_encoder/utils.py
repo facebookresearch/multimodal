@@ -8,10 +8,8 @@ import math
 from typing import Any, Dict, List, Optional, Tuple
 
 from torch import nn
-
 from torch.optim.lr_scheduler import LambdaLR, LRScheduler, SequentialLR
 from torch.optim.optimizer import Optimizer
-
 from torchmultimodal.modules.encoders.vision_transformer import VisionTransformer
 
 

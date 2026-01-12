@@ -100,9 +100,9 @@ class CoCaModel(nn.Module):
             assert len(pooled_outputs) == 2
             captioning_image_embeddings, contrastive_image_embeddings = pooled_outputs
         else:
-            assert isinstance(
-                pooled_outputs, Tensor
-            ), "Pooled image embeddings must be Tensor"
+            assert isinstance(pooled_outputs, Tensor), (
+                "Pooled image embeddings must be Tensor"
+            )
             # For parallel pooler arch of CoCa, we use a single pooler and split
             # the outputs for contrastive and captioning tasks
             contrastive_image_embeddings, captioning_image_embeddings = (

@@ -6,7 +6,6 @@
 
 import torch
 from tests.test_utils import assert_expected
-
 from torchmultimodal.modules.layers.normalizations import (
     Fp32GroupNorm,
     Fp32LayerNorm,

@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Any, Dict, NamedTuple, Optional, Tuple, Union
 
 import numpy as np
-
 import pytest
 import torch
 import torch.distributed as dist

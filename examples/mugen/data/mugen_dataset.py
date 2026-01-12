@@ -17,9 +17,7 @@ from examples.mugen.data.coinrun.construct_from_json import (
     load_assets,
     load_bg_asset,
 )
-
 from examples.mugen.data.coinrun.game import Game
-
 from torch.utils.data import Dataset
 
 from .audio_utils import AUDIO_SAMPLE_LENGTH, AUDIO_SAMPLE_RATE, load_audio
@@ -292,9 +290,9 @@ class MUGENDataset(Dataset):
 
             assert self.args.use_auto_annotation or self.args.use_manual_annotation
             if self.args.use_manual_annotation and not self.args.use_auto_annotation:
-                assert (
-                    len(self.data[idx]["annotations"]) > 1
-                ), "need at least one manual annotation if using only manual annotations"
+                assert len(self.data[idx]["annotations"]) > 1, (
+                    "need at least one manual annotation if using only manual annotations"
+                )
                 # exclude the auto-text, which is always index 0
                 rand_idx = (
                     torch.randint(
@@ -311,9 +309,9 @@ class MUGENDataset(Dataset):
                 ).item()
 
             if self.args.use_manual_annotation and not self.args.use_auto_annotation:
-                assert (
-                    self.data[idx]["annotations"][rand_idx]["type"] == "manual"
-                ), "Should only be sampling manual annotations"
+                assert self.data[idx]["annotations"][rand_idx]["type"] == "manual", (
+                    "Should only be sampling manual annotations"
+                )
 
             text_desc = self.data[idx]["annotations"][rand_idx]["text"]
 

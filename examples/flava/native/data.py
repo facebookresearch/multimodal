@@ -11,7 +11,6 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import torch
 import torch.distributed as dist
 import torchvision
-
 from flava.data.transforms import (
     default_image_pretraining_transforms,
     default_text_transform,
@@ -495,9 +494,9 @@ class TorchVisionDataModule(LightningDataModule):
     def _parse_info(
         self, info: TorchVisionDatasetInfo, dataset_root: Optional[str] = None
     ):
-        assert hasattr(
-            torchvision.datasets, info.key
-        ), f"No dataset named {info.key} present in torchvision.datasets"
+        assert hasattr(torchvision.datasets, info.key), (
+            f"No dataset named {info.key} present in torchvision.datasets"
+        )
         class_ptr = getattr(torchvision.datasets, info.key)
         if dataset_root is None:
             dataset_root = os.path.join(TRANSFORMERS_CACHE, "datasets", "torchvision")

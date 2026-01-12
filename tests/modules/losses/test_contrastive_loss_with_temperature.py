@@ -8,12 +8,10 @@ from itertools import chain
 from typing import List
 
 import pytest
-
 import torch
 import torch.multiprocessing as mp
 import torch.nn as nn
 import torch.optim as optim
-
 from tests.test_utils import (
     assert_expected,
     gpu_test,

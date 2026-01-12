@@ -10,7 +10,6 @@ from typing import NamedTuple
 import torch
 import torch.nn.functional as F
 from torch import nn
-
 from torchmultimodal.models.clip.image_encoder import CLIPViTEncoder, ResNetForCLIP
 from torchmultimodal.models.clip.text_encoder import CLIPTextEncoder
 from torchmultimodal.utils.common import load_module_from_url

@@ -9,7 +9,6 @@ import os
 from typing import Callable, List, Tuple, Union
 
 import torch
-
 from PIL import Image
 from torch import Tensor
 from torch.utils.data import Dataset

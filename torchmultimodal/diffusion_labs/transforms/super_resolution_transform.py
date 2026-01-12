@@ -7,7 +7,6 @@
 from typing import Any, Callable, Dict, Optional
 
 import torch.nn.functional as F
-
 from torch import nn
 
 
@@ -57,9 +56,9 @@ class SuperResolutionTransform(nn.Module):
         self.augmentation_func = augmentation_func
 
     def forward(self, x: Dict[str, Any]) -> Dict[str, Any]:
-        assert (
-            self.data_field in x
-        ), f"{type(self).__name__} expects key {self.data_field}"
+        assert self.data_field in x, (
+            f"{type(self).__name__} expects key {self.data_field}"
+        )
         data = x[self.data_field]
         # downsample
         down_scaled = F.interpolate(

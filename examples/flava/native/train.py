@@ -38,7 +38,6 @@ from flava.native.utils import (
     setup_distributed_device,
 )
 from flava.utils import build_datamodule_kwargs
-
 from omegaconf import DictConfig, OmegaConf
 from torch.distributed.algorithms._checkpoint.checkpoint_wrapper import (
     apply_activation_checkpointing,
@@ -171,7 +170,7 @@ class Trainer:
             model = model.to(self.device)
 
             print0(
-                f"after moving to cuda: {torch.cuda.memory_allocated()/1024**3:.3} GB"
+                f"after moving to cuda: {torch.cuda.memory_allocated() / 1024**3:.3} GB"
             )
 
             model = DDP(
@@ -180,7 +179,7 @@ class Trainer:
                 find_unused_parameters=True,
                 gradient_as_bucket_view=True,
             )
-            print0(f"after DDP: {torch.cuda.memory_allocated()/1024**3:.3} GB")
+            print0(f"after DDP: {torch.cuda.memory_allocated() / 1024**3:.3} GB")
         elif strategy == "fsdp":
             mp = None
             if self.config.training.enable_half_reduce_in_fsdp:
@@ -206,7 +205,7 @@ class Trainer:
                 limit_all_gathers=True,
             )
 
-            print0(f"after FSDP {torch.cuda.memory_allocated()/1024**3:.3} GB")
+            print0(f"after FSDP {torch.cuda.memory_allocated() / 1024**3:.3} GB")
 
         else:
             raise ValueError(f"unknown strategy: {strategy}")
@@ -258,8 +257,8 @@ class Trainer:
             config.training.batch_size * dist.get_world_size()
         ) / avg_it_time
         print0(f"Average over {len(iteration_times)} steps")
-        print0(f"Average iteration time {round(avg_it_time,4)}")
-        print0(f"Average throughput {round(avg_throughput,4)}")
+        print0(f"Average iteration time {round(avg_it_time, 4)}")
+        print0(f"Average throughput {round(avg_throughput, 4)}")
 
     def train(self) -> None:
         print0(OmegaConf.to_container(self.config.training))
@@ -299,7 +298,7 @@ class Trainer:
                 ):
                     output = model(data)
                 print0(
-                    f"after forward pass {torch.cuda.memory_allocated()/1024**3:.3} GB"
+                    f"after forward pass {torch.cuda.memory_allocated() / 1024**3:.3} GB"
                 )
                 self.log(
                     "stats/fwd memory alloc",

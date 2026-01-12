@@ -76,9 +76,9 @@ class Omnivore(nn.Module):
 
     def forward(self, x: torch.Tensor, input_type: str) -> torch.Tensor:
         x = self.encoder(x)
-        assert (
-            input_type in self.heads
-        ), f"Unsupported input_type: {input_type}, please use one of {list(self.heads.keys())}"
+        assert input_type in self.heads, (
+            f"Unsupported input_type: {input_type}, please use one of {list(self.heads.keys())}"
+        )
         x = self.heads[input_type](x)
         return x
 

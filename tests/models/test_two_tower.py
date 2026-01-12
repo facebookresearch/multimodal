@@ -7,7 +7,6 @@
 from typing import List
 
 import pytest
-
 import torch
 from tests.test_utils import assert_expected
 from torch import nn, Tensor

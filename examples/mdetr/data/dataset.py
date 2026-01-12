@@ -8,7 +8,6 @@ import json
 from pathlib import Path
 
 import torch
-
 from data.transforms import ConvertCocoPolysToMask, create_positive_map
 from torchvision.datasets import CocoDetection
 

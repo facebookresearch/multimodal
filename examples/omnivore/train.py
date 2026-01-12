@@ -13,7 +13,6 @@ import os
 import time
 
 import omnivore.data.data_builder as data_builder
-
 import torch
 import torch.utils.data
 import torchmultimodal.models.omnivore as omnivore

@@ -9,7 +9,6 @@ from typing import Dict, Generator, Optional, Protocol, runtime_checkable, Union
 
 from torch import nn, Tensor
 from torchmultimodal.diffusion_labs.predictors.predictor import Predictor
-
 from torchmultimodal.diffusion_labs.schedules.schedule import DiffusionSchedule
 from torchmultimodal.diffusion_labs.utils.common import DiffusionOutput
 

@@ -8,12 +8,9 @@ import warnings
 from typing import Any, Dict, Optional
 
 import torch
-
 from torch import nn
-
 from torchmultimodal.models.clip.model import CLIP
 from torchmultimodal.utils.common import load_module_from_url
-
 from torchvision.models.video import S3D
 from transformers import DistilBertConfig, DistilBertModel
 

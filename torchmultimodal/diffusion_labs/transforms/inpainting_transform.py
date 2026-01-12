@@ -11,7 +11,6 @@ from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import torch
-
 from PIL import Image, ImageDraw
 from torch import nn, Tensor
 

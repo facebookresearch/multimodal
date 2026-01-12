@@ -9,7 +9,6 @@ from typing import Optional
 import torch
 from torch import nn, Tensor
 from torchmultimodal.modules.encoders.bert_text_encoder import BERTTextEncoder
-
 from torchmultimodal.modules.layers.text_embedding import BERTTextEmbeddings
 from torchmultimodal.modules.layers.transformer import TransformerOutput
 

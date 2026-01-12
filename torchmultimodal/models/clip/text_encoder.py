@@ -7,7 +7,6 @@
 
 import torch
 from torch import nn, Tensor
-
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from torchmultimodal.modules.layers.activation import SiLU
 from torchmultimodal.modules.layers.normalizations import Fp32LayerNorm

@@ -10,7 +10,6 @@ from typing import Any, Callable, Dict, Optional, Tuple, Union
 import torch
 import torch.nn.functional as F
 from torch import Tensor
-
 from torchmultimodal.diffusion_labs.schedules.schedule import DiffusionSchedule
 
 
@@ -85,9 +84,9 @@ class DiscreteGaussianSchedule(DiffusionSchedule):
         e.g. schedule.<name> returns <expression>(self)
         """
         assert name not in self.expressions, "Property already exists"
-        assert (
-            expression.__name__ != "<lambda>"
-        ), "Properties must be named functions, lambdas are not picklable"
+        assert expression.__name__ != "<lambda>", (
+            "Properties must be named functions, lambdas are not picklable"
+        )
         # Expression added to dictionary, expression computed and lazily added as attribute <name> in __getattr__
         self.expressions[name] = expression
 

@@ -10,7 +10,6 @@ from typing import Any, Dict
 import torch
 import torchvision.transforms as tv
 from PIL.Image import Image
-
 from torch import nn
 from torchmultimodal.diffusion_labs.utils.common import cascaded_resize, normalize
 

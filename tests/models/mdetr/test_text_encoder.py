@@ -5,9 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import pytest
-
 import torch
-
 from tests.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.models.mdetr.text_encoder import ModifiedTransformerEncoder
 

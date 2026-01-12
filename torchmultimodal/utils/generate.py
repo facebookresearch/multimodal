@@ -10,7 +10,6 @@ from typing import Any, List, NamedTuple, Optional, Tuple
 import torch
 from torch import nn, Tensor
 from torch.nn import functional as F
-
 from torchmultimodal.utils.attention import get_causal_attention_mask
 
 

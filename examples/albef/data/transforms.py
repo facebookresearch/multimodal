@@ -8,7 +8,6 @@ import re
 from typing import List, Tuple, Union
 
 import torch
-
 from torchtext.transforms import PadTransform, Sequential, ToTensor, Truncate
 from torchvision import transforms
 from transformers.models.bert.tokenization_bert import BertTokenizer

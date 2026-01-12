@@ -63,9 +63,9 @@ class TestFlickrPostProcessor:
     @pytest.fixture(scope="class")
     def pos_map(self, n_tokens, starting_indices, n_classes):
         def _construct_test_pos_map_for_sample(n_toks, starting_indices, max_length):
-            assert len(n_toks) == len(
-                starting_indices
-            ), "n_toks and starting_indices must have same length"
+            assert len(n_toks) == len(starting_indices), (
+                "n_toks and starting_indices must have same length"
+            )
             out = torch.zeros((len(n_toks), max_length))
             idx_list = []
             for i, (n_tok, starting_idx) in enumerate(zip(n_toks, starting_indices)):
@@ -76,9 +76,9 @@ class TestFlickrPostProcessor:
             out = out / out.sum(axis=1).unsqueeze(-1)
             return out
 
-        assert len(n_tokens) == len(
-            starting_indices
-        ), "n_toks and starting_indices must have same length"
+        assert len(n_tokens) == len(starting_indices), (
+            "n_toks and starting_indices must have same length"
+        )
         bs = len(n_tokens)
         pos_map = [
             _construct_test_pos_map_for_sample(

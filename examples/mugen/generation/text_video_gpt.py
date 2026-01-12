@@ -7,11 +7,8 @@
 from typing import List, Optional, Tuple
 
 import torch
-
 from examples.mugen.generation.video_vqvae import video_vqvae_mugen
-
 from torch import nn, Tensor
-
 from torchmultimodal.models.video_gpt.gpt import (
     MultimodalGPT,
     MultimodalTransformerDecoder,

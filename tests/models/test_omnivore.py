@@ -7,7 +7,6 @@
 import pytest
 import torch
 import torchmultimodal.models.omnivore as omnivore
-
 from tests.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.utils.common import get_current_device
 

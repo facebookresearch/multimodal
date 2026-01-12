@@ -5,9 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import pytest
-
 import torch
-
 from tests.test_utils import assert_expected
 from torch import nn
 from torch.utils.checkpoint import checkpoint

@@ -7,7 +7,6 @@
 from typing import Callable, NamedTuple, Optional, Tuple, Union
 
 import torch
-
 from torch import nn, Tensor
 from torchmultimodal.models.masked_auto_encoder.position_embeddings import (
     get_2d_sin_cos_embeddings,

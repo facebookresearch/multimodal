@@ -7,9 +7,7 @@
 from typing import Any, cast, List, Optional, Tuple, Union
 
 import torch
-
 from torch import nn, Size, Tensor
-
 from torchmultimodal.models.vqvae import VQVAE
 from torchmultimodal.modules.layers.attention import (
     MultiHeadAttention,

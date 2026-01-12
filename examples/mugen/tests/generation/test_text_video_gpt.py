@@ -5,11 +5,8 @@
 # LICENSE file in the root directory of this source tree.
 
 import pytest
-
 import torch
-
 from examples.mugen.generation.text_video_gpt import text_video_gpt
-
 from tests.test_utils import assert_expected, set_rng_seed
 from torchmultimodal.utils.common import get_current_device
 

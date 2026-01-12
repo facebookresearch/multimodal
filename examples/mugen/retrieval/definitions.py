@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional, Tuple
 
 from examples.mugen.data.mugen_dataset import MUGENDatasetArgs
-
 from torchmultimodal.transforms.video_transform import (
     DEFAULT_MEAN,
     DEFAULT_RESIZE_SHAPE,

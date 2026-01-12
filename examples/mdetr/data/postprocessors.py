@@ -49,9 +49,9 @@ class PostProcessFlickr:
         positive_map: Tensor,
         phrases_per_sample: List[int],
     ) -> List[List[List[float]]]:
-        assert output_logits.size(0) == target_sizes.size(
-            0
-        ), "Logits and target sizes should both have first dim = batch_size"
+        assert output_logits.size(0) == target_sizes.size(0), (
+            "Logits and target sizes should both have first dim = batch_size"
+        )
         assert target_sizes.size(1) == 2, "Target sizes should have second dim = 2"
 
         batch_size = target_sizes.shape[0]
@@ -72,9 +72,9 @@ class PostProcessFlickr:
         predicted_boxes: List[List[List[float]]] = [[] for _ in range(batch_size)]
 
         # The collapsed batch dimension must match the number of items
-        assert (
-            pos.size(0) == cum_sum[-1]
-        ), "First dimension of positive map must equal sum of phrases per sample"
+        assert pos.size(0) == cum_sum[-1], (
+            "First dimension of positive map must equal sum of phrases per sample"
+        )
 
         if len(pos) == 0:
             return predicted_boxes
@@ -90,9 +90,9 @@ class PostProcessFlickr:
             )
             _, indices = torch.sort(scores, descending=True)
 
-            assert (
-                phrases_per_sample[curr_batch_index] > 0
-            ), "Each sample must have at least one phrase"
+            assert phrases_per_sample[curr_batch_index] > 0, (
+                "Each sample must have at least one phrase"
+            )
             predicted_boxes[curr_batch_index].append(
                 boxes[curr_batch_index][indices].to("cpu").tolist()
             )
@@ -102,8 +102,8 @@ class PostProcessFlickr:
             # check if we need to move to the next batch element
             while i >= cum_sum[curr_batch_index] - 1:
                 curr_batch_index += 1
-                assert curr_batch_index < len(
-                    cum_sum
-                ), "Current batch index is not less than total number of phrases"
+                assert curr_batch_index < len(cum_sum), (
+                    "Current batch index is not less than total number of phrases"
+                )
 
         return predicted_boxes

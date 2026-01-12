@@ -8,7 +8,6 @@
 from typing import NamedTuple, Optional
 
 import torch
-
 from torch import nn, Tensor
 from torch.nn import functional as F
 from torchmultimodal.modules.layers.transformer import TransformerOutput

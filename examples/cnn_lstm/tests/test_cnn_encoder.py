@@ -5,7 +5,6 @@
 # LICENSE file in the root directory of this source tree.
 
 import pytest
-
 import torch
 from examples.cnn_lstm.cnn_encoder import CNNEncoder
 from tests.test_utils import assert_expected, set_rng_seed

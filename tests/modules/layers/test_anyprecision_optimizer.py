@@ -10,7 +10,6 @@ import pytest
 import torch
 import torch.nn as nn
 import torch.optim as optim
-
 from tests.test_utils import assert_expected, gpu_test, set_rng_seed
 from torchmultimodal.modules.optimizers.anyprecision import AnyPrecisionAdamW
 

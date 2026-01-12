@@ -5,9 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import pytest
-
 import torch
-
 from tests.test_utils import assert_expected, assert_expected_namedtuple, set_rng_seed
 from torch import nn
 from torch.nn import functional as F

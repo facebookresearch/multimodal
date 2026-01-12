@@ -8,7 +8,6 @@ from typing import Callable, List, Optional, Tuple
 
 from torch import nn, Tensor
 from torchmultimodal.models.blip2.qformer_layers import QformerEmbedding, QformerEncoder
-
 from torchmultimodal.models.blip2.qformer_utils import get_causal_mask
 
 

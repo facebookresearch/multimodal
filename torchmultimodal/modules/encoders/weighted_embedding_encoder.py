@@ -45,8 +45,8 @@ class WeightedEmbeddingEncoder(nn.Module):
         if isinstance(pooled_embeddings, Tensor):
             output: Tensor = pooled_embeddings
         else:
-            assert hasattr(
-                pooled_embeddings, "values"
-            ), "pooled embeddings should be Tensor or tuple with values field as Tensor"
+            assert hasattr(pooled_embeddings, "values"), (
+                "pooled embeddings should be Tensor or tuple with values field as Tensor"
+            )
             output = pooled_embeddings.values  # type: ignore
         return output

@@ -8,7 +8,6 @@ from typing import Callable, Dict, Optional, Sequence, Tuple, Union
 
 import torch
 from torch import nn, Tensor
-
 from torchmultimodal.diffusion_labs.modules.adapters.adapter import Adapter
 from torchmultimodal.diffusion_labs.utils.common import DiffusionOutput
 

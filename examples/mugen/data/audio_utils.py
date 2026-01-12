@@ -39,9 +39,9 @@ def load_audio(
             offset = np.min(audio_duration * sr - duration, offset - duration)
     else:
         if check_duration:
-            assert (
-                offset + duration <= audio_duration * sr
-            ), f"End {offset + duration} beyond duration {audio_duration*sr}"
+            assert offset + duration <= audio_duration * sr, (
+                f"End {offset + duration} beyond duration {audio_duration * sr}"
+            )
     if resample:
         resampler = av.AudioResampler(format="fltp", layout="stereo", rate=sr)
     else:

@@ -9,7 +9,6 @@ from typing import Any, Callable, Dict, NamedTuple, Optional, Tuple, Union
 
 import torch
 from torch import nn, Tensor
-
 from torchmultimodal.modules.layers.activation import SiLU
 from torchmultimodal.modules.layers.attention import MultiHeadAttention, SelfAttention
 from torchmultimodal.modules.layers.mlp import MLP

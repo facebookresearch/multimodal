@@ -692,9 +692,9 @@ class DalleEncoder(nn.Module):
         blocks: OrderedDict[str, nn.Module] = OrderedDict()
         for i in blk_range:
             if i == 0:
-                blocks[f"block_{i+1}"] = make_blk(n_in, n_hid)
+                blocks[f"block_{i + 1}"] = make_blk(n_in, n_hid)
             else:
-                blocks[f"block_{i+1}"] = make_blk(n_hid, n_hid)
+                blocks[f"block_{i + 1}"] = make_blk(n_hid, n_hid)
 
         if use_pool:
             blocks["pool"] = nn.MaxPool2d(kernel_size=2)

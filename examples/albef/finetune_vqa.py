@@ -18,7 +18,6 @@ from data.vqa_datamodules import VQADataModule
 from model import albef_model_for_vqa
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
-
 from utils import (
     add_weight_decay,
     get_rank,

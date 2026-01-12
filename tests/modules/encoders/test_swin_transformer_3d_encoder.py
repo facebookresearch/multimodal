@@ -7,7 +7,6 @@
 import unittest
 
 import torch
-
 from tests.test_utils import set_rng_seed
 from torchmultimodal.modules.encoders.swin_transformer_3d_encoder import (
     SwinTransformer3d,
