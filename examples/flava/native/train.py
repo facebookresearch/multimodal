@@ -118,7 +118,11 @@ class Trainer:
             else torch.float16
         )
 
-        self.scaler = ShardedGradScaler() if config.training.enable_amp else None
+        self.scaler = (
+            ShardedGradScaler()
+            if config.training.enable_amp and self.half_dtype == torch.float16
+            else None
+        )
 
     def log(
         self,
