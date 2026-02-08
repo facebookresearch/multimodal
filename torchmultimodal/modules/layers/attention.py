@@ -9,6 +9,7 @@ from typing import Any, Dict, Optional, Tuple, Union
 import torch
 from torch import nn, Tensor
 from torch.nn import functional as F
+from torch.nn.attention import scaled_dot_product_attention_with_weights
 from torchmultimodal.utils.common import shift_dim
 
 
@@ -215,6 +216,14 @@ def scaled_dot_product_attention(
     Returns:
         A tuple of output tensor and attention probabilities.
     """
+    if head_mask is None:
+        return scaled_dot_product_attention_with_weights(
+            q,
+            k,
+            v,
+            attn_mask=attention_mask == 1 if attention_mask is not None else None,
+            dropout_p=attn_dropout,
+        )
 
     # Take the dot product between "query" and "key" and scale to get the raw attention scores.
     attn = torch.matmul(q, k.transpose(-1, -2))
