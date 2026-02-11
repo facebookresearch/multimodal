@@ -23,7 +23,6 @@ class TransformerOutput(NamedTuple):
     last_hidden_state: Optional[Tensor] = None
     pooler_output: Optional[Tensor] = None
     hidden_states: Optional[List[Tensor]] = None
-    attentions: Optional[List[Tensor]] = None
     image_labels: Optional[Tensor] = None
     current_key_values: Optional[List[Tuple[Tensor, Tensor]]] = None
 
