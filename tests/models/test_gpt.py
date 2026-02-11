@@ -109,18 +109,6 @@ def attn_mask():
 
 
 @pytest.fixture
-def head_mask(n_head):
-    def _head_mask(q_seq_len, k_seq_len=None):
-        if k_seq_len is None:
-            k_seq_len = q_seq_len
-        masked = torch.zeros(1, q_seq_len, k_seq_len)
-        unmasked = torch.ones(n_head - 1, q_seq_len, k_seq_len)
-        return torch.cat((masked, unmasked), dim=0)  # (h, q_seq_len, k_seq_len)
-
-    return _head_mask
-
-
-@pytest.fixture
 def logits_mask(in_seq_len, out_seq_len, num_in_tokens, num_out_tokens):
     total_seq_len = in_seq_len + out_seq_len
     num_tokens = num_in_tokens + num_out_tokens
@@ -379,19 +367,16 @@ class TestMultimodalGPT:
         in_tokens,
         out_tokens,
         attn_mask,
-        head_mask,
     ):
         gpt = gpt()
 
         b, in_seq_len = in_tokens.shape
         b, out_seq_len = out_tokens.shape
         attn_mask = attn_mask(in_seq_len + out_seq_len)
-        head_mask = head_mask(in_seq_len + out_seq_len)
         actual = gpt(
             in_tokens=in_tokens,
             out_tokens=out_tokens,
             attn_mask=attn_mask,
-            head_mask=head_mask,
             use_cache=True,
             causal=True,
             right_shift=True,
@@ -401,10 +386,9 @@ class TestMultimodalGPT:
             "decoder_output": {
                 "last_hidden_states": (
                     torch.Size([1, 7, 4]),  # (b, seq_len, d_model)
-                    64.5348,
+                    64.3909,
                 ),
                 "hidden_states": None,
-                "attention_weights": None,
                 "past_key_values": (
                     (
                         {
@@ -424,7 +408,6 @@ class TestMultimodalGPT:
         in_tokens,
         out_tokens,
         attn_mask,
-        head_mask,
         logits_mask,
     ):
         gpt = gpt()
@@ -432,12 +415,10 @@ class TestMultimodalGPT:
         b, in_seq_len = in_tokens.shape
         b, out_seq_len = out_tokens.shape
         attn_mask = attn_mask(in_seq_len + out_seq_len)
-        head_mask = head_mask(in_seq_len + out_seq_len)
         out = gpt(
             in_tokens=in_tokens,
             out_tokens=out_tokens,
             attn_mask=attn_mask,
-            head_mask=head_mask,
             use_cache=True,
             causal=True,
             right_shift=True,
@@ -476,7 +457,6 @@ class TestMultimodalTransformerDecoder:
                 0.2222,
             ),  # (b, in_seq_len, d_model)
             "hidden_states": None,
-            "attention_weights": None,
             "past_key_values": None,
         }
         assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
@@ -491,7 +471,6 @@ class TestMultimodalTransformerDecoder:
                 5.2093,
             ),  # (b, out_seq_len, d_model)
             "hidden_states": None,
-            "attention_weights": None,
             "past_key_values": None,
         }
         assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
@@ -509,7 +488,6 @@ class TestMultimodalTransformerDecoder:
                 7.9519,
             ),  # (b, in_seq_len + out_seq_len, d_model)
             "hidden_states": None,
-            "attention_weights": None,
             "past_key_values": None,
         }
         assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
@@ -537,7 +515,6 @@ class TestMultimodalTransformerDecoder:
                 7.9519,
             ),  # (b, in_seq_len + out_seq_len, d_model)
             "hidden_states": None,
-            "attention_weights": None,
             "past_key_values": None,
         }
         assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
@@ -564,7 +541,6 @@ class TestMultimodalTransformerDecoder:
                 10.1681,
             ),  # (b, in_seq_len + out_seq_len, d_model)
             "hidden_states": None,
-            "attention_weights": None,
             "past_key_values": None,
         }
         assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
@@ -583,21 +559,17 @@ class TestMultimodalTransformerDecoder:
 
 
 class TestTransformerDecoder:
-    def test_forward_mask_extended(
-        self, decoder, decoder_input, attn_mask, head_mask, num_layers
-    ):
+    def test_forward_mask_extended(self, decoder, decoder_input, attn_mask, num_layers):
         b, seq_len, _ = decoder_input.shape
         attn_mask = attn_mask(seq_len).unsqueeze(0)  # add batch dim
-        head_mask = head_mask(seq_len).unsqueeze(0)
-        actual = decoder(decoder_input, attn_mask, head_mask)
+        actual = decoder(decoder_input, attn_mask)
         assert isinstance(actual, TransformerDecoderOutput)
         assert_expected(actual.last_hidden_states.shape, torch.Size([1, 3, 4]))
 
-    def test_forward(self, decoder, decoder_input, attn_mask, head_mask, num_layers):
+    def test_forward(self, decoder, decoder_input, attn_mask, num_layers):
         b, seq_len, _ = decoder_input.shape
         attn_mask = attn_mask(seq_len)
-        head_mask = head_mask(seq_len)
-        actual = decoder(decoder_input, attn_mask, head_mask)
+        actual = decoder(decoder_input, attn_mask)
         assert isinstance(actual, TransformerDecoderOutput)
         assert_expected(actual.last_hidden_states.shape, torch.Size([1, 3, 4]))
 
@@ -605,7 +577,6 @@ class TestTransformerDecoder:
         actual = decoder(
             decoder_input,
             use_cache=True,
-            return_attn_weights=True,
             return_hidden_states=True,
         )
         assert isinstance(actual, TransformerDecoderOutput)
@@ -613,7 +584,6 @@ class TestTransformerDecoder:
         assert_expected(
             len(actual.hidden_states), num_layers + 1
         )  # +1 to include the input hidden_states
-        assert_expected(len(actual.attention_weights), num_layers)
         assert_expected(len(actual.past_key_values), num_layers)
 
 
@@ -623,33 +593,26 @@ class TestTransformerDecoderLayer:
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
             "hidden_states": (torch.Size([1, 3, 4]), 5.1956),  # (b, seq_len, d_model)
-            "attention_weights": None,
             "past_key_values": None,
         }
         assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
 
-    def test_forward_masked(self, decoder_layer, decoder_input, attn_mask, head_mask):
+    def test_forward_masked(self, decoder_layer, decoder_input, attn_mask):
         b, seq_len, _ = decoder_input.shape
         attn_mask = attn_mask(seq_len)
-        head_mask = head_mask(seq_len)
-        actual = decoder_layer(decoder_input, attn_mask, head_mask)
+        actual = decoder_layer(decoder_input, attn_mask)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
-            "hidden_states": (torch.Size([1, 3, 4]), 7.0397),  # (b, seq_len, seq_len)
-            "attention_weights": None,
+            "hidden_states": (torch.Size([1, 3, 4]), 5.6602),  # (b, seq_len, seq_len)
             "past_key_values": None,
         }
         assert_expected_namedtuple(actual, expected, rtol=1e-5, atol=1e-4)
 
     def test_forward_additional_output(self, decoder_layer, decoder_input):
-        actual = decoder_layer(decoder_input, use_cache=True, return_attn_weights=True)
+        actual = decoder_layer(decoder_input, use_cache=True)
         assert isinstance(actual, TransformerLayerOutput)
         expected = {
             "hidden_states": (torch.Size([1, 3, 4]), 5.1956),  # (b, seq_len, seq_len)
-            "attention_weights": (
-                torch.Size([1, 2, 3, 3]),
-                6.0,
-            ),  # (b, h, seq_len, seq_len)
             "past_key_values": {
                 "k": ([1, 2, 3, 2], 4.8075),
                 "v": ([1, 2, 3, 2], -5.6613),
