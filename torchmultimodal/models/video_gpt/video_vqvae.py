@@ -66,7 +66,7 @@ class AxialAttention(nn.Module):
         old_shape = list(v.shape)
         v = v.flatten(end_dim=-3)
 
-        out, _ = scaled_dot_product_attention(
+        out = scaled_dot_product_attention(
             q,
             k,
             v,
