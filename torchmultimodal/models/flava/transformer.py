@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from functools import partial
-from typing import Any, Callable, Optional, Tuple, Union
+from typing import Any, Callable, Optional
 
 import torch
 from torch import nn, Tensor
@@ -61,7 +61,6 @@ class FLAVATransformerWithoutEmbeddings(nn.Module):
             hidden_states,
             attention_mask=attention_mask,
             return_hidden_states=True,
-            return_attn_weights=True,
         )
         sequence_output = encoder_output.last_hidden_state
         sequence_output = self.layernorm(sequence_output)
@@ -73,7 +72,6 @@ class FLAVATransformerWithoutEmbeddings(nn.Module):
             last_hidden_state=sequence_output,
             pooler_output=pooled_output,
             hidden_states=encoder_output.hidden_states,
-            attentions=encoder_output.attentions,
         )
 
 
@@ -81,7 +79,7 @@ class TransformerEncoderLayer(nn.Module):
     """Transformer encoder layer is made up of multihead self-attention and feedforward blocks,
     based on the architecture in "Attention Is All You Need" (Vaswani et al. 2017). Similar to
     ``nn.TransformerEncoderLayer``, but uses a custom ``MultiHeadAttention`` that supports
-    n-dimensional inputs (including sequences, images, video) and head-masking.
+    n-dimensional inputs (including sequences, images, video).
 
     Attributes:
         d_model (int): size of hidden dimension of input
@@ -97,10 +95,6 @@ class TransformerEncoderLayer(nn.Module):
         hidden_states (Tensor): input tensor of shape [b, d1, ..., dn, c] to calculate self-attention on.
         attention_mask (Tensor, optional): mask to be applied to self-attention inputs, ``hidden_states``. See
             ``MultiHeadAttention`` for shape requirements.
-        head_mask (Tensor, optional): mask to be applied to self-attention inputs after softmax and dropout,
-            before matrix multiplication with values. See ``MultiHeadAttention`` for shape requirements.
-        return_attn_weights (bool, optional): return attention probabilities in addition to attention output.
-            Defaults to False.
     """
 
     def __init__(
@@ -136,16 +130,13 @@ class TransformerEncoderLayer(nn.Module):
         self,
         hidden_states: Tensor,
         attention_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
-    ) -> Tuple[Tensor, Tensor]:
-        output, attn_weights = self.attention(
+    ) -> Tensor:
+        output = self.attention(
             hidden_states,
             attention_mask=attention_mask,
-            head_mask=head_mask,
-            return_attn_weights=True,
         )
         output = self.attention_dropout(output)
-        return output, attn_weights
+        return output
 
     def _feedforward_block(self, hidden_states: Tensor) -> Tensor:
         h = self.feedforward(hidden_states)
@@ -156,67 +147,49 @@ class TransformerEncoderLayer(nn.Module):
         self,
         hidden_states: Tensor,
         attention_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
-        return_attn_weights: bool = False,
-    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+    ) -> Tensor:
         x = hidden_states
         inputs = self.attention_layernorm(x)
-        attn_output, attn_weights = self._attention_block(
+        attn_output = self._attention_block(
             inputs,
             attention_mask=attention_mask,
-            head_mask=head_mask,
         )
         attn_residual = attn_output + x
         ff_residual = attn_residual + self._feedforward_block(
             self.feedforward_layernorm(attn_residual)
         )
-        if return_attn_weights:
-            return ff_residual, attn_weights
-        else:
-            return ff_residual
+        return ff_residual
 
     def _forward_postnorm(
         self,
         hidden_states: Tensor,
         attention_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
-        return_attn_weights: bool = False,
-    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+    ) -> Tensor:
         x = hidden_states
-        attn_output, attn_weights = self._attention_block(
+        attn_output = self._attention_block(
             x,
             attention_mask=attention_mask,
-            head_mask=head_mask,
         )
         attn_residual = attn_output + x
         attn_residual = self.attention_layernorm(attn_residual)
         ff_residual = attn_residual + self._feedforward_block(attn_residual)
         outputs = self.feedforward_layernorm(ff_residual)
-        if return_attn_weights:
-            return outputs, attn_weights
-        else:
-            return outputs
+        return outputs
 
     def forward(
         self,
         hidden_states: Tensor,
         attention_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
-        return_attn_weights: bool = False,
-    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+    ) -> Tensor:
         if self.norm_first:
             return self._forward_prenorm(
                 hidden_states,
                 attention_mask,
-                head_mask,
-                return_attn_weights,
             )
         else:
             return self._forward_postnorm(
                 hidden_states,
                 attention_mask,
-                head_mask,
-                return_attn_weights,
             )
 
 
@@ -256,29 +229,18 @@ class TransformerEncoder(nn.Module):
         self,
         hidden_states: Tensor,
         attention_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
-        return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> TransformerOutput:
         all_hidden_states = [] if return_hidden_states else None
-        all_self_attentions = [] if return_attn_weights else None
 
         for layer_module in self.layer:
             if return_hidden_states:
                 all_hidden_states.append(hidden_states)
 
-            layer_outputs = layer_module(
+            hidden_states = layer_module(
                 hidden_states,
                 attention_mask=attention_mask,
-                head_mask=head_mask,
-                return_attn_weights=return_attn_weights,
             )
-
-            if return_attn_weights:
-                hidden_states = layer_outputs[0]
-                all_self_attentions.append(layer_outputs[1])
-            else:
-                hidden_states = layer_outputs
 
         if return_hidden_states:
             all_hidden_states.append(hidden_states)
@@ -289,7 +251,6 @@ class TransformerEncoder(nn.Module):
         return TransformerOutput(
             last_hidden_state=hidden_states,
             hidden_states=all_hidden_states,
-            attentions=all_self_attentions,
         )
 
 
