@@ -71,7 +71,6 @@ class BERTTextEncoder(nn.Module):
         token_type_ids: Optional[Tensor] = None,
         position_ids: Optional[Tensor] = None,
         inputs_embeds: Optional[Tensor] = None,
-        return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> TransformerOutput:
         if input_ids is not None:
@@ -101,7 +100,6 @@ class BERTTextEncoder(nn.Module):
         encoder_output = self.encoder(
             embedding_output,
             attention_mask=attention_mask,
-            return_attn_weights=return_attn_weights,
             return_hidden_states=return_hidden_states,
         )
 
@@ -116,7 +114,6 @@ class BERTTextEncoder(nn.Module):
             last_hidden_state=last_hidden_state,
             pooler_output=pooled_output,
             hidden_states=encoder_output.hidden_states,
-            attentions=encoder_output.attentions,
         )
 
 

@@ -82,9 +82,7 @@ class TransformerCrossAttentionLayer(nn.Module):
     def _self_attention_block(
         self, hidden_states: Tensor, attention_mask: Optional[Tensor] = None
     ) -> Tensor:
-        output = self.attention(
-            hidden_states, attention_mask=attention_mask, return_attn_weights=False
-        )
+        output = self.attention(hidden_states, attention_mask=attention_mask)
         output = self.attention_dropout(output)
         return output
 
@@ -98,7 +96,6 @@ class TransformerCrossAttentionLayer(nn.Module):
             hidden_states,
             encoder_hidden_states,
             attention_mask=cross_attention_mask,
-            return_attn_weights=False,
         )
         output = self.cross_attention_dropout(output)
         return output
