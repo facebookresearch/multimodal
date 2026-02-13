@@ -38,8 +38,7 @@ class AxialAttention(nn.Module):
         k: Tensor,
         v: Tensor,
         attention_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> Tensor:
         """
         Args:
             q (Tensor): Query input of shape ``(b, h, d1, ..., dn, dim_q)`` where ``h`` is the number of
@@ -51,11 +50,9 @@ class AxialAttention(nn.Module):
             attention_mask (Tensor, optional): Tensor of shape ``(b, h, d1, ..., q_dn, k_dn)`` where ``q_dn`` is
                 the dimension of the axis to compute attention on of the query and ``k_dn`` that of the key.
                 Contains 1s for positions to attend to and 0s for masked positions.
-            head_mask (Tensor, optional): Tensor of shape ``(b, h, d1, ..., q_dn, k_dn)``.
-                Contains 1s for positions to attend to and 0s for masked positions.
 
         Returns:
-            A tuple of output tensor and attention probabilities.
+            Output tensor.
         """
         # Ensure axial dim is within right dimensions, should be between head dim and embedding dim
         if self.axial_dim >= len(q.shape) - 1:
@@ -69,17 +66,16 @@ class AxialAttention(nn.Module):
         old_shape = list(v.shape)
         v = v.flatten(end_dim=-3)
 
-        out, attn_probs = scaled_dot_product_attention(
+        out = scaled_dot_product_attention(
             q,
             k,
             v,
             attention_mask=attention_mask,
-            head_mask=head_mask,
             attn_dropout=self.attn_dropout if self.training else 0.0,
         )
         out = out.view(*old_shape)
         out = shift_dim(out, -2, self.axial_dim)
-        return out, attn_probs
+        return out
 
 
 class AxialAttentionBlock(nn.Module):

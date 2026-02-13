@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 from functools import partial
-from typing import Any, Callable, Dict, NamedTuple, Optional, Tuple, Union
+from typing import Any, Callable, Dict, NamedTuple, Optional, Tuple
 
 import torch
 from torch import nn, Tensor
@@ -22,15 +22,12 @@ class TransformerDecoderOutput(NamedTuple):
         last_hidden_states (Tensor): Output from the last layer of the transformer.
         hidden_states (Tuple[Tensor, ...], optional): Outputs from all layers of the transformer.
             Defaults to ``None``.
-        attention_weights (Tuple[Tensor, ...], optional): Attention probabilities from all layers of the
-            transformer. Defaults to ``None``.
         past_key_values (Tuple[Dict[str, Tensor], ...]], optional): If ``use_cache`` is on, contains
             key/value tensors prior to the current step along the sequence. Defaults to ``None``.
     """
 
     last_hidden_states: Tensor
     hidden_states: Optional[Tuple[Tensor, ...]] = None
-    attention_weights: Optional[Tuple[Tensor, ...]] = None
     past_key_values: Optional[Tuple[Dict[str, Tensor], ...]] = None
 
 
@@ -39,14 +36,11 @@ class TransformerLayerOutput(NamedTuple):
 
     Attributes:
         hidden_states (Tensor): Output from the current layer.
-        attention_weights (Tensor, optional): Attention probability tensor of the current layer.
-            Defaults to ``None``.
         past_key_values (Dict[str, Tensor], optional): If ``use_cache`` is on, contains key/value tensors
             prior to the current step along the sequence. Defaults to ``None``.
     """
 
     hidden_states: Tensor
-    attention_weights: Optional[Tensor] = None
     past_key_values: Optional[Dict[str, Tensor]] = None
 
 
@@ -161,12 +155,10 @@ class MultimodalGPT(nn.Module):
         in_pos_ids: Optional[Tensor] = None,
         out_pos_ids: Optional[Tensor] = None,
         attn_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
         logits_mask: Optional[Tensor] = None,
         use_cache: bool = False,
         causal: bool = False,
         right_shift: bool = False,
-        return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> MultimodalGPTOutput:
         """
@@ -182,9 +174,6 @@ class MultimodalGPT(nn.Module):
             attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or
                 ``(b, q_seq_len, k_seq_len)`` where prefixes ``q`` and ``k`` stand for query and key.
                 Contains 1s for positions to attend to and 0s for masked positions. Defaults to ``None``.
-            head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or
-                ``(b, h, q_seq_len, k_seq_len)``. Masks need to be specified for each attention head.
-                Defaults to ``None``.
             logits_mask (Tensor, optional): Tensor of dimension ``(seq_len, num_tokens)`` or
                 ``(b, seq_len, num_tokens)`` to ensure we only calculate probabilities from tokens of the
                 corresponding modality sequence.
@@ -193,8 +182,6 @@ class MultimodalGPT(nn.Module):
             causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
             right_shift (bool): If ``True``, shifts the embedding vectors to the right and prepends it with start of
                 sentence token. Defaults to ``False``. This option is disregarded during training mode
-            return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
-                layer. Defaults to ``False``.
             return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
                 Defaults to ``False``.
 
@@ -207,11 +194,9 @@ class MultimodalGPT(nn.Module):
             in_pos_ids=in_pos_ids,
             out_pos_ids=out_pos_ids,
             attn_mask=attn_mask,
-            head_mask=head_mask,
             use_cache=use_cache,
             causal=causal,
             right_shift=right_shift,
-            return_attn_weights=return_attn_weights,
             return_hidden_states=return_hidden_states,
         )
 
@@ -227,11 +212,9 @@ class MultimodalGPT(nn.Module):
         in_pos_ids: Optional[Tensor] = None,
         out_pos_ids: Optional[Tensor] = None,
         attn_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
         use_cache: bool = False,
         causal: bool = False,
         right_shift: bool = False,
-        return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> TransformerDecoderOutput:
         # During training this method is used in the forward pass to decode input- and
@@ -267,11 +250,9 @@ class MultimodalGPT(nn.Module):
             in_pos_ids=in_pos_ids,
             out_pos_ids=out_pos_ids,
             attn_mask=attn_mask,
-            head_mask=head_mask,
             use_cache=use_cache,
             causal=causal,
             right_shift=right_shift,
-            return_attn_weights=return_attn_weights,
             return_hidden_states=return_hidden_states,
         )
 
@@ -427,11 +408,9 @@ class MultimodalTransformerDecoder(nn.Module):
         in_pos_ids: Optional[Tensor] = None,
         out_pos_ids: Optional[Tensor] = None,
         attn_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
         use_cache: bool = False,
         causal: bool = False,
         right_shift: bool = False,
-        return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> TransformerDecoderOutput:
         """
@@ -447,16 +426,11 @@ class MultimodalTransformerDecoder(nn.Module):
             attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or
                 ``(b, q_seq_len, k_seq_len)`` where prefixes ``q`` and ``k`` stand for query and key.
                 Contains 1s for positions to attend to and 0s for masked positions. Defaults to ``None``.
-            head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or
-                ``(b, h, q_seq_len, k_seq_len)``. Masks need to be specified for each attention head.
-                Defaults to ``None``.
             use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding.
                 If ``False``, recomputes key and value for each decoding step. Defaults to ``False``.
             causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
             right_shift (bool): If ``True``, shifts the embedding vectors to the right and prepends it with start of
                 sentence token. Defaults to ``False``. This option is disregarded during training mode
-            return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
-                layer. Defaults to ``False``.
             return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
                 Defaults to ``False``.
 
@@ -493,11 +467,9 @@ class MultimodalTransformerDecoder(nn.Module):
         return self.decoder(
             x,
             attn_mask,
-            head_mask,
-            use_cache,
-            causal,
-            return_attn_weights,
-            return_hidden_states,
+            use_cache=use_cache,
+            causal=causal,
+            return_hidden_states=return_hidden_states,
         )
 
     def _norm_pos_ids(self, x: Tensor, pos_ids: Optional[Tensor] = None) -> Tensor:
@@ -537,10 +509,8 @@ class TransformerDecoder(nn.Module):
         self,
         hidden_states: Tensor,
         attn_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
         use_cache: bool = False,
         causal: bool = False,
-        return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> TransformerDecoderOutput:
         """
@@ -549,14 +519,9 @@ class TransformerDecoder(nn.Module):
             attn_mask (Tensor, optional): Tensor of dimension ``(q_seq_len, k_seq_len)`` or
                 ``(b, q_seq_len, k_seq_len)`` where prefixes ``q`` and ``k`` stand for query and key.
                 Contains 1s for positions to attend to and 0s for masked positions. Defaults to ``None``.
-            head_mask (Tensor, optional): Tensor of dimension ``(h, q_seq_len, k_seq_len)`` or
-                ``(b, h, q_seq_len, k_seq_len)``. Masks need to be specified for each attention head.
-                Defaults to ``None``.
             use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
                 recomputes key and value for each decoding step. Defaults to ``False``.
             causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
-            return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
-                layer. Defaults to ``False``.
             return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
                 Defaults to ``False``.
 
@@ -568,11 +533,7 @@ class TransformerDecoder(nn.Module):
                 None, None, :, :
             ]  # (q_seq_len, k_seq_len) -> (1, 1, q_seq_len, k_seq_len)
 
-        if head_mask is not None and head_mask.dim() == 3:
-            head_mask = head_mask[None, :, :, :]
-
         all_hidden_states: Tuple[Tensor, ...] = () if return_hidden_states else None
-        all_attentions: Tuple[Tensor, ...] = () if return_attn_weights else None
         all_past_key_values: Tuple[Dict[str, Tensor], ...] = () if use_cache else None
 
         for layer in self.layers:
@@ -581,14 +542,10 @@ class TransformerDecoder(nn.Module):
             layer_outputs = layer(
                 hidden_states,
                 attn_mask,
-                head_mask,
-                use_cache,
-                causal,
-                return_attn_weights,
+                use_cache=use_cache,
+                causal=causal,
             )
             hidden_states = layer_outputs.hidden_states
-            if return_attn_weights:
-                all_attentions = all_attentions + (layer_outputs.attention_weights,)
             if use_cache:
                 all_past_key_values = all_past_key_values + (
                     layer_outputs.past_key_values,
@@ -600,7 +557,6 @@ class TransformerDecoder(nn.Module):
         return TransformerDecoderOutput(
             last_hidden_states=hidden_states,
             hidden_states=all_hidden_states,
-            attention_weights=all_attentions,
             past_key_values=all_past_key_values,
         )
 
@@ -659,10 +615,8 @@ class TransformerDecoderLayer(nn.Module):
         self,
         x: Tensor,
         attn_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
         use_cache: bool = False,
         causal: bool = False,
-        return_attn_weights: bool = False,
     ) -> TransformerLayerOutput:
         """
         Args:
@@ -670,33 +624,21 @@ class TransformerDecoderLayer(nn.Module):
             attn_mask (Tensor, optional): Tensor of dimension ``(b, q_seq_len, k_seq_len)`` where prefixes ``q``
                 and ``k`` stand for query and key. Contains 1s for positions to attend to and 0s for masked positions.
                 Defaults to ``None``.
-            head_mask (Tensor, optional): Tensor of dimension ``(b, h, q_seq_len, k_seq_len)``. Masks need to be
-                specified for each attention head. Defaults to ``None``.
             use_cache (bool, optional): If ``True``, caches past key/value tensors for faster decoding. If ``False``,
                 recomputes key and value for each decoding step. Defaults to ``False``.
             causal (bool, optional): If ``True``, use causal attention. Defaults to ``False``.
-            return_attn_weights (bool, optional): If ``True``, returns attention probabilities of the layer.
-                Defaults to ``False``.
 
         Returns:
             An instance of :class:`~torchmultimodal.models.video_gpt.gpt.TransformerLayerOutput`.
         """
-        attn_probs = None
         past_key_values = None
 
-        attn_out = self._attn(
+        attn_hidden_states = self._attn(
             self.norm_attn(x),
             attn_mask,
-            head_mask,
-            return_attn_weights,
             use_cache=use_cache,
             causal=causal,
         )
-
-        if return_attn_weights:
-            attn_hidden_states, attn_probs = attn_out
-        else:
-            attn_hidden_states = attn_out
 
         if use_cache:
             past_key_values = self.attention.cache
@@ -708,7 +650,6 @@ class TransformerDecoderLayer(nn.Module):
 
         return TransformerLayerOutput(
             hidden_states=x,
-            attention_weights=attn_probs,
             past_key_values=past_key_values,
         )
 
@@ -717,16 +658,12 @@ class TransformerDecoderLayer(nn.Module):
         self,
         x: Tensor,
         attn_mask: Tensor,
-        head_mask: Tensor,
-        return_attn_weights: bool,
         use_cache: bool,
         causal: bool,
-    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+    ) -> Tensor:
         return self.attention(
             x,
             attention_mask=attn_mask,
-            head_mask=head_mask,
-            return_attn_weights=return_attn_weights,
             use_cache=use_cache,
             causal=causal,
         )

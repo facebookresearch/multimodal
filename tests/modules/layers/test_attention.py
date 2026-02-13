@@ -244,7 +244,7 @@ class TestMultiheadAttention:
 
 class TestScaledDotProductAttention:
     def test_scaled_dot_product_attention(self, q, kv):
-        output, weights = scaled_dot_product_attention(q, kv, kv)
+        output = scaled_dot_product_attention(q, kv, kv)
         actual = output
         expected = torch.tensor(
             [
@@ -263,31 +263,13 @@ class TestScaledDotProductAttention:
             ]
         )
         assert_expected(actual, expected, rtol=0, atol=1e-4)
-        actual = weights
-        expected = torch.tensor(
-            [
-                [
-                    [
-                        [
-                            [[0.8797, 0.1203], [0.5595, 0.4405]],
-                            [[0.0553, 0.9447], [0.4549, 0.5451]],
-                        ],
-                        [
-                            [[0.0419, 0.9581], [0.4391, 0.5609]],
-                            [[0.0297, 0.9703], [0.7313, 0.2687]],
-                        ],
-                    ]
-                ]
-            ]
-        )
-        assert_expected(actual, expected, rtol=0, atol=1e-4)
 
     def test_scaled_dot_product_attention_with_attention_mask(self, q, kv):
         attn_shape = torch.Size([1, 1, 2, 2, 2, 2])
         mask = torch.tensor([1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1]).view(
             attn_shape
         )
-        actual, _ = scaled_dot_product_attention(q, kv, kv, attention_mask=mask)
+        actual = scaled_dot_product_attention(q, kv, kv, attention_mask=mask)
         expected = torch.tensor(
             [
                 [
@@ -306,32 +288,8 @@ class TestScaledDotProductAttention:
         )
         assert_expected(actual, expected, rtol=0, atol=1e-4)
 
-    def test_scaled_dot_product_attention_with_head_mask(self, q, kv):
-        attn_shape = torch.Size([1, 1, 2, 2, 2, 2])
-        mask = torch.tensor([1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1]).view(
-            attn_shape
-        )
-        actual, _ = scaled_dot_product_attention(q, kv, kv, head_mask=mask)
-        expected = torch.tensor(
-            [
-                [
-                    [
-                        [
-                            [[-0.6195, 1.7705, 0.8023], [-0.2718, 1.2177, 1.4946]],
-                            [[-0.1561, 0.1993, 0.4882], [0.7800, -0.1800, 0.0093]],
-                        ],
-                        [
-                            [[0.2950, 1.2029, 1.7035], [0.1668, 0.7129, 1.0162]],
-                            [[0.0455, -0.0077, -0.0345], [0.7875, 0.0928, -0.7952]],
-                        ],
-                    ]
-                ]
-            ]
-        )
-        assert_expected(actual, expected, rtol=0, atol=1e-4)
-
     def test_scaled_dot_product_attention_with_dropout(self, q, kv):
-        actual, _ = scaled_dot_product_attention(q, kv, kv, attn_dropout=0.3)
+        actual = scaled_dot_product_attention(q, kv, kv, attn_dropout=0.3)
         expected = torch.tensor(
             [
                 [
@@ -365,7 +323,7 @@ class TestScaledDotProductAttention:
 
 def test_self_attention(self_attn, q, kv):
     k = v = kv
-    actual, _ = self_attn(q, k, v)
+    actual = self_attn(q, k, v)
     # Output of self attention should be same as scaled_dot_product_attention
     # since input dims are flattened
     expected = torch.tensor(
@@ -400,3 +358,43 @@ def test_merge_multihead(input_shape, hidden_dim, q):
     actual = torch.tensor(out.shape)
     expected = torch.tensor((1, *input_shape, hidden_dim))
     assert_expected(actual, expected)
+
+
+def test_sdpa_numerical_equivalence_with_manual(q, kv):
+    """Verify that F.scaled_dot_product_attention (MATH backend) produces
+    numerically identical results to the manual matmul->scale->mask->softmax->matmul
+    implementation."""
+    # Manual reference implementation
+    attn = torch.matmul(q, kv.transpose(-1, -2))
+    attn = attn / torch.sqrt(torch.tensor(q.shape[-1], dtype=q.dtype))
+    attn = torch.nn.functional.softmax(attn, dim=-1)
+    manual_out = torch.matmul(attn, kv)
+
+    # Our implementation (uses F.scaled_dot_product_attention with MATH backend)
+    sdpa_out = scaled_dot_product_attention(q, kv, kv)
+
+    assert torch.allclose(sdpa_out, manual_out, rtol=1e-5, atol=1e-5), (
+        f"Max diff: {(sdpa_out - manual_out).abs().max().item()}"
+    )
+
+
+def test_sdpa_numerical_equivalence_with_mask(q, kv):
+    """Verify numerical equivalence when using an attention mask."""
+    attn_shape = torch.Size([1, 1, 2, 2, 2, 2])
+    mask = torch.tensor([1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1]).view(
+        attn_shape
+    )
+
+    # Manual reference implementation
+    attn = torch.matmul(q, kv.transpose(-1, -2))
+    attn = attn / torch.sqrt(torch.tensor(q.shape[-1], dtype=q.dtype))
+    attn = attn.masked_fill(mask == 0, float("-inf"))
+    attn = torch.nn.functional.softmax(attn, dim=-1)
+    manual_out = torch.matmul(attn, kv)
+
+    # Our implementation
+    sdpa_out = scaled_dot_product_attention(q, kv, kv, attention_mask=mask)
+
+    assert torch.allclose(sdpa_out, manual_out, rtol=1e-5, atol=1e-5), (
+        f"Max diff: {(sdpa_out - manual_out).abs().max().item()}"
+    )

@@ -95,12 +95,9 @@ class TestVideoGPT:
         model = model_fn(**model_params)
         model.eval()
 
-        n_head = model_params["n_head"]
-
         x = torch.tensor([[1, 2, 3, 4]])  # (b, in_seq_len)
         y = torch.tensor([[5, 6, 7]])  # (b, out_seq_len)
         attn_mask = torch.tril(torch.ones(7, 7)).unsqueeze(0)  # (b, seq_len, seq_len)
-        head_mask = torch.ones(1, n_head, 7, 7)  # (b, h, seq_len, seq_len)
 
         num_tokens = model.num_in_tokens + model.num_out_tokens
         logits_mask = torch.ones(1, 7, num_tokens)  # (b, seq_len, num_tokens)
@@ -109,11 +106,9 @@ class TestVideoGPT:
             x,
             y,
             attn_mask=attn_mask,
-            head_mask=head_mask,
             logits_mask=logits_mask,
             use_cache=True,
             causal=True,
-            return_attn_weights=True,
             return_hidden_states=True,
         )
         actual = out.decoder_output.last_hidden_states

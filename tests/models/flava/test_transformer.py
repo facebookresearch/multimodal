@@ -109,11 +109,10 @@ class TestTransformerEncoder:
         return torch.rand((2, 3, 4))
 
     def test_forward(self, inputs, encoder):
-        output = encoder(inputs, return_hidden_states=True, return_attn_weights=True)
+        output = encoder(inputs, return_hidden_states=True)
 
         actual_last_hidden_state = output.last_hidden_state
         actual_hidden_states = torch.sum(torch.stack(output.hidden_states), dim=0)
-        actual_attentions = torch.sum(torch.stack(output.attentions), dim=0)
 
         expected_last_hidden_state = torch.Tensor(
             [
@@ -127,34 +126,6 @@ class TestTransformerEncoder:
                 [[5.1976, 1.9218], [3.8499, 2.2402], [3.1757, -0.1730]],
             ]
         )
-        expected_attentions = torch.Tensor(
-            [
-                [
-                    [
-                        [0.8520, 0.5740, 0.5740],
-                        [0.6232, 0.6884, 0.6884],
-                        [0.6232, 0.6884, 0.6884],
-                    ],
-                    [
-                        [0.5859, 0.7071, 0.7071],
-                        [0.6515, 0.6742, 0.6742],
-                        [0.6515, 0.6742, 0.6742],
-                    ],
-                ],
-                [
-                    [
-                        [0.7392, 0.5216, 0.7392],
-                        [0.6434, 0.7132, 0.6434],
-                        [0.7392, 0.5216, 0.7392],
-                    ],
-                    [
-                        [0.6207, 0.7586, 0.6207],
-                        [0.6589, 0.6822, 0.6589],
-                        [0.6207, 0.7586, 0.6207],
-                    ],
-                ],
-            ]
-        )
 
         assert_expected(
             actual_last_hidden_state, expected_last_hidden_state, rtol=0.0, atol=1e-4
@@ -162,7 +133,6 @@ class TestTransformerEncoder:
         assert_expected(
             actual_hidden_states, expected_hidden_states, rtol=0.0, atol=1e-4
         )
-        assert_expected(actual_attentions, expected_attentions, rtol=0.0, atol=1e-4)
 
         # set flags to false
         output = encoder(inputs)
@@ -172,13 +142,10 @@ class TestTransformerEncoder:
         )
 
     def test_forward_ln(self, inputs_ln, encoder_ln):
-        output = encoder_ln(
-            inputs_ln, return_hidden_states=True, return_attn_weights=True
-        )
+        output = encoder_ln(inputs_ln, return_hidden_states=True)
 
         actual_last_hidden_state = output.last_hidden_state
         actual_hidden_states = torch.sum(torch.stack(output.hidden_states), dim=0)
-        actual_attentions = torch.sum(torch.stack(output.attentions), dim=0)
 
         expected_last_hidden_state = torch.Tensor(
             [
@@ -208,34 +175,6 @@ class TestTransformerEncoder:
                 ],
             ]
         )
-        expected_attentions = torch.Tensor(
-            [
-                [
-                    [
-                        [0.6653, 0.6376, 0.6971],
-                        [0.7078, 0.5621, 0.7302],
-                        [0.6506, 0.6943, 0.6551],
-                    ],
-                    [
-                        [0.6333, 0.7897, 0.5770],
-                        [0.7207, 0.7019, 0.5774],
-                        [0.7285, 0.7195, 0.5520],
-                    ],
-                ],
-                [
-                    [
-                        [0.6919, 0.7021, 0.6060],
-                        [0.6274, 0.7462, 0.6264],
-                        [0.7025, 0.7090, 0.5885],
-                    ],
-                    [
-                        [0.5826, 0.6227, 0.7947],
-                        [0.6855, 0.6174, 0.6971],
-                        [0.7317, 0.6057, 0.6625],
-                    ],
-                ],
-            ]
-        )
 
         assert_expected(
             actual_last_hidden_state, expected_last_hidden_state, rtol=0.0, atol=1e-4
@@ -243,7 +182,6 @@ class TestTransformerEncoder:
         assert_expected(
             actual_hidden_states, expected_hidden_states, rtol=0.0, atol=1e-4
         )
-        assert_expected(actual_attentions, expected_attentions, rtol=0.0, atol=1e-4)
 
         # set flags to false
         output = encoder_ln(inputs_ln)

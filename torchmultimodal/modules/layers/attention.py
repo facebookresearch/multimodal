@@ -4,7 +4,7 @@
 # This source code is licensed under the BSD-style license found in the
 # LICENSE file in the root directory of this source tree.
 
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional
 
 import torch
 from torch import nn, Tensor
@@ -29,8 +29,7 @@ class SelfAttention(nn.Module):
         k: Tensor,
         v: Tensor,
         attention_mask: Optional[Tensor] = None,
-        head_mask: Optional[Tensor] = None,
-    ) -> Tuple[Tensor, Tensor]:
+    ) -> Tensor:
         """
         Args:
             q (Tensor): Query input of shape ``(b, h, d1, ..., dn, dim_q)`` where ``h`` is the number of
@@ -42,11 +41,9 @@ class SelfAttention(nn.Module):
             attention_mask (Tensor, optional): Tensor of shape ``(b, h, q_dn, k_dn)`` where ``q_dn`` is the
                 dimension of the flattened query input along its latent dimensions and ``k_dn`` that of the
                 flattened key input. Contains 1s for positions to attend to and 0s for masked positions.
-            head_mask (Tensor, optional): Tensor of shape ``(b, h, q_dn, k_dn)``.
-                Contains 1s for positions to attend to and 0s for masked positions.
 
         Returns:
-            A tuple of output tensor and attention probabilities.
+            Output tensor.
         """
         _, _, *shape, _ = q.shape
 
@@ -55,16 +52,15 @@ class SelfAttention(nn.Module):
         k = k.flatten(start_dim=2, end_dim=-2)
         v = v.flatten(start_dim=2, end_dim=-2)
 
-        out, attn_probs = scaled_dot_product_attention(
+        out = scaled_dot_product_attention(
             q,
             k,
             v,
             attention_mask=attention_mask,
-            head_mask=head_mask,
             attn_dropout=self.attn_dropout if self.training else 0.0,
         )
 
-        return out.unflatten(2, shape), attn_probs
+        return out.unflatten(2, shape)
 
 
 class MultiHeadAttention(nn.Module):
@@ -121,11 +117,10 @@ class MultiHeadAttention(nn.Module):
         self,
         q: Tensor,
         kv: Optional[Tensor] = None,
-        return_attn_weights: bool = False,
         use_cache: bool = False,
         causal: bool = False,
         **attn_kwargs: Any,
-    ) -> Union[Tensor, Tuple[Tensor, Tensor]]:
+    ) -> Tensor:
         """
         Args:
             q (Tensor): Query of shape ``(b, d1, ..., dn, dim_q)`` or ``(b, seq_len, dim_q)``
@@ -138,8 +133,7 @@ class MultiHeadAttention(nn.Module):
             causal (bool): Whether to use causal attention or not. Default is ``False``.
 
         Returns:
-            * If ``return_attn_weights`` is ``True``: A tuple of output tensor and attention probabilities.
-            * If ``return_attn_weights`` is ``False``: A single output tensor.
+            Output tensor.
         """
         # If kv is specified use those inputs for cross-attention, otherwise use q
         k = v = q if kv is None else kv
@@ -169,17 +163,10 @@ class MultiHeadAttention(nn.Module):
                 k, v = self.cache["k"], self.cache["v"]
 
         attn_out = self.attn(q, k, v, **attn_kwargs)
-        attn_probs = None
-        # Unpack if attn module also returns attn probs
-        if isinstance(attn_out, tuple):
-            attn_out, attn_probs = attn_out
         a = merge_multihead(attn_out)
         a = self.output(a)
 
-        if return_attn_weights:
-            return a, attn_probs
-        else:
-            return a
+        return a
 
 
 def scaled_dot_product_attention(
@@ -187,58 +174,61 @@ def scaled_dot_product_attention(
     k: Tensor,
     v: Tensor,
     attention_mask: Optional[Tensor] = None,
-    head_mask: Optional[Tensor] = None,
     attn_dropout: float = 0.0,
-) -> Tuple[Tensor, Tensor]:
-    """Similar to PyTorch Core's _scaled_dot_product_attention but generalized
-    to handle n-dimensional input tokens (images, video) and support multihead.
-    Computes attention as described in Attention Is All You Need (Vaswani et al. 2017)
+) -> Tensor:
+    """Computes scaled dot-product attention using ``F.scaled_dot_product_attention``
+    with the MATH backend, which follows the same computation path as the manual
+    implementation (matmul -> scale -> mask -> softmax -> dropout -> matmul).
+
+    The attention_mask uses a boolean-style convention where 1 means "attend" and
+    0 means "mask". This is converted to the additive float mask format expected by
+    ``F.scaled_dot_product_attention`` (0.0 for attend, -inf for mask).
 
     Args:
-        q (Tensor): Query of shape ``(b, h, d1, ..., dn, dim_qk)`` or ``(b, h, seq_len, dim_qk)`` where
-            ``h`` is number of attention heads, ``d1, ..., dn`` are latent dimensions and ``dim_qk` is
-            the embedding dim of the query tensor.
-        k (Tensor): Key of shape ``(b, h, d1', ...., dn', dim_qk)`` or ``(b, h, seq_len', dim_qk)`` where
-            ``h`` is the number of attention heads, ``d1', ..., dn'` are latent dimensions and ``dim_qk``
-            is the key embedding dim aligned with query embedding dim,
-            see :class:`~torchmultimodal.modules.layers.attention.MultiHeadAttention`.
-        v (Tensor): Value of shape ``(b, h, d1', ..., dn', dim_v)`` or ``(b, h, seq_len', dim_v)`` where
-            ``h`` is the number of attention heads, ``d1', ..., dn'`` are latent dimensions and ``dim_v``
-            is the embedding dim of the value tensor.
+        q (Tensor): Query of shape ``(b, h, d1, ..., dn, dim_qk)`` or ``(b, h, seq_len, dim_qk)``.
+        k (Tensor): Key of shape ``(b, h, d1', ...., dn', dim_qk)`` or ``(b, h, seq_len', dim_qk)``.
+        v (Tensor): Value of shape ``(b, h, d1', ..., dn', dim_v)`` or ``(b, h, seq_len', dim_v)``.
         attention_mask (Tensor, optional): Tensor of shape ``(b, h, d1, ..., q_dn, k_dn)``.
-            Contains 1s for positions to attend to and 0s for masked positions. Applied before softmax.
-        head_mask (Tensor, optional): Tensor of shape ``(b, h, d1, ..., q_dn, k_dn)``.
             Contains 1s for positions to attend to and 0s for masked positions.
-            Applied after dropout, before matrix multiplication with values.
         attn_dropout (float): Probability of dropout after softmax. Default is ``0.0``.
 
     Returns:
-        A tuple of output tensor and attention probabilities.
+        Output tensor.
     """
-
-    # Take the dot product between "query" and "key" and scale to get the raw attention scores.
-    attn = torch.matmul(q, k.transpose(-1, -2))
-    attn = attn / torch.sqrt(torch.tensor(q.shape[-1]))
-    # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
-    # masked positions, this operation will create a tensor with the computed attention weights
-    # at the positions we want to attend and -inf for masked positions.
-    # Since we are adding it to the raw scores before the softmax, this is
-    # effectively the same as removing these entirely.
     if attention_mask is not None:
-        attn = attn.masked_fill(attention_mask == 0, float("-inf"))
-    # Normalize the attention scores to probabilities
-    attn_float = F.softmax(attn, dim=-1)
-    attn = attn_float.type_as(attn)  # b, h, d1, ..., q_dn, k_dn
-    # This is actually dropping out entire tokens to attend to, which might
-    # seem a bit unusual, but is taken from the original Transformer paper.
-    attn = F.dropout(attn, p=attn_dropout)
-    # Mask heads if we want to
-    if head_mask is not None:
-        attn = attn * head_mask
-    # For each query sum over the key/value dim with attention weights
-    a = torch.matmul(attn, v)  # b, h, d1, ..., q_dn, c
+        # Convert boolean-style mask (1=attend, 0=mask) to additive float mask
+        # expected by F.scaled_dot_product_attention (0.0=attend, -inf=mask)
+        attention_mask = torch.zeros_like(attention_mask, dtype=q.dtype).masked_fill(
+            attention_mask == 0, float("-inf")
+        )
 
-    return a, attn
+    # F.scaled_dot_product_attention expects 4D inputs (b, h, seq_len, dim).
+    # For n-dimensional inputs (b, h, d1, ..., dn, dim), fold the extra spatial
+    # dims (d1, ..., dn-1) into the batch dimension, keeping only the last
+    # spatial dim as the sequence dim.
+    needs_reshape = q.dim() > 4
+    if needs_reshape:
+        q_shape = q.shape
+        # Fold (b, h, d1, ..., dn-1) into one batch dim, keep (dn, dim)
+        batch_dims = q_shape[:-2]
+        q = q.reshape(-1, *q_shape[-2:])[:, None]  # (B', 1, dn, dim)
+        k = k.reshape(-1, *k.shape[-2:])[:, None]
+        v = v.reshape(-1, *v.shape[-2:])[:, None]
+        if attention_mask is not None:
+            attention_mask = attention_mask.reshape(-1, *attention_mask.shape[-2:])[
+                :, None
+            ]
+
+    with torch.nn.attention.sdpa_kernel(torch.nn.attention.SDPBackend.MATH):
+        out = F.scaled_dot_product_attention(
+            q, k, v, attn_mask=attention_mask, dropout_p=attn_dropout
+        )
+
+    if needs_reshape:
+        # Restore shape: (B', 1, dn, dim_v) -> (b, h, d1, ..., dn, dim_v)
+        out = out.squeeze(1).reshape(*batch_dims, *out.shape[-2:])
+
+    return out
 
 
 def split_multihead(x: Tensor, n_head: int) -> Tensor:

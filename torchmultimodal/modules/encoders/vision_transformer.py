@@ -82,7 +82,6 @@ class VisionTransformer(nn.Module):
             last_hidden_state=last_hidden_state,
             pooler_output=pooled_output,
             hidden_states=encoder_output.hidden_states,
-            attentions=encoder_output.attentions,
         )
 
 
