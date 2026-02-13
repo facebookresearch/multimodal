@@ -176,9 +176,13 @@ def scaled_dot_product_attention(
     attention_mask: Optional[Tensor] = None,
     attn_dropout: float = 0.0,
 ) -> Tensor:
-    """Computes scaled dot-product attention. Similar to PyTorch Core's
-    ``scaled_dot_product_attention`` but generalized to handle n-dimensional
-    input tokens (images, video) and support multihead.
+    """Computes scaled dot-product attention using ``F.scaled_dot_product_attention``
+    with the MATH backend, which follows the same computation path as the manual
+    implementation (matmul -> scale -> mask -> softmax -> dropout -> matmul).
+
+    The attention_mask uses a boolean-style convention where 1 means "attend" and
+    0 means "mask". This is converted to the additive float mask format expected by
+    ``F.scaled_dot_product_attention`` (0.0 for attend, -inf for mask).
 
     Args:
         q (Tensor): Query of shape ``(b, h, d1, ..., dn, dim_qk)`` or ``(b, h, seq_len, dim_qk)``.
@@ -191,27 +195,40 @@ def scaled_dot_product_attention(
     Returns:
         Output tensor.
     """
-
-    # Take the dot product between "query" and "key" and scale to get the raw attention scores.
-    attn = torch.matmul(q, k.transpose(-1, -2))
-    attn = attn / torch.sqrt(torch.tensor(q.shape[-1]))
-    # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
-    # masked positions, this operation will create a tensor with the computed attention weights
-    # at the positions we want to attend and -inf for masked positions.
-    # Since we are adding it to the raw scores before the softmax, this is
-    # effectively the same as removing these entirely.
     if attention_mask is not None:
-        attn = attn.masked_fill(attention_mask == 0, float("-inf"))
-    # Normalize the attention scores to probabilities
-    attn_float = F.softmax(attn, dim=-1)
-    attn = attn_float.type_as(attn)  # b, h, d1, ..., q_dn, k_dn
-    # This is actually dropping out entire tokens to attend to, which might
-    # seem a bit unusual, but is taken from the original Transformer paper.
-    attn = F.dropout(attn, p=attn_dropout)
-    # For each query sum over the key/value dim with attention weights
-    a = torch.matmul(attn, v)  # b, h, d1, ..., q_dn, c
+        # Convert boolean-style mask (1=attend, 0=mask) to additive float mask
+        # expected by F.scaled_dot_product_attention (0.0=attend, -inf=mask)
+        attention_mask = torch.zeros_like(attention_mask, dtype=q.dtype).masked_fill(
+            attention_mask == 0, float("-inf")
+        )
 
-    return a
+    # F.scaled_dot_product_attention expects 4D inputs (b, h, seq_len, dim).
+    # For n-dimensional inputs (b, h, d1, ..., dn, dim), fold the extra spatial
+    # dims (d1, ..., dn-1) into the batch dimension, keeping only the last
+    # spatial dim as the sequence dim.
+    needs_reshape = q.dim() > 4
+    if needs_reshape:
+        q_shape = q.shape
+        # Fold (b, h, d1, ..., dn-1) into one batch dim, keep (dn, dim)
+        batch_dims = q_shape[:-2]
+        q = q.reshape(-1, *q_shape[-2:])[:, None]  # (B', 1, dn, dim)
+        k = k.reshape(-1, *k.shape[-2:])[:, None]
+        v = v.reshape(-1, *v.shape[-2:])[:, None]
+        if attention_mask is not None:
+            attention_mask = attention_mask.reshape(-1, *attention_mask.shape[-2:])[
+                :, None
+            ]
+
+    with torch.nn.attention.sdpa_kernel(torch.nn.attention.SDPBackend.MATH):
+        out = F.scaled_dot_product_attention(
+            q, k, v, attn_mask=attention_mask, dropout_p=attn_dropout
+        )
+
+    if needs_reshape:
+        # Restore shape: (B', 1, dn, dim_v) -> (b, h, d1, ..., dn, dim_v)
+        out = out.squeeze(1).reshape(*batch_dims, *out.shape[-2:])
+
+    return out
 
 
 def split_multihead(x: Tensor, n_head: int) -> Tensor:

@@ -358,3 +358,43 @@ def test_merge_multihead(input_shape, hidden_dim, q):
     actual = torch.tensor(out.shape)
     expected = torch.tensor((1, *input_shape, hidden_dim))
     assert_expected(actual, expected)
+
+
+def test_sdpa_numerical_equivalence_with_manual(q, kv):
+    """Verify that F.scaled_dot_product_attention (MATH backend) produces
+    numerically identical results to the manual matmul->scale->mask->softmax->matmul
+    implementation."""
+    # Manual reference implementation
+    attn = torch.matmul(q, kv.transpose(-1, -2))
+    attn = attn / torch.sqrt(torch.tensor(q.shape[-1], dtype=q.dtype))
+    attn = torch.nn.functional.softmax(attn, dim=-1)
+    manual_out = torch.matmul(attn, kv)
+
+    # Our implementation (uses F.scaled_dot_product_attention with MATH backend)
+    sdpa_out = scaled_dot_product_attention(q, kv, kv)
+
+    assert torch.allclose(sdpa_out, manual_out, rtol=1e-5, atol=1e-5), (
+        f"Max diff: {(sdpa_out - manual_out).abs().max().item()}"
+    )
+
+
+def test_sdpa_numerical_equivalence_with_mask(q, kv):
+    """Verify numerical equivalence when using an attention mask."""
+    attn_shape = torch.Size([1, 1, 2, 2, 2, 2])
+    mask = torch.tensor([1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1]).view(
+        attn_shape
+    )
+
+    # Manual reference implementation
+    attn = torch.matmul(q, kv.transpose(-1, -2))
+    attn = attn / torch.sqrt(torch.tensor(q.shape[-1], dtype=q.dtype))
+    attn = attn.masked_fill(mask == 0, float("-inf"))
+    attn = torch.nn.functional.softmax(attn, dim=-1)
+    manual_out = torch.matmul(attn, kv)
+
+    # Our implementation
+    sdpa_out = scaled_dot_product_attention(q, kv, kv, attention_mask=mask)
+
+    assert torch.allclose(sdpa_out, manual_out, rtol=1e-5, atol=1e-5), (
+        f"Max diff: {(sdpa_out - manual_out).abs().max().item()}"
+    )
