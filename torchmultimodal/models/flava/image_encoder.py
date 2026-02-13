@@ -217,7 +217,6 @@ class ImageTransformer(nn.Module):
         encoder_output = self.encoder(
             embedding_output,
             attention_mask=attention_mask,
-            return_attn_weights=True,
             return_hidden_states=True,
         )
         sequence_output = encoder_output.last_hidden_state
@@ -230,7 +229,6 @@ class ImageTransformer(nn.Module):
             last_hidden_state=sequence_output,
             pooler_output=pooled_output,
             hidden_states=encoder_output.hidden_states,
-            attentions=encoder_output.attentions,
         )
 
 
@@ -308,5 +306,4 @@ class ImageTransformerWithVAE(nn.Module):
             last_hidden_state=output.last_hidden_state,
             pooler_output=output.pooler_output,
             hidden_states=output.hidden_states,
-            attentions=output.attentions,
         )
