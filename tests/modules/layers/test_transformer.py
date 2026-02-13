@@ -139,7 +139,6 @@ class TestTransformerEncoder:
             ):
                 assert_expected(state_1, state_2)
 
-        assert actual.attentions == expected_output.attentions
         assert_expected(
             actual.last_hidden_state,
             expected_output.last_hidden_state,

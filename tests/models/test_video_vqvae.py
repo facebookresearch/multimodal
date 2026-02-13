@@ -72,7 +72,7 @@ class TestAxialBlock:
 
     def test_axial_attention(self, axial_attn, q, kv):
         k = v = kv
-        actual, _ = axial_attn(q, k, v)
+        actual = axial_attn(q, k, v)
         expected = torch.tensor(
             [
                 [

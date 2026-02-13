@@ -66,7 +66,6 @@ class GenerationUtil:
         causal: bool = False,
         top_k: Optional[int] = None,
         top_p: Optional[float] = None,
-        return_attn_weights: bool = False,
         return_hidden_states: bool = False,
         **model_kwargs: Any,
     ) -> SampleOutput:
@@ -83,8 +82,6 @@ class GenerationUtil:
                 Defaults to ``None``.
             top_p (float, optional): Threshold that determines the top tokens to keep in terms of
                 cumulative probability. Defaults to ``None``.
-            return_attn_weights (bool, optional): If ``True``, returns attention probabilities of each transformer
-                layer. Defaults to ``False``.
             return_hidden_states (bool, optional): If ``True``, returns the embeddings of each transformer layer.
                 Defaults to ``False``.
             model_kwargs (Any): Additional model specific kwargs will be forwarded to the ``forward``
@@ -118,7 +115,6 @@ class GenerationUtil:
             use_cache=use_cache,
             causal=causal,
             right_shift=True,
-            return_attn_weights=return_attn_weights,
             return_hidden_states=return_hidden_states,
         )
 
@@ -137,7 +133,6 @@ class GenerationUtil:
                     use_cache=use_cache,
                     causal=causal,
                     right_shift=False,
-                    return_attn_weights=return_attn_weights,
                     return_hidden_states=return_hidden_states,
                 )
             else:
@@ -148,7 +143,6 @@ class GenerationUtil:
                     use_cache=use_cache,
                     causal=causal,
                     right_shift=False,
-                    return_attn_weights=return_attn_weights,
                     return_hidden_states=return_hidden_states,
                 )
 

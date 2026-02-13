@@ -77,7 +77,6 @@ class TestFlavaTextEncoder:
         text_encoder, _ = text_encoder_components
         out = text_encoder(
             input_ids,
-            return_attn_weights=True,
             return_hidden_states=True,
         )
 
@@ -95,8 +94,6 @@ class TestFlavaTextEncoder:
             rtol=0.0,
         )
 
-        assert_expected(out.attentions, (torch.Tensor([[[[0, 1.0], [0.0, 1.0]]]]),))
-
     def test_text_transformer_attn_mask(
         self, text_encoder_components, input_ids, attn_mask
     ):
@@ -104,7 +101,6 @@ class TestFlavaTextEncoder:
         out = text_encoder(
             input_ids,
             attention_mask=attn_mask,
-            return_attn_weights=True,
             return_hidden_states=True,
         )
 
@@ -123,4 +119,3 @@ class TestFlavaTextEncoder:
         )
 
         assert_expected(out.pooler_output, torch.Tensor([[[1.0, -1.0], [-1.0, 1.0]]]))
-        assert_expected(out.attentions, (torch.Tensor([[[[1.0, 0], [1.0, 0]]]]),))

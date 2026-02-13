@@ -216,9 +216,7 @@ class TestFLAVAModel:
         image, _, text, _ = inputs
         actual = flava(image, text)
         expected_image = image_encoder(image)
-        expected_text = text_encoder(
-            text, return_attn_weights=True, return_hidden_states=True
-        )
+        expected_text = text_encoder(text, return_hidden_states=True)
         assert actual.text_masked == TransformerOutput()
         assert actual.multimodal_masked == TransformerOutput()
         assert actual.multimodal == TransformerOutput()
@@ -244,12 +242,8 @@ class TestFLAVAModel:
         )
         expected_image = image_encoder(image)
         expected_image_masked = image_encoder(image, masked_image)
-        expected_text = text_encoder(
-            text, return_attn_weights=True, return_hidden_states=True
-        )
-        expected_text_masked = text_encoder(
-            masked_text, return_attn_weights=True, return_hidden_states=True
-        )
+        expected_text = text_encoder(text, return_hidden_states=True)
+        expected_text_masked = text_encoder(masked_text, return_hidden_states=True)
         assert actual.multimodal == TransformerOutput()
         assert_expected(actual.text_masked, expected_text_masked)
         assert_expected(
@@ -277,9 +271,7 @@ class TestFLAVAModel:
         text = torch.ones(2, 3, dtype=torch.int32)
         masked_text = torch.ones(2, 3, dtype=torch.int32)
         actual = flava(text=text, text_masked=masked_text)
-        expected_text = text_encoder(
-            text, return_attn_weights=True, return_hidden_states=True
-        )
+        expected_text = text_encoder(text, return_hidden_states=True)
 
         assert actual.multimodal_masked == TransformerOutput()
         assert actual.multimodal == TransformerOutput()
@@ -289,9 +281,7 @@ class TestFLAVAModel:
         assert_expected(actual.text, expected_text)
         assert_expected(
             actual.text_masked,
-            text_encoder(
-                masked_text, return_attn_weights=True, return_hidden_states=True
-            ),
+            text_encoder(masked_text, return_hidden_states=True),
         )
         assert_expected(
             actual.projected_text_embeddings, expected_text.last_hidden_state[:, 0, :]
@@ -300,9 +290,7 @@ class TestFLAVAModel:
     def test_forward_text(self, text_encoder, flava, inputs):
         _, _, text, _ = inputs
         actual = flava(text=text)
-        expected_text = text_encoder(
-            text, return_attn_weights=True, return_hidden_states=True
-        )
+        expected_text = text_encoder(text, return_hidden_states=True)
         assert actual.multimodal_masked == TransformerOutput()
         assert actual.multimodal == TransformerOutput()
         assert actual.image == TransformerOutput()
