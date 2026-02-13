@@ -63,7 +63,6 @@ class ModifiedTransformerEncoder(nn.Module):
         self,
         embeddings: Tensor,
         attention_mask: Optional[Tensor] = None,
-        return_attn_weights: bool = False,
         return_hidden_states: bool = False,
     ) -> TransformerOutput:
         encoded = embeddings
