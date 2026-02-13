@@ -134,19 +134,17 @@ def test_lookup(model_fn, modality, expected_shape, expected_sum):
 def test_forward_no_pretrained(model_fn, video_seq_len, expected):
     test_params = {"video_seq_len": video_seq_len}
     kwargs = {**_model_params, **test_params}
-    n_head = kwargs["n_head"]
 
     x = torch.tensor([[1, 2, 3, 4]])
     y = torch.tensor([[5, 6, 7]])
     attn_mask = torch.tril(torch.ones(7, 7)).unsqueeze(0)  # (b, seq_len, seq_len)
-    head_mask = torch.ones(1, n_head, 7, 7)  # (b, h, seq_len, seq_len)
 
     model = model_fn(**kwargs)
     model.eval()
     num_tokens = model.num_in_tokens + model.num_out_tokens
     logits_mask = torch.ones(1, 7, num_tokens)  # (b, seq_len, num_tokens)
 
-    out = model(x, y, attn_mask=attn_mask, head_mask=head_mask, logits_mask=logits_mask)
+    out = model(x, y, attn_mask=attn_mask, logits_mask=logits_mask)
     actual = out.decoder_output.last_hidden_states
     assert_expected(actual.shape, (1, 7, 768))
     assert_expected(actual.sum().item(), expected, rtol=1e-5, atol=1e-4)
@@ -163,19 +161,17 @@ def test_forward_vqvae_pretrained(model_fn, video_seq_len, expected):
         "pretrained_video_vqvae_model_key": vqvae_model_key,
     }
     kwargs = {**_model_params, **test_params}
-    n_head = kwargs["n_head"]
 
     x = torch.tensor([[1, 2, 3, 4]])
     y = torch.tensor([[5, 6, 7]])
     attn_mask = torch.tril(torch.ones(7, 7)).unsqueeze(0)  # (b, seq_len, seq_len)
-    head_mask = torch.ones(1, n_head, 7, 7)  # (b, h, seq_len, seq_len)
 
     model = model_fn(**kwargs)
     model.eval()
     num_tokens = model.num_in_tokens + model.num_out_tokens
     logits_mask = torch.ones(1, 7, num_tokens)  # (b, seq_len, num_tokens)
 
-    out = model(x, y, attn_mask=attn_mask, head_mask=head_mask, logits_mask=logits_mask)
+    out = model(x, y, attn_mask=attn_mask, logits_mask=logits_mask)
     actual = out.decoder_output.last_hidden_states
     assert_expected(actual.shape, (1, 7, 768))
     assert_expected(actual.sum().item(), expected, rtol=1, atol=1e-4)
@@ -192,19 +188,17 @@ def test_forward_gpt_pretrained(model_fn, video_seq_len, expected):
         "pretrained_text_video_gpt_model_key": gpt_model_key,
     }
     kwargs = {**_model_params, **test_params}
-    n_head = kwargs["n_head"]
 
     x = torch.tensor([[1, 2, 3, 4]])
     y = torch.tensor([[5, 6, 7]])
     attn_mask = torch.tril(torch.ones(7, 7)).unsqueeze(0)  # (b, seq_len, seq_len)
-    head_mask = torch.ones(1, n_head, 7, 7)  # (b, h, seq_len, seq_len)
 
     model = model_fn(**kwargs)
     model.eval()
     num_tokens = model.num_in_tokens + model.num_out_tokens
     logits_mask = torch.ones(1, 7, num_tokens)  # (b, seq_len, num_tokens)
 
-    out = model(x, y, attn_mask=attn_mask, head_mask=head_mask, logits_mask=logits_mask)
+    out = model(x, y, attn_mask=attn_mask, logits_mask=logits_mask)
     actual = out.decoder_output.last_hidden_states
     assert_expected(actual.shape, (1, 7, 768))
     assert_expected(actual.sum().item(), expected, rtol=1, atol=1e-4)
