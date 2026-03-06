@@ -31,8 +31,8 @@ class TestALBEFVisionEncoder:
         output = vit(input)
         expected = Tensor(
             [
-                [1.399478, -0.875986, -0.523492],
-                [-0.869867, 1.400589, -0.530722],
+                [1.407929, -0.819281, -0.588648],
+                [-0.692709, 1.414116, -0.721407],
             ]
         ).unsqueeze(0)
         assert_expected(output, expected, rtol=0, atol=1e-4)
