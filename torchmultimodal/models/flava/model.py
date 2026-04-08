@@ -29,6 +29,7 @@ from torchmultimodal.modules.losses.flava import (
     FLAVAPretrainingLossOutput,
     Pooler,
 )
+from torchmultimodal.utils.attention import get_extended_attention_mask
 from torchmultimodal.utils.common import load_module_from_url, ModelOutput
 from typing_extensions import Literal
 
@@ -132,7 +133,16 @@ class FLAVAModel(nn.Module):
         text_masked: Optional[Tensor] = None,
         required_embedding: Optional[EMBEDDING_OPTIONS] = None,
         skip_unmasked_mm_encoder: bool = True,
+        text_pad_mask: Optional[Tensor] = None,
+        text_masked_pad_mask: Optional[Tensor] = None,
     ) -> FLAVAOutput:
+        if text_pad_mask is None and text is not None:
+            pad_token_id = getattr(self.text_encoder.embeddings, "pad_token_id", 0) if hasattr(self.text_encoder, "embeddings") else 0
+            text_pad_mask = (text != pad_token_id).long()
+        if text_masked_pad_mask is None and text_masked is not None:
+            pad_token_id = getattr(self.text_encoder.embeddings, "pad_token_id", 0) if hasattr(self.text_encoder, "embeddings") else 0
+            text_masked_pad_mask = (text_masked != pad_token_id).long()
+
         if required_embedding is None:
             if image is not None and text is not None:
                 required_embedding = "mm"
@@ -160,7 +170,7 @@ class FLAVAModel(nn.Module):
             text,
             required_embedding,
             ["text", "mm"],
-            partial(self.encode_text, projection=True),
+            partial(self.encode_text, text_mask=text_pad_mask, projection=True),
         )
         if len(text_encoding_out) == 2:
             text_outputs, projected_text_embeddings = (
@@ -182,7 +192,7 @@ class FLAVAModel(nn.Module):
             text_masked,
             required_embedding,
             ["text", "mm"],
-            self.encode_text,
+            partial(self.encode_text, text_mask=text_masked_pad_mask),
         )
         assert type(text_masked_outputs) == TransformerOutput
 
@@ -193,6 +203,16 @@ class FLAVAModel(nn.Module):
             # Take last hidden state and not the last_hidden_state because
             # for flava we want the hidden state without final layernorm.
             if not skip_unmasked_mm_encoder:
+                mm_attention_mask = None
+                if text_pad_mask is not None and image_outputs.hidden_states:
+                    image_seq_len = image_outputs.hidden_states[-1].shape[1]
+                    image_mask = torch.ones(
+                        (text_pad_mask.shape[0], image_seq_len),
+                        device=text_pad_mask.device,
+                        dtype=text_pad_mask.dtype
+                    )
+                    mm_attention_mask = torch.cat([image_mask, text_pad_mask], dim=1)
+
                 # Unmasked multimodal embedding is not currently used by any of the FLAVA losses.
                 multimodal_outputs = self.encode_mm(
                     (
@@ -205,7 +225,19 @@ class FLAVAModel(nn.Module):
                         if text_outputs.hidden_states  # type: ignore
                         else None
                     ),
+                    attention_mask=mm_attention_mask,
                 )
+            
+            mm_masked_attention_mask = None
+            if text_masked_pad_mask is not None and image_masked_outputs.hidden_states:
+                image_seq_len = image_masked_outputs.hidden_states[-1].shape[1]
+                image_mask = torch.ones(
+                    (text_masked_pad_mask.shape[0], image_seq_len),
+                    device=text_masked_pad_mask.device,
+                    dtype=text_masked_pad_mask.dtype
+                )
+                mm_masked_attention_mask = torch.cat([image_mask, text_masked_pad_mask], dim=1)
+
             multimodal_masked_outputs = self.encode_mm(
                 (
                     image_masked_outputs.hidden_states[-1]
@@ -217,6 +249,7 @@ class FLAVAModel(nn.Module):
                     if text_masked_outputs.hidden_states
                     else None
                 ),
+                attention_mask=mm_masked_attention_mask,
             )
 
         return FLAVAOutput(
@@ -286,6 +319,7 @@ class FLAVAModel(nn.Module):
         self,
         image_embedding: Tensor,
         text_embedding: Tensor,
+        attention_mask: Optional[Tensor] = None,
     ) -> TransformerOutput:
         if image_embedding is None or text_embedding is None:
             # Since nothing is passed, it might be case without
@@ -295,7 +329,9 @@ class FLAVAModel(nn.Module):
         image_embedding = self.image_to_mm_projection(image_embedding)
         text_embedding = self.text_to_mm_projection(text_embedding)
         fused_state = torch.cat([image_embedding, text_embedding], dim=1)
-        return self.mm_encoder(fused_state)
+        if attention_mask is not None:
+            attention_mask = get_extended_attention_mask(attention_mask)
+        return self.mm_encoder(fused_state, attention_mask=attention_mask)
 
 
 class FLAVAForPreTraining(nn.Module):
@@ -342,6 +378,8 @@ class FLAVAForPreTraining(nn.Module):
         skip_unmasked_mm_encoder: bool = True,
         itm_labels: Optional[Tensor] = None,
         mlm_labels: Optional[Tensor] = None,
+        text_pad_mask: Optional[Tensor] = None,
+        text_masked_pad_mask: Optional[Tensor] = None,
     ) -> FLAVAPretrainingLossOutput:
         image_labels = None
         if image_for_codebook is not None:
@@ -356,6 +394,8 @@ class FLAVAForPreTraining(nn.Module):
             text_masked=text_masked,
             required_embedding=required_embedding,
             skip_unmasked_mm_encoder=skip_unmasked_mm_encoder,
+            text_pad_mask=text_pad_mask,
+            text_masked_pad_mask=text_masked_pad_mask,
         )
 
         return self.loss(
@@ -397,6 +437,7 @@ class FLAVAForClassification(nn.Module):
         required_embedding: Optional[EMBEDDING_OPTIONS] = None,
         labels: Optional[Tensor] = None,
         cls_index: int = 0,
+        text_pad_mask: Optional[Tensor] = None,
     ) -> FLAVAForClassificationOutput:
         flava_output: FLAVAOutput = self.model(
             image=image,
@@ -404,6 +445,7 @@ class FLAVAForClassification(nn.Module):
             required_embedding=required_embedding,
             # Don't skip the encoder for classification
             skip_unmasked_mm_encoder=False,
+            text_pad_mask=text_pad_mask,
         )
 
         hidden_state: Optional[Tensor] = None

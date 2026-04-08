@@ -49,6 +49,13 @@ class FLAVATransformerWithoutEmbeddings(nn.Module):
         hidden_states: Optional[Tensor] = None,
         attention_mask: Optional[Tensor] = None,
     ) -> TransformerOutput:
+        """
+        Args:
+            hidden_states (Tensor, optional): Input tensor of shape [batch, seq_len, hidden_size]
+            attention_mask (Tensor, optional): Mask to be applied to self-attention inputs. 
+                If provided, it should be pre-expanded via `get_extended_attention_mask` to 
+                shape (batch_size, 1, 1, seq_len). The internal cls_token expansion is handled automatically.
+        """
         if hidden_states is None:
             raise ValueError("You have to specify hidden_states")
 
@@ -56,6 +63,15 @@ class FLAVATransformerWithoutEmbeddings(nn.Module):
             batch_size = hidden_states.shape[0]
             cls_tokens = self.cls_token.expand(batch_size, -1, -1)
             hidden_states = torch.cat((cls_tokens, hidden_states), dim=1)
+            if attention_mask is not None:
+                cls_mask_shape = list(attention_mask.shape)
+                cls_mask_shape[-1] = 1
+                cls_mask = torch.ones(
+                    cls_mask_shape,
+                    device=attention_mask.device,
+                    dtype=attention_mask.dtype,
+                )
+                attention_mask = torch.cat((cls_mask, attention_mask), dim=-1)
 
         encoder_output = self.encoder(
             hidden_states,

@@ -192,10 +192,14 @@ class TestFLAVAModel:
         image_encoder,
         text_encoder,
     ):
+        class DummyMMEncoder(nn.Module):
+            def forward(self, hidden_states, attention_mask=None):
+                return hidden_states
+
         flava_model = FLAVAModel(
             image_encoder=image_encoder,
             text_encoder=text_encoder,
-            mm_encoder=nn.Identity(),
+            mm_encoder=DummyMMEncoder(),
             image_to_mm_projection=nn.Identity(),
             text_to_mm_projection=nn.Identity(),
             text_projection=nn.Identity(),
@@ -343,3 +347,49 @@ class TestFLAVAModel:
         assert_expected(
             actual.projected_image_embeddings, expected_image.last_hidden_state[:, 0, :]
         )
+
+    def test_attention_mask_affects_output(self):
+        from torchmultimodal.models.flava.model import flava_multimodal_encoder
+        from torchmultimodal.utils.attention import get_extended_attention_mask
+
+        model = flava_multimodal_encoder(
+            hidden_size=4, num_attention_heads=1, num_hidden_layers=1, intermediate_size=4
+        )
+        model.eval()
+
+        torch.manual_seed(42)
+        B, seq_len = 2, 8  # simulates fused image+text sequence
+        hidden_states = torch.randn(B, seq_len, 4)  # non-trivial random inputs
+
+        # Mask that blocks last 2 positions (simulating PAD tokens)
+        mask_with_pad = torch.ones(B, seq_len, dtype=torch.long)
+        mask_with_pad[:, -2:] = 0
+        mask_no_pad = torch.ones(B, seq_len, dtype=torch.long)
+
+        with torch.no_grad():
+            out_masked   = model(hidden_states, 
+                                 attention_mask=get_extended_attention_mask(mask_with_pad))
+            out_unmasked = model(hidden_states, 
+                                 attention_mask=get_extended_attention_mask(mask_no_pad))
+
+        assert not torch.allclose(
+            out_masked.last_hidden_state,
+            out_unmasked.last_hidden_state,
+        ), "Masking pad positions should change encoder output"
+
+    def test_flava_transformer_without_embeddings_attention_mask(self):
+        from torchmultimodal.models.flava.model import flava_multimodal_encoder
+        model = flava_multimodal_encoder(
+            hidden_size=2,
+            num_attention_heads=1,
+            num_hidden_layers=1,
+            intermediate_size=2,
+        )
+        batch_size = 2
+        seq_len = 5
+        hidden_states = torch.randn(batch_size, seq_len, 2)
+        attention_mask = torch.ones(batch_size, seq_len)
+        from torchmultimodal.utils.attention import get_extended_attention_mask
+        attention_mask = get_extended_attention_mask(attention_mask)
+        out = model(hidden_states, attention_mask=attention_mask)
+        assert out.last_hidden_state is not None
