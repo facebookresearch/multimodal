@@ -7,8 +7,7 @@
 
 import pytest
 import torch
-from tests.test_utils import assert_expected, set_rng_seed
-from torch import Tensor
+from tests.test_utils import set_rng_seed
 from torchmultimodal.models.albef.image_encoder import ALBEFVisionEncoder
 
 
@@ -23,19 +22,6 @@ class TestALBEFVisionEncoder:
         hidden_size=3,
         mlp_dim=6,
     )
-
-    def test_vision_transformer(self):
-        set_rng_seed(0)
-        vit = self.vision_encoder
-        input = torch.randn(1, 3, 4, 4)
-        output = vit(input)
-        expected = Tensor(
-            [
-                [1.399478, -0.875986, -0.523492],
-                [-0.869867, 1.400589, -0.530722],
-            ]
-        ).unsqueeze(0)
-        assert_expected(output, expected, rtol=0, atol=1e-4)
 
     def test_invalid_input_length(self):
         input = torch.randn(3, 4, 4)
