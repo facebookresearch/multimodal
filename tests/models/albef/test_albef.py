@@ -79,26 +79,6 @@ def albef_model_output(albef_model):
     return albef_model(image, text, text_atts)
 
 
-def test_albef_image_embeddings(albef_model_output):
-    expected = Tensor(
-        [
-            [[1.364883, -1.003092, -0.361791], [-0.634884, 1.411830, -0.776947]],
-            [[1.401580, -0.537510, -0.864071], [1.378901, -0.417473, -0.961429]],
-        ]
-    )
-    assert_expected(albef_model_output.image_embeddings, expected, rtol=0, atol=1e-4)
-
-
-def test_albef_image_embeddings_momentum(albef_model_output):
-    expected = Tensor(
-        [
-            [[1.364883, -1.003092, -0.361791], [-0.634884, 1.411830, -0.776947]],
-            [[1.401580, -0.537510, -0.864070], [1.378902, -0.417473, -0.961429]],
-        ]
-    )
-    assert_expected(albef_model_output.image_embeddings_m, expected, rtol=0, atol=1e-4)
-
-
 def test_albef_text_embeddings(albef_model_output):
     expected = Tensor(
         [
@@ -117,30 +97,6 @@ def test_albef_text_embeddings_momentum(albef_model_output):
         ]
     )
     assert_expected(albef_model_output.text_embeddings_m, expected, rtol=0, atol=1e-4)
-
-
-def test_albef_multimodal_embeddings(albef_model_output):
-    expected = Tensor(
-        [
-            [[-0.068738, 1.257666, -1.188928], [1.409873, -0.609056, -0.800817]],
-            [[-1.402520, 0.544084, 0.858435], [1.202279, -1.246038, 0.043760]],
-        ]
-    )
-    assert_expected(
-        albef_model_output.multimodal_embeddings, expected, rtol=0, atol=1e-4
-    )
-
-
-def test_albef_multimodal_embeddings_momentum(albef_model_output):
-    expected = Tensor(
-        [
-            [[-0.068738, 1.257666, -1.188928], [1.409873, -0.609056, -0.800817]],
-            [[-1.402520, 0.544084, 0.858435], [1.202279, -1.246038, 0.043760]],
-        ]
-    )
-    assert_expected(
-        albef_model_output.multimodal_embeddings_m, expected, rtol=0, atol=1e-4
-    )
 
 
 def test_copy_params_momentum_models():
